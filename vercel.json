@@ -1,0 +1,23 @@
+{
+	"crons": [
+		{
+			"path": "/api/cron/daily-notification",
+			"schedule": "30 22 * * *"
+		}
+	],
+	"headers": [
+		{
+			"source": "/(.*)",
+			"headers": [
+				{
+					"key": "Permissions-Policy",
+					"value": "push=(self)"
+				},
+				{
+					"key": "X-Content-Type-Options",
+					"value": "nosniff"
+				}
+			]
+		}
+	]
+}

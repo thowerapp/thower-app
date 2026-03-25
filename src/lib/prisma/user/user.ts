@@ -327,7 +327,8 @@ export async function getUserByIdPrisma(id: string) {
 			totpKey: true,
 			googleId: true,
 			name: true,
-			picture: true
+			picture: true,
+			subscriptionEndsAt: true
 		}
 	});
 }

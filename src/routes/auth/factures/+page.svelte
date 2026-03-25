@@ -26,7 +26,7 @@
 </script>
 
 <!-- UI Table -->
-<div class="ccc w-[100%]">
+<div class="ccc w-[100%] pb-28">
 	<Table
 		name="Factures"
 		columns={userColumns}

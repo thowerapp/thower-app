@@ -63,13 +63,23 @@
         });
     }
 
-    return () => {
-      cancelled = true;
-      removeVisibility?.();
-      window.removeEventListener('beforeinstallprompt', handler);
-      window.removeEventListener('appinstalled', installedHandler);
-    };
-  });
+		return () => {
+			cancelled = true;
+			removeVisibility?.();
+			window.removeEventListener('beforeinstallprompt', handler);
+			window.removeEventListener('appinstalled', installedHandler);
+		};
+	});
+	
+	$effect(() => {
+		const unsubscribe = page.subscribe((currentPage) => {
+			initializeLayoutState(currentPage);
+		});
+		setupNavigationEffect();
+		setFirstOpen(true);
+		setRessourceToValide(true);
+		return unsubscribe;
+	});
 
   $effect(() => {
     const unsubscribe = page.subscribe((currentPage) => {
@@ -154,13 +164,13 @@
 
 <style lang="scss">
   /* ── Variables globales ── */
-  :global(*, *::before, *::after) {
+  *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
   }
 
-  :global(:root) {
+  :root {
     --black: #0a0a0a;
     --white: #f0ede8;
     --gold: #c9a84c;
@@ -168,11 +178,11 @@
     --gray: #2a2a2a;
   }
 
-  :global(html) {
+  html {
     scroll-behavior: smooth;
   }
 
-  :global(body) {
+  body {
     background: var(--black);
     color: var(--white);
     font-family: 'DM Sans', sans-serif;

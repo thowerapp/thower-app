@@ -9,6 +9,7 @@ export type CreateTransactionData = {
 	status: string;
 	customer_details_email?: string | null;
 	customer_details_name?: string | null;
+	offerSlugs?: string[];
 };
 
 export async function createTransactionFromStripeSession(session: Stripe.Checkout.Session) {
@@ -17,6 +18,17 @@ export async function createTransactionFromStripeSession(session: Stripe.Checkou
 	const status = session.payment_status ?? 'unknown';
 	const userId = session.metadata?.userId ?? session.client_reference_id ?? null;
 
+	let offerSlugs: string[] = [];
+	const raw = session.metadata?.offerSlugs ?? session.metadata?.programSlugs;
+	if (typeof raw === 'string' && raw) {
+		try {
+			offerSlugs = JSON.parse(raw) as string[];
+		} catch {
+			offerSlugs = [];
+		}
+	}
+	if (!Array.isArray(offerSlugs)) offerSlugs = [];
+
 	const data: CreateTransactionData = {
 		stripePaymentId: session.id,
 		userId: userId || null,
@@ -24,7 +36,8 @@ export async function createTransactionFromStripeSession(session: Stripe.Checkou
 		currency,
 		status,
 		customer_details_email: session.customer_details?.email ?? '',
-		customer_details_name: session.customer_details?.name ?? ''
+		customer_details_name: session.customer_details?.name ?? '',
+		offerSlugs
 	};
 
 	return prisma.transaction.create({
@@ -35,7 +48,8 @@ export async function createTransactionFromStripeSession(session: Stripe.Checkou
 			currency: data.currency,
 			status: data.status,
 			customer_details_email: data.customer_details_email ?? '',
-			customer_details_name: data.customer_details_name ?? ''
+			customer_details_name: data.customer_details_name ?? '',
+			offerSlugs: data.offerSlugs ?? []
 		}
 	});
 }

@@ -22,7 +22,7 @@ import { zod } from '$lib/superforms-zod';
 import type { SessionFlags } from '$lib/lucia/session';
 import { isMfaEnabledSchema } from '$lib/schema/users/MfaEnabledSchema';
 import { getUserMFA, updateUserMFA } from '$lib/prisma/user/user';
-import { getMeasurementsByUserId } from '$lib/prisma/measurement/getMeasurementsByUserId';
+import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
 import { prisma } from '$lib/server';
 
@@ -77,8 +77,8 @@ export const load = async (event: PageServerLoadEvent) => {
 		zod(isMfaEnabledSchema)
 	);
 
-	const measurements = await getMeasurementsByUserId(event.locals.user.id, 1);
-	const hasMeasurements = measurements.length > 0;
+	const bodyMeasurements = await getBodyMeasurementsByUserId(event.locals.user.id, 1);
+	const hasMeasurements = bodyMeasurements.length > 0;
 	const [hasValidPayment, userSubscription, hasAnyTransaction] = await Promise.all([
 		getHasValidPaymentByUserId(event.locals.user.id),
 		prisma.user.findUnique({

@@ -1,9 +1,14 @@
 import { fail, redirect, isRedirect } from '@sveltejs/kit';
-import { getMeasurementsByUserId } from '$lib/prisma/measurement/getMeasurementsByUserId';
+import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
+import { getActiveOffers } from '$lib/prisma/offer/getActiveOffers';
 import { prisma } from '$lib/server';
 import { stripe } from '$lib/server/stripe';
-import { SUBSCRIPTION_PLANS, type PlanId } from '$lib/server/subscription-plans';
+import {
+	SUBSCRIPTION_PLANS,
+	getPlansForOfferSlugs,
+	type PlanId
+} from '$lib/server/subscription-plans';
 
 import type { Actions, RequestEvent } from './$types';
 
@@ -16,8 +21,11 @@ export const load = async (event: RequestEvent) => {
 		return redirect(302, '/auth/verify-email');
 	}
 
-	const measurements = await getMeasurementsByUserId(event.locals.user.id, 1);
-	const hasMeasurements = measurements.length > 0;
+	const bodyMeasurements = await getBodyMeasurementsByUserId(event.locals.user.id, 1);
+	const hasMeasurements = bodyMeasurements.length > 0;
+	const offers = await getActiveOffers();
+	const defaultPlans = getPlansForOfferSlugs(offers, []);
+
 	const [hasValidPayment, userRow] = await Promise.all([
 		getHasValidPaymentByUserId(event.locals.user.id),
 		prisma.user.findUnique({
@@ -31,7 +39,9 @@ export const load = async (event: RequestEvent) => {
 		hasMeasurements,
 		hasValidPayment,
 		subscriptionEndsAt: userRow?.subscriptionEndsAt ?? null,
-		plans: SUBSCRIPTION_PLANS
+		offers,
+		defaultPlans,
+		SUBSCRIPTION_PLANS
 	};
 };
 
@@ -43,8 +53,8 @@ export const actions: Actions = {
 			return fail(401, { message: 'Non authentifié' });
 		}
 
-		const measurements = await getMeasurementsByUserId(event.locals.user.id, 1);
-		if (measurements.length === 0) {
+		const bodyMeasurements = await getBodyMeasurementsByUserId(event.locals.user.id, 1);
+		if (bodyMeasurements.length === 0) {
 			return fail(400, { message: 'Profil physique requis avant le paiement' });
 		}
 
@@ -54,7 +64,23 @@ export const actions: Actions = {
 			return fail(400, { message: 'Formule invalide' });
 		}
 
-		const plan = SUBSCRIPTION_PLANS[planId as PlanId];
+		let selectedOfferSlugs: string[] = [];
+		const slugsRaw = formData.get('selectedOfferSlugs');
+		if (typeof slugsRaw === 'string' && slugsRaw) {
+			try {
+				selectedOfferSlugs = JSON.parse(slugsRaw) as string[];
+			} catch {
+				selectedOfferSlugs = [];
+			}
+		}
+		if (!Array.isArray(selectedOfferSlugs)) selectedOfferSlugs = [];
+
+		const offers = await getActiveOffers();
+		const validSlugs = new Set(offers.map((p) => p.slug));
+		const slugs = selectedOfferSlugs.filter((s) => validSlugs.has(s));
+
+		const plans = getPlansForOfferSlugs(offers, slugs);
+		const plan = plans[planId as PlanId];
 		const origin = event.url.origin;
 		const successUrl = `${origin}/auth/subscription?success=1`;
 		const cancelUrl = `${origin}/auth/subscription?canceled=1`;
@@ -81,7 +107,8 @@ export const actions: Actions = {
 				customer_email: event.locals.user.email ?? undefined,
 				metadata: {
 					plan: planId,
-					userId: event.locals.user.id
+					userId: event.locals.user.id,
+					offerSlugs: slugs.length > 0 ? JSON.stringify(slugs) : ''
 				}
 			});
 

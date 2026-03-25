@@ -40,6 +40,11 @@ export default defineConfig({
 		exclude: ['@node-rs/argon2', '@node-rs/bcrypt']
 	},
 
+	/** Évite un client Prisma « figé » dans le bundle SSR après `prisma generate`. */
+	ssr: {
+		external: ['@prisma/client']
+	},
+
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}']
 	},

@@ -3,6 +3,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
+		"postinstall": "prisma generate",
 		"clean:vite": "rimraf node_modules/.vite .vite_cache",
 		"dev": "vite dev --port 2000",
 		"cacheclean": "npm cache clean --force",
@@ -21,7 +22,9 @@
 		"test:e2e": "playwright test",
 		"model-pipeline:run": "node scripts/model-pipeline.js",
 		"seed": "node src/lib/server/seed.js",
-		"reset": "node src/lib/server/resetDb.js"
+		"seed:admin": "node src/lib/server/seedAdmin.js",
+		"reset": "node src/lib/server/resetDb.js",
+		"migrate:measurements": "tsx scripts/migrate-measurements-to-profile-and-body.ts"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.11.0",
@@ -214,6 +217,7 @@
 		"troika-three-utils": "^0.52.4",
 		"troika-worker-utils": "^0.52.0",
 		"ts-deepmerge": "^7.0.3",
+		"tus-js-client": "^4.3.1",
 		"tweakpane": "^4.0.5",
 		"uqr": "^0.1.2",
 		"valibot": "^1.2.0",

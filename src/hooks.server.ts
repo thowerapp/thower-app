@@ -150,7 +150,8 @@ const authHandle: Handle = async ({ event, resolve }) => {
 							name: freshUser.name,
 							picture: freshUser.picture,
 							role: freshUser.role,
-							isMfaEnabled: freshUser.isMfaEnabled
+							isMfaEnabled: freshUser.isMfaEnabled,
+							subscriptionEndsAt: freshUser.subscriptionEndsAt ?? null
 						};
 						log('DEBUG', 'Auth', 'Mapped user object:', user);
 					} else {

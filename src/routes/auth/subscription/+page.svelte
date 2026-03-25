@@ -8,6 +8,45 @@
 
 	let { data }: PageProps = $props();
 
+	type OfferRow = { id: string; slug: string; name: string; amountCentsMonthly: number; amountCentsAnnual: number };
+	type PlanInfo = { amountCents: number; label: string; description: string };
+	type PlansData = { monthly?: PlanInfo; annual?: PlanInfo };
+
+	const offers = $derived((data as unknown as { offers?: OfferRow[] })?.offers ?? []);
+	const defaultPlans = $derived((data as unknown as { defaultPlans?: PlansData })?.defaultPlans ?? ({} as PlansData));
+	const SUBSCRIPTION_PLANS = $derived((data as unknown as { SUBSCRIPTION_PLANS?: PlansData })?.SUBSCRIPTION_PLANS ?? {});
+
+	let selectedOfferSlugs = $state<string[]>([]);
+
+	function toggleOffer(slug: string) {
+		if (selectedOfferSlugs.includes(slug)) {
+			selectedOfferSlugs = selectedOfferSlugs.filter((s) => s !== slug);
+		} else {
+			selectedOfferSlugs = [...selectedOfferSlugs, slug];
+		}
+	}
+
+	const plans = $derived.by(() => {
+		const base = SUBSCRIPTION_PLANS as Record<string, PlanInfo>;
+		if (selectedOfferSlugs.length === 0) {
+			return {
+				monthly: defaultPlans.monthly ?? base.monthly,
+				annual: defaultPlans.annual ?? base.annual
+			};
+		}
+		const selected = offers.filter((p) => selectedOfferSlugs.includes(p.slug));
+		const monthlyCents = selected.reduce((s, p) => s + p.amountCentsMonthly, 0);
+		const annualCents = selected.reduce((s, p) => s + p.amountCentsAnnual, 0);
+		return {
+			monthly: base.monthly
+				? { ...base.monthly, amountCents: monthlyCents || (defaultPlans.monthly?.amountCents ?? base.monthly.amountCents) }
+				: undefined,
+			annual: base.annual
+				? { ...base.annual, amountCents: annualCents || (defaultPlans.annual?.amountCents ?? base.annual.amountCents) }
+				: undefined
+		};
+	});
+
 	const success = $derived($page.url.searchParams.get('success') === '1');
 	const canceled = $derived($page.url.searchParams.get('canceled') === '1');
 	const errorMessage = $derived($page.form?.message);
@@ -18,8 +57,6 @@
 			? new Date(subscriptionEndsAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 			: null
 	);
-	type PlansData = { monthly?: { amountCents: number; label: string; description: string }; annual?: { amountCents: number; label: string; description: string } };
-	const plans = $derived((data as unknown as { plans?: PlansData })?.plans ?? ({} as PlansData));
 	const formatPrice = (cents: number) =>
 		new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
 </script>
@@ -113,18 +150,41 @@
 					{hasValidPayment
 						? 'Choisissez une formule pour prolonger votre accès. Paiement sécurisé par Stripe.'
 						: 'Choisissez votre formule. Paiement sécurisé par Stripe.'}
+					Sélectionnez une ou plusieurs offres ci-dessous : le tarif s'adapte à votre choix.
 				</Card.Description>
 			</Card.Header>
 			<Card.Content class="space-y-4">
+				{#if offers.length > 0}
+					<div class="space-y-2">
+						<p class="text-sm font-medium">Offres</p>
+						<div class="flex flex-wrap gap-3">
+							{#each offers as offer}
+								<label class="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 cursor-pointer hover:bg-accent/50">
+									<input
+										type="checkbox"
+										checked={selectedOfferSlugs.includes(offer.slug)}
+										onchange={() => toggleOffer(offer.slug)}
+										class="h-4 w-4 rounded border-input"
+									/>
+									<span>{offer.name}</span>
+									<span class="text-muted-foreground text-sm">
+										{formatPrice(offer.amountCentsMonthly)}/mois — {formatPrice(offer.amountCentsAnnual)}/an
+									</span>
+								</label>
+							{/each}
+						</div>
+					</div>
+				{/if}
 				<p class="text-muted-foreground">
 					{hasValidPayment
 						? 'Votre accès sera prolongé à partir de la date de fin actuelle.'
-						: 'Votre profil physique est à jour. Sélectionnez une offre puis procédez au paiement.'}
+						: 'Sélectionnez une ou plusieurs offres puis choisissez la formule (mensuel ou annuel).'}
 				</p>
 				<div class="grid gap-3 sm:grid-cols-2">
 					{#if plans.monthly}
 						<form method="POST" action="?/createCheckout" use:enhance class="rounded-lg border bg-card p-4">
 							<input type="hidden" name="plan" value="monthly" />
+							<input type="hidden" name="selectedOfferSlugs" value={JSON.stringify(selectedOfferSlugs)} />
 							<div class="mb-3">
 								<div class="font-semibold">{plans.monthly.label}</div>
 								<div class="text-2xl font-bold text-primary">{formatPrice(plans.monthly.amountCents)}<span class="text-sm font-normal text-muted-foreground">/mois</span></div>
@@ -139,6 +199,7 @@
 					{#if plans.annual}
 						<form method="POST" action="?/createCheckout" use:enhance class="rounded-lg border-2 border-primary/50 bg-card p-4">
 							<input type="hidden" name="plan" value="annual" />
+							<input type="hidden" name="selectedOfferSlugs" value={JSON.stringify(selectedOfferSlugs)} />
 							<div class="mb-3">
 								<span class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Avantageux</span>
 								<div class="mt-2 font-semibold">{plans.annual.label}</div>

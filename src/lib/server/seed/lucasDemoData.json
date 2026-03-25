@@ -1,0 +1,126 @@
+{
+	"$schema": "Données factices complètes pour Lucas (nutrition + sport, 90 jours)",
+	"programTotalDays": 90,
+	"sport": {
+		"description": "Jours du programme (1–90) avec une séance sport. Semaine type : J2=A, J4=B, J6=C. 39 séances au total (J2 à J90). sessionIndex: 0=Séance A, 1=Séance B, 2=Séance C.",
+		"sessionDays": [
+			{ "dayIndex": 2, "sessionIndex": 0 },
+			{ "dayIndex": 4, "sessionIndex": 1 },
+			{ "dayIndex": 6, "sessionIndex": 2 },
+			{ "dayIndex": 9, "sessionIndex": 0 },
+			{ "dayIndex": 11, "sessionIndex": 1 },
+			{ "dayIndex": 13, "sessionIndex": 2 },
+			{ "dayIndex": 16, "sessionIndex": 0 },
+			{ "dayIndex": 18, "sessionIndex": 1 },
+			{ "dayIndex": 20, "sessionIndex": 2 },
+			{ "dayIndex": 23, "sessionIndex": 0 },
+			{ "dayIndex": 25, "sessionIndex": 1 },
+			{ "dayIndex": 27, "sessionIndex": 2 },
+			{ "dayIndex": 30, "sessionIndex": 0 },
+			{ "dayIndex": 32, "sessionIndex": 1 },
+			{ "dayIndex": 34, "sessionIndex": 2 },
+			{ "dayIndex": 37, "sessionIndex": 0 },
+			{ "dayIndex": 39, "sessionIndex": 1 },
+			{ "dayIndex": 41, "sessionIndex": 2 },
+			{ "dayIndex": 44, "sessionIndex": 0 },
+			{ "dayIndex": 46, "sessionIndex": 1 },
+			{ "dayIndex": 48, "sessionIndex": 2 },
+			{ "dayIndex": 51, "sessionIndex": 0 },
+			{ "dayIndex": 53, "sessionIndex": 1 },
+			{ "dayIndex": 55, "sessionIndex": 2 },
+			{ "dayIndex": 58, "sessionIndex": 0 },
+			{ "dayIndex": 60, "sessionIndex": 1 },
+			{ "dayIndex": 62, "sessionIndex": 2 },
+			{ "dayIndex": 65, "sessionIndex": 0 },
+			{ "dayIndex": 67, "sessionIndex": 1 },
+			{ "dayIndex": 69, "sessionIndex": 2 },
+			{ "dayIndex": 72, "sessionIndex": 0 },
+			{ "dayIndex": 74, "sessionIndex": 1 },
+			{ "dayIndex": 76, "sessionIndex": 2 },
+			{ "dayIndex": 79, "sessionIndex": 0 },
+			{ "dayIndex": 81, "sessionIndex": 1 },
+			{ "dayIndex": 83, "sessionIndex": 2 },
+			{ "dayIndex": 86, "sessionIndex": 0 },
+			{ "dayIndex": 88, "sessionIndex": 1 },
+			{ "dayIndex": 90, "sessionIndex": 2 }
+		],
+		"completedBeforeDayIndex": 10,
+		"descriptionCompleted": "Toutes les séances dont dayIndex <= completedBeforeDayIndex sont marquées complétées (Lucas est à J10)."
+	},
+	"nutrition": {
+		"description": "Lucas a breakfastEnabled: true, 3 repas/jour. recipeIndex: 0=poulet curry, 1=salade noix gorgonzola, 2=saumon (éviter - allergie), 3=bowl œuf quinoa. recipeCycle répété sur 90 jours.",
+		"familyCoefficient": 2.1,
+		"mealMacros": {
+			"BREAKFAST": { "quantityG": 525, "calcProteinG": 46, "calcCarbsG": 59, "calcFatG": 17, "calcCalories": 580 },
+			"LUNCH": { "quantityG": 945, "calcProteinG": 109, "calcCarbsG": 80, "calcFatG": 25, "calcCalories": 1000 },
+			"DINNER": { "quantityG": 882, "calcProteinG": 101, "calcCarbsG": 46, "calcFatG": 34, "calcCalories": 899 }
+		},
+		"recipeCycle": [
+			{ "BREAKFAST": 3, "LUNCH": 0, "DINNER": 1 },
+			{ "BREAKFAST": 3, "LUNCH": 1, "DINNER": 0 },
+			{ "BREAKFAST": 3, "LUNCH": 0, "DINNER": 1 },
+			{ "BREAKFAST": 3, "LUNCH": 1, "DINNER": 0 },
+			{ "BREAKFAST": 3, "LUNCH": 0, "DINNER": 1 },
+			{ "BREAKFAST": 3, "LUNCH": 1, "DINNER": 0 },
+			{ "BREAKFAST": 3, "LUNCH": 0, "DINNER": 1 }
+		]
+	},
+	"shopping": {
+		"description": "Listes de courses par période de 7 jours (J1–90). 13 périodes : 1–7, 8–14, …, 85–90. Les quantités sont pour la famille (× familyCoefficient).",
+		"periods": [
+			{ "startDayIndex": 1, "endDayIndex": 7 },
+			{ "startDayIndex": 8, "endDayIndex": 14 },
+			{ "startDayIndex": 15, "endDayIndex": 21 },
+			{ "startDayIndex": 22, "endDayIndex": 28 },
+			{ "startDayIndex": 29, "endDayIndex": 35 },
+			{ "startDayIndex": 36, "endDayIndex": 42 },
+			{ "startDayIndex": 43, "endDayIndex": 49 },
+			{ "startDayIndex": 50, "endDayIndex": 56 },
+			{ "startDayIndex": 57, "endDayIndex": 63 },
+			{ "startDayIndex": 64, "endDayIndex": 70 },
+			{ "startDayIndex": 71, "endDayIndex": 77 },
+			{ "startDayIndex": 78, "endDayIndex": 84 },
+			{ "startDayIndex": 85, "endDayIndex": 90 }
+		],
+		"itemsByPeriod": [
+			[{"ingredientName":"Blanc de poulet","category":"Viandes","totalQuantityG":1890,"unit":"g","isChecked":false},{"ingredientName":"Quinoa","category":"Féculents","totalQuantityG":504,"unit":"g","isChecked":false},{"ingredientName":"Œufs","category":"Produits frais","totalQuantityG":420,"unit":"g","isChecked":true},{"ingredientName":"Mesclun","category":"Légumes","totalQuantityG":336,"unit":"g","isChecked":false},{"ingredientName":"Noix","category":"Fruits secs","totalQuantityG":126,"unit":"g","isChecked":false},{"ingredientName":"Gorgonzola","category":"Fromages","totalQuantityG":168,"unit":"g","isChecked":true},{"ingredientName":"Riz basmati","category":"Féculents","totalQuantityG":600,"unit":"g","isChecked":false},{"ingredientName":"Lait de coco","category":"Conserves","totalQuantityG":400,"unit":"ml","isChecked":false},{"ingredientName":"Curry en poudre","category":"Épices","totalQuantityG":15,"unit":"g","isChecked":true},{"ingredientName":"Courgette","category":"Légumes","totalQuantityG":420,"unit":"g","isChecked":false},{"ingredientName":"Poivron rouge","category":"Légumes","totalQuantityG":336,"unit":"g","isChecked":false}],
+			[
+				{ "ingredientName": "Blanc de poulet", "category": "Viandes", "totalQuantityG": 1890, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Quinoa", "category": "Féculents", "totalQuantityG": 504, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Œufs", "category": "Produits frais", "totalQuantityG": 420, "unit": "g", "isChecked": true },
+				{ "ingredientName": "Mesclun", "category": "Légumes", "totalQuantityG": 336, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Noix", "category": "Fruits secs", "totalQuantityG": 126, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Gorgonzola", "category": "Fromages", "totalQuantityG": 168, "unit": "g", "isChecked": true },
+				{ "ingredientName": "Riz basmati", "category": "Féculents", "totalQuantityG": 600, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Lait de coco", "category": "Conserves", "totalQuantityG": 400, "unit": "ml", "isChecked": false },
+				{ "ingredientName": "Curry en poudre", "category": "Épices", "totalQuantityG": 15, "unit": "g", "isChecked": true },
+				{ "ingredientName": "Courgette", "category": "Légumes", "totalQuantityG": 420, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Poivron rouge", "category": "Légumes", "totalQuantityG": 336, "unit": "g", "isChecked": false }
+			],
+			[
+				{ "ingredientName": "Blanc de poulet", "category": "Viandes", "totalQuantityG": 2000, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Poulet cuit", "category": "Viandes", "totalQuantityG": 600, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Mesclun", "category": "Légumes", "totalQuantityG": 400, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Noix", "category": "Fruits secs", "totalQuantityG": 150, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Gorgonzola", "category": "Fromages", "totalQuantityG": 200, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Quinoa", "category": "Féculents", "totalQuantityG": 500, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Œufs", "category": "Produits frais", "totalQuantityG": 450, "unit": "g", "isChecked": true },
+				{ "ingredientName": "Courgette", "category": "Légumes", "totalQuantityG": 400, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Poivron rouge", "category": "Légumes", "totalQuantityG": 350, "unit": "g", "isChecked": false },
+				{ "ingredientName": "Lait de coco", "category": "Conserves", "totalQuantityG": 400, "unit": "ml", "isChecked": false }
+			]
+		],
+		"defaultItems": [
+			{ "ingredientName": "Blanc de poulet", "category": "Viandes", "totalQuantityG": 1900, "unit": "g", "isChecked": false },
+			{ "ingredientName": "Quinoa", "category": "Féculents", "totalQuantityG": 500, "unit": "g", "isChecked": false },
+			{ "ingredientName": "Œufs", "category": "Produits frais", "totalQuantityG": 420, "unit": "g", "isChecked": false },
+			{ "ingredientName": "Mesclun", "category": "Légumes", "totalQuantityG": 350, "unit": "g", "isChecked": false },
+			{ "ingredientName": "Noix", "category": "Fruits secs", "totalQuantityG": 130, "unit": "g", "isChecked": false },
+			{ "ingredientName": "Gorgonzola", "category": "Fromages", "totalQuantityG": 170, "unit": "g", "isChecked": false },
+			{ "ingredientName": "Riz basmati", "category": "Féculents", "totalQuantityG": 600, "unit": "g", "isChecked": false },
+			{ "ingredientName": "Lait de coco", "category": "Conserves", "totalQuantityG": 400, "unit": "ml", "isChecked": false },
+			{ "ingredientName": "Courgette", "category": "Légumes", "totalQuantityG": 400, "unit": "g", "isChecked": false },
+			{ "ingredientName": "Poivron rouge", "category": "Légumes", "totalQuantityG": 350, "unit": "g", "isChecked": false }
+		]
+	}
+}

@@ -12,28 +12,74 @@ export type SubscriptionPlan = {
 	description: string;
 };
 
+const defaultMonthlyCents = Number(env.STRIPE_PLAN_MONTHLY_CENTS ?? 2900);
+const defaultAnnualCents = Number(env.STRIPE_PLAN_ANNUAL_CENTS ?? 9900);
+
 /**
- * Offres d'abonnement. Les montants sont configurables via les variables d'environnement.
+ * Offres d'abonnement (tarifs par défaut). Les montants sont configurables via les variables d'environnement.
+ * Pour des tarifs selon le programme (nutrition / sport / les deux), utiliser getPlansForProgram().
  * Exemple .env :
  *   STRIPE_PLAN_MONTHLY_CENTS=2900   (29 €/mois)
  *   STRIPE_PLAN_ANNUAL_CENTS=9900    (99 €/an)
+ *   STRIPE_PLAN_MONTHLY_NUTRITION_CENTS=2400
+ *   STRIPE_PLAN_MONTHLY_SPORT_CENTS=2400
+ *   STRIPE_PLAN_MONTHLY_BOTH_CENTS=2900
+ *   STRIPE_PLAN_ANNUAL_NUTRITION_CENTS=7900
+ *   STRIPE_PLAN_ANNUAL_SPORT_CENTS=7900
+ *   STRIPE_PLAN_ANNUAL_BOTH_CENTS=9900
  */
 export const SUBSCRIPTION_PLANS: Record<PlanId, SubscriptionPlan> = {
 	monthly: {
 		id: 'monthly',
-		amountCents: Number(env.STRIPE_PLAN_MONTHLY_CENTS ?? 2900),
+		amountCents: defaultMonthlyCents,
 		durationMonths: 1,
 		label: 'Mensuel',
 		description: 'Accès accompagnement, facturé chaque mois.'
 	},
 	annual: {
 		id: 'annual',
-		amountCents: Number(env.STRIPE_PLAN_ANNUAL_CENTS ?? 9900),
+		amountCents: defaultAnnualCents,
 		durationMonths: 12,
 		label: 'Annuel',
 		description: 'Accès accompagnement 1 an, tarif avantageux.'
 	}
 };
+
+export type OfferForPricing = {
+	slug: string;
+	amountCentsMonthly: number;
+	amountCentsAnnual: number;
+};
+
+/**
+ * Retourne les plans (mensuel/annuel) avec les montants = somme des offres sélectionnées.
+ * Si aucun slug valide ou liste vide, utilise les tarifs par défaut (env).
+ */
+export function getPlansForOfferSlugs(
+	offers: OfferForPricing[],
+	selectedSlugs: string[]
+): Record<PlanId, SubscriptionPlan> {
+	const slugsSet = new Set(selectedSlugs);
+	const selected = offers.filter((p) => slugsSet.has(p.slug));
+
+	let monthlyCents = defaultMonthlyCents;
+	let annualCents = defaultAnnualCents;
+	if (selected.length > 0) {
+		monthlyCents = selected.reduce((sum, p) => sum + p.amountCentsMonthly, 0);
+		annualCents = selected.reduce((sum, p) => sum + p.amountCentsAnnual, 0);
+	}
+
+	return {
+		monthly: {
+			...SUBSCRIPTION_PLANS.monthly,
+			amountCents: monthlyCents
+		},
+		annual: {
+			...SUBSCRIPTION_PLANS.annual,
+			amountCents: annualCents
+		}
+	};
+}
 
 /**
  * Calcule la date de fin d'accès pour un plan.

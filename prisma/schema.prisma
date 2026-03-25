@@ -7,6 +7,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ENUMS
+// ═══════════════════════════════════════════════════════════════════════════
+
 enum Role {
   ADMIN
   CLIENT
@@ -18,7 +22,94 @@ enum ActivityLevel {
   ATHLETE
 }
 
-// AUTH __________________________________________________________________________________
+/// Type de séance sport (A → B → C obligatoires + Découverte facultative)
+enum WorkoutSessionType {
+  MAIN_A
+  MAIN_B
+  MAIN_C
+  DISCOVERY
+}
+
+/// Position d'une vidéo dans une séance
+enum WorkoutVideoPosition {
+  PRE    /// pré-séance facultative
+  VID1   /// vidéo 1 obligatoire
+  VID2   /// vidéo 2 obligatoire
+}
+
+/// Position d'un repas dans la journée
+enum MealPosition {
+  BREAKFAST
+  LUNCH
+  DINNER
+}
+
+/// Catégorie d'une recette
+enum RecipeCategory {
+  FIRST_3_MONTHS /// recettes des 3 premiers mois
+  NEW            /// nouvelles recettes
+  CUSTOM         /// recettes perso utilisateur
+}
+
+/// Catégorie du contenu Découverte (Motivation, Explication, Breathwork…)
+enum DiscoveryCategory {
+  MEDITATION
+  MINDSET
+  BREATHWORK
+  MOTIVATION   /// vidéos/audio motivation & discipline
+  EXPLICATION  /// explication méthode (jeûne, protéine, cycle circadien, recettes…)
+}
+
+/// Type d’item sur un jour du programme 91 (défini par l’admin)
+enum ProgramDayItemType {
+  DAILY_TASK       /// tâche ligne directrice (eau, pas de téléphone…)
+  VIDEO_OF_DAY     /// vidéo du jour (motivation / explication)
+  BREATHWORK       /// respiration (lien vers vidéo)
+  SPORT_SESSION    /// séance sport
+  STEPS            /// nombre de pas (seuil optionnel, sync Health plus tard)
+  MINDSET_VIDEO    /// mindset (discipline, etc.)
+  CUSTOM           /// label + points libres (ex: ne pas manger de sucre 30 pts)
+}
+
+/// Angle pour les photos de progression
+enum PhotoAngle {
+  FRONT
+  SIDE
+  BACK
+}
+
+/// Type d'événement de points (gain positif / dépense négative)
+enum PointEventType {
+  WORKOUT_COMPLETE
+  VIDEO_WATCHED
+  DAILY_TASK
+  BADGE_UNLOCK
+  CHALLENGE_COMPLETE
+  PHOTO_UPLOAD
+  POINT_SPENT
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONTACT (formulaire public)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Contact {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  email     String
+  subject   String?
+  message   String
+  createdAt DateTime @default(now())
+
+  @@map("contacts")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════════════════
+
 model User {
   id                        String                     @id @default(auto()) @map("_id") @db.ObjectId
   email                     String                     @unique
@@ -28,29 +119,68 @@ model User {
   emailVerified             Boolean                    @default(false)
   isMfaEnabled              Boolean                    @default(false)
   totpKey                   Bytes?
-  googleId                  String?                    @unique
+  googleId                  String?
   name                      String?
   picture                   String?
   role                      Role                       @default(CLIENT)
   /// Fin de validité de l'accès accompagnement (null = accès à vie ou non souscrit)
   subscriptionEndsAt        DateTime?
+  /// Date de début du programme 91 jours (pour calculer le jour courant)
+  programStartDate          DateTime?
+  /// Stop/Report activé par l’admin uniquement (maladie, blessure)
+  programPausedAt            DateTime?
+  programPausedReason        String?
+  createdAt                 DateTime                   @default(now())
+
+  // Auth
   transactions              Transaction[]
   sessions                  Session[]
   emailVerificationRequests EmailVerificationRequest[] @relation("UserEmailVerificationRequests")
   passwordResetSessions     PasswordResetSession[]     @relation("UserPasswordResetSessions")
-  measurements              Measurement[]
   pushSubscriptions         PushSubscription[]
-  createdAt     DateTime @default(now())
+
+  // Profil & mensurations
+  profile                   UserProfile?
+  bodyMeasurements          BodyMeasurement[]
+
+  // Sport (lot 3)
+  workoutDays               UserWorkoutDay[]
+  videoWatches              UserVideoWatch[]
+
+  // Nutrition (lot 4 & 5)
+  nutritionDays             NutritionDay[]
+  recipes                   Recipe[]
+  favoriteRecipes           UserFavoriteRecipe[]
+
+  // Courses (lot 6)
+  shoppingLists             ShoppingList[]
+
+  // Gamification (lot 7)
+  pointEvents               PointEvent[]
+  userBadges                UserBadge[]
+
+  // Checklist (lot 8)
+  dailyTaskOptOuts          UserDailyTaskOptOut[]
+  dailyTaskCompletions      DailyTaskCompletion[]
+
+  // Découverte (lot 9)
+  discoveryWatches          UserDiscoveryWatch[]
+
+  // Progression (lot 10)
+  progressPhotos            ProgressPhoto[]
+
+  // Défis admin (lot 12)
+  challenges                UserChallenge[]
+
+  // Programme 91 jours — validations des items du jour
+  programDayItemCompletions UserProgramDayItemCompletion[]
 }
 
 model Session {
   /// ID écrit par Lucia (nanoid) → plus de contrainte ObjectId
   id                String   @id @map("_id")
-
-  /// relation vers l'utilisateur
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId            String
-
   expiresAt         DateTime
   twoFactorVerified Boolean  @default(false)
   oauthProvider     String?
@@ -79,8 +209,29 @@ model PasswordResetSession {
 }
 
 
+// ═══════════════════════════════════════════════════════════════════════════
+// OFFRES — catalogue avec prix, sélection sur la page paiement (gestion admin)
+// ═══════════════════════════════════════════════════════════════════════════
 
-// PAIEMENT __________________________________________________________________________________
+model Offer {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug               String   @unique
+  name               String
+  amountCentsMonthly Int
+  amountCentsAnnual  Int
+  active             Boolean  @default(true)
+  order              Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("offers")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PAIEMENT
+// ═══════════════════════════════════════════════════════════════════════════
+
 model Transaction {
   id                     String   @id @default(auto()) @map("_id") @db.ObjectId
   stripePaymentId        String   @unique
@@ -90,6 +241,8 @@ model Transaction {
   status                 String
   customer_details_email String?  @default("")
   customer_details_name  String?  @default("")
+  /// Offres achetées dans ce paiement (slugs)
+  offerSlugs             String[] @default([])
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
@@ -98,34 +251,652 @@ model Transaction {
   @@map("transactions")
 }
 
-// MESURES / PROFIL PHYSIQUE __________________________________________________________________________________
-model Measurement {
-  id                         String         @id @default(auto()) @map("_id") @db.ObjectId
-  userId                     String         @db.ObjectId
-  user                       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt                  DateTime       @default(now())
 
-  age                        Int?
-  heightCm                   Float?
-  weightKg                   Float?
-  waistCm                    Float?
-  chestCm                    Float?
-  armCm                      Float?
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT 2 — PROFIL UTILISATEUR & ONBOARDING
+// ═══════════════════════════════════════════════════════════════════════════
 
-  intermittentFastingMorning Boolean?
+model UserProfile {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @unique @db.ObjectId
+
+  // Physique & activité
   activityLevel              ActivityLevel?
+  objectives                 String[]       @default([])
 
+  // Santé & contre-indications
   painsPathologies           String?
+
+  // Contexte
   contextParticular          String?
+
+  // Habitudes alimentaires
   breadManagement            String?
+  allergens                  String[]       @default([])
+  coffeePerDay               Int?
+  alcoholHabit               Boolean?
+  tobaccoHabit               Boolean?
+  breakfastEnabled           Boolean        @default(false)
+
+  // Jeûne intermittent (activation globale ; peut être surchargé par NutritionDay)
+  intermittentFastingMorning Boolean?
+
+  // Sport existant
   sportActivity              String?
 
-  objectives                 String[]
+  /// Coefficient famille en JSON — ex: [{"label":"Conjoint","coefficient":0.6},{"label":"Enfant","coefficient":0.5}]
+  familyCoefficients         Json?
+  /// Tri liste de courses : "category" | "alphabetical"
+  shoppingListSortOrder      String?
 
-  @@index([userId])
+  // Bien-être (échelle 1-10)
+  stressLevel                Int?
+  sleepQuality               Int?
+  bodyConfidence             Int?
+  digestionQuality           Int?
+  happinessLevel             Int?
+  readinessToChange          Int?
+
+  // Alimentation & équipement
+  kitchenEquipment           String[]       @default([])
+  disgustingFoods            String?
+
+  // Objectifs détaillés
+  physicalObjective          String?
+  eventMotivation            String?
+
+  // Addictions
+  addictionsText             String?
+
+  updatedAt                  DateTime       @updatedAt
+
+  @@map("user_profiles")
 }
 
-// WEB PUSH (notifications à 21h30, etc.) __________________________________________________________________________________
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT 2 / LOT 10 — MENSURATIONS (historique)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model BodyMeasurement {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  age      Int?
+  heightCm Float?
+  weightKg Float?
+  waistCm  Float?
+  chestCm  Float?
+  armCm    Float?
+
+  @@index([userId])
+  @@map("body_measurements")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROGRAMME 91 JOURS — structure définie par l’admin (détail d’un jour)
+// Gestion admin : CRUD Program, ProgramDay, ProgramDayItem, DayPopup à tout moment
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Programme Méthode Thower (91 jours) — un enregistrement, structure évolutive
+model Program {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String?  @default("Méthode Thower")
+  totalDays Int      @default(91)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  days    ProgramDay[]
+  popups  DayPopup[]
+}
+
+/// Définition d’un jour (1 à 91) : liste d’items à cocher avec points
+model ProgramDay {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  programId String   @db.ObjectId
+  dayIndex  Int      /// 1–91
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items     ProgramDayItem[]
+
+  @@unique([programId, dayIndex])
+  @@index([programId])
+  @@map("program_days")
+}
+
+/// Un item à cocher sur un jour (tâche, vidéo du jour, breathwork, séance sport, custom…)
+/// Admin : ajout/suppression/modification à tout moment (ex: « ne pas manger de sucre 30 pts »)
+model ProgramDayItem {
+  id             String              @id @default(auto()) @map("_id") @db.ObjectId
+  programDay     ProgramDay          @relation(fields: [programDayId], references: [id], onDelete: Cascade)
+  programDayId   String              @db.ObjectId
+  type           ProgramDayItemType
+  order          Int                 @default(0)
+  points         Int                 @default(0)
+  /// Pour CUSTOM ou surcharge d’affichage
+  label          String?
+  /// Seuil de pas pour type STEPS (ex: 5000 pas = points) — sync Health plus tard
+  stepsThreshold Int?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  dailyTaskId         String?  @db.ObjectId
+  dailyTask           DailyTask?         @relation(fields: [dailyTaskId], references: [id])
+  discoveryContentId  String?  @db.ObjectId
+  discoveryContent     DiscoveryContent? @relation(fields: [discoveryContentId], references: [id])
+  workoutSessionId    String?  @db.ObjectId
+  workoutSession      WorkoutSession?   @relation(fields: [workoutSessionId], references: [id])
+
+  completions UserProgramDayItemCompletion[]
+
+  @@index([programDayId])
+  @@map("program_day_items")
+}
+
+/// Validation par l’utilisateur d’un item du jour (coche = points attribués)
+model UserProgramDayItemCompletion {
+  id                 String         @id @default(auto()) @map("_id") @db.ObjectId
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId              String         @db.ObjectId
+  item               ProgramDayItem  @relation(fields: [programDayItemId], references: [id], onDelete: Cascade)
+  programDayItemId   String         @db.ObjectId
+  completedAt        DateTime       @default(now())
+  /// Si type STEPS : valeur enregistrée (optionnel)
+  stepsValue         Int?
+
+  @@unique([userId, programDayItemId])
+  @@index([userId])
+  @@map("user_program_day_item_completions")
+}
+
+/// Pop-ups / messages motivants par jour (ex: jour 30 = vidéo 1 mois, message avant séance)
+/// Admin : création et édition à tout moment
+model DayPopup {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  programId String   @db.ObjectId
+  dayIndex  Int
+  type      String?  /// CELEBRATION_MONTH, SPORT_MESSAGE, etc.
+  title     String?
+  body      String?
+  videoUrl  String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([programId])
+  @@map("day_popups")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT 3 — SPORT — catalogue géré par l’admin (séances + vidéos YouTube)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Catalogue global de séances défini par l'admin
+model WorkoutSession {
+  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  type        WorkoutSessionType
+  name        String
+  description String?
+  /// Numéro de semaine dans le programme (1–13 pour 91 jours)
+  weekNumber  Int?
+  order       Int                @default(0)
+  active      Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  videos           WorkoutVideo[]
+  userDays         UserWorkoutDay[]
+  programDayItems  ProgramDayItem[]
+
+  @@map("workout_sessions")
+}
+
+/// Vidéos d'une séance (pré facultative + vid1 + vid2 obligatoires)
+/// Admin : ajout/suppression de vidéos sans redéploiement (YouTube)
+model WorkoutVideo {
+  id          String               @id @default(auto()) @map("_id") @db.ObjectId
+  session     WorkoutSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId   String               @db.ObjectId
+  youtubeId   String
+  title       String
+  position    WorkoutVideoPosition
+  isOptional  Boolean             @default(false)
+  order       Int                  @default(0)
+  updatedAt   DateTime             @updatedAt
+
+  watches UserVideoWatch[]
+
+  @@index([sessionId])
+  @@map("workout_videos")
+}
+
+/// Assignation d'une séance à un jour calendrier pour un utilisateur
+model UserWorkoutDay {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String         @db.ObjectId
+  session       WorkoutSession @relation(fields: [sessionId], references: [id])
+  sessionId     String         @db.ObjectId
+  /// Jour du programme 1–91
+  dayIndex      Int
+  scheduledDate DateTime?
+  completedAt   DateTime?
+  /// Verrouillé si le jour est passé
+  isLocked      Boolean        @default(false)
+
+  /// Une occurrence (même séance peut revenir plusieurs fois sur le programme 91j : J2, J9, J16…)
+  @@unique([userId, sessionId, dayIndex])
+  @@index([userId])
+  @@map("user_workout_days")
+}
+
+/// Suivi du visionnage d'une vidéo par un utilisateur
+model UserVideoWatch {
+  id        String       @id @default(auto()) @map("_id") @db.ObjectId
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String       @db.ObjectId
+  video     WorkoutVideo @relation(fields: [videoId], references: [id])
+  videoId   String       @db.ObjectId
+  watchedAt DateTime     @default(now())
+
+  @@unique([userId, videoId])
+  @@index([userId])
+  @@map("user_video_watches")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT 4 & 5 — NUTRITION : RECETTES (catalogue admin + recettes perso)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Fiche recette — partagée (userId null) ou personnelle (userId renseigné)
+/// Admin : gestion catalogue (3 premiers mois, nouvelles recettes) ; client : favoris + perso
+model Recipe {
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  photoUrl     String?
+  prepTimeMin  Int?
+  cookTimeMin  Int?
+  category     RecipeCategory
+  instructions String?
+  active       Boolean        @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  /// null = recette admin partagée ; renseigné = recette perso utilisateur
+  isCustom Boolean @default(false)
+  userId   String? @db.ObjectId
+  user     User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  /// Portion de référence en grammes pour le calcul des ingrédients (liste de courses). Si null, 100g utilisé.
+  referenceYieldG Float?
+
+  ingredients RecipeIngredient[]
+  meals       Meal[]
+  favorites   UserFavoriteRecipe[]
+
+  @@index([userId])
+  @@map("recipes")
+}
+
+/// Ingrédient d'une recette (avec allergènes associés)
+model RecipeIngredient {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId  String   @db.ObjectId
+  name      String
+  /// Quantité de référence en grammes (pour 1 portion = recipe.referenceYieldG)
+  quantityG Float
+  unit      String?
+  /// Catégorie pour tri liste de courses (ex: Viandes, Légumes, Féculents)
+  category  String?
+  allergens String[] @default([])
+
+  @@index([recipeId])
+  @@map("recipe_ingredients")
+}
+
+/// Recettes mises en favoris par un utilisateur
+model UserFavoriteRecipe {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @db.ObjectId
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId  String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  @@unique([userId, recipeId])
+  @@map("user_favorite_recipes")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT 4 — NUTRITION : PLANNING 91 JOURS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Journée nutritionnelle (1 entrée par userId × dayIndex)
+model NutritionDay {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId              String   @db.ObjectId
+  /// Jour du programme 1–91
+  dayIndex            Int
+  /// Surcharge du jeûne intermittent pour ce jour précis
+  intermittentFasting Boolean  @default(false)
+
+  meals Meal[]
+
+  @@unique([userId, dayIndex])
+  @@index([userId])
+  @@map("nutrition_days")
+}
+
+/// Repas dans une journée — macros calculées et sauvegardées en BDD
+model Meal {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  nutritionDay   NutritionDay @relation(fields: [nutritionDayId], references: [id], onDelete: Cascade)
+  nutritionDayId String       @db.ObjectId
+  position       MealPosition
+
+  recipe   Recipe? @relation(fields: [recipeId], references: [id])
+  recipeId String? @db.ObjectId
+  /// Quantité calculée selon formules (en grammes)
+  quantityG Float?
+
+  /// Macros calculées par les formules et persistées
+  calcProteinG Float?
+  calcCarbsG   Float?
+  calcFatG     Float?
+  calcCalories Float?
+
+  /// Saisie manuelle pour plats livrés partenaires
+  isManual       Boolean @default(false)
+  manualProteinG Float?
+  manualCarbsG   Float?
+  manualFatG     Float?
+  manualCalories Float?
+
+  /// Date/heure à laquelle le repas a été consommé (case cochée dans le calendrier / app)
+  eatenAt        DateTime?
+
+  @@unique([nutritionDayId, position])
+  @@index([nutritionDayId])
+  @@map("meals")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT 6 — LISTE DE COURSES
+// Générée automatiquement depuis le planning repas (NutritionDay → Meal → Recipe
+// → RecipeIngredient) pour la période [startDayIndex..endDayIndex]. Quantités
+// avec coefficient famille. Tri par catégorie ou alphabétique (UserProfile).
+// Détail : docs/spec-lot6-liste-courses.md
+// ═══════════════════════════════════════════════════════════════════════════
+
+model ShoppingList {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String   @db.ObjectId
+  /// Début de la période (jour programme 1–91)
+  startDayIndex Int
+  /// Fin de la période (inclus)
+  endDayIndex   Int
+  generatedAt   DateTime @default(now())
+
+  items ShoppingItem[]
+
+  @@index([userId])
+  @@map("shopping_lists")
+}
+
+/// Ligne d'ingrédient : agrégée depuis les repas (RecipeIngredient) de la période
+model ShoppingItem {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  list           ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  listId         String       @db.ObjectId
+  ingredientName String
+  category       String?
+  totalQuantityG Float
+  unit           String?
+  isChecked      Boolean      @default(false)
+  /// Reporté automatiquement à la prochaine liste si non coché (Lot 6 spec)
+  isReported     Boolean      @default(false)
+
+  @@index([listId])
+  @@map("shopping_items")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT 7 — GAMIFICATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Log de chaque gain ou dépense de points (total = somme des PointEvent)
+model PointEvent {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String         @db.ObjectId
+  type      PointEventType
+  /// Positif = gain, négatif = dépense (échange récompense)
+  amount    Int
+  /// Métadonnées contextuelles (ex: {sessionId, badgeSlug, rewardId...})
+  metadata  Json?
+  createdAt DateTime       @default(now())
+
+  @@index([userId])
+  @@map("point_events")
+}
+
+/// Récompenses partenaires (ex: 10€ offerts pour 50€ chez Nutri Pure — coût en points)
+/// Admin : création / modification des offres partenaires
+model PointReward {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug         String   @unique
+  name         String
+  description  String?
+  costPoints   Int
+  rewardDetail String?
+  partnerName  String?
+  active       Boolean  @default(true)
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("point_rewards")
+}
+
+/// Catalogue des badges (défini par l'admin)
+model Badge {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug        String   @unique
+  name        String
+  description String?
+  iconUrl     String?
+  /// Condition en JSON — ex: {"type":"STREAK","threshold":7}
+  condition   Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String    @db.ObjectId
+  badge     Badge     @relation(fields: [badgeId], references: [id])
+  badgeId   String    @db.ObjectId
+  /// Progression 0.0 → 1.0
+  progress   Float     @default(0)
+  unlockedAt DateTime?
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT 8 — CHECKLIST JOURNALIÈRE (ligne directrice : admin définit les options)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Tâches quotidiennes optionnelles définies par l'admin (réutilisées dans ProgramDayItem)
+/// Admin : ajout/suppression de tâches (eau, pas de téléphone, méditation…)
+model DailyTask {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  label     String
+  points    Int      @default(0)
+  active    Boolean  @default(true)
+  order     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  optOuts          UserDailyTaskOptOut[]
+  completions      DailyTaskCompletion[]
+  programDayItems ProgramDayItem[]
+
+  @@map("daily_tasks")
+}
+
+/// Tâches que l'utilisateur a décidé de ne pas suivre (opt-out)
+model UserDailyTaskOptOut {
+  id     String    @id @default(auto()) @map("_id") @db.ObjectId
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String    @db.ObjectId
+  task   DailyTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId String    @db.ObjectId
+
+  @@unique([userId, taskId])
+  @@map("user_daily_task_opt_outs")
+}
+
+/// Cochage d'une tâche pour une date donnée
+model DailyTaskCompletion {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String    @db.ObjectId
+  task        DailyTask @relation(fields: [taskId], references: [id])
+  taskId      String    @db.ObjectId
+  /// Date du jour (sans heure — stocker à minuit UTC)
+  date        DateTime
+  completedAt DateTime  @default(now())
+
+  @@unique([userId, taskId, date])
+  @@index([userId])
+  @@map("daily_task_completions")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT 9 — DÉCOUVERTE (Méditation / Mindset / Breathwork) — catalogue admin
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Contenu vidéo YouTube du hub Découverte (catalogue admin)
+/// Admin : ajout de vidéos sans redéploiement ; déblocage progressif par points/jour
+model DiscoveryContent {
+  id               String            @id @default(auto()) @map("_id") @db.ObjectId
+  category         DiscoveryCategory
+  title            String
+  youtubeId        String
+  order            Int               @default(0)
+  unlockThreshold  Int               @default(0)
+  breathworkIntent String?
+  tags             String[]          @default([])
+  active           Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  watches         UserDiscoveryWatch[]
+  programDayItems ProgramDayItem[]
+
+  @@map("discovery_contents")
+}
+
+model UserDiscoveryWatch {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String           @db.ObjectId
+  content   DiscoveryContent @relation(fields: [contentId], references: [id])
+  contentId String           @db.ObjectId
+  watchedAt DateTime         @default(now())
+
+  @@unique([userId, contentId])
+  @@index([userId])
+  @@map("user_discovery_watches")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT 10 — PROGRESSION
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Photos de progression mensuelles (3 angles × 3 mois max)
+model ProgressPhoto {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String     @db.ObjectId
+  angle      PhotoAngle
+  url        String
+  /// Mois du programme : 1, 2 ou 3
+  month      Int
+  uploadedAt DateTime   @default(now())
+
+  @@index([userId])
+  @@map("progress_photos")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT 12 — ADMIN : DÉFIS PONCTUELS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Défi ponctuel créé par l'admin (24h / 48h / semaine)
+/// Admin : création / modification des défis et bonus points
+model AdminChallenge {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  description  String?
+  durationDays Int
+  bonusPoints  Int
+  startAt      DateTime
+  endAt        DateTime
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  participants UserChallenge[]
+
+  @@map("admin_challenges")
+}
+
+model UserChallenge {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String         @db.ObjectId
+  challenge   AdminChallenge @relation(fields: [challengeId], references: [id])
+  challengeId String         @db.ObjectId
+  joinedAt    DateTime       @default(now())
+  completedAt DateTime?
+
+  @@unique([userId, challengeId])
+  @@index([userId])
+  @@map("user_challenges")
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOT 11 — WEB PUSH (notifications)
+// ═══════════════════════════════════════════════════════════════════════════
+
 model PushSubscription {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -138,16 +909,4 @@ model PushSubscription {
   @@unique([userId, endpoint])
   @@index([userId])
   @@map("push_subscriptions")
-}
-
-// CONTACT (formulaire public) __________________________________________________________________________________
-model Contact {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  email     String
-  subject   String?
-  message   String
-  createdAt DateTime @default(now())
-
-  @@map("contacts")
 }

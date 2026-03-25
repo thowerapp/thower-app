@@ -2,12 +2,21 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from '$lib/superforms-zod';
 	import { adminUpdateUserSchema } from '$lib/schema/users/userSchema.js';
-	import * as Form from '$shadcn/form';
-	import * as DropdownMenu from '$shadcn/dropdown-menu';
-	import { Input } from '$shadcn/input';
-	import { Button } from '$shadcn/button';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
+	import * as Tabs from '$shadcn/tabs';
+	import { Button } from '$shadcn/button';
+	import ArrowLeft from 'lucide-svelte/icons/arrow-left';
+	import type { UserSelected } from './types';
+	import AdminUserCompteTab from './tabs/AdminUserCompteTab.svelte';
+	import AdminUserProfilTab from './tabs/AdminUserProfilTab.svelte';
+	import AdminUserPaiementTab from './tabs/AdminUserPaiementTab.svelte';
+	import AdminUserSportTab from './tabs/AdminUserSportTab.svelte';
+	import AdminUserCalendrierTab from './tabs/AdminUserCalendrierTab.svelte';
+	import AdminUserPointsTab from './tabs/AdminUserPointsTab.svelte';
+	import AdminUserNutritionTab from './tabs/AdminUserNutritionTab.svelte';
+	import AdminUserTachesTab from './tabs/AdminUserTachesTab.svelte';
+	import AdminUserDebugTab from './tabs/AdminUserDebugTab.svelte';
 
 	let { data } = $props();
 
@@ -32,149 +41,68 @@
 		}
 	};
 
-	const updateUserForm = $derived.by(() =>
-		superForm(data.formSchema!, formOptions)
-	);
-
-	const { form, enhance } = $derived(updateUserForm);
-	const roleOptions = ['ADMIN', 'CLIENT'] as const;
-	const userSelected = $derived(data?.userSelected ?? {});
+	const updateUserForm = $derived.by(() => superForm(data.formSchema!, formOptions));
+	const userSelected = $derived((data?.userSelected ?? {}) as UserSelected);
 </script>
 
-<div class="min-h-screen min-w-[100vw] absolute">
-	<div class="container mx-auto p-4 max-w-2xl">
+<div class="min-h-screen absolute">
+	<div class="container mx-auto p-4 w-[100%]">
+		<a href="/admin/users">
+			<Button variant="ghost" class="mb-4 -ml-2">
+				<ArrowLeft class="mr-2 size-4" />
+				Retour aux utilisateurs
+			</Button>
+		</a>
 		<h1 class="text-2xl font-bold mb-4">Modifier l'utilisateur</h1>
 
-		<!-- Infos système (lecture seule) -->
-		<div class="mb-6 p-4 rounded-lg border bg-muted/30">
-			<h2 class="text-sm font-semibold text-muted-foreground mb-2">Infos système</h2>
-			<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-				<dt class="text-muted-foreground">ID</dt>
-				<dd class="font-mono truncate">{userSelected.id ?? '—'}</dd>
-				<dt class="text-muted-foreground">Créé le</dt>
-				<dd>{userSelected.createdAt ? new Date(userSelected.createdAt).toLocaleString('fr-FR') : '—'}</dd>
-				{#if userSelected.googleId}
-					<dt class="text-muted-foreground">Google ID</dt>
-					<dd class="font-mono truncate">{userSelected.googleId}</dd>
-				{/if}
-			</dl>
-		</div>
+		<Tabs.Root value="compte" class="w-full">
+			<Tabs.List class="grid w-full grid-cols-4 lg:grid-cols-9 gap-1 mb-4">
+				<Tabs.Trigger value="compte">Compte</Tabs.Trigger>
+				<Tabs.Trigger value="profil">Profil & santé</Tabs.Trigger>
+				<Tabs.Trigger value="paiement">Paiement</Tabs.Trigger>
+				<Tabs.Trigger value="sport">Sport</Tabs.Trigger>
+				<Tabs.Trigger value="calendrier">Calendrier</Tabs.Trigger>
+				<Tabs.Trigger value="points">Points & badges</Tabs.Trigger>
+				<Tabs.Trigger value="nutrition">Nutrition & courses</Tabs.Trigger>
+				<Tabs.Trigger value="taches">Tâches & défis</Tabs.Trigger>
+				<Tabs.Trigger value="debug">Debug</Tabs.Trigger>
+			</Tabs.List>
 
-		<form method="POST" action="?/updateUser" use:enhance class="space-y-6">
-			<!-- Profil -->
-			<div class="space-y-4">
-				<h2 class="text-lg font-semibold">Profil</h2>
-				<Form.Field name="email" form={updateUserForm}>
-					<Form.Control>
-						<Form.Label>Email</Form.Label>
-						<Input type="email" bind:value={$form.email} />
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-				<Form.Field name="username" form={updateUserForm}>
-					<Form.Control>
-						<Form.Label>Nom d'utilisateur</Form.Label>
-						<Input value={$form.username ?? ''} oninput={(e) => ($form.username = e.currentTarget.value || null)} placeholder="Optionnel" />
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-				<Form.Field name="name" form={updateUserForm}>
-					<Form.Control>
-						<Form.Label>Nom</Form.Label>
-						<Input value={$form.name ?? ''} oninput={(e) => ($form.name = e.currentTarget.value || null)} placeholder="Optionnel" />
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-				<Form.Field name="picture" form={updateUserForm}>
-					<Form.Control>
-						<Form.Label>Photo (URL)</Form.Label>
-						<Input value={$form.picture ?? ''} oninput={(e) => ($form.picture = e.currentTarget.value || null)} placeholder="Optionnel" />
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-			</div>
+			<Tabs.Content value="compte" class="space-y-6">
+				<AdminUserCompteTab {userSelected} {updateUserForm} />
+			</Tabs.Content>
 
-			<!-- Sécurité & accès -->
-			<div class="space-y-4">
-				<h2 class="text-lg font-semibold">Sécurité & accès</h2>
-				<Form.Field name="role" form={updateUserForm}>
-					<Form.Control>
-						<Form.Label>Rôle</Form.Label>
-						<DropdownMenu.Root>
-							<DropdownMenu.Trigger>
-								<Button variant="outline" type="button">
-									{$form.role ?? 'Sélectionner'}
-								</Button>
-							</DropdownMenu.Trigger>
-							<DropdownMenu.Content class="w-56">
-								<DropdownMenu.Label>Rôle</DropdownMenu.Label>
-								<DropdownMenu.Separator />
-								{#each roleOptions as option}
-									<DropdownMenu.Item onclick={() => ($form.role = option)}>
-										{option}
-									</DropdownMenu.Item>
-								{/each}
-							</DropdownMenu.Content>
-						</DropdownMenu.Root>
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-				<Form.Field name="isMfaEnabled" form={updateUserForm}>
-					<Form.Control>
-						<Form.Label>2FA activé</Form.Label>
-						<input
-							type="checkbox"
-							checked={Boolean($form.isMfaEnabled)}
-							onchange={(e) => ($form.isMfaEnabled = e.currentTarget.checked)}
-							aria-label="2FA"
-						/>
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-				<Form.Field name="emailVerified" form={updateUserForm}>
-					<Form.Control>
-						<Form.Label>Email vérifié</Form.Label>
-						<input
-							type="checkbox"
-							checked={Boolean($form.emailVerified)}
-							onchange={(e) => ($form.emailVerified = e.currentTarget.checked)}
-							aria-label="Email vérifié"
-						/>
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-				<Form.Field name="passwordHash" form={updateUserForm} class="w-full max-w-md">
-					<Form.Control>
-						<Form.Label>
-							Mot de passe (laisser vide pour ne pas modifier)<br />
-							<span class="text-muted-foreground text-sm"
-								>Minimum 8 caractères, majuscule, minuscule, chiffre et caractère spécial</span
-							>
-						</Form.Label>
-						<Input type="password" bind:value={$form.passwordHash} placeholder="••••••••" />
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-			</div>
+			<Tabs.Content value="profil" class="space-y-6">
+				<AdminUserProfilTab {userSelected} />
+			</Tabs.Content>
 
-			<!-- Abonnement -->
-			<div class="space-y-4">
-				<h2 class="text-lg font-semibold">Abonnement</h2>
-				<Form.Field name="subscriptionEndsAt" form={updateUserForm}>
-					<Form.Control>
-						<Form.Label>Fin d'abonnement</Form.Label>
-						<Input
-							type="datetime-local"
-							value={$form.subscriptionEndsAt ?? ''}
-							oninput={(e) => ($form.subscriptionEndsAt = e.currentTarget.value || null)}
-							placeholder="Optionnel"
-						/>
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-			</div>
+			<Tabs.Content value="paiement" class="space-y-6">
+				<AdminUserPaiementTab {userSelected} />
+			</Tabs.Content>
 
-			<Button type="submit">Enregistrer</Button>
-		</form>
+			<Tabs.Content value="sport" class="space-y-6">
+				<AdminUserSportTab {userSelected} />
+			</Tabs.Content>
+
+			<Tabs.Content value="calendrier" class="space-y-6">
+				<AdminUserCalendrierTab {userSelected} />
+			</Tabs.Content>
+
+			<Tabs.Content value="points" class="space-y-6">
+				<AdminUserPointsTab {userSelected} />
+			</Tabs.Content>
+
+			<Tabs.Content value="nutrition" class="space-y-6">
+				<AdminUserNutritionTab {userSelected} />
+			</Tabs.Content>
+
+			<Tabs.Content value="taches" class="space-y-6">
+				<AdminUserTachesTab {userSelected} />
+			</Tabs.Content>
+
+			<Tabs.Content value="debug" class="space-y-6">
+				<AdminUserDebugTab {userSelected} />
+			</Tabs.Content>
+		</Tabs.Root>
 	</div>
 </div>

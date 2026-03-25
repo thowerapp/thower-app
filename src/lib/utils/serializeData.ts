@@ -5,8 +5,12 @@ export const serializeData = (obj: any): any => {
 		return obj.toISOString();
 	}
 
+	// Prisma Bytes → Buffer (Node) ; aussi Uint8Array
+	if (typeof Buffer !== 'undefined' && Buffer.isBuffer(obj)) {
+		return obj.toString('base64');
+	}
 	if (obj instanceof Uint8Array) {
-		return Buffer.from(obj).toString('base64'); // Base64 pour Uint8Array
+		return Buffer.from(obj).toString('base64');
 	}
 
 	if (Array.isArray(obj)) {

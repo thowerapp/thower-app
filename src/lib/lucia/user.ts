@@ -32,6 +32,8 @@ export interface User {
 	role: Role;
 	isMfaEnabled: boolean;
 	totpKey: Buffer | null;
+	/// null = accès à vie ou non souscrit ; date passée = accès expiré
+	subscriptionEndsAt: Date | null;
 }
 
 /** Utilisateur sérialisable pour event.locals et les load (sans totpKey Buffer) */
@@ -66,7 +68,8 @@ export async function createUser(email: string, username: string, password: stri
 		picture: createdUser.picture,
 		role: createdUser.role,
 		isMfaEnabled: createdUser.isMfaEnabled,
-		totpKey: createdUser.totpKey
+		totpKey: createdUser.totpKey,
+		subscriptionEndsAt: null
 	};
 }
 
@@ -91,7 +94,8 @@ export async function getUserFromEmail(email: string): Promise<User | null> {
 		picture: prismaUser.picture,
 		role: prismaUser.role,
 		isMfaEnabled: prismaUser.isMfaEnabled,
-		totpKey: prismaUser.totpKey
+		totpKey: prismaUser.totpKey,
+		subscriptionEndsAt: null
 	};
 }
 
@@ -111,7 +115,8 @@ export async function getUserFromGoogleId(googleId: string): Promise<User | null
 		picture: prismaUser.picture,
 		role: prismaUser.role,
 		isMfaEnabled: prismaUser.isMfaEnabled,
-		totpKey: prismaUser.totpKey
+		totpKey: prismaUser.totpKey,
+		subscriptionEndsAt: null
 	};
 }
 
@@ -180,7 +185,8 @@ export async function handleGoogleOAuth(
 			picture: createdGoogleUser.picture,
 			role: createdGoogleUser.role,
 			isMfaEnabled: createdGoogleUser.isMfaEnabled,
-			totpKey: createdGoogleUser.totpKey
+			totpKey: createdGoogleUser.totpKey,
+			subscriptionEndsAt: null
 		};
 	}
 

@@ -1,6 +1,6 @@
 <script lang="ts">
+	import '../auth-styles.css';
 	import * as Form from '$shadcn/form';
-	import * as Card from '$shadcn/card';
 	import { Input } from '$shadcn/input';
 	import { Button } from '$shadcn/button';
 	import { superForm } from 'sveltekit-superforms';
@@ -8,7 +8,7 @@
 	import { toast } from 'svelte-sonner';
 	import { emailSchema, passwordSchema } from '$lib/schema/auth/settingsSchemas';
 	import { isMfaEnabledSchema } from '$lib/schema/users/MfaEnabledSchema.js';
-	import { Mail, KeyRound, ShieldCheck, ArrowLeft, Cog } from 'lucide-svelte';
+	import { Mail, KeyRound, ShieldCheck, ArrowLeft } from 'lucide-svelte';
 	import { Switch } from '$shadcn/switch/index.js';
 
 	let { data } = $props();
@@ -51,122 +51,128 @@
 	<title>Paramètres du compte — Thower</title>
 </svelte:head>
 
-<div class="mx-auto w-full max-w-2xl px-4 py-6 pb-28 sm:py-8 sm:pb-28">
-	<header class="mb-8">
+<div class="page">
+	<header class="page-header">
 		<a
 			href="/auth"
-			class="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+			class="btn-ghost"
 		>
 			<ArrowLeft class="h-4 w-4" />
 			Retour aux paramètres
 		</a>
-		<h1 class="flex items-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl">
-			<Cog class="h-8 w-8 text-primary" />
+		<h1 class="page-title" style="margin-bottom: 14px; font-size: clamp(2rem, 6vw, 3.5rem);">
 			Paramètres du compte
 		</h1>
-		<p class="mt-1 text-sm text-muted-foreground">
+		<p class="page-subtitle">
 			Modifiez votre email, mot de passe et authentification à deux facteurs.
 		</p>
 	</header>
 
-	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-		<Card.Root class="flex flex-col">
-			<form method="POST" action="?/email" use:emailEnhance>
-				<Card.Header class="pb-2">
-					<Card.Title class="flex items-center gap-2 text-base">
-						<Mail class="w-5 h-5 text-primary" />
-						<span>Email</span>
-					</Card.Title>
-				</Card.Header>
-				<Card.Content class="space-y-3">
-					<Form.Field name="email" form={emailForm}>
-						<Form.Control>
-							<Form.Label>Nouvel email</Form.Label>
-							<Input
-								type="email"
-								name="email"
-								bind:value={$emailData.email}
-								placeholder="nouveau@email.com"
-								required
-							/>
-						</Form.Control>
-						<Form.FieldErrors />
-					</Form.Field>
-				</Card.Content>
-				<Card.Footer class="pt-0">
-					<Button type="submit" class="w-full" size="sm">Mettre à jour</Button>
-				</Card.Footer>
-			</form>
-		</Card.Root>
+	<main class="page-main">
+		<section class="section">
+			<div class="cards-col">
+			<!-- Carte Email -->
+			<div class="card">
+				<div class="card-head">
+					<span class="card-icon"><Mail class="w-5 h-5" /></span>
+					<div>
+						<div class="card-title">Email</div>
+						<div class="card-desc">Mettez à jour votre adresse email</div>
+					</div>
+				</div>
+				<form method="POST" action="?/email" use:emailEnhance>
+					<div class="card-body">
+						<Form.Field name="email" form={emailForm}>
+							<Form.Control>
+								<Form.Label>Nouvel email</Form.Label>
+								<Input
+									type="email"
+									name="email"
+									bind:value={$emailData.email}
+									placeholder="nouveau@email.com"
+									required
+								/>
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
+					</div>
+					<div class="card-foot">
+						<Button type="submit" class="w-full" size="sm">Mettre à jour</Button>
+					</div>
+				</form>
+			</div>
 
-		<Card.Root class="flex flex-col">
-			<form method="POST" action="?/password" use:passwordEnhance>
-				<Card.Header class="pb-2">
-					<Card.Title class="flex items-center gap-2 text-base">
-						<KeyRound class="w-5 h-5 text-primary" />
-						<span>Mot de passe</span>
-					</Card.Title>
-				</Card.Header>
-				<Card.Content class="space-y-3">
-					<Form.Field name="password" form={passwordForm}>
-						<Form.Control>
-							<Form.Label>Mot de passe actuel</Form.Label>
-							<Input
-								type="password"
-								name="password"
-								bind:value={$passwordData.password}
-								autocomplete="current-password"
-								required
-							/>
-						</Form.Control>
-						<Form.FieldErrors />
-					</Form.Field>
-					<Form.Field name="new_password" form={passwordForm}>
-						<Form.Control>
-							<Form.Label>Nouveau mot de passe</Form.Label>
-							<Input
-								type="password"
-								name="new_password"
-								bind:value={$passwordData.new_password}
-								autocomplete="new-password"
-								required
-							/>
-						</Form.Control>
-						<Form.FieldErrors />
-					</Form.Field>
-				</Card.Content>
-				<Card.Footer class="pt-0">
-					<Button type="submit" class="w-full" size="sm">Changer le mot de passe</Button>
-				</Card.Footer>
-			</form>
-		</Card.Root>
+			<!-- Carte Mot de passe -->
+			<div class="card">
+				<div class="card-head">
+					<span class="card-icon"><KeyRound class="w-5 h-5" /></span>
+					<div>
+						<div class="card-title">Mot de passe</div>
+						<div class="card-desc">Changez votre mot de passe</div>
+					</div>
+				</div>
+				<form method="POST" action="?/password" use:passwordEnhance>
+					<div class="card-body">
+						<Form.Field name="password" form={passwordForm}>
+							<Form.Control>
+								<Form.Label>Mot de passe actuel</Form.Label>
+								<Input
+									type="password"
+									name="password"
+									bind:value={$passwordData.password}
+									autocomplete="current-password"
+									required
+								/>
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
+						<Form.Field name="new_password" form={passwordForm}>
+							<Form.Control>
+								<Form.Label>Nouveau mot de passe</Form.Label>
+								<Input
+									type="password"
+									name="new_password"
+									bind:value={$passwordData.new_password}
+									autocomplete="new-password"
+									required
+								/>
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
+					</div>
+					<div class="card-foot">
+						<Button type="submit" class="w-full" size="sm">Changer le mot de passe</Button>
+					</div>
+				</form>
+			</div>
 
-		<Card.Root class="flex flex-col sm:col-span-2">
-			<form method="POST" action="?/isMfaEnabled" use:isMfaEnabledEnhance bind:this={mfaFormRef}>
-				<Card.Header class="pb-2">
-					<Card.Title class="flex items-center gap-2 text-base">
-						<ShieldCheck class="w-5 h-5 text-primary" />
-						<span>Authentification à deux facteurs</span>
-					</Card.Title>
-					<Card.Description>
-						Code depuis une app (Google Authenticator, etc.).
-					</Card.Description>
-				</Card.Header>
-				<Card.Content class="flex flex-row items-center justify-between gap-4 py-2">
-					<span class="text-sm font-medium">2FA activée</span>
-					<Switch
-						checked={Boolean($isMfaEnabledData.isMfaEnabled)}
-						onclick={() => mfaFormRef?.requestSubmit()}
-					/>
-				</Card.Content>
-				{#if data.user.registered2FA}
-					<Card.Footer class="pt-0">
-						<Button href="/auth/recovery-code" variant="outline" class="w-full" size="sm">
-							Code de récupération
-						</Button>
-					</Card.Footer>
-				{/if}
-			</form>
-		</Card.Root>
-	</div>
+			<!-- Carte 2FA -->
+			<div class="card">
+				<div class="card-head">
+					<span class="card-icon"><ShieldCheck class="w-5 h-5" /></span>
+					<div>
+						<div class="card-title">Authentification à deux facteurs</div>
+						<div class="card-desc">Sécurisez votre compte</div>
+					</div>
+				</div>
+				<form method="POST" action="?/isMfaEnabled" use:isMfaEnabledEnhance bind:this={mfaFormRef}>
+					<div class="card-body" style="flex-direction: row; align-items: center; justify-content: space-between; gap: 20px;">
+						<span style="font-size: 0.8rem; font-weight: 500;">2FA activée</span>
+						<Switch
+							checked={Boolean($isMfaEnabledData.isMfaEnabled)}
+							onclick={() => mfaFormRef?.requestSubmit()}
+						/>
+					</div>
+					{#if data.user.registered2FA}
+						<div class="card-foot">
+							<a href="/auth/recovery-code" class="btn btn-outline w-full">
+								Code de récupération
+							</a>
+						</div>
+					{/if}
+				</form>
+			</div>
+		</div>
+		</section>
+	</main>
 </div>

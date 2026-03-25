@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import * as THREE from 'three';
 	import { goto } from '$app/navigation';
 	import * as Card from '$shadcn/card';
 	import { Button } from '$shadcn/button';
@@ -33,9 +35,7 @@
 			try {
 				await prompt.prompt();
 				const choice = await prompt.userChoice;
-				if (choice.outcome === 'accepted') {
-					toast.success("L'app Thower a été installée.");
-				}
+				if (choice.outcome === 'accepted') toast.success("L'app Thower a été installée.");
 				pwaInstallPrompt.set(null);
 			} catch (err) {
 				console.error('[PWA] erreur prompt:', err);
@@ -64,411 +64,678 @@
 		}
 	});
 
-	const hasMeasurements = $derived(data?.hasMeasurements ?? false);
-	const hasValidPayment = $derived(data?.hasValidPayment ?? false);
-	const hasAnyTransaction = $derived(
-		(data as { hasAnyTransaction?: boolean } | null)?.hasAnyTransaction ?? false
-	);
+	const hasMeasurements   = $derived(data?.hasMeasurements ?? false);
+	const hasValidPayment   = $derived(data?.hasValidPayment ?? false);
+	const hasAnyTransaction = $derived((data as { hasAnyTransaction?: boolean } | null)?.hasAnyTransaction ?? false);
 	const subscriptionEndsAt = $derived(data?.subscriptionEndsAt ?? null);
-	const subscriptionLabel = $derived(
+	const subscriptionLabel  = $derived(
 		subscriptionEndsAt
-			? new Date(subscriptionEndsAt).toLocaleDateString('fr-FR', {
-					day: 'numeric',
-					month: 'long',
-					year: 'numeric'
-				})
+			? new Date(subscriptionEndsAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 			: null
 	);
 	const isGoogleUser = $derived(!!data?.user?.googleId);
+
+	onMount(() => {
+		// ── CURSOR ──
+		const cursor = document.createElement('div');
+		cursor.id = 'auth-cursor';
+		cursor.style.cssText = `
+			position: fixed; z-index: 9999;
+			width: 14px; height: 12px;
+			pointer-events: none;
+			transform: translate(-50%, -50%);
+			clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+			background: #3ab8b8;
+			mix-blend-mode: difference;
+			transition: width .15s, height .15s;
+			top: 0; left: 0;
+		`;
+		document.body.appendChild(cursor);
+		const onMove = (e: MouseEvent) => { cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px'; };
+		document.addEventListener('mousemove', onMove);
+		document.querySelectorAll('button, a, select, input').forEach(el => {
+			el.addEventListener('mouseenter', () => { cursor.style.width = '22px'; cursor.style.height = '19px'; });
+			el.addEventListener('mouseleave', () => { cursor.style.width = '14px'; cursor.style.height = '12px'; });
+		});
+
+		// ── THREE.JS ──
+		const canvas = document.createElement('canvas');
+		canvas.style.cssText = 'position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-events:none;';
+		document.body.appendChild(canvas);
+		const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		renderer.setClearColor(0x0a0a0a);
+		renderer.toneMapping = THREE.ACESFilmicToneMapping;
+		renderer.toneMappingExposure = 1.1;
+		const scene = new THREE.Scene();
+		scene.fog = new THREE.FogExp2(0x0a0a0a, 0.038);
+		const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 120);
+		camera.position.set(0, 0, -10);
+		const CL = 40, CW = 5, CH = 4;
+		const wallMat = new THREE.MeshBasicMaterial({ color: 0x0d0a06, side: THREE.BackSide });
+		const box = new THREE.Mesh(new THREE.BoxGeometry(CW, CH, CL), wallMat);
+		box.position.set(0, 0, -CL/2); scene.add(box);
+		const gMat = new THREE.LineBasicMaterial({ color: 0x3a2e18, transparent: true, opacity: .85 });
+		const mk = (p1: [number,number,number], p2: [number,number,number]) => {
+			const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...p1), new THREE.Vector3(...p2)]);
+			return new THREE.Line(g, gMat);
+		};
+		for (let x = -2; x <= 2; x += .5) scene.add(mk([x,-CH/2,2],[x,-CH/2,-CL-2]));
+		for (let z = 0; z >= -CL; z -= 2) scene.add(mk([-CW/2,-CH/2,z],[CW/2,-CH/2,z]));
+		const tMat = new THREE.LineBasicMaterial({ color: 0x5a4020, transparent: true, opacity: .7 });
+		for (let z = 0; z >= -CL; z -= 4) {
+			[[-CW/2],[CW/2]].forEach(([x]) => {
+				const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,-CH/2,z),new THREE.Vector3(x,CH/2,z)]);
+				scene.add(new THREE.Line(g, tMat));
+			});
+		}
+		const glowMat  = new THREE.MeshBasicMaterial({ color: 0xc9a84c, transparent: true, opacity: .55, side: THREE.DoubleSide, depthWrite: false });
+		const glowMat2 = new THREE.MeshBasicMaterial({ color: 0xfff8e0, transparent: true, opacity: .82, side: THREE.DoubleSide, depthWrite: false });
+		const gp  = new THREE.Mesh(new THREE.PlaneGeometry(CW*.9,CH*.9), glowMat);  gp.position.z = -CL+.5; scene.add(gp);
+		const gp2 = new THREE.Mesh(new THREE.PlaneGeometry(CW*.4,CH*.6), glowMat2); gp2.position.z = -CL+.3; scene.add(gp2);
+		const PCOUNT = 180;
+		const pPos = new Float32Array(PCOUNT*3);
+		for (let i = 0; i < PCOUNT; i++) { pPos[i*3]=(Math.random()-.5)*(CW-.4); pPos[i*3+1]=(Math.random()-.5)*(CH-.4); pPos[i*3+2]=-Math.random()*CL; }
+		const pGeo = new THREE.BufferGeometry(); pGeo.setAttribute('position', new THREE.BufferAttribute(pPos,3));
+		const pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xc9a84c, size: .025, transparent: true, opacity: .55, sizeAttenuation: true }));
+		scene.add(pts);
+		const clk = new THREE.Clock();
+		let animId: number;
+		const animate = () => {
+			animId = requestAnimationFrame(animate);
+			const t = clk.getElapsedTime();
+			camera.position.x = Math.sin(t*.18)*.04;
+			camera.position.y = Math.sin(t*.12)*.025;
+			camera.lookAt(camera.position.x*.2, camera.position.y*.2, -20);
+			glowMat.opacity  = .45 + Math.sin(t*.7)*.03;
+			glowMat2.opacity = .70 + Math.sin(t*1.1)*.04;
+			const pos = pts.geometry.attributes.position.array as Float32Array;
+			for (let i = 0; i < PCOUNT; i++) { pos[i*3+1] += .0008; if (pos[i*3+1] > CH/2) pos[i*3+1] = -CH/2; }
+			pts.geometry.attributes.position.needsUpdate = true;
+			renderer.render(scene, camera);
+		};
+		animate();
+		const onResize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
+		window.addEventListener('resize', onResize);
+		return () => {
+			cancelAnimationFrame(animId);
+			document.removeEventListener('mousemove', onMove);
+			window.removeEventListener('resize', onResize);
+			renderer.dispose(); canvas.remove(); cursor.remove();
+		};
+	});
 </script>
 
-<div class="mx-auto w-full max-w-6xl px-4 py-6 pb-28 sm:py-8 sm:pb-28">
-	<header class="mb-8 text-center sm:text-left">
-		<h1 class="text-2xl font-bold tracking-tight sm:text-3xl">Paramètres</h1>
-		<p class="mt-1 text-sm text-muted-foreground">Gérez votre compte et installez l'application Thower.</p>
-		<div class="mt-3 inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs text-primary">
-			<span class="size-2 shrink-0 rounded-full bg-primary" aria-hidden="true"></span>
-			Application installable — disponible sur tous vos appareils
-		</div>
+<svelte:head>
+	<title>Paramètres — Thower</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+</svelte:head>
+
+<div class="page">
+
+	<!-- En-tête -->
+	<header class="page-header">
+		<p class="page-eyebrow">— Votre espace</p>
+		<h1 class="page-title">Paramètres</h1>
+		<p class="page-subtitle">Gérez votre compte et installez l'application Thower.</p>
+		{#if hasValidPayment}
+			<div class="page-badge">
+				<span class="badge-dot"></span>
+				Application disponible — accès actif
+			</div>
+		{/if}
 	</header>
 
-	<div class="grid gap-10 lg:grid-cols-[1fr_minmax(340px,400px)]">
-		<!-- Section Mon compte -->
-		<section class="flex flex-col" aria-labelledby="section-compte">
-			<h2 id="section-compte" class="mb-4 flex items-center gap-2 text-lg font-semibold sm:mb-5">
-				<UserCircle class="h-5 w-5 text-primary" />
+	<!-- Contenu principal -->
+	<main class="page-main">
+
+		<!-- ── MON COMPTE ── -->
+		<section class="section">
+			<h2 class="section-title">
+				<UserCircle size={16} />
 				Mon compte
 			</h2>
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+			<div class="cards-col">
+
 				<!-- Profil -->
-				<Card.Root class="flex flex-col">
-					<Card.Header class="pb-2">
-						<Card.Title class="flex items-center gap-2 text-base">
-							<UserCircle class="w-5 h-5 text-primary" />
-							<span>Profil</span>
-						</Card.Title>
-						<Card.Description>Vos informations de base.</Card.Description>
-					</Card.Header>
-					<Card.Content class="space-y-2 text-sm">
-						{#if data.user.name}
-							<p><span class="text-muted-foreground">Nom</span> — {data.user.name}</p>
-						{/if}
-						<p><span class="text-muted-foreground">Email</span> — {data.user.email}</p>
-					</Card.Content>
-					{#if !isGoogleUser}
-						<Card.Footer class="pt-0">
-							<Button href="/auth/account" variant="outline" class="w-full" size="sm">
-								Email, mot de passe et 2FA
-							</Button>
-						</Card.Footer>
-					{/if}
-				</Card.Root>
-
-				{#if data.user.role === 'CLIENT' && hasAnyTransaction}
-					<Card.Root class="flex flex-col">
-						<Card.Header class="pb-2">
-							<Card.Title class="flex items-center gap-2 text-base">
-								<ReceiptText class="w-5 h-5 text-primary" />
-								<span>Facturation</span>
-							</Card.Title>
-							<Card.Description>Historique de vos factures.</Card.Description>
-						</Card.Header>
-						<Card.Footer class="pt-0">
-							<Button href="/auth/factures" class="w-full" variant="outline"
-								>Mes factures</Button
-							>
-						</Card.Footer>
-					</Card.Root>
-				{/if}
-
-				{#if data.user.role === 'ADMIN'}
-					<Card.Root class="flex flex-col">
-						<Card.Header class="pb-2">
-							<Card.Title class="flex items-center gap-2 text-base">
-								<LayoutDashboard class="w-5 h-5 text-primary" />
-								<span>Administration</span>
-							</Card.Title>
-							<Card.Description>Tableau de bord admin.</Card.Description>
-						</Card.Header>
-						<Card.Footer class="pt-0">
-							<Button href="/admin" class="w-full" variant="outline"
-								>Dashboard Admin</Button
-							>
-						</Card.Footer>
-					</Card.Root>
-				{/if}
-
-				<!-- Stepper 3 étapes : au-dessus de Mesures (compte non-Google) -->
-				{#if !isGoogleUser}
-					<div class="col-span-full procedure-stepper mb-4" role="list" aria-label="Étapes pour obtenir l'application">
-						<div class="procedure-step" role="listitem">
-							<a
-								href="/auth/measurement"
-								class="procedure-step-point {hasMeasurements ? 'procedure-step-done' : 'procedure-step-current'}"
-								aria-current={!hasMeasurements ? 'step' : undefined}
-								title="Formulaire physique"
-							>
-								{#if hasMeasurements}
-									<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-										<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-									</svg>
-								{:else}
-									<span class="text-xs font-bold">1</span>
-								{/if}
-							</a>
-							<span class="procedure-step-label">Formulaire physique</span>
-						</div>
-						<div class="procedure-step-line" aria-hidden="true"></div>
-						<div class="procedure-step" role="listitem">
-							<a
-								href="/auth/subscription"
-								class="procedure-step-point {hasValidPayment ? 'procedure-step-done' : hasMeasurements ? 'procedure-step-current' : 'procedure-step-pending'}"
-								aria-current={hasMeasurements && !hasValidPayment ? 'step' : undefined}
-								title="Paiement"
-							>
-								{#if hasValidPayment}
-									<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-										<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-									</svg>
-								{:else}
-									<span class="text-xs font-bold">2</span>
-								{/if}
-							</a>
-							<span class="procedure-step-label">Paiement</span>
-						</div>
-						<div class="procedure-step-line" aria-hidden="true"></div>
-						<div class="procedure-step" role="listitem">
-							<span
-								class="procedure-step-point {hasValidPayment ? 'procedure-step-current' : 'procedure-step-pending'}"
-								aria-current={hasValidPayment ? 'step' : undefined}
-								title="Téléchargement de l'application"
-							>
-								<span class="text-xs font-bold">3</span>
-							</span>
-							<span class="procedure-step-label">Téléchargement</span>
+				<div class="card">
+					<div class="card-head">
+						<span class="card-icon"><UserCircle size={15} /></span>
+						<div>
+							<div class="card-title">Profil</div>
+							<div class="card-desc">Vos informations de base</div>
 						</div>
 					</div>
-
-					<Card.Root
-						class="flex flex-col {!hasMeasurements ? 'measurements-card-blink border-amber-500 bg-amber-500/10' : ''}"
-					>
-						<Card.Header class="pb-2">
-							<Card.Title
-								class="flex items-center gap-2 text-base {!hasMeasurements ? 'text-amber-700 dark:text-amber-400' : ''}"
-							>
-								<Ruler class="w-5 h-5 {!hasMeasurements ? 'text-amber-600' : 'text-primary'}" />
-								<span>Mesures</span>
-								{#if !hasMeasurements}
-									<span
-										class="rounded bg-amber-500/30 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200"
-										>À remplir</span
-									>
-								{/if}
-							</Card.Title>
-							<Card.Description>Profil physique et mensurations.</Card.Description>
-						</Card.Header>
-						<Card.Footer class="pt-0">
-							<Button href="/auth/measurement" class="w-full" variant={!hasMeasurements ? 'default' : 'outline'} size="sm">
-								{!hasMeasurements ? 'Remplir mon profil' : 'Modifier'}
-							</Button>
-						</Card.Footer>
-					</Card.Root>
-
-					{#if hasMeasurements}
-						<Card.Root class="flex flex-col">
-							<Card.Header class="pb-2">
-								<Card.Title class="flex items-center gap-2 text-base">
-									<CreditCard class="w-5 h-5 text-primary" />
-									<span>Souscription</span>
-								</Card.Title>
-								<Card.Description>
-									{#if hasValidPayment}
-										{#if subscriptionLabel}
-											Valide jusqu'au {subscriptionLabel}.
-										{:else}
-											Accès à vie.
-										{/if}
-									{:else}
-										Paiement sécurisé Stripe.
-									{/if}
-								</Card.Description>
-							</Card.Header>
-							<Card.Footer class="pt-0">
-								<Button href="/auth/subscription" class="w-full" size="sm">
-									{hasValidPayment ? 'Voir / Renouveler' : 'Paiement / Souscription'}
-								</Button>
-							</Card.Footer>
-						</Card.Root>
+					<div class="card-body">
+						{#if data.user.name}
+							<div class="info-row"><span class="info-label">Nom</span><span class="info-val">{data.user.name}</span></div>
+						{/if}
+						<div class="info-row"><span class="info-label">Email</span><span class="info-val">{data.user.email}</span></div>
+					</div>
+					{#if !isGoogleUser}
+						<div class="card-foot">
+							<a href="/auth/account" class="btn btn-outline w-full">Email, mot de passe et 2FA</a>
+						</div>
 					{/if}
+				</div>
+
+				<!-- Facturation -->
+				{#if data.user.role === 'CLIENT' && hasAnyTransaction}
+					<div class="card">
+						<div class="card-head">
+							<span class="card-icon"><ReceiptText size={15} /></span>
+							<div>
+								<div class="card-title">Facturation</div>
+								<div class="card-desc">Historique de vos factures</div>
+							</div>
+						</div>
+						<div class="card-foot">
+							<a href="/auth/factures" class="btn btn-outline w-full">Mes factures</a>
+						</div>
+					</div>
 				{/if}
+
+				<!-- Admin -->
+				{#if data.user.role === 'ADMIN'}
+					<div class="card">
+						<div class="card-head">
+							<span class="card-icon"><LayoutDashboard size={15} /></span>
+							<div>
+								<div class="card-title">Administration</div>
+								<div class="card-desc">Tableau de bord admin</div>
+							</div>
+						</div>
+						<div class="card-foot">
+							<a href="/admin" class="btn btn-outline w-full">Dashboard Admin</a>
+						</div>
+					</div>
+				{/if}
+
 			</div>
 		</section>
 
-		<!-- Section Procédure : stepper + téléchargement -->
-		<aside
-			class="flex flex-col border-t border-border pt-8 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0"
-			aria-labelledby="section-procedure"
-		>
-			<h2 id="section-procedure" class="mb-5 flex items-center gap-2 text-lg font-semibold sm:mb-6">
-				<Smartphone class="h-5 w-5 text-primary" />
-				Obtenir l'application
+		<!-- ── PROCÉDURE (non-Google seulement) ── -->
+		{#if !isGoogleUser}
+		<section class="section">
+			<h2 class="section-title">
+				<Smartphone size={16} />
+				Accès à l'application
 			</h2>
 
-			{#if hasValidPayment}
-				<Card.Root class="flex flex-col lg:sticky lg:top-6 lg:self-start">
-					<Card.Header class="pb-3">
-						<Card.Title class="text-lg">Installer Thower</Card.Title>
-						<Card.Description>
-							Utilisez Thower comme une application sur votre téléphone ou ordinateur.
-						</Card.Description>
-					</Card.Header>
-					<Card.Content class="space-y-4">
-						<!-- Étape 1 : Installer -->
-						<div class="space-y-2">
-							<div class="flex items-center gap-2 font-medium">
-								<span
-									class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
-									>1</span
-								>
-								<span>Installer l'app</span>
+			<!-- Stepper -->
+			<div class="stepper">
+				<a href="/auth/measurement" class="step {hasMeasurements ? 'step-done' : 'step-active'}">
+					<span class="step-dot">
+						{#if hasMeasurements}
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+						{:else}1{/if}
+					</span>
+					<span class="step-label">Profil physique</span>
+				</a>
+				<div class="step-line {hasMeasurements ? 'step-line-done' : ''}"></div>
+				<a href="/auth/subscription" class="step {hasValidPayment ? 'step-done' : hasMeasurements ? 'step-active' : 'step-pending'}">
+					<span class="step-dot">
+						{#if hasValidPayment}
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+						{:else}2{/if}
+					</span>
+					<span class="step-label">Paiement</span>
+				</a>
+				<div class="step-line {hasValidPayment ? 'step-line-done' : ''}"></div>
+				<span class="step {hasValidPayment ? 'step-active' : 'step-pending'}">
+					<span class="step-dot">3</span>
+					<span class="step-label">Téléchargement</span>
+				</span>
+			</div>
+
+			<div class="cards-col">
+
+				<!-- Mesures -->
+				<div class="card {!hasMeasurements ? 'card-alert' : ''}">
+					<div class="card-head">
+						<span class="card-icon"><Ruler size={15} /></span>
+						<div>
+							<div class="card-title">
+								Profil physique
+								{#if !hasMeasurements}<span class="badge-alert">À remplir</span>{/if}
 							</div>
-							<p class="text-sm text-muted-foreground pl-9">
-								{#if $pwaInstallPrompt}
-									Cliquez sur le bouton ci-dessous pour installer sur cet appareil.
-								{:else}
-									Ouvrez Thower dans le navigateur, puis suivez les instructions selon votre appareil.
-								{/if}
-							</p>
-							<div class="pl-9">
-								<Button
-									type="button"
-									class="w-full gap-2"
-									onclick={handlePwaInstall}
-								>
-									<Download class="w-4 h-4" />
-									{$pwaInstallPrompt ? "Installer l'app" : "Ouvrir l'app"}
-								</Button>
+							<div class="card-desc">Mensurations et objectifs corporels</div>
+						</div>
+					</div>
+					<div class="card-foot">
+						<a href="/auth/measurement" class="btn {!hasMeasurements ? 'btn-gold' : 'btn-outline'} w-full">
+							{!hasMeasurements ? 'Remplir mon profil' : 'Modifier'}
+						</a>
+					</div>
+				</div>
+
+				<!-- Souscription -->
+				{#if hasMeasurements}
+					<div class="card">
+						<div class="card-head">
+							<span class="card-icon"><CreditCard size={15} /></span>
+							<div>
+								<div class="card-title">Souscription</div>
+								<div class="card-desc">
+									{#if hasValidPayment}
+										{subscriptionLabel ? `Valide jusqu'au ${subscriptionLabel}` : 'Accès à vie'}
+									{:else}
+										Paiement sécurisé Stripe
+									{/if}
+								</div>
 							</div>
+						</div>
+						<div class="card-foot">
+							<a href="/auth/subscription" class="btn btn-gold w-full">
+								{hasValidPayment ? 'Voir / Renouveler' : 'Accéder au paiement'}
+							</a>
+						</div>
+					</div>
+				{/if}
+
+				<!-- PWA Install -->
+				{#if hasValidPayment}
+					<div class="card">
+						<div class="card-head">
+							<span class="card-icon"><Download size={15} /></span>
+							<div>
+								<div class="card-title">Installer l'application</div>
+								<div class="card-desc">Disponible sur tous vos appareils</div>
+							</div>
+						</div>
+						<div class="card-body">
+							<button type="button" class="btn btn-gold w-full" onclick={handlePwaInstall}>
+								<Download size={14} />
+								{$pwaInstallPrompt ? "Installer l'app" : "Ouvrir l'app"}
+							</button>
 							<button
 								type="button"
-								class="flex w-full items-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground"
+								class="btn-ghost"
 								onclick={() => (pwaStepsExpanded = !pwaStepsExpanded)}
-								aria-expanded={pwaStepsExpanded}
 							>
-								{#if pwaStepsExpanded}
-									<ChevronUp class="w-4 h-4" />
-								{:else}
-									<ChevronDown class="w-4 h-4" />
-								{/if}
+								{#if pwaStepsExpanded}<ChevronUp size={13} />{:else}<ChevronDown size={13} />{/if}
 								Instructions selon l'appareil
 							</button>
 							{#if pwaStepsExpanded}
-								<ul class="text-sm text-muted-foreground space-y-1.5 pl-9 list-disc list-inside">
-									<li><strong>Chrome / Edge (PC)</strong> : menu ⋮ → « Installer l'application »</li>
-									<li><strong>Chrome (Android)</strong> : menu ⋮ → « Ajouter à l'écran d'accueil »</li>
-									<li><strong>Safari (iPhone/iPad)</strong> : Partager → « Sur l'écran d'accueil »</li>
+								<ul class="install-steps">
+									<li><strong>Chrome / Edge (PC)</strong> — menu ⋮ → Installer l'application</li>
+									<li><strong>Chrome (Android)</strong> — menu ⋮ → Ajouter à l'écran d'accueil</li>
+									<li><strong>Safari (iPhone/iPad)</strong> — Partager → Sur l'écran d'accueil</li>
 								</ul>
 							{/if}
 						</div>
+					</div>
 
-						<!-- Étape 2 : Notifications -->
-						{#if isNotificationSupported()}
-							<div class="space-y-2 border-t border-border pt-4">
-								<div class="flex items-center gap-2 font-medium">
-									<span
-										class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
-										>2</span
-									>
-									<span>Notifications</span>
-								</div>
-								<p class="text-sm text-muted-foreground pl-9">
-									Autorisez les notifications pour ne rien manquer. Un rappel quotidien sera envoyé à 20h40 (même si l'app est fermée).
-								</p>
-								{#if notificationPermission === 'denied'}
-									<div class="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200 pl-9">
-										<p class="font-medium">Notifications désactivées</p>
-										<p class="mt-1 text-muted-foreground">{NOTIFICATION_DENIED_HELP}</p>
-									</div>
-								{/if}
-								<div class="pl-9 pt-1">
-									<Button
-										type="button"
-										variant="outline"
-										class="w-full gap-2"
-										size="sm"
-										onclick={handleTestNotification}
-									>
-										<Bell class="w-4 h-4" />
-										Notification de test
-									</Button>
+					<!-- Notifications -->
+					{#if isNotificationSupported()}
+						<div class="card">
+							<div class="card-head">
+								<span class="card-icon"><Bell size={15} /></span>
+								<div>
+									<div class="card-title">Notifications</div>
+									<div class="card-desc">Rappel quotidien à 20h40</div>
 								</div>
 							</div>
-						{/if}
-					</Card.Content>
-				</Card.Root>
-			{:else}
-				<p class="text-sm text-muted-foreground">
-					{#if !hasMeasurements}
-						<a href="/auth/measurement" class="underline font-medium text-foreground hover:no-underline"
-							>Remplissez votre profil physique</a
-						>
-						pour débloquer le paiement, puis le téléchargement de l'app.
-					{:else}
-						<a href="/auth/subscription" class="underline font-medium text-foreground hover:no-underline"
-							>Finalisez votre souscription</a
-						>
-						pour débloquer le téléchargement de l'application.
+							<div class="card-body">
+								{#if notificationPermission === 'denied'}
+									<div class="alert-box">{NOTIFICATION_DENIED_HELP}</div>
+								{/if}
+								<button type="button" class="btn btn-outline w-full" onclick={handleTestNotification}>
+									<Bell size={14} />
+									Notification de test
+								</button>
+							</div>
+						</div>
 					{/if}
-				</p>
-			{/if}
-		</aside>
-	</div>
+				{/if}
+
+			</div>
+		</section>
+
+		<!-- Accès bloqué -->
+		{#if !hasValidPayment}
+			<div class="locked-msg">
+				{#if !hasMeasurements}
+					<a href="/auth/measurement">Remplissez votre profil physique</a> pour débloquer le paiement, puis l'application.
+				{:else}
+					<a href="/auth/subscription">Finalisez votre souscription</a> pour débloquer l'application.
+				{/if}
+			</div>
+		{/if}
+
+		{/if}
+
+	</main>
 </div>
 
 <style lang="scss">
-	/* Stepper procédure : 3 points + ligne */
-	.procedure-stepper {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0;
-		width: 100%;
+	:root {
+		--black: #0a0a0a;
+		--white: #f0ede8;
+		--gold:  #c9a84c;
+		--teal:  #3ab8b8;
 	}
 
-	.procedure-step {
+	/* ─── PAGE ─── */
+	.page {
+		position: relative;
+		z-index: 10;
+		min-height: 100vh;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 0.5rem;
-		flex: 0 0 auto;
+		padding: 0 24px 80px;
+		pointer-events: all;
 	}
 
-	.procedure-step-point {
+	/* ─── HEADER ─── */
+	.page-header {
+		width: 100%;
+		max-width: 640px;
+		text-align: center;
+		padding: 80px 0 56px;
+		border-bottom: 1px solid rgba(255,255,255,.06);
+		margin-bottom: 56px;
+	}
+	.page-eyebrow {
+		font-size: .65rem;
+		letter-spacing: .24em;
+		text-transform: uppercase;
+		color: var(--teal);
+		margin-bottom: 12px;
+	}
+	.page-title {
+		font-family: 'Bebas Neue', sans-serif;
+		font-size: clamp(3rem, 8vw, 5rem);
+		letter-spacing: .06em;
+		line-height: 1;
+		color: var(--white);
+		margin-bottom: 14px;
+	}
+	.page-subtitle {
+		font-size: .9rem;
+		font-weight: 300;
+		color: rgba(240,237,232,.45);
+		line-height: 1.7;
+	}
+	.page-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		margin-top: 20px;
+		padding: 8px 16px;
+		border: 1px solid rgba(201,168,76,.25);
+		background: rgba(201,168,76,.06);
+		font-size: .65rem;
+		letter-spacing: .1em;
+		text-transform: uppercase;
+		color: var(--gold);
+	}
+	.badge-dot {
+		width: 6px; height: 6px;
+		border-radius: 50%;
+		background: var(--gold);
+		flex-shrink: 0;
+	}
+
+	/* ─── MAIN ─── */
+	.page-main {
+		width: 100%;
+		max-width: 640px;
+		display: flex;
+		flex-direction: column;
+		gap: 56px;
+	}
+
+	/* ─── SECTION ─── */
+	.section { display: flex; flex-direction: column; gap: 24px; }
+	.section-title {
+		font-family: 'DM Sans', sans-serif;
+		font-size: .65rem;
+		font-weight: 500;
+		letter-spacing: .2em;
+		text-transform: uppercase;
+		color: rgba(240,237,232,.35);
 		display: flex;
 		align-items: center;
+		gap: 8px;
+	}
+
+	/* ─── CARDS ─── */
+	.cards-col { display: flex; flex-direction: column; gap: 2px; }
+
+	.card {
+		background: rgba(255,255,255,.03);
+		border: 1px solid rgba(255,255,255,.07);
+		transition: border-color .2s;
+	}
+	.card:hover { border-color: rgba(255,255,255,.12); }
+	.card-alert {
+		border-color: rgba(201,168,76,.3);
+		background: rgba(201,168,76,.04);
+	}
+
+	.card-head {
+		display: flex;
+		align-items: flex-start;
+		gap: 14px;
+		padding: 20px 24px 16px;
+	}
+	.card-icon {
+		color: var(--teal);
+		margin-top: 2px;
+		flex-shrink: 0;
+	}
+	.card-title {
+		font-size: .85rem;
+		font-weight: 500;
+		color: var(--white);
+		letter-spacing: .02em;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 3px;
+	}
+	.card-desc {
+		font-size: .75rem;
+		font-weight: 300;
+		color: rgba(240,237,232,.4);
+		line-height: 1.5;
+	}
+	.card-body {
+		padding: 0 24px 20px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+	.card-foot {
+		padding: 0 24px 20px;
+	}
+
+	/* ─── INFO ROWS ─── */
+	.info-row {
+		display: flex;
+		align-items: baseline;
+		gap: 10px;
+		font-size: .8rem;
+		padding: 6px 0;
+		border-bottom: 1px solid rgba(255,255,255,.04);
+	}
+	.info-row:last-child { border-bottom: none; }
+	.info-label {
+		font-size: .62rem;
+		letter-spacing: .12em;
+		text-transform: uppercase;
+		color: rgba(240,237,232,.3);
+		min-width: 50px;
+	}
+	.info-val { color: rgba(240,237,232,.7); font-weight: 300; }
+
+	/* ─── BUTTONS ─── */
+	.btn {
+		display: inline-flex;
+		align-items: center;
 		justify-content: center;
-		width: 2rem;
-		height: 2rem;
-		border-radius: 50%;
-		border: 2px solid var(--border);
-		background: var(--background);
-		color: var(--muted-foreground);
-		transition: border-color 0.2s, background 0.2s, color 0.2s;
+		gap: 8px;
+		padding: 11px 20px;
+		font-family: 'DM Sans', sans-serif;
+		font-size: .75rem;
+		font-weight: 500;
+		letter-spacing: .1em;
+		text-transform: uppercase;
+		text-decoration: none;
+		border: none;
+		cursor: pointer;
+		transition: all .2s;
+	}
+	.btn-outline {
+		background: transparent;
+		border: 1px solid rgba(255,255,255,.15);
+		color: rgba(240,237,232,.7);
+	}
+	.btn-outline:hover { border-color: rgba(255,255,255,.35); color: var(--white); }
+	.btn-gold {
+		background: var(--gold);
+		color: var(--black);
+		font-weight: 600;
+	}
+	.btn-gold:hover { background: #d4b356; }
+	.w-full { width: 100%; }
+
+	.btn-ghost {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: .72rem;
+		color: rgba(240,237,232,.35);
+		letter-spacing: .06em;
+		padding: 4px 0;
+		transition: color .2s;
+	}
+	.btn-ghost:hover { color: rgba(240,237,232,.6); }
+
+	/* ─── STEPPER ─── */
+	.stepper {
+		display: flex;
+		align-items: flex-start;
+		gap: 0;
+	}
+	.step {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		flex: 0 0 auto;
 		text-decoration: none;
 	}
-
-	.procedure-step-point:hover {
-		border-color: var(--ring);
+	.step-dot {
+		width: 28px; height: 28px;
+		border-radius: 50%;
+		border: 1px solid rgba(255,255,255,.15);
+		background: rgba(255,255,255,.03);
+		color: rgba(240,237,232,.35);
+		display: flex; align-items: center; justify-content: center;
+		font-size: .7rem; font-weight: 600;
+		transition: all .2s;
 	}
-
-	.procedure-step-done {
-		border-color: var(--primary);
-		background: var(--primary);
-		color: var(--primary-foreground);
-	}
-
-	.procedure-step-current {
-		border-color: var(--primary);
-		background: var(--primary);
-		color: var(--primary-foreground);
-		box-shadow: 0 0 0 3px var(--ring);
-	}
-
-	.procedure-step-pending {
-		border-color: var(--border);
-		background: var(--muted);
-		color: var(--muted-foreground);
-		cursor: default;
-		pointer-events: none;
-	}
-
-	.procedure-step-line {
-		flex: 1 1 0;
-		min-width: 0.5rem;
-		height: 2px;
-		margin-top: 0.875rem;
-		background: var(--border);
-	}
-
-	.procedure-step-label {
-		font-size: 0.75rem;
-		line-height: 1.2;
+	.step-label {
+		font-size: .62rem;
+		letter-spacing: .1em;
+		text-transform: uppercase;
+		color: rgba(240,237,232,.3);
 		text-align: center;
-		color: var(--muted-foreground);
-		max-width: 4.5rem;
+		max-width: 70px;
+	}
+	.step-active .step-dot {
+		border-color: var(--gold);
+		background: rgba(201,168,76,.1);
+		color: var(--gold);
+		box-shadow: 0 0 0 3px rgba(201,168,76,.12);
+	}
+	.step-active .step-label { color: rgba(240,237,232,.6); }
+	.step-done .step-dot {
+		border-color: var(--teal);
+		background: rgba(58,184,184,.12);
+		color: var(--teal);
+	}
+	.step-done .step-label { color: rgba(240,237,232,.5); }
+	.step-pending { pointer-events: none; }
+	.step-line {
+		flex: 1;
+		height: 1px;
+		background: rgba(255,255,255,.1);
+		margin-top: 14px;
+		min-width: 24px;
+	}
+	.step-line-done { background: rgba(58,184,184,.3); }
+
+	/* ─── BADGES & ALERTS ─── */
+	.badge-alert {
+		font-size: .58rem;
+		letter-spacing: .1em;
+		text-transform: uppercase;
+		padding: 2px 8px;
+		background: rgba(201,168,76,.15);
+		color: var(--gold);
+		border: 1px solid rgba(201,168,76,.25);
+	}
+	.alert-box {
+		font-size: .75rem;
+		font-weight: 300;
+		color: rgba(201,168,76,.7);
+		background: rgba(201,168,76,.06);
+		border: 1px solid rgba(201,168,76,.2);
+		padding: 12px 16px;
+		line-height: 1.6;
+	}
+	.install-steps {
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		padding: 4px 0;
+	}
+	.install-steps li {
+		font-size: .75rem;
+		font-weight: 300;
+		color: rgba(240,237,232,.4);
+		line-height: 1.5;
+		padding-left: 12px;
+		border-left: 1px solid rgba(255,255,255,.08);
+	}
+	.install-steps li strong {
+		color: rgba(240,237,232,.65);
+		font-weight: 500;
 	}
 
-	@keyframes measurements-blink {
-		0%,
-		100% {
-			box-shadow: 0 0 0 2px rgb(245 158 11 / 0.5);
-		}
-		50% {
-			box-shadow: 0 0 0 6px rgb(245 158 11 / 0.8), 0 0 20px rgb(245 158 11 / 0.3);
-		}
+	/* ─── LOCKED MSG ─── */
+	.locked-msg {
+		font-size: .82rem;
+		font-weight: 300;
+		color: rgba(240,237,232,.35);
+		text-align: center;
+		line-height: 1.7;
+		padding: 24px;
+		border: 1px solid rgba(255,255,255,.06);
 	}
+	.locked-msg a {
+		color: var(--white);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+	.locked-msg a:hover { color: var(--gold); }
 
-	:global(.measurements-card-blink) {
-		animation: measurements-blink 1.2s ease-in-out infinite;
+	/* ─── RESPONSIVE ─── */
+	@media (max-width: 480px) {
+		.page { padding: 0 16px 60px; }
+		.page-header { padding: 60px 0 40px; }
+		.card-head { padding: 16px 18px 12px; }
+		.card-body, .card-foot { padding-left: 18px; padding-right: 18px; }
 	}
 </style>

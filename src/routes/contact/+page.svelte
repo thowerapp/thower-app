@@ -40,18 +40,21 @@
 
 <SEO pageKey="contact" />
 
-<main class="min-h-[60vh] py-12 px-4">
-	<div class="mx-auto max-w-lg">
-		<h1 class="mb-2 text-3xl font-semibold tracking-tight">Contact</h1>
-		<p class="mb-8 text-muted-foreground">
+<main class="page">
+	<header class="page-header">
+		<p class="page-eyebrow">— Nous contacter</p>
+		<h1>Envoyer un <span class="gold">message</span></h1>
+		<p class="page-subtitle">
 			Une question ou un projet ? Envoyez-nous un message, nous vous répondrons rapidement.
 		</p>
+	</header>
 
+	<div class="mx-auto max-w-lg w-full px-4">
 		<form
 			method="POST"
 			action="?/submit"
 			use:enhance
-			class="rounded-xl border bg-card p-6 shadow-sm space-y-5"
+			class="card p-6 space-y-5"
 		>
 			<Form.Field name="name" form={contactForm}>
 				<Form.Control>
@@ -85,7 +88,7 @@
 
 			<Form.Field name="subject" form={contactForm}>
 				<Form.Control>
-					<Form.Label>Sujet <span class="text-muted-foreground font-normal">(optionnel)</span></Form.Label>
+					<Form.Label>Sujet <span style="color: rgba(240, 237, 232, 0.5); font-weight: 300;">(optionnel)</span></Form.Label>
 					<Input
 						name="subject"
 						type="text"
@@ -113,7 +116,7 @@
 			</Form.Field>
 
 			<div class="pt-2">
-				<Button type="submit" class="w-full sm:w-auto">Envoyer le message</Button>
+				<Button type="submit" class="w-full sm:w-auto btn-primary">Envoyer le message</Button>
 			</div>
 		</form>
 	</div>

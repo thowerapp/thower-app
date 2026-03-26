@@ -76,28 +76,6 @@
 	const isGoogleUser = $derived(!!data?.user?.googleId);
 
 	onMount(() => {
-		// ── CURSOR ──
-		const cursor = document.createElement('div');
-		cursor.id = 'auth-cursor';
-		cursor.style.cssText = `
-			position: fixed; z-index: 9999;
-			width: 14px; height: 12px;
-			pointer-events: none;
-			transform: translate(-50%, -50%);
-			clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
-			background: #3ab8b8;
-			mix-blend-mode: difference;
-			transition: width .15s, height .15s;
-			top: 0; left: 0;
-		`;
-		document.body.appendChild(cursor);
-		const onMove = (e: MouseEvent) => { cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px'; };
-		document.addEventListener('mousemove', onMove);
-		document.querySelectorAll('button, a, select, input').forEach(el => {
-			el.addEventListener('mouseenter', () => { cursor.style.width = '22px'; cursor.style.height = '19px'; });
-			el.addEventListener('mouseleave', () => { cursor.style.width = '14px'; cursor.style.height = '12px'; });
-		});
-
 		// ── THREE.JS ──
 		const canvas = document.createElement('canvas');
 		canvas.style.cssText = 'position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-events:none;';
@@ -160,9 +138,9 @@
 		window.addEventListener('resize', onResize);
 		return () => {
 			cancelAnimationFrame(animId);
-			document.removeEventListener('mousemove', onMove);
 			window.removeEventListener('resize', onResize);
-			renderer.dispose(); canvas.remove(); cursor.remove();
+			renderer.dispose(); 
+			canvas.remove();
 		};
 	});
 </script>

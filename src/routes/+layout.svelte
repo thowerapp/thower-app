@@ -1,8 +1,10 @@
 <script lang="ts">
   import Navigation from './../lib/components/Navigation.svelte';
+  import GlobalCursor from '$lib/components/GlobalCursor.svelte';
   import '@fontsource-variable/open-sans';
   import '@fontsource-variable/raleway';
   import '../app.css';
+  import '$lib/styles/shadcn-thower-harmony.css';
 
   import { initializeLayoutState, setupNavigationEffect, isClient } from './layout.svelte';
 
@@ -127,6 +129,7 @@
 {#if $isClient}
   <div class="wrapper">
     <ModeWatcher />
+    <GlobalCursor />
     <!-- <Navigation user={data?.user ?? null} /> -->
     <div class="container">
       <div class="wrapperScroll">

@@ -120,7 +120,306 @@
   }
 }
 
+/* ────────────────────────────────────────────────────────────────────────────── */
+/* THOWER DESIGN SYSTEM — Harmonisation globale                                  */
+/* ────────────────────────────────────────────────────────────────────────────── */
 
+:root {
+  /* ── Palette de couleurs personnalisées ── */
+  --thower-black: #0a0a0a;
+  --thower-white: #f0ede8;
+  --thower-gold: #c9a84c;
+  --thower-teal: #3ab8b8;
+  --thower-dark-bg: rgba(10, 10, 10, 0.98);
+  --thower-border-light: rgba(240, 237, 232, 0.08);
+  --thower-border-medium: rgba(240, 237, 232, 0.15);
+}
+
+/* ── TYPOGRAPHIES GLOBALES ── */
+
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: 0.02em;
+  color: var(--thower-white);
+}
+
+h1 {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+h2 {
+  font-family: 'Bebas Neue', system-ui, -apple-system, sans-serif;
+  font-size: clamp(1.75rem, 4vw, 3rem);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+h3 {
+  font-family: 'Bebas Neue', system-ui, -apple-system, sans-serif;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+h4 {
+  font-family: 'Bebas Neue', system-ui, -apple-system, sans-serif;
+  font-size: 1.125rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+p, body, main, section {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 300;
+  line-height: 1.6;
+  color: rgba(240, 237, 232, 0.75);
+}
+
+label, .label, .form-label {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--thower-white);
+  letter-spacing: 0.02em;
+}
+
+/* ── CURSEUR PERSONNALISÉ GLOBAL ── */
+* {
+  cursor: none;
+}
+
+a, button, [role="button"], input[type="button"], input[type="submit"], select {
+  cursor: none;
+}
+
+/* Curseur visible (triangle cyan) */
+::-webkit-scrollbar-thumb {
+  background: var(--thower-teal);
+  border-radius: 4px;
+}
+
+/* ── STYLES DES FORMULAIRES SHADCN ── */
+
+/* Inputs et textareas */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="date"],
+input[type="time"],
+textarea,
+select {
+  background: rgba(10, 10, 10, 0.95);
+  border: 1px solid var(--thower-border-medium);
+  color: var(--thower-white);
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 0.9rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="tel"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--thower-teal);
+  background: rgba(10, 10, 10, 1);
+  box-shadow: 0 0 0 3px rgba(58, 184, 184, 0.1);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(240, 237, 232, 0.35);
+}
+
+/* Boutons */
+button, a[role="button"], .btn {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+  border-radius: 0.5rem;
+}
+
+button:not([class*="shadcn"]):not([class*="btn"]) {
+  padding: 0.75rem 1.5rem;
+}
+
+/* Bouton primaire (gold) */
+.btn-primary, button[type="submit"]:not([variant]) {
+  background: var(--thower-gold);
+  color: var(--thower-black);
+  border: none;
+  font-weight: 600;
+}
+
+.btn-primary:hover,
+button[type="submit"]:not([variant]):hover {
+  background: #d4b356;
+  transform: translateY(-1px);
+}
+
+/* Bouton secondaire (outline) */
+.btn-secondary, .btn-outline {
+  background: transparent;
+  border: 1px solid var(--thower-border-medium);
+  color: var(--thower-white);
+}
+
+.btn-secondary:hover,
+.btn-outline:hover {
+  border-color: var(--thower-teal);
+  color: var(--thower-teal);
+  background: rgba(58, 184, 184, 0.05);
+}
+
+/* Bouton ghost */
+.btn-ghost {
+  background: transparent;
+  border: none;
+  color: rgba(240, 237, 232, 0.6);
+}
+
+.btn-ghost:hover {
+  color: var(--thower-white);
+}
+
+/* ── ACCENTS DE COULEUR (mots clés accentués) ── */
+.accent-gold, .gold {
+  color: var(--thower-gold);
+}
+
+.accent-teal, .teal {
+  color: var(--thower-teal);
+}
+
+.accent-white {
+  color: var(--thower-white);
+}
+
+.highlight-word {
+  color: var(--thower-gold);
+  font-weight: 500;
+}
+
+/* ── CARDS ET CONTENEURS ── */
+.card, [class*="Card"] {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--thower-border-light);
+  border-radius: 0.625rem;
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--thower-border-medium);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── FORM LAYOUTS ── */
+.form-group, .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-description, .field-description {
+  font-size: 0.75rem;
+  color: rgba(240, 237, 232, 0.5);
+  margin-top: 0.25rem;
+}
+
+.form-error, .field-error {
+  font-size: 0.75rem;
+  color: #ff6b6b;
+  margin-top: 0.25rem;
+}
+
+/* ── SECTIONS ── */
+section {
+  position: relative;
+  z-index: 10;
+}
+
+main {
+  background: var(--thower-black);
+  color: var(--thower-white);
+}
+
+/* ── PAGES (layout général pour auth, profil, contact, etc.) ── */
+.page {
+  position: relative;
+  z-index: 10;
+  background: var(--thower-black);
+  color: var(--thower-white);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: all;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.page-eyebrow {
+  font-size: 0.65rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--thower-teal);
+  margin-bottom: 1rem;
+}
+
+.page-title {
+  font-family: 'Bebas Neue', system-ui, -apple-system, sans-serif;
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--thower-white);
+  margin-bottom: 1rem;
+}
+
+.page-subtitle {
+  font-size: 0.95rem;
+  font-weight: 300;
+  color: rgba(240, 237, 232, 0.5);
+  line-height: 1.7;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  h1 { font-size: clamp(1.5rem, 4vw, 2.5rem); }
+  h2 { font-size: clamp(1.25rem, 3.5vw, 2rem); }
+  h3 { font-size: clamp(1rem, 3vw, 1.5rem); }
+  
+  p, body, label {
+    font-size: 0.9rem;
+  }
+  
+  input, textarea, select {
+    font-size: 16px; /* Évite le zoom mobile sur iOS */
+  }
+}
 
 
 .rts {

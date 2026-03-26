@@ -75,35 +75,6 @@
   }
 
   onMount(() => {
-    // ── CURSOR — attaché au body, jamais dans le flux scroll ──
-    const cursor = document.createElement('div');
-    cursor.id = 'cursor';
-    cursor.style.cssText = `
-      position: fixed;
-      z-index: 9999;
-      width: 14px;
-      height: 12px;
-      pointer-events: none;
-      transform: translate(-50%, -50%);
-      background: #3ab8b8;
-      clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
-      mix-blend-mode: difference;
-      transition: width 0.15s, height 0.15s;
-      top: 0; left: 0;
-    `;
-    document.body.appendChild(cursor);
-
-    const onMouseMove = (e: MouseEvent) => {
-      cursor.style.left = e.clientX + 'px';
-      cursor.style.top  = e.clientY + 'px';
-    };
-    document.addEventListener('mousemove', onMouseMove);
-
-    document.querySelectorAll('button, a, select, input, #scroll-hint').forEach(el => {
-      el.addEventListener('mouseenter', () => { cursor.style.width = '22px'; cursor.style.height = '19px'; });
-      el.addEventListener('mouseleave', () => { cursor.style.width = '14px'; cursor.style.height = '12px'; });
-    });
-
     // ── EYEBROW ──
     const eyebrowEl = document.querySelector('.hero-eyebrow') as HTMLElement | null;
     const heroTitleEl = document.getElementById('hero-title');
@@ -266,13 +237,11 @@
 
     return () => {
       cancelAnimationFrame(animId);
-      document.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('resize', onResize);
       unsubscribeStore();
       if (currentScrollbar && sbListener) currentScrollbar.removeListener(sbListener);
       renderer.dispose();
       canvas.remove();
-      cursor.remove();
     };
   });
 </script>

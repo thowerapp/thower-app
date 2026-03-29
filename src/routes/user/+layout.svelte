@@ -195,6 +195,7 @@
 		flex: 1;
 		overflow-y: auto;
 		background: #fff;
+		min-height: 0;
 	}
 
 	.bottom-nav {

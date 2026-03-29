@@ -2,6 +2,20 @@
   import { onMount } from 'svelte';
 
   onMount(() => {
+    // Détecte si c'est un appareil tactile/mobile (pas de souris)
+    const isMobileOrTouchDevice = () => {
+      return (
+        window.matchMedia('(hover: none)').matches || // Aucun support hover (tactile)
+        ('ontouchstart' in window) || // Support tactile présent
+        navigator.maxTouchPoints > 0 // Points tactiles disponibles
+      );
+    };
+
+    // N'affiche le curseur personnalisé que sur bureau avec souris
+    if (isMobileOrTouchDevice()) {
+      return; // Quitter si c'est mobile - utilise le curseur par défaut
+    }
+
     // Créer le curseur personnalisé (triangle cyan)
     const cursor = document.createElement('div');
     cursor.id = 'thower-cursor';

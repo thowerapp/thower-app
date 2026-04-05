@@ -5,6 +5,7 @@
 	export let data: LayoutData;
 
 	$: currentTab = getTabFromRoute($page.url.pathname);
+	$: isNutritionRoute = $page.url.pathname.includes('/nutrition');
 
 	function getTabFromRoute(pathname: string): string {
 		if (pathname.includes('/decouverte')) return 'decouverte';
@@ -20,31 +21,33 @@
 	<!-- Status bar -->
 	<div class="sbar"></div>
 
-	<!-- Hero -->
-	<div class="hero">
-		<div class="hero-top">
-			<div class="hero-brand">
-				<div class="hero-title">Thower</div>
-				<div class="hero-sub">Semaine 4 · Jour 21</div>
+	<!-- Hero - Hidden on nutrition routes -->
+	{#if !isNutritionRoute}
+		<div class="hero">
+			<div class="hero-top">
+				<div class="hero-brand">
+					<div class="hero-title">Thower</div>
+					<div class="hero-sub">Semaine 4 · Jour 21</div>
+				</div>
+				<div class="hero-right">
+					<div class="logo-shape">
+						<svg viewBox="0 0 44 38" fill="none">
+							<polygon points="22,2 42,36 2,36" fill="#222" />
+							<polygon points="22,2 42,36 22,24" fill="#333" />
+						</svg>
+					</div>
+					<div class="profile-btn">
+						<div class="sq"></div>
+						<div class="notif-dot"></div>
+					</div>
+				</div>
 			</div>
-			<div class="hero-right">
-				<div class="logo-shape">
-					<svg viewBox="0 0 44 38" fill="none">
-						<polygon points="22,2 42,36 2,36" fill="#222" />
-						<polygon points="22,2 42,36 22,24" fill="#333" />
-					</svg>
-				</div>
-				<div class="profile-btn">
-					<div class="sq"></div>
-					<div class="notif-dot"></div>
-				</div>
+			<div class="hero-pills">
+				<div class="hero-pill">Aujourd'hui</div>
+				<div class="hero-pill">Profil</div>
 			</div>
 		</div>
-		<div class="hero-pills">
-			<div class="hero-pill">Aujourd'hui</div>
-			<div class="hero-pill">Profil</div>
-		</div>
-	</div>
+	{/if}
 
 	<!-- Page content -->
 	<div class="scroll">

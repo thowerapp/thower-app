@@ -18,7 +18,7 @@ type AggregatedItem = {
 /**
  * Génère ou régénère une liste de courses pour la période [startDayIndex, endDayIndex]
  * à partir du planning repas (NutritionDay → Meal → Recipe → RecipeIngredient).
- * Quantités = (meal.quantityG / recipe.referenceYieldG) × ingredient.quantityG, agrégées par ingrédient.
+ * Quantités = (meal.quantityG / recipe.referenceYieldG) × ingredient.quantityG (ingrédients sans quantityG exclus).
  * Tri selon UserProfile.shoppingListSortOrder (category | alphabetical).
  */
 export async function generateShoppingListFromPlanning(
@@ -70,7 +70,9 @@ export async function generateShoppingListFromPlanning(
 			if (!recipe || !meal.quantityG || meal.quantityG <= 0) continue;
 			const refYield = recipe.referenceYieldG ?? DEFAULT_REFERENCE_YIELD_G;
 			const factor = meal.quantityG / refYield;
-			for (const ing of recipe.ingredients) {
+			const sortedIngredients = [...recipe.ingredients].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+			for (const ing of sortedIngredients) {
+				if (ing.quantityG == null || Number.isNaN(ing.quantityG)) continue;
 				const qty = ing.quantityG * factor;
 				addItem(ing.name, ing.category ?? null, ing.unit ?? null, qty, false);
 			}

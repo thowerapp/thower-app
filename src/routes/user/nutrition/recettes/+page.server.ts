@@ -21,11 +21,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 	});
 
-	const firstThreeMonthsRecipes = allRecipes.filter(r => r.category === 'FIRST_3_MONTHS' && !r.isCustom);
-	const newRecipes = allRecipes.filter(r => r.category === 'NEW' && !r.isCustom);
+	const breakfastRecipes = allRecipes.filter(r => r.category === 'BREAKFAST' && !r.isCustom);
+	const mealRecipes = allRecipes.filter(r => r.category === 'MEAL' && !r.isCustom);
+	const dessertRecipes = allRecipes.filter(r => r.category === 'DESSERT' && !r.isCustom);
 	const customRecipes = allRecipes.filter(r => r.isCustom && r.userId === locals.user.id);
 
-	// Get user's favorite recipes
 	const favoriteRecipes = await prisma.userFavoriteRecipe.findMany({
 		where: { userId: locals.user.id },
 		include: {
@@ -38,8 +38,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 	});
 
 	return {
-		firstThreeMonthsRecipes,
-		newRecipes,
+		breakfastRecipes,
+		mealRecipes,
+		dessertRecipes,
 		customRecipes,
 		favoriteRecipes: favoriteRecipes.map(f => f.recipe),
 		user: locals.user

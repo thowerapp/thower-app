@@ -46,9 +46,9 @@ enum MealPosition {
 
 /// Catégorie d'une recette
 enum RecipeCategory {
-  FIRST_3_MONTHS /// recettes des 3 premiers mois
-  NEW            /// nouvelles recettes
-  CUSTOM         /// recettes perso utilisateur
+  BREAKFAST /// Petit déjeuner
+  MEAL      /// Repas (déjeuner / dîner)
+  DESSERT   /// Dessert
 }
 
 /// Catégorie du contenu Découverte (Motivation, Explication, Breathwork…)
@@ -515,28 +515,40 @@ model UserVideoWatch {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // LOT 4 & 5 — NUTRITION : RECETTES (catalogue admin + recettes perso)
+// isCustom:false + userId:null  → recette catalogue admin (FIRST_3_MONTHS | NEW)
+// isCustom:true  + userId:set   → recette personnelle créée par un utilisateur
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Fiche recette — partagée (userId null) ou personnelle (userId renseigné)
+/// Fiche recette — catalogue admin (isCustom false) ou perso utilisateur (isCustom true)
 /// Admin : gestion catalogue (3 premiers mois, nouvelles recettes) ; client : favoris + perso
 model Recipe {
   id           String         @id @default(auto()) @map("_id") @db.ObjectId
   name         String
-  photoUrl     String?
-  prepTimeMin  Int?
-  cookTimeMin  Int?
+  /// Accroche / description courte (pitch)
+  description  String?
+  /// Temps total (prépa + cuisson), minutes — affichage fiche
+  totalTimeMin Int?
+  /// Nombre de portions couvertes par les quantités / macros / referenceYieldG
+  servings     Int            @default(1)
   category     RecipeCategory
   instructions String?
   active       Boolean        @default(true)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  /// null = recette admin partagée ; renseigné = recette perso utilisateur
+  /// Macros pour la portion de référence (saisie fiche)
+  nutritionKcal      Float?
+  nutritionProteinG  Float?
+  nutritionCarbsG   Float?
+  nutritionFatG     Float?
+  nutritionFiberG   Float?
+
+  /// false = recette catalogue admin ; true = recette créée par un utilisateur
   isCustom Boolean @default(false)
   userId   String? @db.ObjectId
   user     User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  /// Portion de référence en grammes pour le calcul des ingrédients (liste de courses). Si null, 100g utilisé.
+  /// Poids total du plat pour `servings` portion(s) — base du scaling liste de courses vs Meal.quantityG. Si null, 100 g.
   referenceYieldG Float?
 
   ingredients RecipeIngredient[]
@@ -552,12 +564,16 @@ model RecipeIngredient {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   recipeId  String   @db.ObjectId
+  order     Int      @default(0)
   name      String
-  /// Quantité de référence en grammes (pour 1 portion = recipe.referenceYieldG)
-  quantityG Float
+  /// Grammes pour le scaling liste de courses ; null = hors agrégation (ex. épices au goût)
+  quantityG Float?
   unit      String?
   /// Catégorie pour tri liste de courses (ex: Viandes, Légumes, Féculents)
   category  String?
+  /// Note affichée (ex. apport kcal facultatif)
+  note      String?
+  isOptional Boolean @default(false)
   allergens String[] @default([])
 
   @@index([recipeId])
@@ -635,9 +651,9 @@ model Meal {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // LOT 6 — LISTE DE COURSES
-// Générée automatiquement depuis le planning repas (NutritionDay → Meal → Recipe
-// → RecipeIngredient) pour la période [startDayIndex..endDayIndex]. Quantités
-// avec coefficient famille. Tri par catégorie ou alphabétique (UserProfile).
+// Générée depuis le planning (NutritionDay → Meal → Recipe → RecipeIngredient).
+// Scaling : (meal.quantityG / recipe.referenceYieldG) × ingredient.quantityG ;
+// ingrédients sans quantityG exclus. Tri liste : UserProfile (catégorie / alpha).
 // Détail : docs/spec-lot6-liste-courses.md
 // ═══════════════════════════════════════════════════════════════════════════
 

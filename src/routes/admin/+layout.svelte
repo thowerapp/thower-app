@@ -15,9 +15,10 @@
 				title: 'Dashboard',
 				items: [
 					{ title: 'Accueil', url: '/admin' },
-					{ title: 'ventes', url: '/admin/sales' },
-					{ title: 'utilisateurs', url: '/admin/users' },
-					{ title: 'contact', url: '/admin/contact' }
+					{ title: 'Ventes', url: '/admin/sales' },
+					{ title: 'Utilisateurs', url: '/admin/users' },
+					{ title: 'Recettes', url: '/admin/recettes' },
+					{ title: 'Contact', url: '/admin/contact' }
 				]
 			}
 		]

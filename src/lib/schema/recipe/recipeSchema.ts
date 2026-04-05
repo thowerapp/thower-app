@@ -1,17 +1,47 @@
 import { z } from 'zod';
-import { recipeIngredientSchema } from './recipeIngredientSchema';
+import { recipeIngredientSchema, type RecipeIngredientSchema } from './recipeIngredientSchema';
 
-export const recipeCategoryEnum = z.enum(['FIRST_3_MONTHS', 'NEW', 'CUSTOM']);
+export const recipeCategoryEnum = z.enum(['BREAKFAST', 'MEAL', 'DESSERT']);
+
+export type RecipeCategory = z.infer<typeof recipeCategoryEnum>;
 
 export const recipeSchema = z.object({
-	name: z.string().min(1).max(200),
-	photoUrl: z.string().url().optional().nullable().or(z.literal('')),
-	prepTimeMin: z.number().int().min(0).optional().nullable(),
-	cookTimeMin: z.number().int().min(0).optional().nullable(),
+	name: z.string().min(1, 'Le nom est requis.').max(200, 'Nom trop long.'),
+	description: z.string().max(5000, 'Description trop longue.').optional().nullable(),
+	totalTimeMin: z.number().int().min(0, 'Temps invalide.').optional().nullable(),
+	servings: z.number().int().min(1, 'Minimum 1 portion.').default(1),
 	category: recipeCategoryEnum,
-	instructions: z.string().max(10000).optional().nullable(),
+	instructions: z.string().max(10000, 'Instructions trop longues.').optional().nullable(),
+	referenceYieldG: z.number().positive('Doit être positif.').optional().nullable(),
 	isCustom: z.boolean().default(false),
+	nutritionKcal: z.number().nonnegative().optional().nullable(),
+	nutritionProteinG: z.number().nonnegative().optional().nullable(),
+	nutritionCarbsG: z.number().nonnegative().optional().nullable(),
+	nutritionFatG: z.number().nonnegative().optional().nullable(),
+	nutritionFiberG: z.number().nonnegative().optional().nullable(),
 	ingredients: z.array(recipeIngredientSchema).default([])
 });
 
-export type RecipeSchema = z.infer<typeof recipeSchema>;
+export const deleteRecipeSchema = z.object({
+	id: z.string().min(1)
+});
+
+export type DeleteRecipeSchema = z.infer<typeof deleteRecipeSchema>;
+
+/** Données formulaire recette (explicite pour Superforms / bindings TS) */
+export type RecipeSchema = {
+	name: string;
+	description?: string | null;
+	totalTimeMin?: number | null;
+	servings: number;
+	category: RecipeCategory;
+	instructions?: string | null;
+	referenceYieldG?: number | null;
+	isCustom: boolean;
+	nutritionKcal?: number | null;
+	nutritionProteinG?: number | null;
+	nutritionCarbsG?: number | null;
+	nutritionFatG?: number | null;
+	nutritionFiberG?: number | null;
+	ingredients: RecipeIngredientSchema[];
+};

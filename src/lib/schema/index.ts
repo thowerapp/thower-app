@@ -38,7 +38,7 @@ export {
 } from './program/programDayItemSchema';
 
 // Recettes
-export { recipeSchema, recipeCategoryEnum, type RecipeSchema } from './recipe/recipeSchema';
+export { recipeSchema, recipeCategoryEnum, deleteRecipeSchema, type RecipeSchema, type DeleteRecipeSchema } from './recipe/recipeSchema';
 export { recipeIngredientSchema, type RecipeIngredientSchema } from './recipe/recipeIngredientSchema';
 
 // Nutrition

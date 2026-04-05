@@ -3,12 +3,18 @@ import { regenerateShoppingListsForRecipe } from '../shoppingList/regenerateOver
 
 export type UpdateRecipeData = {
 	name?: string;
-	photoUrl?: string | null;
-	prepTimeMin?: number | null;
-	cookTimeMin?: number | null;
+	description?: string | null;
+	totalTimeMin?: number | null;
+	servings?: number;
 	instructions?: string | null;
 	active?: boolean;
+	isCustom?: boolean;
 	referenceYieldG?: number | null;
+	nutritionKcal?: number | null;
+	nutritionProteinG?: number | null;
+	nutritionCarbsG?: number | null;
+	nutritionFatG?: number | null;
+	nutritionFiberG?: number | null;
 };
 
 export async function updateRecipe(recipeId: string, data: UpdateRecipeData) {

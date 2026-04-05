@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { prisma } from '$lib/server/index';
 import { createTransactionFromStripeSession } from '$lib/prisma/transaction/createTransactionFromStripeSession';
 import { getSubscriptionEndDateFromPlan, type PlanId } from '$lib/server/subscription-plans';
+import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -54,6 +55,11 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 		});
 		if (existing) {
 			console.log('Transaction already recorded for session:', session.id);
+			if (session.payment_status === 'paid' && existing.userId) {
+				void scheduleProgramGenerationAfterPayment(existing.userId).catch((err) => {
+					console.error('scheduleProgramGenerationAfterPayment failed', existing.userId, err);
+				});
+			}
 			return;
 		}
 
@@ -77,6 +83,10 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				data: { subscriptionEndsAt: endsAt }
 			});
 			console.log('User subscriptionEndsAt updated for', transaction.userId, 'plan', planId, 'until', endsAt.toISOString());
+
+			void scheduleProgramGenerationAfterPayment(transaction.userId).catch((err) => {
+				console.error('scheduleProgramGenerationAfterPayment failed', transaction.userId, err);
+			});
 		}
 	} catch (error) {
 		console.error('Failed to create transaction for session', session.id, error);

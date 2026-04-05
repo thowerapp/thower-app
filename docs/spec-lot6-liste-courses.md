@@ -32,8 +32,8 @@ Donc : **repas générés dès le départ → modifiables → liste de courses d
 | **UserProfile** | `familyCoefficients` (Json), `shoppingListSortOrder` ('category' \| 'alphabetical'). |
 | **NutritionDay** | Jours du programme (1–91) avec repas. |
 | **Meal** | Repas d’un jour : `recipeId`, `quantityG` (quantité calculée, déjà avec coeff famille). |
-| **Recipe** | Fiche recette (catalogue ou perso). |
-| **RecipeIngredient** | Ingrédient d’une recette : `name`, `quantityG`, `unit`, `allergens`. |
+| **Recipe** | Fiche recette (catalogue ou perso) : `referenceYieldG`, `servings`, `totalTimeMin`, champs nutrition optionnels. |
+| **RecipeIngredient** | Ingrédient : `name`, `quantityG` (optionnel ; absent = exclu de la liste de courses), `order`, `unit`, `category`, `note`, `isOptional`, `allergens`. |
 | **ShoppingList** | Une liste : `userId`, `startDayIndex`, `endDayIndex`, `generatedAt`. |
 | **ShoppingItem** | Ligne de liste : `ingredientName`, `category`, `totalQuantityG`, `unit`, `isChecked`, `isReported`. |
 
@@ -46,10 +46,10 @@ Donc : **repas générés dès le départ → modifiables → liste de courses d
 1. Récupérer les **NutritionDay** de l’utilisateur pour `dayIndex` dans `[startDayIndex .. endDayIndex]`.
 2. Pour chaque jour, récupérer les **Meal** avec **Recipe** et **Recipe.ingredients**.
 3. Pour chaque repas :
-   - Pour chaque **RecipeIngredient** de la recette :
+   - Pour chaque **RecipeIngredient** de la recette (avec `quantityG` renseigné ; sinon ignoré) :
      - Calculer la quantité pour ce repas :  
        `quantité_ingr = (meal.quantityG / référence_recette_g) × ingredient.quantityG`  
-       *(référence_recette_g : à définir — ex. portion de référence en grammes sur Recipe ou formule client).*
+       *(référence_recette_g = `Recipe.referenceYieldG`, défaut 100 g si null).*
      - Agréger par `(ingredientName, category, unit)` : somme des `quantité_ingr`.
 4. Appliquer le **tri** selon `UserProfile.shoppingListSortOrder` (catégorie ou alphabétique).
 5. Créer **ShoppingList** (startDayIndex, endDayIndex) et autant de **ShoppingItem** que de lignes agrégées.
@@ -78,7 +78,7 @@ Donc : **repas générés dès le départ → modifiables → liste de courses d
 |---------------|--------|
 | Modèles **ShoppingList** / **ShoppingItem** | ✅ Présents (Prisma). |
 | **UserProfile** : `shoppingListSortOrder`, `familyCoefficients` | ✅ Présents. |
-| **Recipe.referenceYieldG**, **RecipeIngredient.category** | ✅ Ajoutés (schéma + seed). |
+| **Recipe.referenceYieldG**, **RecipeIngredient** (`category`, `order`, `quantityG` nullable, etc.) | ✅ Schéma + seed. |
 | Récupération « liste courante » (`getCurrentShoppingList`) | ✅ Existe. |
 | Coché / décoché (`toggleShoppingItemChecked`) | ✅ Existe. |
 | **Génération** liste depuis planning (`generateShoppingListFromPlanning`) | ✅ Implémentée : agrégation par ingrédient, tri (catégorie / alphabétique), report. |

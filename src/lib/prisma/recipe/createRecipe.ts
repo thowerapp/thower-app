@@ -1,21 +1,37 @@
 import { prisma } from '$lib/server';
 import type { RecipeCategory } from '@prisma/client';
 
+export type CreateRecipeIngredientInput = {
+	name: string;
+	quantityG?: number | null;
+	unit?: string | null;
+	category?: string | null;
+	order?: number;
+	note?: string | null;
+	isOptional?: boolean;
+	allergens?: string[];
+};
+
 export type CreateRecipeData = {
 	name: string;
-	photoUrl?: string | null;
-	prepTimeMin?: number | null;
-	cookTimeMin?: number | null;
+	description?: string | null;
+	totalTimeMin?: number | null;
+	servings?: number;
 	category: RecipeCategory;
 	instructions?: string | null;
 	isCustom?: boolean;
 	userId?: string | null;
 	referenceYieldG?: number | null;
-	ingredients?: { name: string; quantityG: number; unit?: string | null; category?: string | null; allergens?: string[] }[];
+	nutritionKcal?: number | null;
+	nutritionProteinG?: number | null;
+	nutritionCarbsG?: number | null;
+	nutritionFatG?: number | null;
+	nutritionFiberG?: number | null;
+	ingredients?: CreateRecipeIngredientInput[];
 };
 
 export async function createRecipe(data: CreateRecipeData) {
-	const client = prisma as {
+	const client = prisma as unknown as {
 		recipe?: {
 			create: (args: {
 				data: unknown;
@@ -29,11 +45,23 @@ export async function createRecipe(data: CreateRecipeData) {
 	return client.recipe.create({
 		data: {
 			...rest,
-			userId: data.userId ?? undefined,
 			isCustom: data.isCustom ?? false,
+			userId: data.userId ?? undefined,
+			servings: data.servings ?? 1,
 			referenceYieldG: data.referenceYieldG ?? undefined,
 			ingredients: ingredients?.length
-				? { create: ingredients.map((i) => ({ name: i.name, quantityG: i.quantityG, unit: i.unit ?? undefined, category: i.category ?? undefined, allergens: i.allergens ?? [] })) }
+				? {
+						create: ingredients.map((i, idx) => ({
+							name: i.name,
+							quantityG: i.quantityG === undefined ? undefined : i.quantityG,
+							unit: i.unit === undefined ? undefined : i.unit,
+							category: i.category === undefined ? undefined : i.category,
+							order: i.order ?? idx,
+							note: i.note === undefined ? undefined : i.note,
+							isOptional: i.isOptional ?? false,
+							allergens: i.allergens ?? []
+						}))
+					}
 				: undefined
 		}
 	});

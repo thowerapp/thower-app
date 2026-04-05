@@ -167,7 +167,8 @@ async function main() {
 	const recipeDefs = [
 		{
 			name: 'Poulet riz coco curry',
-			category: 'FIRST_3_MONTHS', prepTimeMin: 15, cookTimeMin: 25,
+			category: 'MEAL',
+			totalTimeMin: 40,
 			referenceYieldG: 555,
 			instructions: "Faire revenir le poulet en dés. Ajouter le lait de coco et le curry. Servir avec le riz basmati.",
 			ingredients: [
@@ -179,7 +180,8 @@ async function main() {
 		},
 		{
 			name: 'Salade noix gorgonzola poulet',
-			category: 'FIRST_3_MONTHS', prepTimeMin: 10, cookTimeMin: 0,
+			category: 'MEAL',
+			totalTimeMin: 10,
 			referenceYieldG: 350,
 			instructions: "Mélanger tous les ingrédients. Assaisonner huile d'olive + vinaigre balsamique.",
 			ingredients: [
@@ -191,7 +193,8 @@ async function main() {
 		},
 		{
 			name: 'Saumon patate douce épinards',
-			category: 'FIRST_3_MONTHS', prepTimeMin: 10, cookTimeMin: 20,
+			category: 'MEAL',
+			totalTimeMin: 30,
 			referenceYieldG: 495,
 			instructions: "Cuire le saumon à la poêle, patate douce à la vapeur, épinards sautés à l'ail.",
 			ingredients: [
@@ -203,7 +206,8 @@ async function main() {
 		},
 		{
 			name: 'Bowl protéiné œuf quinoa légumes',
-			category: 'NEW', prepTimeMin: 10, cookTimeMin: 15,
+			category: 'MEAL',
+			totalTimeMin: 25,
 			referenceYieldG: 400,
 			instructions: "Cuire quinoa, faire revenir les légumes, pocher les œufs. Assembler en bowl.",
 			ingredients: [

@@ -164,6 +164,31 @@ async function main() {
 
 	// ── 5. RECETTES ───────────────────────────────────────────────────────────
 	console.log('5/10 — Recettes…');
+	// Schéma actuel : RecipeCategory = BREAKFAST | MEAL | DESSERT uniquement.
+	// Les anciennes valeurs (FIRST_3_MONTHS, NEW, etc.) cassent Prisma au find — correction directe Mongo avant tout accès Recipe.
+	try {
+		const migrateResult = await db.$runCommandRaw({
+			update: 'recipes',
+			updates: [
+				{
+					q: { category: { $nin: ['BREAKFAST', 'MEAL', 'DESSERT'] } },
+					u: { $set: { category: 'MEAL' } },
+					multi: true
+				}
+			]
+		});
+		const n =
+			migrateResult?.nModified ??
+			migrateResult?.n ??
+			migrateResult?.modifiedCount ??
+			0;
+		if (n > 0) {
+			console.log(`  → ${n} recette(s) : category migrée vers MEAL (valeurs hors enum).`);
+		}
+	} catch (e) {
+		console.warn('  → Migration category recettes ignorée :', e?.message ?? e);
+	}
+
 	const recipeDefs = [
 		{
 			name: 'Poulet riz coco curry',
@@ -220,11 +245,20 @@ async function main() {
 	];
 	const recipes = [];
 	for (const def of recipeDefs) {
+		const { ingredients, ...recipeData } = def;
 		let recipe = await db.recipe.findFirst({ where: { name: def.name, userId: null } });
 		if (!recipe) {
-			const { ingredients, ...recipeData } = def;
 			recipe = await db.recipe.create({
 				data: { ...recipeData, active: true, isCustom: false, ingredients: { create: ingredients } },
+				include: { ingredients: true }
+			});
+		} else {
+			await db.recipe.update({
+				where: { id: recipe.id },
+				data: { ...recipeData, active: true, isCustom: false }
+			});
+			recipe = await db.recipe.findUnique({
+				where: { id: recipe.id },
 				include: { ingredients: true }
 			});
 		}

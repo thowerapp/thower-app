@@ -16,7 +16,9 @@
 	let { data } = $props();
 
 	const formOptions = {
-		validators: zodClient(recipeSchema)
+		validators: zodClient(recipeSchema),
+		dataType: 'json' as const,
+		id: 'adminRecipeCreate'
 	};
 
 	const recipeForm = $derived.by(() => superForm(data.form, formOptions));

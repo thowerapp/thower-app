@@ -15,14 +15,16 @@
 
 	let { data } = $props();
 
-	const formOptions = {
-		validators: zodClient(recipeSchema),
-		onUpdated({ form }: { form: { message?: unknown } }) {
-			if (form.message) toast.success(form.message as string);
-		}
-	};
-
-	const recipeForm = $derived.by(() => superForm(data.form, formOptions));
+	const recipeForm = $derived.by(() =>
+		superForm(data.form, {
+			validators: zodClient(recipeSchema),
+			dataType: 'json' as const,
+			id: `adminRecipeEdit-${data.recipe?.id ?? ''}`,
+			onUpdated({ form }: { form: { message?: unknown } }) {
+				if (form.message) toast.success(form.message as string);
+			}
+		})
+	);
 
 	const { form, enhance, message: formMessage } = $derived(recipeForm);
 
@@ -30,20 +32,27 @@
 		if ($formMessage) toast.success($formMessage as string);
 	});
 
-	const initialIngredients = (data.recipe?.ingredients ?? []).map(
-		(ing: RecipeIngredientSchema & { order?: number }, i: number) => ({
-			name: ing.name,
-			quantityG: ing.quantityG ?? null,
-			unit: ing.unit ?? null,
-			category: ing.category ?? null,
-			note: ing.note ?? null,
-			isOptional: ing.isOptional ?? false,
-			allergens: ing.allergens ?? [],
-			order: ing.order ?? i
-		})
-	);
+	let ingredients = $state<RecipeIngredientSchema[]>([]);
+	let lastHydratedRecipeId = $state<string | null>(null);
 
-	let ingredients = $state<RecipeIngredientSchema[]>(initialIngredients);
+	$effect(() => {
+		const r = data.recipe;
+		if (!r?.id) return;
+		if (lastHydratedRecipeId === r.id) return;
+		lastHydratedRecipeId = r.id;
+		ingredients = (r.ingredients ?? []).map(
+			(ing: RecipeIngredientSchema & { order?: number }, i: number) => ({
+				name: ing.name,
+				quantityG: ing.quantityG ?? null,
+				unit: ing.unit ?? null,
+				category: ing.category ?? null,
+				note: ing.note ?? null,
+				isOptional: ing.isOptional ?? false,
+				allergens: ing.allergens ?? [],
+				order: ing.order ?? i
+			})
+		);
+	});
 
 	$effect(() => {
 		($form as unknown as RecipeSchema).ingredients = ingredients;

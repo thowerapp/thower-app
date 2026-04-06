@@ -34,6 +34,7 @@ export const actions: Actions = {
 				totalTimeMin: d.totalTimeMin,
 				servings: d.servings,
 				category: d.category,
+				requiredKitchenEquipment: d.requiredKitchenEquipment,
 				instructions: d.instructions,
 				referenceYieldG: d.referenceYieldG,
 				nutritionKcal: d.nutritionKcal,

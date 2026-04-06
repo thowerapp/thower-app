@@ -40,6 +40,13 @@ export {
 // Recettes
 export { recipeSchema, recipeCategoryEnum, deleteRecipeSchema, type RecipeSchema, type DeleteRecipeSchema } from './recipe/recipeSchema';
 export { recipeIngredientSchema, type RecipeIngredientSchema } from './recipe/recipeIngredientSchema';
+export {
+	recipeKitchenEquipmentEnum,
+	RECIPE_KITCHEN_EQUIPMENT_VALUES,
+	RECIPE_KITCHEN_EQUIPMENT_LABELS,
+	recipeKitchenEquipmentOptions,
+	type RecipeKitchenEquipmentValue
+} from './recipe/recipeKitchenEquipment';
 
 // Nutrition
 export { mealSchema, mealPositionEnum, type MealSchema } from './nutrition/mealSchema';

@@ -7,6 +7,10 @@
 	import Pencil from 'lucide-svelte/icons/pencil';
 	import Trash from 'lucide-svelte/icons/trash';
 	import { formatDate } from '$lib/utils/formatDate';
+	import {
+		RECIPE_KITCHEN_EQUIPMENT_LABELS,
+		type RecipeKitchenEquipmentValue
+	} from '$lib/schema/recipe/recipeKitchenEquipment';
 
 	let { data } = $props();
 
@@ -38,6 +42,15 @@
 			key: 'totalTimeMin',
 			label: 'Temps (min)',
 			formatter: (v: unknown) => (v != null ? `${v} min` : '—')
+		},
+		{
+			key: 'requiredKitchenEquipment',
+			label: 'Matériel',
+			formatter: (v: unknown) => {
+				const arr = v as RecipeKitchenEquipmentValue[] | undefined;
+				if (!arr?.length) return '—';
+				return arr.map((x) => RECIPE_KITCHEN_EQUIPMENT_LABELS[x] ?? x).join(', ');
+			}
 		},
 		{
 			key: 'nutritionKcal',

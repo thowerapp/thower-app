@@ -51,6 +51,16 @@ enum RecipeCategory {
   DESSERT   /// Dessert
 }
 
+/// Matériel de cuisine requis pour réaliser la recette (cases cochées côté admin)
+enum RecipeKitchenEquipment {
+  OVEN           /// Four
+  MICROWAVE      /// Micro-ondes
+  BLENDER        /// Blender
+  AIR_FRYER      /// Air fryer
+  KITCHEN_SCALE  /// Balance cuisine
+  COOKTOP        /// Plaque de cuisson
+}
+
 /// Catégorie du contenu Découverte (Motivation, Explication, Breathwork…)
 enum DiscoveryCategory {
   MEDITATION
@@ -520,7 +530,7 @@ model UserVideoWatch {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// Fiche recette — catalogue admin (isCustom false) ou perso utilisateur (isCustom true)
-/// Admin : gestion catalogue (3 premiers mois, nouvelles recettes) ; client : favoris + perso
+/// Admin : gestion catalogue ; client : favoris + perso
 model Recipe {
   id           String         @id @default(auto()) @map("_id") @db.ObjectId
   name         String
@@ -531,6 +541,8 @@ model Recipe {
   /// Nombre de portions couvertes par les quantités / macros / referenceYieldG
   servings     Int            @default(1)
   category     RecipeCategory
+  /// Matériel nécessaire (vide = aucune contrainte particulière)
+  requiredKitchenEquipment RecipeKitchenEquipment[] @default([])
   instructions String?
   active       Boolean        @default(true)
   createdAt    DateTime      @default(now())

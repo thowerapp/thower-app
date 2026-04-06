@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server';
 import type { RecipeCategory } from '@prisma/client';
+import type { RecipeKitchenEquipmentValue } from '$lib/schema/recipe/recipeKitchenEquipment';
 
 export type CreateRecipeIngredientInput = {
 	name: string;
@@ -18,6 +19,7 @@ export type CreateRecipeData = {
 	totalTimeMin?: number | null;
 	servings?: number;
 	category: RecipeCategory;
+	requiredKitchenEquipment?: RecipeKitchenEquipmentValue[];
 	instructions?: string | null;
 	isCustom?: boolean;
 	userId?: string | null;
@@ -45,6 +47,7 @@ export async function createRecipe(data: CreateRecipeData) {
 	return client.recipe.create({
 		data: {
 			...rest,
+			requiredKitchenEquipment: data.requiredKitchenEquipment ?? [],
 			isCustom: data.isCustom ?? false,
 			userId: data.userId ?? undefined,
 			servings: data.servings ?? 1,

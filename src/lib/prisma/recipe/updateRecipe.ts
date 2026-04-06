@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server';
+import type { RecipeKitchenEquipmentValue } from '$lib/schema/recipe/recipeKitchenEquipment';
 import { regenerateShoppingListsForRecipe } from '../shoppingList/regenerateOverlappingDay';
 
 export type UpdateRecipeData = {
@@ -6,6 +7,7 @@ export type UpdateRecipeData = {
 	description?: string | null;
 	totalTimeMin?: number | null;
 	servings?: number;
+	requiredKitchenEquipment?: RecipeKitchenEquipmentValue[];
 	instructions?: string | null;
 	active?: boolean;
 	isCustom?: boolean;

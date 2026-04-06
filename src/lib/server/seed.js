@@ -86,6 +86,27 @@ async function main() {
 	const db = /** @type {any} */ (prisma);
 	console.log('═══ SEED COMPLET THOWER ═══\n');
 
+	// ── 0. MIGRATIONS DONNÉES LEGACY (Mongo, idempotent) ───────────────────────
+	console.log('0 — Migrations legacy…');
+	try {
+		const actResult = await db.$runCommandRaw({
+			update: 'user_profiles',
+			updates: [
+				{
+					q: { activityLevel: 'MODERATE' },
+					u: { $set: { activityLevel: 'ACTIVE' } },
+					multi: true
+				}
+			]
+		});
+		const actN = actResult?.nModified ?? actResult?.n ?? actResult?.modifiedCount ?? 0;
+		if (actN > 0) {
+			console.log(`  → ${actN} profil(s) : activityLevel MODERATE → ACTIVE (enum ActivityLevel).`);
+		}
+	} catch (e) {
+		console.warn('  → Migration activityLevel user_profiles ignorée :', e?.message ?? e);
+	}
+
 	// ── 1. OFFRES ──────────────────────────────────────────────────────────────
 	console.log('1/10 — Offres…');
 	await db.offer.upsert({

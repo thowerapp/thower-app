@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { recipeIngredientSchema, type RecipeIngredientSchema } from './recipeIngredientSchema';
+import { recipeKitchenEquipmentEnum, type RecipeKitchenEquipmentValue } from './recipeKitchenEquipment';
 
 export const recipeCategoryEnum = z.enum(['BREAKFAST', 'MEAL', 'DESSERT']);
 
@@ -11,6 +12,7 @@ export const recipeSchema = z.object({
 	totalTimeMin: z.number().int().min(0, 'Temps invalide.').optional().nullable(),
 	servings: z.number().int().min(1, 'Minimum 1 portion.').default(1),
 	category: recipeCategoryEnum,
+	requiredKitchenEquipment: z.array(recipeKitchenEquipmentEnum).default([]),
 	instructions: z.string().max(10000, 'Instructions trop longues.').optional().nullable(),
 	referenceYieldG: z.number().positive('Doit être positif.').optional().nullable(),
 	isCustom: z.boolean().default(false),
@@ -35,6 +37,7 @@ export type RecipeSchema = {
 	totalTimeMin?: number | null;
 	servings: number;
 	category: RecipeCategory;
+	requiredKitchenEquipment: RecipeKitchenEquipmentValue[];
 	instructions?: string | null;
 	referenceYieldG?: number | null;
 	isCustom: boolean;

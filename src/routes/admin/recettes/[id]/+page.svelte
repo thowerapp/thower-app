@@ -8,6 +8,10 @@
 	import { toast } from 'svelte-sonner';
 	import { recipeSchema, type RecipeSchema } from '$lib/schema/recipe/recipeSchema';
 	import type { RecipeIngredientSchema } from '$lib/schema/recipe/recipeIngredientSchema';
+	import {
+		recipeKitchenEquipmentOptions,
+		type RecipeKitchenEquipmentValue
+	} from '$lib/schema/recipe/recipeKitchenEquipment';
 	import PlusCircle from 'lucide-svelte/icons/plus-circle';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
 	import ChefHat from 'lucide-svelte/icons/chef-hat';
@@ -83,6 +87,20 @@
 		{ value: 'MEAL', label: 'Repas' },
 		{ value: 'DESSERT', label: 'Dessert' }
 	];
+
+	function toggleKitchenEquipment(value: RecipeKitchenEquipmentValue, checked: boolean) {
+		form.update((f) => {
+			const row = f as RecipeSchema;
+			const cur = [...(row.requiredKitchenEquipment ?? [])];
+			if (checked) {
+				if (!cur.includes(value)) cur.push(value);
+			} else {
+				const i = cur.indexOf(value);
+				if (i >= 0) cur.splice(i, 1);
+			}
+			return { ...f, requiredKitchenEquipment: cur };
+		});
+	}
 </script>
 
 <div class="mx-auto max-w-3xl px-4 py-8">
@@ -150,6 +168,24 @@
 				<Form.FieldErrors />
 			</Form.Field>
 		</div>
+
+		<fieldset class="rounded-lg border p-4">
+			<legend class="px-2 text-sm font-semibold">Matériel nécessaire</legend>
+			<p class="text-muted-foreground mt-1 text-xs">Coche uniquement l’équipement indispensable pour la recette.</p>
+			<div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+				{#each recipeKitchenEquipmentOptions as opt}
+					<label class="flex cursor-pointer items-center gap-2 text-sm">
+						<input
+							type="checkbox"
+							class="size-4 rounded border"
+							checked={(($form as RecipeSchema).requiredKitchenEquipment ?? []).includes(opt.value)}
+							onchange={(e) => toggleKitchenEquipment(opt.value, e.currentTarget.checked)}
+						/>
+						<span>{opt.label}</span>
+					</label>
+				{/each}
+			</div>
+		</fieldset>
 
 		<fieldset class="rounded-lg border p-4">
 			<legend class="px-2 text-sm font-semibold">Macros (par portion)</legend>

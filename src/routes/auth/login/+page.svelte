@@ -39,10 +39,12 @@
 		};
 
 		// N'affiche le curseur personnalisé que sur bureau avec souris
+		let cursorEl: HTMLDivElement | null = null;
+		let onMouseMove: ((e: MouseEvent) => void) | null = null;
 		if (!isMobileOrTouchDevice()) {
-			const cursor = document.createElement('div');
-			cursor.id = 'cursor';
-			cursor.style.cssText = `
+			cursorEl = document.createElement('div');
+			cursorEl.id = 'cursor';
+			cursorEl.style.cssText = `
 				position: fixed;
 				z-index: 9999;
 				width: 14px;
@@ -55,22 +57,22 @@
 				transition: width 0.15s, height 0.15s;
 				top: 0; left: 0;
 			`;
-			document.body.appendChild(cursor);
+			document.body.appendChild(cursorEl);
 
-			const onMouseMove = (e: MouseEvent) => {
-				cursor.style.left = e.clientX + 'px';
-				cursor.style.top = e.clientY + 'px';
+			onMouseMove = (e: MouseEvent) => {
+				cursorEl!.style.left = e.clientX + 'px';
+				cursorEl!.style.top = e.clientY + 'px';
 			};
 			document.addEventListener('mousemove', onMouseMove);
 
 			document.querySelectorAll('button, a, input, label').forEach(el => {
 				el.addEventListener('mouseenter', () => {
-					cursor.style.width = '22px';
-					cursor.style.height = '19px';
+					cursorEl!.style.width = '22px';
+					cursorEl!.style.height = '19px';
 				});
 				el.addEventListener('mouseleave', () => {
-					cursor.style.width = '14px';
-					cursor.style.height = '12px';
+					cursorEl!.style.width = '14px';
+					cursorEl!.style.height = '12px';
 				});
 			});
 		}
@@ -258,11 +260,11 @@
 
 		return () => {
 			cancelAnimationFrame(animId);
-			document.removeEventListener('mousemove', onMouseMove);
+			if (onMouseMove) document.removeEventListener('mousemove', onMouseMove);
 			window.removeEventListener('resize', onResize);
 			renderer.dispose();
 			canvas.remove();
-			cursor.remove();
+			cursorEl?.remove();
 		};
 	});
 </script>

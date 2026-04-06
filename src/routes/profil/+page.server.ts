@@ -3,7 +3,10 @@ import { checkAccess } from '$lib/server/access';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	checkAccess(locals);
-	return {};
+	return {
+		user: locals.user,
+		isAdmin: locals.user.role === 'ADMIN'
+	};
 };
 
 // Toute form action doit également appeler checkAccess :

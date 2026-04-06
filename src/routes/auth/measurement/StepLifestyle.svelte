@@ -46,7 +46,7 @@
 	</div>
 
 	<!-- Jeûne intermittent -->
-	<Card.Root>
+	<Card.Root class="meas-card">
 		<Card.Header class="pb-3">
 			<Card.Title class="text-sm font-semibold">Jeûne intermittent le matin</Card.Title>
 			<Card.Description class="text-xs leading-relaxed">
@@ -76,7 +76,7 @@
 	</Card.Root>
 
 	<!-- Niveau d'activité -->
-	<Card.Root class="mt-4">
+	<Card.Root class="meas-card mt-4">
 		<Card.Header class="pb-3">
 			<Card.Title class="text-sm font-semibold">Niveau d'activité actuel</Card.Title>
 			<Card.Description class="text-xs">Basé sur ton quotidien professionnel et personnel — pas ton sport.</Card.Description>

@@ -21,7 +21,6 @@
 
 	let { data }: PageProps = $props();
 
-	// ── Formulaire ────────────────────────────────────────────
 	const formOptions = {
 		validators: zodClient(measurementSchema),
 		id: 'measurementForm',
@@ -39,63 +38,86 @@
 		if ($measurementMessage) toast.success($measurementMessage);
 	});
 
-	// ── Navigation wizard ─────────────────────────────────────
 	const TOTAL_STEPS = 8;
 	let currentStep = $state(1);
 	let stepDir = $state<1 | -1>(1);
 	const progress = $derived(((currentStep - 1) / (TOTAL_STEPS - 1)) * 100);
 
-	function next() { if (currentStep < TOTAL_STEPS) { stepDir = 1; currentStep++; } }
-	function prev() { if (currentStep > 1) { stepDir = -1; currentStep--; } }
+	function next() {
+		if (currentStep < TOTAL_STEPS) {
+			stepDir = 1;
+			currentStep++;
+		}
+	}
+
+	function prev() {
+		if (currentStep > 1) {
+			stepDir = -1;
+			currentStep--;
+		}
+	}
 
 	const stepLabels = [
-		'Bienvenue', 'Morphologie', 'Lifestyle', 'Santé',
-		'Objectifs', 'Alimentation', 'Sport', 'Bien-être'
+		'Bienvenue',
+		'Morphologie',
+		'Lifestyle',
+		'Santé',
+		'Objectifs',
+		'Alimentation',
+		'Sport',
+		'Bien-être'
 	];
 
-	// ── Onglets ───────────────────────────────────────────────
 	let activeTab = $state<'wizard' | 'history'>('wizard');
 </script>
 
-<div class="wizard-page">
+<div class="w-full max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+	{#if activeTab === 'wizard' && currentStep === 1}
+		<div class="mb-6 sm:mb-8">
+			<h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold font-['DM_Sans'] text-yellow-500 mb-2 tracking-wide">
+				Mon Profil Physique
+			</h1>
+			<p class="text-sm sm:text-base font-['Public_Sans'] font-light text-white/50 leading-relaxed">
+				Renseignez vos informations pour débloquer le paiement et l'accès complet à l'application.
+			</p>
+		</div>
+	{/if}
 
-	<!-- ── Onglets Formulaire / Historique ───────────── -->
-	<div class="page-tab-bar" role="tablist">
+	<div class="flex gap-2 sm:gap-3 mb-4 sm:mb-6 lg:mb-8">
 		<button
-			role="tab"
 			type="button"
-			class="page-tab"
-			class:page-tab-active={activeTab === 'wizard'}
-			onclick={() => { activeTab = 'wizard'; }}
-			aria-selected={activeTab === 'wizard'}
+			onclick={() => (activeTab = 'wizard')}
+			class={`flex-1 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-['DM_Sans'] text-xs sm:text-sm font-medium tracking-widest uppercase transition-all duration-200 border ${
+				activeTab === 'wizard'
+					? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
+					: 'bg-white/5 text-white/50 border-white/10'
+			}`}
 		>
-			Formulaire
+			Création
 		</button>
 		<button
-			role="tab"
 			type="button"
-			class="page-tab"
-			class:page-tab-active={activeTab === 'history'}
-			onclick={() => { activeTab = 'history'; }}
-			aria-selected={activeTab === 'history'}
+			onclick={() => (activeTab = 'history')}
+			class={`flex-1 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-['DM_Sans'] text-xs sm:text-sm font-medium tracking-widest uppercase transition-all duration-200 relative border ${
+				activeTab === 'history'
+					? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
+					: 'bg-white/5 text-white/50 border-white/10'
+			}`}
 		>
-			Historique
+			<span>Historique</span>
 			{#if data.bodyMeasurements.length > 0}
-				<span class="tab-count">{data.bodyMeasurements.length}</span>
+				<span class="absolute -top-2 -right-2 w-5 h-5 bg-cyan-400 text-black text-xs font-bold rounded-full flex items-center justify-center">
+					{data.bodyMeasurements.length}
+				</span>
 			{/if}
 		</button>
 	</div>
 
 	{#if activeTab === 'wizard'}
-
-		{#if currentStep > 1}
-			<WizardProgressHeader {currentStep} {TOTAL_STEPS} {progress} {stepLabels} />
-		{/if}
-
-		<form method="POST" action="?/save" use:measurementEnhance class="wizard-form">
-			<div class="step-viewport">
+		<form method="POST" action="?/save" use:measurementEnhance class="space-y-4 sm:space-y-6">
+		<div class="overflow-hidden rounded-lg bg-black">
 				{#key currentStep}
-					<div in:wizardStepIn={{ stepDir }} out:wizardStepOut={{ stepDir }} class="step-frame">
+					<div in:wizardStepIn={{ stepDir }} out:wizardStepOut={{ stepDir }} class="p-4 sm:p-6">
 						{#if currentStep === 1}
 							<StepBienvenue
 								bodyMeasurements={data.bodyMeasurements}
@@ -125,134 +147,239 @@
 				{/key}
 			</div>
 
-			<div class="wizard-nav">
+			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-between sm:items-center mt-6 sm:mt-8">
 				{#if currentStep > 1}
-					<Button type="button" variant="outline" onclick={prev} class="nav-btn gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onclick={prev}
+						class="w-full sm:w-auto gap-2 font-['DM_Sans'] font-medium btn-prev"
+					>
 						<ArrowLeft class="h-4 w-4" />
-						Précédent
+						<span class="hidden sm:inline">Précédent</span>
+						<span class="sm:hidden">Retour</span>
 					</Button>
 				{:else}
-					<div></div>
+					<div class="hidden sm:block"></div>
 				{/if}
 
-				{#if currentStep < TOTAL_STEPS}
-					<Button type="button" onclick={next} class="nav-btn gap-2">
-						Suivant
+				{#if currentStep < TOTAL_STEPS && currentStep > 1}
+					<Button
+						type="button"
+						onclick={next}
+						class="w-full sm:w-auto gap-2 font-['DM_Sans'] font-medium bg-cyan-400 hover:bg-cyan-500 text-black"
+					>
+						<span class="hidden sm:inline">Suivant</span>
+						<span class="sm:hidden">Continuer</span>
 						<ArrowRight class="h-4 w-4" />
 					</Button>
-				{:else}
-					<Button type="submit" class="nav-btn gap-2 font-semibold">
+				{:else if currentStep === TOTAL_STEPS}
+					<Button
+						type="submit"
+						class="w-full sm:w-auto gap-2 font-['DM_Sans'] font-bold bg-yellow-500 hover:bg-yellow-600 text-black uppercase tracking-widest"
+					>
 						<CheckCircle2 class="h-4 w-4" />
-						Enregistrer mon profil
+						<span>Enregistrer</span>
 					</Button>
 				{/if}
 			</div>
 		</form>
-
 	{:else}
-
 		<MeasurementHistoryView
 			bodyMeasurements={data.bodyMeasurements}
-			onswitch={() => { activeTab = 'wizard'; }}
+			onswitch={() => {
+				activeTab = 'wizard';
+			}}
 		/>
-
 	{/if}
-
 </div>
 
-<style lang="scss">
-	.wizard-page {
-		max-width: 560px;
-		margin: 0 auto;
-		padding: 1.5rem 1rem 7rem;
-	}
-
-	/* ── Onglets page ─────────────────────────── */
-	.page-tab-bar {
-		display: flex;
-		gap: 0;
-		background: var(--muted);
-		border-radius: 10px;
-		padding: 3px;
-		margin-bottom: 1.5rem;
-	}
-
-	.page-tab {
-		flex: 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.4rem;
-		padding: 0.5rem 0.75rem;
-		border-radius: 8px;
-		border: none;
-		background: transparent;
-		font-size: 0.875rem;
+<style lang="postcss">
+	:global(h1, h2, h3) {
+		font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
 		font-weight: 500;
-		cursor: pointer;
-		color: var(--muted-foreground);
-		transition: background 0.18s, color 0.18s, box-shadow 0.18s;
-
-		&:hover:not(.page-tab-active) { color: var(--foreground); }
+		letter-spacing: 0.02em;
+		color: #f0ede8;
 	}
 
-	.page-tab-active {
-		background: var(--background);
-		color: var(--foreground);
-		box-shadow: 0 1px 4px color-mix(in oklch, var(--foreground) 10%, transparent);
+	:global(h2, h3) {
+		font-family: 'Bebas Neue', sans-serif;
+		font-size: 1.5rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 
-	.tab-count {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-width: 1.25rem;
-		height: 1.25rem;
-		padding: 0 0.3rem;
-		border-radius: 9999px;
-		background: var(--primary);
-		color: var(--primary-foreground);
-		font-size: 0.7rem;
-		font-weight: 700;
-		line-height: 1;
+	:global(p, label, span, body) {
+		font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+		font-weight: 400;
+		line-height: 1.6;
+		color: #f0ede8;
 	}
 
-	/* ── Wizard form ──────────────────────────── */
-	.wizard-form {
-		display: flex;
-		flex-direction: column;
-		gap: 0;
+	:global(label, .form-label) {
+		font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+		font-size: 0.8rem;
+		font-weight: 500;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: #c9a84c;
+		background: transparent;
+		border: none;
 	}
 
-	.step-viewport {
-		overflow: clip;
-		position: relative;
-		contain: layout style;
+	:global(.detail, .info-text, .text-detail) {
+		color: #3ab8b8;
+		font-weight: 500;
 	}
 
-	.step-frame {
-		transform: translateZ(0);
-		backface-visibility: hidden;
-		will-change: transform, opacity;
+	:global(svg) {
+		color: #3ab8b8;
 	}
 
-	/* ── Navigation ───────────────────────────── */
-	.wizard-nav {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-top: 1.5rem;
-		gap: 1rem;
+	:global([data-state='outline']) {
+		background: #0a0a0a;
+		border: 1px solid #c9a84c;
+		color: #c9a84c;
 	}
 
-	:global(.nav-btn) {
-		min-width: 130px;
+	:global([data-state='outline']:hover) {
+		background: rgba(201, 168, 76, 0.1);
+		border-color: #c9a84c;
 	}
 
-	@media (min-width: 640px) {
-		.wizard-page {
-			padding-left: 1.5rem;
-			padding-right: 1.5rem;
+	:global(.step-icon) {
+		color: #3ab8b8 !important;
+	}
+
+	:global(.step-desc) {
+		color: #3ab8b8 !important;
+	}
+
+	:global(input[type='text'],
+	input[type='email'],
+	input[type='password'],
+	input[type='number'],
+	textarea,
+	select) {
+		background: #0a0a0a;
+		border: 1px solid rgba(240, 237, 232, 0.15);
+		color: #f0ede8;
+		font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+		font-size: 0.9375rem;
+		padding: 0.75rem 1rem;
+		border-radius: 0.5rem;
+		transition: all 0.2s ease;
+	}
+
+	:global(input[type='text']:focus,
+	input[type='email']:focus,
+	input[type='password']:focus,
+	input[type='number']:focus,
+	textarea:focus,
+	select:focus) {
+		outline: none;
+		border-color: #3ab8b8;
+		background: #0a0a0a;
+		box-shadow: 0 0 0 3px rgba(58, 184, 184, 0.15);
+	}
+
+	@media (max-width: 640px) {
+		:global(h1) {
+			font-size: 1.5rem;
 		}
+		:global(h2) {
+			font-size: 1.25rem;
+		}
+		:global(p) {
+			font-size: 0.9375rem;
+		}
+	}
+
+	@media (min-width: 768px) {
+		:global(h1) {
+			font-size: 2rem;
+		}
+		:global(h2) {
+			font-size: 1.5rem;
+		}
+	}
+
+	/* Measurement form styling with meas-* classes */
+	:global(.meas-card) {
+		background: #0a0a0a;
+		border: 1px solid rgba(240, 237, 232, 0.1);
+	}
+
+	:global(.meas-label) {
+		color: #c9a84c !important;
+		background: transparent !important;
+		border: none !important;
+		font-family: 'DM Sans', system-ui, -apple-system, sans-serif !important;
+		font-size: 0.8rem !important;
+		font-weight: 500 !important;
+		letter-spacing: 0.12em !important;
+		text-transform: uppercase !important;
+	}
+
+	:global(.meas-input) {
+		background: #0a0a0a !important;
+		border: 1px solid rgba(240, 237, 232, 0.15) !important;
+		border-radius: 0.5rem !important;
+		color: #f0ede8 !important;
+		padding: 0.75rem 1rem !important;
+		transition: all 0.2s ease !important;
+		font-family: 'Public Sans', system-ui, -apple-system, sans-serif !important;
+		font-size: 0.9375rem !important;
+	}
+
+	:global(.meas-input:focus) {
+		border-color: #3ab8b8 !important;
+		box-shadow: 0 0 0 3px rgba(58, 184, 184, 0.15) !important;
+	}
+
+	:global(.meas-btn-primary) {
+		background: #3ab8b8 !important;
+		color: #0a0a0a !important;
+		border: none !important;
+		font-family: 'DM Sans', system-ui, -apple-system, sans-serif !important;
+		font-weight: 600 !important;
+	}
+
+	:global(.meas-btn-primary:hover) {
+		background: #2a9a9a !important;
+	}
+
+	:global(.meas-btn-primary svg) {
+		color: #0a0a0a !important;
+	}
+
+	:global(.meas-btn-secondary) {
+		background: #0a0a0a !important;
+		border: 1px solid #c9a84c !important;
+		color: #c9a84c !important;
+		font-family: 'DM Sans', system-ui, -apple-system, sans-serif !important;
+		font-weight: 500 !important;
+	}
+
+	:global(.meas-btn-secondary:hover) {
+		background: rgba(201, 168, 76, 0.1) !important;
+	}
+
+	:global(.meas-btn-secondary svg) {
+		color: #c9a84c !important;
+	}
+
+	:global(.btn-prev) {
+		background: #0a0a0a !important;
+		border: 1px solid #c9a84c !important;
+		color: #c9a84c !important;
+	}
+
+	:global(.btn-prev:hover) {
+		background: rgba(201, 168, 76, 0.1) !important;
+	}
+
+	:global(.btn-prev svg) {
+		color: #c9a84c !important;
 	}
 </style>

@@ -1,5 +1,10 @@
 <script lang="ts">
+	import type { PageData } from './$types';
+	import { Button } from '$shadcn/button';
+	import { LayoutDashboard } from 'lucide-svelte';
 	import Calendar from '$lib/components/calendar/Calendar.svelte';
+
+	let { data }: { data: PageData } = $props();
 
 	const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 	const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -140,27 +145,46 @@
 	
 </script>
 
-<div class="calendar-container">
-  <div class="calendar-header">
-    <h1>
-      <button on:click={()=>year--}>&Lt;</button>
-      <button on:click={()=>prev()}>&lt;</button>
-       {monthNames[month]} {year}
-      <button on:click={()=>next()}>&gt;</button>
-      <button on:click={()=>year++}>&Gt;</button>
-    </h1>
-		{eventText}
+<!-- Admin Dashboard Access -->
+{#if data.isAdmin}
+	<div class="flex flex-col items-center justify-center min-h-screen gap-6 p-4">
+		<div class="text-center space-y-3">
+			<h1 class="text-3xl font-bold">Administration</h1>
+			<p class="text-muted-foreground text-lg">
+				Bienvenue {data.user?.name || data.user?.username || 'Administrateur'}, vous êtes connecté en tant qu'administrateur.
+			</p>
+		</div>
+		<a href="/admin">
+			<Button size="lg" class="gap-2">
+				<LayoutDashboard class="w-5 h-5" />
+				Accéder au dashboard admin
+			</Button>
+		</a>
 	</div>
+{:else}
+	<!-- Regular User Profile Content -->
+	<div class="calendar-container">
+		<div class="calendar-header">
+			<h1>
+				<button on:click={()=>year--}>&Lt;</button>
+				<button on:click={()=>prev()}>&lt;</button>
+				{monthNames[month]} {year}
+				<button on:click={()=>next()}>&gt;</button>
+				<button on:click={()=>year++}>&Gt;</button>
+			</h1>
+			{eventText}
+		</div>
 
-	<Calendar
-		{headers}
-		{days}
-		{items}
-		on:dayClick={(e)=>dayClick(e.detail)}
-		on:itemClick={(e)=>itemClick(e.detail)}
-		on:headerClick={(e)=>headerClick(e.detail)}
-		/>
-</div>
+		<Calendar
+			{headers}
+			{days}
+			{items}
+			on:dayClick={(e)=>dayClick(e.detail)}
+			on:itemClick={(e)=>itemClick(e.detail)}
+			on:headerClick={(e)=>headerClick(e.detail)}
+			/>
+	</div>
+{/if}
 	
 <style>
 .calendar-container {

@@ -18,18 +18,18 @@
 		</div>
 	</div>
 
-	<Card.Root>
+	<Card.Root class="meas-card">
 		<Card.Content class="pt-5 pb-5 space-y-4">
 			<Form.Field name="sportActivity" {form}>
 				<Form.Control>
-					<Form.Label class="font-medium">Activités sportives annexes</Form.Label>
+				<Form.Label class="meas-label font-medium">Activités sportives annexes</Form.Label>
 					<p class="text-xs text-muted-foreground mb-2">En dehors de la MT — foot le mardi, VTT le dimanche, course 10 km prévue le 12 jan, paddle 1x/sem...</p>
 					<Textarea
-						name="sportActivity"
-						bind:value={$formData.sportActivity}
-						rows={4}
-						placeholder="Décris tes activités sportives régulières ou ponctuelles..."
-						class="resize-y"
+					class="meas-input resize-y"
+					name="sportActivity"
+					bind:value={$formData.sportActivity}
+					rows={4}
+					placeholder="Décris tes activités sportives régulières ou ponctuelles..."
 					/>
 				</Form.Control>
 				<Form.FieldErrors />
@@ -37,14 +37,14 @@
 			<Separator />
 			<Form.Field name="contextParticular" {form}>
 				<Form.Control>
-					<Form.Label class="font-medium">Contraintes & contexte particulier</Form.Label>
+				<Form.Label class="meas-label font-medium">Contraintes & contexte particulier</Form.Label>
 					<p class="text-xs text-muted-foreground mb-2">Tout ce qui peut influencer la méthode : travail de nuit, déplacements la semaine, resto tous les vendredis midi...</p>
 					<Textarea
-						name="contextParticular"
-						bind:value={$formData.contextParticular}
-						rows={4}
-						placeholder="Décris ton contexte de vie particulier..."
-						class="resize-y"
+					class="meas-input resize-y"
+					name="contextParticular"
+					bind:value={$formData.contextParticular}
+					rows={4}
+					placeholder="Décris ton contexte de vie particulier..."
 					/>
 				</Form.Control>
 				<Form.FieldErrors />

@@ -48,7 +48,7 @@
 		</div>
 	</div>
 
-	<Card.Root>
+	<Card.Root class="meas-card">
 		<Card.Header class="pb-3">
 			<Card.Title class="text-sm font-semibold">Équipement cuisine</Card.Title>
 			<Card.Description class="text-xs">De quoi disposes-tu ?</Card.Description>
@@ -74,12 +74,13 @@
 		</Card.Content>
 	</Card.Root>
 
-	<Card.Root class="mt-4">
+	<Card.Root class="meas-card mt-4">
 		<Card.Content class="pt-5 pb-5 space-y-4">
 			<div class="space-y-2">
-				<Label class="font-medium">Allergènes</Label>
+				<Label class="meas-label font-medium">Allergènes</Label>
 				<p class="text-xs text-muted-foreground">Y a-t-il des aliments dont tu es allergique ?</p>
 				<Input
+					class="meas-input"
 					type="text"
 					placeholder="Ex. : gluten, lactose, fruits à coque..."
 					bind:value={allergensText}
@@ -88,14 +89,14 @@
 			<Separator />
 			<Form.Field name="disgustingFoods" {form}>
 				<Form.Control>
-					<Form.Label class="font-medium">Aliments dégoutants</Form.Label>
+				<Form.Label class="meas-label font-medium">Aliments dégoutants</Form.Label>
 					<p class="text-xs text-muted-foreground mb-2">Des aliments que tu ne supportes pas ? (Pour garantir des recettes savoureuses.)</p>
 					<Textarea
-						name="disgustingFoods"
-						bind:value={$formData.disgustingFoods}
-						rows={2}
-						placeholder="Ex. : champignons, poisson, chou..."
-						class="resize-y"
+					class="meas-input resize-y"
+					name="disgustingFoods"
+					bind:value={$formData.disgustingFoods}
+					rows={2}
+					placeholder="Ex. : champignons, poisson, chou..."
 					/>
 				</Form.Control>
 				<Form.FieldErrors />
@@ -103,14 +104,14 @@
 			<Separator />
 			<Form.Field name="breadManagement" {form}>
 				<Form.Control>
-					<Form.Label class="font-medium">Habitudes avec le pain</Form.Label>
+				<Form.Label class="meas-label font-medium">Habitudes avec le pain</Form.Label>
 					<p class="text-xs text-muted-foreground mb-2">Est-ce que tu consommes du pain quotidiennement et dans quelles quantités ?</p>
 					<Textarea
-						name="breadManagement"
-						bind:value={$formData.breadManagement}
-						rows={2}
-						placeholder="Ex. : 2 tranches le matin, baguette entière à midi..."
-						class="resize-y"
+					class="meas-input resize-y"
+					name="breadManagement"
+					bind:value={$formData.breadManagement}
+					rows={2}
+					placeholder="Ex. : 2 tranches le matin, baguette entière à midi..."
 					/>
 				</Form.Control>
 				<Form.FieldErrors />

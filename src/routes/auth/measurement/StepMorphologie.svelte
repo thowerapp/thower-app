@@ -17,14 +17,14 @@
 		</div>
 	</div>
 
-	<Card.Root>
+	<Card.Root class="meas-card">
 		<Card.Content class="pt-5 pb-5">
 			<div class="measures-grid">
 				<Form.Field name="age" {form}>
 					<Form.Control>
-						<Form.Label>Âge</Form.Label>
+						<Form.Label class="meas-label">Âge</Form.Label>
 						<div class="input-unit-wrap">
-							<Input type="number" name="age" bind:value={$formData.age} min={10} max={120} placeholder="25" />
+							<Input class="meas-input" type="number" name="age" bind:value={$formData.age} min={10} max={120} placeholder="25" />
 							<span class="unit">ans</span>
 						</div>
 					</Form.Control>
@@ -32,9 +32,9 @@
 				</Form.Field>
 				<Form.Field name="heightCm" {form}>
 					<Form.Control>
-						<Form.Label>Taille</Form.Label>
+						<Form.Label class="meas-label">Taille</Form.Label>
 						<div class="input-unit-wrap">
-							<Input type="number" name="heightCm" bind:value={$formData.heightCm} min={100} max={250} placeholder="175" step="0.1" />
+							<Input class="meas-input" type="number" name="heightCm" bind:value={$formData.heightCm} min={100} max={250} placeholder="175" step="0.1" />
 							<span class="unit">cm</span>
 						</div>
 					</Form.Control>
@@ -42,9 +42,9 @@
 				</Form.Field>
 				<Form.Field name="weightKg" {form}>
 					<Form.Control>
-						<Form.Label>Poids</Form.Label>
+						<Form.Label class="meas-label">Poids</Form.Label>
 						<div class="input-unit-wrap">
-							<Input type="number" name="weightKg" bind:value={$formData.weightKg} min={30} max={300} placeholder="70" step="0.1" />
+							<Input class="meas-input" type="number" name="weightKg" bind:value={$formData.weightKg} min={30} max={300} placeholder="70" step="0.1" />
 							<span class="unit">kg</span>
 						</div>
 					</Form.Control>
@@ -52,9 +52,9 @@
 				</Form.Field>
 				<Form.Field name="waistCm" {form}>
 					<Form.Control>
-						<Form.Label>Tour de taille</Form.Label>
+						<Form.Label class="meas-label">Tour de taille</Form.Label>
 						<div class="input-unit-wrap">
-							<Input type="number" name="waistCm" bind:value={$formData.waistCm} min={50} max={200} placeholder="80" step="0.1" />
+							<Input class="meas-input" type="number" name="waistCm" bind:value={$formData.waistCm} min={50} max={200} placeholder="80" step="0.1" />
 							<span class="unit">cm</span>
 						</div>
 					</Form.Control>
@@ -62,9 +62,9 @@
 				</Form.Field>
 				<Form.Field name="chestCm" {form}>
 					<Form.Control>
-						<Form.Label>Tour de torse</Form.Label>
+						<Form.Label class="meas-label">Tour de torse</Form.Label>
 						<div class="input-unit-wrap">
-							<Input type="number" name="chestCm" bind:value={$formData.chestCm} min={50} max={200} placeholder="100" step="0.1" />
+							<Input class="meas-input" type="number" name="chestCm" bind:value={$formData.chestCm} min={50} max={200} placeholder="100" step="0.1" />
 							<span class="unit">cm</span>
 						</div>
 					</Form.Control>
@@ -72,9 +72,9 @@
 				</Form.Field>
 				<Form.Field name="armCm" {form}>
 					<Form.Control>
-						<Form.Label>Tour de bras</Form.Label>
+						<Form.Label class="meas-label">Tour de bras</Form.Label>
 						<div class="input-unit-wrap">
-							<Input type="number" name="armCm" bind:value={$formData.armCm} min={15} max={80} placeholder="32" step="0.1" />
+							<Input class="meas-input" type="number" name="armCm" bind:value={$formData.armCm} min={15} max={80} placeholder="32" step="0.1" />
 							<span class="unit">cm</span>
 						</div>
 					</Form.Control>

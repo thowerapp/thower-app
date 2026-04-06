@@ -17,11 +17,11 @@
 		</div>
 	</div>
 
-	<Card.Root>
+	<Card.Root class="meas-card">
 		<Card.Content class="pt-5 pb-5 space-y-4">
 			<Form.Field name="painsPathologies" {form}>
 				<Form.Control>
-					<Form.Label class="font-medium">Douleurs & pathologies</Form.Label>
+				<Form.Label class="meas-label font-medium">Douleurs & pathologies</Form.Label>
 					<p class="text-xs text-muted-foreground mb-2 leading-relaxed">
 						Réponds à chacune de ces questions :<br />
 						• Douleurs physiques particulières ?<br />
@@ -31,11 +31,11 @@
 						• Traitement médical en cours ?
 					</p>
 					<Textarea
-						name="painsPathologies"
-						bind:value={$formData.painsPathologies}
-						rows={6}
-						placeholder="Ex. : mal de dos chronique, hypertension, prise de bêtabloquants, pas de contre-indication régime..."
-						class="resize-y"
+					name="painsPathologies"
+					bind:value={$formData.painsPathologies}
+					rows={6}
+					placeholder="Ex. : mal de dos chronique, hypertension, prise de bêtabloquants, pas de contre-indication régime..."
+					class="meas-input resize-y"
 					/>
 				</Form.Control>
 				<Form.FieldErrors />

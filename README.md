@@ -12,5 +12,6 @@ la génération doit prendre en charge plusieurs choses.
 -ingérendients non désirés (faire une liste des ingérendients non désirés dans le formulaire afin de pouvoir faire quelque chose de dynamique)
 -les coefficients familiaux (une portions sur la recette -pas de calcul)
 -les mensurations
--le jeune intermittent (si breackfast 30% / lunch 35% / dinner 35% sinon lunch 50% / dinner 50%)
+-le jeune intermittent (si breakfast 30% / lunch 35% / dinner 35% sinon lunch 50% / dinner 50%)
 -extraire les ingrédients des recettes et les ajouter dans la liste de courses
+

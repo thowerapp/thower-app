@@ -53,7 +53,7 @@
 		</div>
 	</div>
 
-	<Card.Root>
+	<Card.Root class="meas-card">
 		<Card.Content class="pt-5 pb-5 space-y-6">
 			{#each sliderMeta as meta, i}
 				{#if i > 0}<Separator />{/if}
@@ -86,18 +86,18 @@
 		</Card.Content>
 	</Card.Root>
 
-	<Card.Root class="mt-4">
+	<Card.Root class="meas-card mt-4">
 		<Card.Content class="pt-5 pb-5">
 			<Form.Field name="addictionsText" {form}>
 				<Form.Control>
-					<Form.Label class="font-medium">Addictions & substances</Form.Label>
+				<Form.Label class="meas-label font-medium">Addictions & substances</Form.Label>
 					<p class="text-xs text-muted-foreground mb-2">Consommation d'alcool, tabac ou autres substances ? Si oui, lesquelles et à quelle fréquence ?</p>
 					<Textarea
-						name="addictionsText"
-						bind:value={$formData.addictionsText}
-						rows={3}
-						placeholder="Ex. : 1-2 verres de vin le soir, cigarette occasionnelle le week-end..."
-						class="resize-y"
+					class="meas-input resize-y"
+					name="addictionsText"
+					bind:value={$formData.addictionsText}
+					rows={3}
+					placeholder="Ex. : 1-2 verres de vin le soir, cigarette occasionnelle le week-end..."
 					/>
 				</Form.Control>
 				<Form.FieldErrors />

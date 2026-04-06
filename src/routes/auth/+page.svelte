@@ -178,27 +178,75 @@
 
 			<div class="cards-col">
 
-				<!-- Profil -->
-				<div class="card">
-					<div class="card-head">
-						<span class="card-icon"><UserCircle size={15} /></span>
-						<div>
-							<div class="card-title">Profil</div>
-							<div class="card-desc">Vos informations de base</div>
-						</div>
-					</div>
-					<div class="card-body">
-						{#if data.user.name}
-							<div class="info-row"><span class="info-label">Nom</span><span class="info-val">{data.user.name}</span></div>
-						{/if}
-						<div class="info-row"><span class="info-label">Email</span><span class="info-val">{data.user.email}</span></div>
-					</div>
-					{#if !isGoogleUser}
-						<div class="card-foot">
-							<a href="/auth/account" class="btn btn-outline w-full">Email, mot de passe et 2FA</a>
-						</div>
-					{/if}
-				</div>
+				                <!-- Profil -->
+                <div class="card">
+                    <div class="card-head">
+                        <span class="card-icon"><UserCircle size={15} /></span>
+                        <div>
+                            <div class="card-title">Profil</div>
+                            <div class="card-desc">Vos informations de base</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {#if data.user.name}
+                            <div class="info-row"><span class="info-label">Nom</span><span class="info-val">{data.user.name}</span></div>
+                        {/if}
+                        <div class="info-row"><span class="info-label">Email</span><span class="info-val">{data.user.email}</span></div>
+                    </div>
+                    <div class="card-foot space-y-2">
+                        {#if !isGoogleUser}
+                            <a href="/auth/account" class="profile-link">
+                                Paramètres de sécurité
+                            </a>
+                        {/if}
+                        <form method="POST" action="?/signout" class="w-full">
+                            <Button 
+                                type="submit"
+                                variant="destructive"
+                                class="w-full"
+                            >
+                                Se déconnecter
+                            </Button>
+                        </form>
+                    </div>
+                </div>				<style lang="scss">
+					/* ... styles existants ... */
+				
+					.profile-link {
+						display: inline-block;
+						font-family: 'DM Sans', sans-serif;
+						font-size: 0.75rem;
+						color: rgba(240, 237, 232, 0.5);
+						text-decoration: none;
+						letter-spacing: 0.05em;
+						transition: color 0.2s ease;
+						padding: 0 0 8px 0;
+						border-bottom: 1px solid transparent;
+						cursor: none;
+					}
+				
+					.profile-link:hover {
+						color: var(--gold);
+						border-bottom-color: var(--gold);
+					}
+				
+					/* Espacer les éléments dans le card-foot */
+					:global(.card-foot.space-y-2) {
+						display: flex;
+						flex-direction: column;
+						gap: 0.5rem;
+					}
+				
+					:global(.card-foot.space-y-2 form) {
+						display: flex;
+						width: 100%;
+					}
+				
+					/* Assurer que le bouton destructive rem remplit la largeur */
+					:global(.card-foot.space-y-2 button) {
+						width: 100%;
+					}
+				</style>
 
 				<!-- Facturation -->
 				{#if data.user.role === 'CLIENT' && hasAnyTransaction}
@@ -235,8 +283,8 @@
 			</div>
 		</section>
 
-		<!-- ── PROCÉDURE (non-Google seulement) ── -->
-		{#if !isGoogleUser}
+		<!-- ── PROCÉDURE (non-Google seulement + non-admin) ── -->
+		{#if !isGoogleUser && data.user.role !== 'ADMIN'}
 		<section class="section">
 			<h2 class="section-title">
 				<Smartphone size={16} />

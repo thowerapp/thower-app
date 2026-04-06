@@ -2,19 +2,39 @@
   import { onMount } from 'svelte';
 
   onMount(() => {
-    // Détecte si c'est un appareil tactile/mobile (pas de souris)
+    // Détection STRICTE : vrai mobile + pas de souris/trackpad
     const isMobileOrTouchDevice = () => {
-      return (
-        window.matchMedia('(hover: none)').matches || // Aucun support hover (tactile)
-        ('ontouchstart' in window) || // Support tactile présent
-        navigator.maxTouchPoints > 0 // Points tactiles disponibles
-      );
+      // 1. Vérifier le user agent pour les vrais mobiles
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileUserAgent = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/.test(userAgent);
+      
+      // 2. Si user agent dit mobile, retourner true
+      if (isMobileUserAgent) {
+        return true;
+      }
+
+      // 3. Pour desktop, vérifier la COMBINAISON de critères (pas juste un seul)
+      // Desktop moderne peut avoir touchpoints mais ça ne signifie pas que c'est mobile
+      const hasHoverSupport = window.matchMedia('(hover: hover)').matches;
+      const hasPointerFine = window.matchMedia('(pointer: fine)').matches;
+      const hasEnoughTouchPoints = navigator.maxTouchPoints > 4; // Seuil strict pour tablette
+
+      // C'est un vrai mobile/tablette SI:
+      // - Pas de support hover/pointer fine
+      // - ET a beaucoup de touch points
+      const isTrueTablet = !hasHoverSupport && !hasPointerFine && hasEnoughTouchPoints;
+
+      return isTrueTablet;
     };
 
-    // N'affiche le curseur personnalisé que sur bureau avec souris
+    // Si c'est mobile, ne rien faire (utiliser curseur système)
     if (isMobileOrTouchDevice()) {
-      return; // Quitter si c'est mobile - utilise le curseur par défaut
+      return;
     }
+
+    // ─────────────────────────────────────── 
+    // CURSEUR PERSONNALISÉ POUR DESKTOP UNIQUEMENT
+    // ───────────────────────────────────────
 
     // Créer le curseur personnalisé (triangle cyan)
     const cursor = document.createElement('div');
@@ -29,47 +49,88 @@
       background: var(--thower-teal, #3ab8b8);
       clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
       mix-blend-mode: difference;
-      transition: width 0.15s cubic-bezier(0.4, 0, 0.2, 1), 
-                  height 0.15s cubic-bezier(0.4, 0, 0.2, 1), 
-                  background 0.15s ease;
+      will-change: transform;
+      transition: width 0.12s cubic-bezier(0.4, 0, 0.2, 1), 
+                  height 0.12s cubic-bezier(0.4, 0, 0.2, 1), 
+                  background 0.12s ease;
       top: 0;
       left: 0;
     `;
     document.body.appendChild(cursor);
 
-    // Événement mousemove pour suivre la souris
+    // Variables pour optimiser les performances
+    let lastX = 0;
+    let lastY = 0;
+    let isMoving = false;
+    let moveTimeout: NodeJS.Timeout;
+
+    // Événement mousemove - suivi fluide de la souris
     const onMouseMove = (e: MouseEvent) => {
+      // Ignorer les mouvements trop faibles (performance)
+      if (Math.abs(e.clientX - lastX) < 2 && Math.abs(e.clientY - lastY) < 2) {
+        return;
+      }
+
+      lastX = e.clientX;
+      lastY = e.clientY;
+
       cursor.style.left = e.clientX + 'px';
       cursor.style.top = e.clientY + 'px';
+
+      // Afficher le curseur s'il était caché
+      if (!isMoving) {
+        isMoving = true;
+        cursor.style.opacity = '1';
+      }
+
+      // Réinitialiser le timeout d'inactivité
+      clearTimeout(moveTimeout);
+      moveTimeout = setTimeout(() => {
+        isMoving = false;
+      }, 100);
     };
-    document.addEventListener('mousemove', onMouseMove);
+
+    // Événement mouseleave - masquer le curseur quand la souris quitte la fenêtre
+    const onMouseLeave = () => {
+      cursor.style.opacity = '0';
+      isMoving = false;
+    };
+
+    // Événement mouseenter - réafficher le curseur
+    const onMouseEnter = () => {
+      cursor.style.opacity = '1';
+      isMoving = true;
+    };
 
     // Sélecteurs d'éléments interactifs
     const interactiveSelectors = [
-      'button', 'a', 'select', 'input', 'textarea', 
-      '[role="button"]', '[role="link"]', '[role="menuitem"]',
+      'button', 'a', 'select', 'input[type="submit"]', 'input[type="button"]', 
+      'textarea', '[role="button"]', '[role="link"]', '[role="menuitem"]',
       '.btn', '[class*="btn"]', '[class*="Button"]'
     ].join(', ');
 
     // Fonction pour ajouter les event listeners à un élément
     const addInteractiveListeners = (el: Element) => {
-      const isInteractive = el.matches(interactiveSelectors);
-      
-      if (isInteractive) {
+      // Ignorer les inputs textes (text, email, etc.)
+      if ((el as HTMLInputElement).type && ['text', 'email', 'password'].includes((el as HTMLInputElement).type)) {
+        return;
+      }
+
+      if (el.matches(interactiveSelectors)) {
         const handleEnter = () => {
           cursor.style.width = '22px';
           cursor.style.height = '19px';
-          // Inverse à doré au hover
+          // Changer en doré sur hover
           cursor.style.background = 'var(--thower-gold, #c9a84c)';
         };
-        
+
         const handleLeave = () => {
           cursor.style.width = '14px';
           cursor.style.height = '12px';
           // Retour au cyan
           cursor.style.background = 'var(--thower-teal, #3ab8b8)';
         };
-        
+
         el.addEventListener('mouseenter', handleEnter, { once: false });
         el.addEventListener('mouseleave', handleLeave, { once: false });
       }
@@ -78,11 +139,16 @@
     // Ajouter les listeners aux éléments existants
     document.querySelectorAll(interactiveSelectors).forEach(addInteractiveListeners);
 
+    // Event listeners globaux
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseleave', onMouseLeave);
+    document.addEventListener('mouseenter', onMouseEnter);
+
     // Observer pour les éléments dynamiquement ajoutés
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === 1) { // Element node
+          if (node.nodeType === 1) {
             const el = node as HTMLElement;
             addInteractiveListeners(el);
             // Ajouter aussi aux enfants
@@ -97,13 +163,25 @@
       subtree: true
     });
 
+    // Cleanup
     return () => {
       document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseleave', onMouseLeave);
+      document.removeEventListener('mouseenter', onMouseEnter);
       observer.disconnect();
       cursor.remove();
+      clearTimeout(moveTimeout);
     };
   });
 </script>
 
-<!-- Le curseur est créé en JS et affiché dans le DOM -->
+<!-- Le curseur est créé et géré en JavaScript -->
 
+<style>
+  /* Forcer le curseur système sur mobile (fallback) */
+  @media (hover: none) and (pointer: coarse) {
+    :global(*) {
+      cursor: auto !important;
+    }
+  }
+</style>

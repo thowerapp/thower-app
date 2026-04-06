@@ -37,7 +37,7 @@
 		</div>
 	</div>
 
-	<Card.Root>
+	<Card.Root class="meas-card">
 		<Card.Header class="pb-3">
 			<Card.Title class="text-sm font-semibold">Objectifs généraux</Card.Title>
 			<Card.Description class="text-xs">Sélectionne tout ce qui s'applique.</Card.Description>
@@ -63,18 +63,18 @@
 		</Card.Content>
 	</Card.Root>
 
-	<Card.Root class="mt-4">
+	<Card.Root class="meas-card mt-4">
 		<Card.Content class="pt-5 pb-5 space-y-4">
 			<Form.Field name="physicalObjective" {form}>
 				<Form.Control>
-					<Form.Label class="font-medium">Objectif physique précis</Form.Label>
+				<Form.Label class="meas-label font-medium">Objectif physique précis</Form.Label>
 					<p class="text-xs text-muted-foreground mb-2">Ex. : Perdre 12 kg, passer de 100 à 80 cm de tour de taille, avoir un physique athlétique et sec.</p>
 					<Textarea
-						name="physicalObjective"
-						bind:value={$formData.physicalObjective}
-						rows={3}
-						placeholder="Décris ton objectif chiffré..."
-						class="resize-y"
+					class="meas-input resize-y"
+					name="physicalObjective"
+					bind:value={$formData.physicalObjective}
+					rows={3}
+					placeholder="Décris ton objectif chiffré..."
 					/>
 				</Form.Control>
 				<Form.FieldErrors />
@@ -82,14 +82,14 @@
 			<Separator />
 			<Form.Field name="eventMotivation" {form}>
 				<Form.Control>
-					<Form.Label class="font-medium">Événement / Motivation</Form.Label>
+				<Form.Label class="meas-label font-medium">Événement / Motivation</Form.Label>
 					<p class="text-xs text-muted-foreground mb-2">Ex. : Mariage le 7 juillet, semi-marathon le 14 nov, être fier de ton corps...</p>
 					<Textarea
-						name="eventMotivation"
-						bind:value={$formData.eventMotivation}
-						rows={3}
-						placeholder="Quel est ton moteur ?"
-						class="resize-y"
+					class="meas-input resize-y"
+					name="eventMotivation"
+					bind:value={$formData.eventMotivation}
+					rows={3}
+					placeholder="Quel est ton moteur ?"
 					/>
 				</Form.Control>
 				<Form.FieldErrors />

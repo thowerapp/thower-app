@@ -23,18 +23,18 @@
 		align-items: center;
 		gap: 16px;
 		padding: 16px 18px;
-		border-bottom: 1px solid #f0f0f0;
+		border-bottom: 1px solid rgba(240, 237, 232, 0.08);
 		cursor: pointer;
 		text-decoration: none;
 		transition: background 0.1s;
 	}
 	.dec-card:hover {
-		background: #fafafa;
+		background: rgba(201, 168, 76, 0.05);
 	}
 	.dec-icon {
 		width: 44px;
 		height: 44px;
-		background: #111;
+		background: #c9a84c;
 		flex-shrink: 0;
 		display: flex;
 		align-items: center;
@@ -46,23 +46,23 @@
 	.dec-title {
 		font-size: 0.78rem;
 		font-weight: 600;
-		color: #111;
+		color: #f0ede8;
 	}
 	.dec-sub {
 		font-size: 0.58rem;
-		color: #aaa;
+		color: rgba(240, 237, 232, 0.6);
 		margin-top: 3px;
 	}
 	.dec-count {
 		font-size: 0.5rem;
-		color: #bbb;
+		color: #3ab8b8;
 		margin-top: 2px;
 	}
 	.arrow-right {
 		width: 6px;
 		height: 6px;
-		border-right: 1.5px solid #bbb;
-		border-top: 1.5px solid #bbb;
+		border-right: 1.5px solid #c9a84c;
+		border-top: 1.5px solid #c9a84c;
 		transform: rotate(45deg);
 		flex-shrink: 0;
 	}

@@ -46,19 +46,19 @@
 		width: 16px;
 		height: 16px;
 		border-radius: 50%;
-		border: 2px solid #555;
+		border: 2px solid #c9a84c;
 	}
 	.icon-triangle {
 		width: 0;
 		height: 0;
 		border-left: 8px solid transparent;
 		border-right: 8px solid transparent;
-		border-bottom: 14px solid #555;
+		border-bottom: 14px solid #3ab8b8;
 	}
 	.icon-square {
 		width: 16px;
 		height: 16px;
-		border: 2px solid #555;
+		border: 2px solid #c9a84c;
 		border-radius: 2px;
 	}
 </style>

@@ -56,18 +56,19 @@
 <style>
 	.notif-banner {
 		margin: 10px 18px 0;
-		border: 1px solid #111;
+		border: 1px solid #c9a84c;
 		padding: 10px 12px;
 		display: flex;
 		align-items: center;
 		gap: 10px;
 		cursor: pointer;
+		background: rgba(201, 168, 76, 0.08);
 	}
 	.notif-dot {
 		width: 6px;
 		height: 6px;
 		border-radius: 50%;
-		background: #111;
+		background: #c9a84c;
 		flex-shrink: 0;
 	}
 	.notif-body {
@@ -76,18 +77,19 @@
 	.notif-title {
 		font-size: 0.65rem;
 		font-weight: 600;
-		color: #111;
+		color: #f0ede8;
+		font-family: 'DM Sans', sans-serif;
 	}
 	.notif-sub {
 		font-size: 0.55rem;
-		color: #666;
+		color: rgba(240, 237, 232, 0.6);
 		margin-top: 2px;
 		line-height: 1.4;
 	}
 	.notif-cta {
 		font-size: 0.58rem;
 		font-weight: 600;
-		color: #111;
+		color: #c9a84c;
 		text-decoration: underline;
 		white-space: nowrap;
 		flex-shrink: 0;
@@ -95,17 +97,21 @@
 
 	.sec-head {
 		padding: 12px 18px 8px;
-		border-bottom: 1px solid #eee;
+		border-bottom: 1px solid rgba(201, 168, 76, 0.15);
 	}
 	.sh-title {
 		font-size: 0.72rem;
 		font-weight: 600;
-		color: #111;
+		color: #f0ede8;
+		font-family: 'Bebas Neue', sans-serif;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
 	}
 	.sh-sub {
 		font-size: 0.56rem;
-		color: #aaa;
+		color: #c9a84c;
 		margin-top: 2px;
+		font-family: 'DM Sans', sans-serif;
 	}
 
 	.split-cards {
@@ -115,8 +121,8 @@
 		padding: 12px 18px;
 	}
 	.split-card {
-		background: #f5f5f5;
-		border: 1px solid #e0e0e0;
+		background: rgba(201, 168, 76, 0.1);
+		border: 1px solid #c9a84c;
 		padding: 16px 14px;
 		cursor: pointer;
 		transition: background 0.12s;
@@ -125,7 +131,7 @@
 		display: block;
 	}
 	.split-card:hover {
-		background: #ebebeb;
+		background: rgba(201, 168, 76, 0.15);
 	}
 	.sc-shape {
 		margin-bottom: 12px;
@@ -133,11 +139,12 @@
 	.sc-label {
 		font-size: 0.72rem;
 		font-weight: 600;
-		color: #111;
+		color: #f0ede8;
+		font-family: 'DM Sans', sans-serif;
 	}
 	.sc-sub {
 		font-size: 0.56rem;
-		color: #aaa;
+		color: #3ab8b8;
 		margin-top: 4px;
 	}
 
@@ -145,24 +152,24 @@
 		width: 20px;
 		height: 20px;
 		border-radius: 50%;
-		background: #111;
+		background: #c9a84c;
 	}
 	.shape-square {
 		width: 18px;
 		height: 18px;
-		background: #111;
+		background: #3ab8b8;
 	}
 	.shape-circle-sm {
 		width: 14px;
 		height: 14px;
 		border-radius: 50%;
-		background: #555;
+		background: #c9a84c;
 		flex-shrink: 0;
 	}
 	.shape-square-sm {
 		width: 13px;
 		height: 13px;
-		background: #555;
+		background: #3ab8b8;
 		flex-shrink: 0;
 	}
 
@@ -171,13 +178,13 @@
 		align-items: center;
 		gap: 12px;
 		padding: 11px 18px;
-		border-bottom: 1px solid #f0f0f0;
+		border-bottom: 1px solid rgba(240, 237, 232, 0.08);
 		cursor: pointer;
 	}
 	.li-thumb {
 		width: 36px;
 		height: 36px;
-		background: #e8e8e8;
+		background: rgba(201, 168, 76, 0.1);
 		flex-shrink: 0;
 		display: flex;
 		align-items: center;
@@ -190,11 +197,11 @@
 	.li-title {
 		font-size: 0.7rem;
 		font-weight: 500;
-		color: #111;
+		color: #f0ede8;
 	}
 	.li-sub {
 		font-size: 0.55rem;
-		color: #aaa;
+		color: rgba(240, 237, 232, 0.5);
 		margin-top: 2px;
 	}
 	.li-right {
@@ -205,8 +212,8 @@
 	.arrow-right {
 		width: 6px;
 		height: 6px;
-		border-right: 1.5px solid #bbb;
-		border-top: 1.5px solid #bbb;
+		border-right: 1.5px solid #c9a84c;
+		border-top: 1.5px solid #c9a84c;
 		transform: rotate(45deg);
 	}
 </style>

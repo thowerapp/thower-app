@@ -29,7 +29,7 @@
 		align-items: center;
 		gap: 10px;
 		padding: 7px 0;
-		border-bottom: 1px solid #f8f8f8;
+		border-bottom: 1px solid rgba(240, 237, 232, 0.08);
 		cursor: pointer;
 	}
 	.check-item:last-child {
@@ -38,7 +38,7 @@
 	.check-box {
 		width: 16px;
 		height: 16px;
-		border: 1.5px solid #ccc;
+		border: 1.5px solid rgba(201, 168, 76, 0.3);
 		flex-shrink: 0;
 		display: flex;
 		align-items: center;
@@ -46,25 +46,25 @@
 		transition: all 0.1s;
 	}
 	.check-box.checked {
-		background: #111;
-		border-color: #111;
+		background: #c9a84c;
+		border-color: #c9a84c;
 	}
 	.check-label {
 		font-size: 0.64rem;
-		color: #333;
+		color: #f0ede8;
 		flex: 1;
 	}
 	.check-label.done {
 		text-decoration: line-through;
-		color: #bbb;
+		color: rgba(240, 237, 232, 0.4);
 	}
 	.check-pts {
 		font-size: 0.5rem;
-		color: #aaa;
+		color: rgba(240, 237, 232, 0.5);
 		flex-shrink: 0;
 	}
 	.check-pts.earned {
-		color: #111;
+		color: #c9a84c;
 		font-weight: 600;
 	}
 </style>

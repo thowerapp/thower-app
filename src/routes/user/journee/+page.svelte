@@ -47,7 +47,7 @@
 <style>
 	.checklist-block {
 		padding: 10px 18px;
-		border-bottom: 1px solid #f5f5f5;
+		border-bottom: 1px solid rgba(240, 237, 232, 0.08);
 	}
 	.stats-row {
 		display: grid;
@@ -58,10 +58,10 @@
 	.hint {
 		padding: 10px 18px 6px;
 		font-size: 0.56rem;
-		color: #aaa;
+		color: rgba(240, 237, 232, 0.5);
 	}
 	.hint a {
-		color: #111;
+		color: #c9a84c;
 		text-decoration: underline;
 	}
 </style>

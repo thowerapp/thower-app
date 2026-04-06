@@ -10,21 +10,22 @@
 
 <style>
 	.stat-box {
-		background: #f5f5f5;
-		border: 1px solid #eee;
+		background: rgba(201, 168, 76, 0.1);
+		border: 1px solid #c9a84c;
 		padding: 10px 6px;
 		text-align: center;
 	}
 	.sb-val {
 		font-size: 1rem;
 		font-weight: 700;
-		color: #111;
+		color: #f0ede8;
 	}
 	.sb-lbl {
 		font-size: 0.5rem;
-		color: #aaa;
+		color: #c9a84c;
 		margin-top: 2px;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
+		font-family: 'DM Sans', sans-serif;
 	}
 </style>

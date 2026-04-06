@@ -62,9 +62,10 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 12px 16px;
-		background: #111;
+		background: #0a0a0a;
 		flex-shrink: 0;
 		gap: 12px;
+		border-bottom: 1px solid rgba(201, 168, 76, 0.15);
 	}
 
 	.back-link {
@@ -72,14 +73,14 @@
 		align-items: center;
 		gap: 6px;
 		text-decoration: none;
-		color: #888;
+		color: #c9a84c;
 		font-size: 0.62rem;
 		font-weight: 400;
 	}
 
 	.back-arrow {
 		font-size: 0.75rem;
-		color: #888;
+		color: #c9a84c;
 	}
 
 	.back-txt {
@@ -89,14 +90,17 @@
 	.page-title {
 		font-size: 0.72rem;
 		font-weight: 600;
-		color: #fff;
+		color: #f0ede8;
 		margin-left: auto;
+		font-family: 'Bebas Neue', sans-serif;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
 	}
 
 	.menu-list {
 		display: flex;
 		flex-direction: column;
-		background: #fff;
+		background: #0a0a0a;
 	}
 
 	.menu-item {
@@ -104,7 +108,7 @@
 		align-items: center;
 		gap: 14px;
 		padding: 16px 16px;
-		border-bottom: 1px solid #f0f0f0;
+		border-bottom: 1px solid rgba(240, 237, 232, 0.08);
 		text-decoration: none;
 		color: inherit;
 		cursor: pointer;
@@ -116,7 +120,7 @@
 	}
 
 	.menu-item:active {
-		background: #f8f8f8;
+		background: rgba(201, 168, 76, 0.08);
 	}
 
 	.item-icon {
@@ -125,11 +129,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #d5d5d5;
+		background: #c9a84c;
 		font-size: 1rem;
 		flex-shrink: 0;
 		border-radius: 3px;
-		color: #999;
+		color: #0a0a0a;
 	}
 
 	.item-body {
@@ -140,20 +144,20 @@
 	.item-title {
 		font-size: 0.68rem;
 		font-weight: 600;
-		color: #222;
+		color: #f0ede8;
 		letter-spacing: -0.01em;
 	}
 
 	.item-sub {
 		font-size: 0.54rem;
-		color: #888;
+		color: rgba(240, 237, 232, 0.5);
 		margin-top: 3px;
 		line-height: 1.3;
 	}
 
 	.item-arrow {
 		font-size: 0.9rem;
-		color: #ccc;
+		color: #c9a84c;
 		flex-shrink: 0;
 		font-weight: 300;
 	}

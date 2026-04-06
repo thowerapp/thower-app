@@ -88,6 +88,16 @@ enum PhotoAngle {
   BACK
 }
 
+/// Type de pain — valeurs nutritionnelles de référence pour 100 g (usage calculs apports)
+enum BreadType {
+  WHITE_BAGUETTE /// Pain blanc (baguette)
+  WHOLE_WHEAT    /// Pain complet
+  RYE            /// Pain de seigle
+  CORN           /// Pain de maïs
+  COUNTRY        /// Pain de campagne
+  MULTIGRAIN     /// Pain aux céréales
+}
+
 /// Type d'événement de points (gain positif / dépense négative)
 enum PointEventType {
   WORKOUT_COMPLETE
@@ -281,7 +291,12 @@ model UserProfile {
   // Contexte
   contextParticular          String?
 
-  // Habitudes alimentaires
+  // Habitudes alimentaires — pain (données structurées pour calculs macros)
+  breadDaily                 Boolean        @default(false)
+  /// Quantité moyenne consommée par jour (g) — utilisée même si consommation non quotidienne (équivalent journalier)
+  breadGramsPerDay           Float?
+  breadType                  BreadType?
+  /// Précisions libres (optionnel)
   breadManagement            String?
   allergens                  String[]       @default([])
   coffeePerDay               Int?

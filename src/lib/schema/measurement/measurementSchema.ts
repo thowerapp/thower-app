@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { normalizeStringList } from './normalizeStringList';
 import { allergenEnum } from '$lib/schema/recipe/allergens';
+import { breadGramsPerDayField, breadTypeField } from '$lib/schema/profile/breadType';
 
 const optionalNumber = (min: number, max: number) =>
 	z.preprocess(
@@ -35,6 +36,14 @@ const profileFieldsSchema = z.object({
 		.default([]),
 	painsPathologies: z.string().max(2000).optional(),
 	contextParticular: z.string().max(2000).optional(),
+	breadDaily: z
+		.preprocess(
+			(val) => (val === true || val === 'on' ? true : val === false || val === 'off' ? false : false),
+			z.boolean()
+		)
+		.default(false),
+	breadGramsPerDay: breadGramsPerDayField,
+	breadType: breadTypeField,
 	breadManagement: z.string().max(2000).optional(),
 	sportActivity: z.string().max(2000).optional(),
 	allergens: z

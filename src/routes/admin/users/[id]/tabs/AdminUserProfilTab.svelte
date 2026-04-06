@@ -3,8 +3,14 @@
 	import * as Table from '$shadcn/table';
 	import type { UserSelected } from '../types';
 	import { fmtDate } from '../types';
+	import { BREAD_TYPE_LABELS, type BreadTypeValue } from '$lib/schema/profile/breadType';
 
 	let { userSelected }: { userSelected: UserSelected } = $props();
+
+	function breadTypeLabel(code: string | null | undefined): string {
+		if (!code) return '—';
+		return BREAD_TYPE_LABELS[code as BreadTypeValue] ?? code;
+	}
 </script>
 
 <div class="space-y-6">
@@ -23,7 +29,13 @@
 					<dd>{userSelected.profile.painsPathologies ?? '—'}</dd>
 					<dt class="text-muted-foreground">Contexte particulier</dt>
 					<dd>{userSelected.profile.contextParticular ?? '—'}</dd>
-					<dt class="text-muted-foreground">Gestion du pain</dt>
+					<dt class="text-muted-foreground">Pain quotidien</dt>
+					<dd>{userSelected.profile.breadDaily ? 'Oui' : 'Non'}</dd>
+					<dt class="text-muted-foreground">Pain (g / jour, moy.)</dt>
+					<dd>{userSelected.profile.breadGramsPerDay ?? '—'}</dd>
+					<dt class="text-muted-foreground">Type de pain</dt>
+					<dd>{breadTypeLabel(userSelected.profile.breadType)}</dd>
+					<dt class="text-muted-foreground">Précisions pain</dt>
 					<dd>{userSelected.profile.breadManagement ?? '—'}</dd>
 					<dt class="text-muted-foreground">Allergènes</dt>
 					<dd>{userSelected.profile.allergens?.join(', ') ?? '—'}</dd>

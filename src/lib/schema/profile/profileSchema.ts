@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { activityLevelEnum } from '$lib/schema/measurement/measurementSchema';
 import { allergenEnum } from '$lib/schema/recipe/allergens';
+import { breadGramsPerDayField, breadTypeField } from './breadType';
 
 export const shoppingListSortOrderEnum = z.enum(['category', 'alphabetical']);
 
@@ -20,6 +21,14 @@ export const profileSchema = z.object({
 		.default([]),
 	painsPathologies: z.string().max(2000).optional(),
 	contextParticular: z.string().max(2000).optional(),
+	breadDaily: z
+		.preprocess(
+			(val) => (val === true || val === 'on' ? true : val === false || val === 'off' ? false : false),
+			z.boolean()
+		)
+		.default(false),
+	breadGramsPerDay: breadGramsPerDayField,
+	breadType: breadTypeField,
 	breadManagement: z.string().max(2000).optional(),
 	sportActivity: z.string().max(2000).optional(),
 	allergens: z

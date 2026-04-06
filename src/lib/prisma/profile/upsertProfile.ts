@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server';
 import type { ActivityLevel } from '@prisma/client';
+import type { BreadTypeValue } from '$lib/schema/profile/breadType';
 
 export type UpsertProfileData = {
 	intermittentFastingMorning?: boolean | null;
@@ -7,6 +8,9 @@ export type UpsertProfileData = {
 	objectives?: string[];
 	painsPathologies?: string | null;
 	contextParticular?: string | null;
+	breadDaily?: boolean;
+	breadGramsPerDay?: number | null;
+	breadType?: BreadTypeValue | null;
 	breadManagement?: string | null;
 	sportActivity?: string | null;
 	allergens?: string[];
@@ -39,6 +43,9 @@ const toPayload = (data: UpsertProfileData) => ({
 	objectives: data.objectives ?? [],
 	painsPathologies: data.painsPathologies ?? undefined,
 	contextParticular: data.contextParticular ?? undefined,
+	breadDaily: data.breadDaily ?? false,
+	breadGramsPerDay: data.breadGramsPerDay ?? undefined,
+	breadType: data.breadType ?? undefined,
 	breadManagement: data.breadManagement ?? undefined,
 	sportActivity: data.sportActivity ?? undefined,
 	allergens: data.allergens ?? [],

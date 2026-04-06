@@ -25,6 +25,14 @@ export {
 	familyCoefficientItemSchema,
 	type ProfileSchema
 } from './profile/profileSchema';
+export {
+	breadTypeEnum,
+	breadTypeOptions,
+	BREAD_TYPE_LABELS,
+	BREAD_NUTRITION_PER_100G,
+	breadMacrosForGrams,
+	type BreadTypeValue
+} from './profile/breadType';
 
 // Users
 export { updateUserSchema, deleteUserSchema, adminUpdateUserSchema, type UpdateUser, type DeleteUser, type AdminUpdateUser } from './users/userSchema';

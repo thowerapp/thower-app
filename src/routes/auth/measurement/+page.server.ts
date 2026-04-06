@@ -46,6 +46,9 @@ export const load = async (event: RequestEvent) => {
 		objectives: profile?.objectives ?? [],
 		painsPathologies: profile?.painsPathologies ?? undefined,
 		contextParticular: profile?.contextParticular ?? undefined,
+		breadDaily: profile?.breadDaily ?? false,
+		breadGramsPerDay: profile?.breadGramsPerDay ?? undefined,
+		breadType: profile?.breadType ?? undefined,
 		breadManagement: profile?.breadManagement ?? undefined,
 		sportActivity: profile?.sportActivity ?? undefined,
 		// Bien-être
@@ -106,6 +109,9 @@ export const actions: Actions = {
 			objectives,
 			painsPathologies: data.painsPathologies,
 			contextParticular: data.contextParticular,
+			breadDaily: data.breadDaily,
+			breadGramsPerDay: data.breadGramsPerDay,
+			breadType: data.breadType,
 			breadManagement: data.breadManagement,
 			sportActivity: data.sportActivity,
 			// Bien-être

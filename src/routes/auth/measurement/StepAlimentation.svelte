@@ -1,11 +1,13 @@
 <script lang="ts">
 	import * as Form from '$shadcn/form';
 	import * as Card from '$shadcn/card';
+	import { Input } from '$shadcn/input';
 	import { Textarea } from '$shadcn/textarea';
 	import { Separator } from '$shadcn/separator';
 	import { Checkbox } from '$shadcn/checkbox';
 	import { ChefHat } from 'lucide-svelte';
 	import { allergenOptions, type AllergenValue } from '$lib/schema/recipe/allergens';
+	import { breadTypeOptions, type BreadTypeValue } from '$lib/schema/profile/breadType';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let { form, formData }: { form: any; formData: any } = $props();
@@ -31,6 +33,10 @@
 		$formData.allergens = current.includes(value)
 			? current.filter((a: AllergenValue) => a !== value)
 			: [...current, value];
+	}
+
+	function setBreadDaily(value: boolean) {
+		$formData.breadDaily = value;
 	}
 </script>
 
@@ -71,6 +77,91 @@
 
 	<Card.Root class="meas-card mt-4">
 		<Card.Content class="pt-5 pb-5 space-y-4">
+			<div class="space-y-3">
+				<p class="meas-label font-medium">Pain</p>
+				<p class="text-xs text-muted-foreground">
+					Ces infos servent au calcul des apports (macros pour la quantité et le type choisis, référence pour 100 g).
+				</p>
+				<div class="space-y-2">
+					<p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Consommation quotidienne ?</p>
+					<div class="equipment-grid">
+						<button
+							type="button"
+							class="equipment-chip"
+							class:selected={$formData.breadDaily === true}
+							onclick={() => setBreadDaily(true)}
+							aria-pressed={$formData.breadDaily === true}
+						>
+							<Checkbox checked={$formData.breadDaily === true} class="pointer-events-none shrink-0" />
+							Oui
+						</button>
+						<button
+							type="button"
+							class="equipment-chip"
+							class:selected={$formData.breadDaily === false}
+							onclick={() => setBreadDaily(false)}
+							aria-pressed={$formData.breadDaily === false}
+						>
+							<Checkbox checked={$formData.breadDaily === false} class="pointer-events-none shrink-0" />
+							Non
+						</button>
+					</div>
+				</div>
+				<Form.Field name="breadGramsPerDay" {form}>
+					<Form.Control>
+						<Form.Label class="meas-label font-medium">Quantité moyenne (g / jour)</Form.Label>
+						<p class="text-xs text-muted-foreground mb-2">
+							Moyenne sur la semaine si ce n’est pas chaque jour (ex. 150 g le dimanche ≈ 21 g/j).
+						</p>
+						<Input
+							class="meas-input"
+							type="number"
+							min="0"
+							step="1"
+							name="breadGramsPerDay"
+							bind:value={$formData.breadGramsPerDay}
+							placeholder="Ex. 60"
+						/>
+					</Form.Control>
+					<Form.FieldErrors />
+				</Form.Field>
+				<Form.Field name="breadType" {form}>
+					<Form.Control>
+						<Form.Label class="meas-label font-medium">Type de pain</Form.Label>
+						<p class="text-xs text-muted-foreground mb-2">Le plus proche de ce que tu consommes habituellement.</p>
+						<select
+							class="meas-input w-full"
+							name="breadType"
+							value={($formData.breadType as BreadTypeValue | undefined) ?? ''}
+							onchange={(e) => {
+								const v = e.currentTarget.value;
+								$formData.breadType = v === '' ? undefined : (v as BreadTypeValue);
+							}}
+						>
+							<option value="">— Choisir un type —</option>
+							{#each breadTypeOptions as opt}
+								<option value={opt.value}>{opt.label}</option>
+							{/each}
+						</select>
+					</Form.Control>
+					<Form.FieldErrors />
+				</Form.Field>
+				<Form.Field name="breadManagement" {form}>
+					<Form.Control>
+						<Form.Label class="meas-label font-medium">Précisions (optionnel)</Form.Label>
+						<p class="text-xs text-muted-foreground mb-2">Ex. horaires, marque, pain sans gluten…</p>
+						<Textarea
+							class="meas-input resize-y"
+							name="breadManagement"
+							bind:value={$formData.breadManagement}
+							rows={2}
+							placeholder="Ex. : surtout le matin, baguette tradition…"
+						/>
+					</Form.Control>
+					<Form.FieldErrors />
+				</Form.Field>
+			</div>
+			<Separator />
 			<div class="space-y-2">
 				<p class="meas-label font-medium">Allergènes</p>
 				<p class="text-xs text-muted-foreground">Y a-t-il des aliments dont tu es allergique ?</p>
@@ -103,21 +194,6 @@
 					bind:value={$formData.disgustingFoods}
 					rows={2}
 					placeholder="Ex. : champignons, poisson, chou..."
-					/>
-				</Form.Control>
-				<Form.FieldErrors />
-			</Form.Field>
-			<Separator />
-			<Form.Field name="breadManagement" {form}>
-				<Form.Control>
-				<Form.Label class="meas-label font-medium">Habitudes avec le pain</Form.Label>
-					<p class="text-xs text-muted-foreground mb-2">Est-ce que tu consommes du pain quotidiennement et dans quelles quantités ?</p>
-					<Textarea
-					class="meas-input resize-y"
-					name="breadManagement"
-					bind:value={$formData.breadManagement}
-					rows={2}
-					placeholder="Ex. : 2 tranches le matin, baguette entière à midi..."
 					/>
 				</Form.Control>
 				<Form.FieldErrors />

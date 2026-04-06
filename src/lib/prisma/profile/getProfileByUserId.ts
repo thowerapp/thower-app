@@ -6,6 +6,9 @@ export type UserProfileSnapshot = {
 	objectives: string[];
 	painsPathologies?: string | null;
 	contextParticular?: string | null;
+	breadDaily?: boolean;
+	breadGramsPerDay?: number | null;
+	breadType?: string | null;
 	breadManagement?: string | null;
 	sportActivity?: string | null;
 	allergens: string[];

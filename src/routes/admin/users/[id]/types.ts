@@ -31,6 +31,9 @@ export interface UserProfileSelected {
 	objectives?: string[];
 	painsPathologies?: string | null;
 	contextParticular?: string | null;
+	breadDaily?: boolean;
+	breadGramsPerDay?: number | null;
+	breadType?: string | null;
 	breadManagement?: string | null;
 	allergens?: string[];
 	coffeePerDay?: number | null;

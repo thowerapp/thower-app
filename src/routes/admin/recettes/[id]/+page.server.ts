@@ -38,6 +38,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			nutritionCarbsG: recipe.nutritionCarbsG,
 			nutritionFatG: recipe.nutritionFatG,
 			nutritionFiberG: recipe.nutritionFiberG,
+			allergens: recipe.allergens ?? [],
 			ingredients: recipe.ingredients.map(
 				(ing: {
 					name: string;
@@ -46,7 +47,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 					category: string | null;
 					note: string | null;
 					isOptional: boolean;
-					allergens: string[];
 					order: number;
 				}) => ({
 					name: ing.name,
@@ -55,7 +55,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 					category: ing.category,
 					note: ing.note,
 					isOptional: ing.isOptional,
-					allergens: ing.allergens ?? [],
 					order: ing.order
 				})
 			)
@@ -107,6 +106,7 @@ export const actions: Actions = {
 					nutritionCarbsG: d.nutritionCarbsG,
 					nutritionFatG: d.nutritionFatG,
 					nutritionFiberG: d.nutritionFiberG,
+					allergens: d.allergens,
 					ingredients: {
 						create: d.ingredients.map((ing, idx) => ({
 							name: ing.name,
@@ -115,7 +115,6 @@ export const actions: Actions = {
 							category: ing.category,
 							note: ing.note,
 							isOptional: ing.isOptional,
-							allergens: ing.allergens,
 							order: ing.order ?? idx
 						}))
 					}

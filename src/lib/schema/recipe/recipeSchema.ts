@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { recipeIngredientSchema, type RecipeIngredientSchema } from './recipeIngredientSchema';
 import { recipeKitchenEquipmentEnum, type RecipeKitchenEquipmentValue } from './recipeKitchenEquipment';
+import { allergenEnum, type AllergenValue } from './allergens';
 
 export const recipeCategoryEnum = z.enum(['BREAKFAST', 'MEAL', 'DESSERT']);
 
@@ -21,6 +22,7 @@ export const recipeSchema = z.object({
 	nutritionCarbsG: z.number().nonnegative().optional().nullable(),
 	nutritionFatG: z.number().nonnegative().optional().nullable(),
 	nutritionFiberG: z.number().nonnegative().optional().nullable(),
+	allergens: z.array(allergenEnum).catch([]).default([]),
 	ingredients: z.array(recipeIngredientSchema).default([])
 });
 
@@ -46,5 +48,6 @@ export type RecipeSchema = {
 	nutritionCarbsG?: number | null;
 	nutritionFatG?: number | null;
 	nutritionFiberG?: number | null;
+	allergens: AllergenValue[];
 	ingredients: RecipeIngredientSchema[];
 };

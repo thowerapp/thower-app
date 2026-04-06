@@ -12,6 +12,7 @@
 		recipeKitchenEquipmentOptions,
 		type RecipeKitchenEquipmentValue
 	} from '$lib/schema/recipe/recipeKitchenEquipment';
+	import { allergenOptions, type AllergenValue } from '$lib/schema/recipe/allergens';
 	import PlusCircle from 'lucide-svelte/icons/plus-circle';
 	import Trash2 from 'lucide-svelte/icons/trash-2';
 	import ChefHat from 'lucide-svelte/icons/chef-hat';
@@ -52,7 +53,6 @@
 				category: ing.category ?? null,
 				note: ing.note ?? null,
 				isOptional: ing.isOptional ?? false,
-				allergens: ing.allergens ?? [],
 				order: ing.order ?? i
 			})
 		);
@@ -72,7 +72,6 @@
 				category: null,
 				note: null,
 				isOptional: false,
-				allergens: [],
 				order: ingredients.length
 			}
 		];
@@ -87,6 +86,17 @@
 		{ value: 'MEAL', label: 'Repas' },
 		{ value: 'DESSERT', label: 'Dessert' }
 	];
+
+	function toggleRecipeAllergen(code: AllergenValue) {
+		form.update((f) => {
+			const row = f as RecipeSchema;
+			const cur = [...(row.allergens ?? [])];
+			const i = cur.indexOf(code);
+			if (i >= 0) cur.splice(i, 1);
+			else cur.push(code);
+			return { ...f, allergens: cur };
+		});
+	}
 
 	function toggleKitchenEquipment(value: RecipeKitchenEquipmentValue, checked: boolean) {
 		form.update((f) => {
@@ -183,6 +193,25 @@
 						/>
 						<span>{opt.label}</span>
 					</label>
+				{/each}
+			</div>
+		</fieldset>
+
+		<fieldset class="rounded-lg border p-4">
+			<legend class="px-2 text-sm font-semibold">Allergènes de la recette</legend>
+			<p class="text-muted-foreground mt-1 text-xs">
+				Indique tous les allergènes majeurs présents dans le plat (liste UE).
+			</p>
+			<div class="mt-3 flex flex-wrap gap-2">
+				{#each allergenOptions as opt}
+					<button
+						type="button"
+						class="allergen-chip"
+						class:selected={(($form as RecipeSchema).allergens ?? []).includes(opt.value)}
+						onclick={() => toggleRecipeAllergen(opt.value)}
+					>
+						{opt.label}
+					</button>
 				{/each}
 			</div>
 		</fieldset>
@@ -314,3 +343,30 @@
 		</div>
 	</form>
 </div>
+
+<style>
+	.allergen-chip {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.25rem 0.75rem;
+		border: 1px solid hsl(var(--border));
+		border-radius: 9999px;
+		background: hsl(var(--background));
+		cursor: pointer;
+		font-size: 0.75rem;
+		font: inherit;
+		color: inherit;
+		transition: border-color 0.15s, background 0.15s, color 0.15s;
+	}
+
+	.allergen-chip:hover {
+		border-color: hsl(var(--primary));
+		background: hsl(var(--accent));
+	}
+
+	.allergen-chip.selected {
+		border-color: hsl(var(--primary));
+		background: hsl(var(--primary));
+		color: hsl(var(--primary-foreground));
+	}
+</style>

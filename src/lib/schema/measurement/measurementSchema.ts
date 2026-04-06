@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { normalizeStringList } from './normalizeStringList';
+import { allergenEnum } from '$lib/schema/recipe/allergens';
 
 const optionalNumber = (min: number, max: number) =>
 	z.preprocess(
@@ -37,7 +38,7 @@ const profileFieldsSchema = z.object({
 	breadManagement: z.string().max(2000).optional(),
 	sportActivity: z.string().max(2000).optional(),
 	allergens: z
-		.preprocess(parseStringArray, z.array(z.string()))
+		.preprocess(parseStringArray, z.array(allergenEnum).catch([]))
 		.default([]),
 	coffeePerDay: z.preprocess(
 		(val) => (val === '' || val === undefined ? undefined : Number(val)),

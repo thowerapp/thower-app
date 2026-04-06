@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { activityLevelEnum } from '$lib/schema/measurement/measurementSchema';
+import { allergenEnum } from '$lib/schema/recipe/allergens';
 
 export const shoppingListSortOrderEnum = z.enum(['category', 'alphabetical']);
 
@@ -26,7 +27,7 @@ export const profileSchema = z.object({
 			if (Array.isArray(val)) return val;
 			if (typeof val === 'string') return val ? (JSON.parse(val) as string[]) : [];
 			return [];
-		}, z.array(z.string()))
+		}, z.array(allergenEnum).catch([]))
 		.default([]),
 	coffeePerDay: z.preprocess(
 		(val) => (val === '' || val === undefined ? undefined : Number(val)),

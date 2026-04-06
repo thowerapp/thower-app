@@ -17,6 +17,7 @@ export type UpdateRecipeData = {
 	nutritionCarbsG?: number | null;
 	nutritionFatG?: number | null;
 	nutritionFiberG?: number | null;
+	allergens?: string[];
 };
 
 export async function updateRecipe(recipeId: string, data: UpdateRecipeData) {

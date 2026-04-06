@@ -10,7 +10,6 @@ export type CreateRecipeIngredientInput = {
 	order?: number;
 	note?: string | null;
 	isOptional?: boolean;
-	allergens?: string[];
 };
 
 export type CreateRecipeData = {
@@ -29,6 +28,7 @@ export type CreateRecipeData = {
 	nutritionCarbsG?: number | null;
 	nutritionFatG?: number | null;
 	nutritionFiberG?: number | null;
+	allergens?: string[];
 	ingredients?: CreateRecipeIngredientInput[];
 };
 
@@ -48,6 +48,7 @@ export async function createRecipe(data: CreateRecipeData) {
 		data: {
 			...rest,
 			requiredKitchenEquipment: data.requiredKitchenEquipment ?? [],
+			allergens: data.allergens ?? [],
 			isCustom: data.isCustom ?? false,
 			userId: data.userId ?? undefined,
 			servings: data.servings ?? 1,
@@ -61,8 +62,7 @@ export async function createRecipe(data: CreateRecipeData) {
 							category: i.category === undefined ? undefined : i.category,
 							order: i.order ?? idx,
 							note: i.note === undefined ? undefined : i.note,
-							isOptional: i.isOptional ?? false,
-							allergens: i.allergens ?? []
+							isOptional: i.isOptional ?? false
 						}))
 					}
 				: undefined

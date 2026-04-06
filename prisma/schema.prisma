@@ -563,6 +563,9 @@ model Recipe {
   /// Poids total du plat pour `servings` portion(s) — base du scaling liste de courses vs Meal.quantityG. Si null, 100 g.
   referenceYieldG Float?
 
+  /// Allergènes majeurs présents dans la recette (codes partagés avec le profil utilisateur)
+  allergens String[]       @default([])
+
   ingredients RecipeIngredient[]
   meals       Meal[]
   favorites   UserFavoriteRecipe[]
@@ -571,7 +574,7 @@ model Recipe {
   @@map("recipes")
 }
 
-/// Ingrédient d'une recette (avec allergènes associés)
+/// Ingrédient d'une recette
 model RecipeIngredient {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
@@ -586,7 +589,6 @@ model RecipeIngredient {
   /// Note affichée (ex. apport kcal facultatif)
   note      String?
   isOptional Boolean @default(false)
-  allergens String[] @default([])
 
   @@index([recipeId])
   @@map("recipe_ingredients")

@@ -7,8 +7,7 @@ export const recipeIngredientSchema = z.object({
 	category: z.string().max(100).optional().nullable(),
 	order: z.number().int().min(0).default(0),
 	note: z.string().max(500).optional().nullable(),
-	isOptional: z.boolean().default(false),
-	allergens: z.array(z.string()).default([])
+	isOptional: z.boolean().default(false)
 });
 
 export type RecipeIngredientSchema = z.infer<typeof recipeIngredientSchema>;

@@ -1,12 +1,11 @@
 <script lang="ts">
 	import * as Form from '$shadcn/form';
 	import * as Card from '$shadcn/card';
-	import { Input } from '$shadcn/input';
 	import { Textarea } from '$shadcn/textarea';
 	import { Separator } from '$shadcn/separator';
-	import { Label } from '$shadcn/label';
 	import { Checkbox } from '$shadcn/checkbox';
 	import { ChefHat } from 'lucide-svelte';
+	import { allergenOptions, type AllergenValue } from '$lib/schema/recipe/allergens';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let { form, formData }: { form: any; formData: any } = $props();
@@ -20,21 +19,17 @@
 		{ value: 'plaque', label: 'Plaque de cuisson' }
 	];
 
-	let allergensText = $state(
-		(($formData.allergens as string[]) ?? []).join(', ')
-	);
-
-	$effect(() => {
-		$formData.allergens = allergensText
-			.split(',')
-			.map((s: string) => s.trim())
-			.filter(Boolean);
-	});
-
 	function toggleEquipment(value: string) {
 		const current = ($formData.kitchenEquipment ?? []) as string[];
 		$formData.kitchenEquipment = current.includes(value)
 			? current.filter((e: string) => e !== value)
+			: [...current, value];
+	}
+
+	function toggleAllergen(value: AllergenValue) {
+		const current = ($formData.allergens ?? []) as AllergenValue[];
+		$formData.allergens = current.includes(value)
+			? current.filter((a: AllergenValue) => a !== value)
 			: [...current, value];
 	}
 </script>
@@ -77,14 +72,25 @@
 	<Card.Root class="meas-card mt-4">
 		<Card.Content class="pt-5 pb-5 space-y-4">
 			<div class="space-y-2">
-				<Label class="meas-label font-medium">Allergènes</Label>
+				<p class="meas-label font-medium">Allergènes</p>
 				<p class="text-xs text-muted-foreground">Y a-t-il des aliments dont tu es allergique ?</p>
-				<Input
-					class="meas-input"
-					type="text"
-					placeholder="Ex. : gluten, lactose, fruits à coque..."
-					bind:value={allergensText}
-				/>
+				<div class="allergen-grid">
+					{#each allergenOptions as item}
+						<button
+							type="button"
+							class="allergen-chip"
+							class:selected={(($formData.allergens ?? []) as AllergenValue[]).includes(item.value)}
+							onclick={() => toggleAllergen(item.value)}
+							aria-pressed={(($formData.allergens ?? []) as AllergenValue[]).includes(item.value)}
+						>
+							<Checkbox
+								checked={(($formData.allergens ?? []) as AllergenValue[]).includes(item.value)}
+								class="pointer-events-none shrink-0"
+							/>
+							{item.label}
+						</button>
+					{/each}
+				</div>
 			</div>
 			<Separator />
 			<Form.Field name="disgustingFoods" {form}>
@@ -154,6 +160,44 @@
 	}
 
 	.equipment-chip.selected {
+		border-color: var(--primary);
+		background: var(--primary);
+		color: var(--primary-foreground);
+
+		:global([data-slot='checkbox']) {
+			background: var(--primary-foreground);
+			border-color: var(--primary-foreground);
+			color: var(--primary);
+		}
+	}
+
+	.allergen-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 0.5rem;
+	}
+
+	.allergen-chip {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.625rem 0.875rem;
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		background: var(--card);
+		cursor: pointer;
+		font-size: 0.875rem;
+		font: inherit;
+		color: inherit;
+		transition: border-color 0.15s, background 0.15s, color 0.15s;
+
+		&:hover {
+			border-color: var(--primary);
+			background: var(--accent);
+		}
+	}
+
+	.allergen-chip.selected {
 		border-color: var(--primary);
 		background: var(--primary);
 		color: var(--primary-foreground);

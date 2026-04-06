@@ -216,12 +216,13 @@ async function main() {
 			category: 'MEAL',
 			totalTimeMin: 40,
 			referenceYieldG: 555,
+			allergens: [],
 			instructions: "Faire revenir le poulet en dés. Ajouter le lait de coco et le curry. Servir avec le riz basmati.",
 			ingredients: [
-				{ name: 'Blanc de poulet', quantityG: 300, unit: 'g', category: 'Viandes', allergens: [] },
-				{ name: 'Riz basmati cuit', quantityG: 150, unit: 'g', category: 'Féculents', allergens: [] },
-				{ name: 'Lait de coco', quantityG: 100, unit: 'ml', category: 'Conserves', allergens: [] },
-				{ name: 'Curry en poudre', quantityG: 5, unit: 'g', category: 'Épices', allergens: [] }
+				{ name: 'Blanc de poulet', quantityG: 300, unit: 'g', category: 'Viandes' },
+				{ name: 'Riz basmati cuit', quantityG: 150, unit: 'g', category: 'Féculents' },
+				{ name: 'Lait de coco', quantityG: 100, unit: 'ml', category: 'Conserves' },
+				{ name: 'Curry en poudre', quantityG: 5, unit: 'g', category: 'Épices' }
 			]
 		},
 		{
@@ -229,12 +230,13 @@ async function main() {
 			category: 'MEAL',
 			totalTimeMin: 10,
 			referenceYieldG: 350,
+			allergens: ['fruits_a_coque', 'lait'],
 			instructions: "Mélanger tous les ingrédients. Assaisonner huile d'olive + vinaigre balsamique.",
 			ingredients: [
-				{ name: 'Poulet cuit', quantityG: 200, unit: 'g', category: 'Viandes', allergens: [] },
-				{ name: 'Mesclun', quantityG: 80, unit: 'g', category: 'Légumes', allergens: [] },
-				{ name: 'Noix', quantityG: 30, unit: 'g', category: 'Fruits secs', allergens: ['noix'] },
-				{ name: 'Gorgonzola', quantityG: 40, unit: 'g', category: 'Fromages', allergens: ['lait'] }
+				{ name: 'Poulet cuit', quantityG: 200, unit: 'g', category: 'Viandes' },
+				{ name: 'Mesclun', quantityG: 80, unit: 'g', category: 'Légumes' },
+				{ name: 'Noix', quantityG: 30, unit: 'g', category: 'Fruits secs' },
+				{ name: 'Gorgonzola', quantityG: 40, unit: 'g', category: 'Fromages' }
 			]
 		},
 		{
@@ -242,12 +244,13 @@ async function main() {
 			category: 'MEAL',
 			totalTimeMin: 30,
 			referenceYieldG: 495,
+			allergens: ['poisson'],
 			instructions: "Cuire le saumon à la poêle, patate douce à la vapeur, épinards sautés à l'ail.",
 			ingredients: [
-				{ name: 'Saumon', quantityG: 180, unit: 'g', category: 'Poissons', allergens: ['poisson'] },
-				{ name: 'Patate douce', quantityG: 200, unit: 'g', category: 'Légumes', allergens: [] },
-				{ name: 'Épinards frais', quantityG: 100, unit: 'g', category: 'Légumes', allergens: [] },
-				{ name: "Huile d'olive", quantityG: 15, unit: 'ml', category: 'Condiments', allergens: [] }
+				{ name: 'Saumon', quantityG: 180, unit: 'g', category: 'Poissons' },
+				{ name: 'Patate douce', quantityG: 200, unit: 'g', category: 'Légumes' },
+				{ name: 'Épinards frais', quantityG: 100, unit: 'g', category: 'Légumes' },
+				{ name: "Huile d'olive", quantityG: 15, unit: 'ml', category: 'Condiments' }
 			]
 		},
 		{
@@ -255,28 +258,35 @@ async function main() {
 			category: 'MEAL',
 			totalTimeMin: 25,
 			referenceYieldG: 400,
+			allergens: ['oeufs'],
 			instructions: "Cuire quinoa, faire revenir les légumes, pocher les œufs. Assembler en bowl.",
 			ingredients: [
-				{ name: 'Quinoa cuit', quantityG: 120, unit: 'g', category: 'Féculents', allergens: [] },
-				{ name: 'Œufs', quantityG: 100, unit: 'g', category: 'Produits frais', allergens: ['œufs'] },
-				{ name: 'Courgette', quantityG: 100, unit: 'g', category: 'Légumes', allergens: [] },
-				{ name: 'Poivron rouge', quantityG: 80, unit: 'g', category: 'Légumes', allergens: [] }
+				{ name: 'Quinoa cuit', quantityG: 120, unit: 'g', category: 'Féculents' },
+				{ name: 'Œufs', quantityG: 100, unit: 'g', category: 'Produits frais' },
+				{ name: 'Courgette', quantityG: 100, unit: 'g', category: 'Légumes' },
+				{ name: 'Poivron rouge', quantityG: 80, unit: 'g', category: 'Légumes' }
 			]
 		}
 	];
 	const recipes = [];
 	for (const def of recipeDefs) {
-		const { ingredients, ...recipeData } = def;
+		const { ingredients, allergens = [], ...recipeData } = def;
 		let recipe = await db.recipe.findFirst({ where: { name: def.name, userId: null } });
 		if (!recipe) {
 			recipe = await db.recipe.create({
-				data: { ...recipeData, active: true, isCustom: false, ingredients: { create: ingredients } },
+				data: {
+					...recipeData,
+					allergens,
+					active: true,
+					isCustom: false,
+					ingredients: { create: ingredients }
+				},
 				include: { ingredients: true }
 			});
 		} else {
 			await db.recipe.update({
 				where: { id: recipe.id },
-				data: { ...recipeData, active: true, isCustom: false }
+				data: { ...recipeData, allergens, active: true, isCustom: false }
 			});
 			recipe = await db.recipe.findUnique({
 				where: { id: recipe.id },
@@ -473,7 +483,7 @@ async function main() {
 			painsPathologies: 'Légère lombalgie chronique',
 			contextParticular: 'Travail de bureau, sédentaire 8h/j',
 			breadManagement: 'Pain complet uniquement, 1 tranche/j max',
-			allergens: ['gluten', 'noix'],
+			allergens: ['gluten', 'fruits_a_coque'],
 			coffeePerDay: 2, alcoholHabit: false, tobaccoHabit: false,
 			breakfastEnabled: false, intermittentFastingMorning: true,
 			sportActivity: 'Marche 20 min le matin',

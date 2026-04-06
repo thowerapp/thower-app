@@ -42,6 +42,7 @@ export const actions: Actions = {
 				nutritionCarbsG: d.nutritionCarbsG,
 				nutritionFatG: d.nutritionFatG,
 				nutritionFiberG: d.nutritionFiberG,
+				allergens: d.allergens,
 				isCustom: false,
 				userId: null,
 				ingredients: d.ingredients.map((ing, idx) => ({
@@ -51,7 +52,6 @@ export const actions: Actions = {
 					category: ing.category,
 					note: ing.note,
 					isOptional: ing.isOptional,
-					allergens: ing.allergens,
 					order: ing.order ?? idx
 				}))
 			});

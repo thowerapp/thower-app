@@ -32,8 +32,8 @@ Donc : **repas générés dès le départ → modifiables → liste de courses d
 | **UserProfile** | `familyCoefficients` (Json), `shoppingListSortOrder` ('category' \| 'alphabetical'). |
 | **NutritionDay** | Jours du programme (1–91) avec repas. |
 | **Meal** | Repas d’un jour : `recipeId`, `quantityG` (quantité calculée, déjà avec coeff famille). |
-| **Recipe** | Fiche recette (catalogue ou perso) : `referenceYieldG`, `servings`, `totalTimeMin`, champs nutrition optionnels. |
-| **RecipeIngredient** | Ingrédient : `name`, `quantityG` (optionnel ; absent = exclu de la liste de courses), `order`, `unit`, `category`, `note`, `isOptional`, `allergens`. |
+| **Recipe** | Fiche recette (catalogue ou perso) : `referenceYieldG`, `servings`, `totalTimeMin`, `allergens` (codes), champs nutrition optionnels. |
+| **RecipeIngredient** | Ingrédient : `name`, `quantityG` (optionnel ; absent = exclu de la liste de courses), `order`, `unit`, `category`, `note`, `isOptional`. |
 | **ShoppingList** | Une liste : `userId`, `startDayIndex`, `endDayIndex`, `generatedAt`. |
 | **ShoppingItem** | Ligne de liste : `ingredientName`, `category`, `totalQuantityG`, `unit`, `isChecked`, `isReported`. |
 
@@ -102,8 +102,8 @@ Donc : **repas générés dès le départ → modifiables → liste de courses d
 User (programStartDate, profile)
   → NutritionDay (dayIndex 1..91)
       → Meal (position, recipeId, quantityG)   ← quantité déjà calculée (formules + coeff famille)
-          → Recipe (ingredients)
-              → RecipeIngredient (name, quantityG, unit, allergens)
+          → Recipe (ingredients, allergens)
+              → RecipeIngredient (name, quantityG, unit, …)
   → ShoppingList (startDayIndex, endDayIndex)
       → ShoppingItem (ingredientName, category, totalQuantityG, unit, isChecked, isReported)
           ↑ générés par agrégation des repas de la période + tri + report

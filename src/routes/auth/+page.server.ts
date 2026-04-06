@@ -77,18 +77,37 @@ export const load = async (event: PageServerLoadEvent) => {
 		zod(isMfaEnabledSchema)
 	);
 
-	const bodyMeasurements = await getBodyMeasurementsByUserId(event.locals.user.id, 1);
+	const userId = event.locals.user.id;
+	const isClient = event.locals.user.role === 'CLIENT';
+
+	const bodyMeasurements = await getBodyMeasurementsByUserId(userId, 1);
 	const hasMeasurements = bodyMeasurements.length > 0;
-	const [hasValidPayment, userSubscription, hasAnyTransaction] = await Promise.all([
-		getHasValidPaymentByUserId(event.locals.user.id),
+	const [hasValidPayment, userRow, hasAnyTransaction, nutritionAgg, mealCount] = await Promise.all([
+		getHasValidPaymentByUserId(userId),
 		prisma.user.findUnique({
-			where: { id: event.locals.user.id },
-			select: { subscriptionEndsAt: true }
+			where: { id: userId },
+			select: { subscriptionEndsAt: true, nutritionDaysAllocated: true }
 		}),
-		event.locals.user.role === 'CLIENT'
-			? prisma.transaction.count({ where: { userId: event.locals.user.id } }).then((n) => n > 0)
-			: Promise.resolve(false)
+		isClient
+			? prisma.transaction.count({ where: { userId } }).then((n) => n > 0)
+			: Promise.resolve(false),
+		prisma.nutritionDay.aggregate({
+			where: { userId },
+			_max: { dayIndex: true },
+			_count: { _all: true }
+		}),
+		prisma.meal.count({ where: { nutritionDay: { userId } } })
 	]);
+
+	if (isClient) {
+		logAuth('programme nutrition (état DB)', {
+			userId,
+			nutritionDaysAllocated: userRow?.nutritionDaysAllocated ?? 0,
+			nutritionDayRows: nutritionAgg._count._all,
+			maxNutritionDayIndex: nutritionAgg._max.dayIndex ?? null,
+			mealCount
+		});
+	}
 
 	logAuth('return settings data');
 	return {
@@ -97,7 +116,16 @@ export const load = async (event: PageServerLoadEvent) => {
 		hasMeasurements,
 		hasValidPayment,
 		hasAnyTransaction,
-		subscriptionEndsAt: userSubscription?.subscriptionEndsAt ?? null,
+		subscriptionEndsAt: userRow?.subscriptionEndsAt ?? null,
+		nutritionProgramLog: isClient
+			? {
+					nutritionDaysAllocated: userRow?.nutritionDaysAllocated ?? 0,
+					nutritionDayRows: nutritionAgg._count._all,
+					maxNutritionDayIndex: nutritionAgg._max.dayIndex ?? null,
+					mealCount
+				}
+			: null,
+		showNutritionProgramDebug: process.env.NODE_ENV !== 'production',
 		passwordForm,
 		emailForm,
 		isMfaEnabledForm

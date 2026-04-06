@@ -9,6 +9,7 @@ export interface UserSelected {
 	createdAt?: string;
 	googleId?: string | null;
 	subscriptionEndsAt?: string | null;
+	nutritionDaysAllocated?: number;
 	programStartDate?: string | null;
 	programPausedAt?: string | null;
 	programPausedReason?: string | null;
@@ -40,6 +41,8 @@ export interface UserProfileSelected {
 	alcoholHabit?: boolean | null;
 	tobaccoHabit?: boolean | null;
 	breakfastEnabled?: boolean;
+	bodyFatPercent?: number | null;
+	weightLossGoalKg?: number | null;
 	intermittentFastingMorning?: boolean | null;
 	sportActivity?: string | null;
 	familyCoefficients?: Array<{ label: string; coefficient: number }> | null;
@@ -109,7 +112,14 @@ export interface NutritionDaySelected {
 	id: string;
 	dayIndex: number;
 	intermittentFasting?: boolean;
-	meals?: Array<{ position: string; recipe?: { name: string } | null }>;
+	meals?: Array<{
+		id: string;
+		position: string;
+		eatenAt?: string | null;
+		quantityG?: number | null;
+		calcCalories?: number | null;
+		recipe?: { name: string } | null;
+	}>;
 }
 
 export interface ShoppingListSelected {

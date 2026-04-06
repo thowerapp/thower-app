@@ -48,7 +48,7 @@
 		"descriptionCompleted": "Toutes les séances dont dayIndex <= completedBeforeDayIndex sont marquées complétées (Lucas est à J10)."
 	},
 	"nutrition": {
-		"description": "Lucas a breakfastEnabled: true, 3 repas/jour. recipeIndex: 0=poulet curry, 1=salade noix gorgonzola, 2=saumon (éviter - allergie), 3=bowl œuf quinoa. recipeCycle répété sur 90 jours.",
+		"description": "Lucas a breakfastEnabled: true, 3 repas/jour, allergie poisson. Indices catalogue : 4=smoothie bowl, 10=poulet riz coco, 16=curry pois chiches. recipeCycle répété sur 90 jours.",
 		"familyCoefficient": 2.1,
 		"mealMacros": {
 			"BREAKFAST": { "quantityG": 525, "calcProteinG": 46, "calcCarbsG": 59, "calcFatG": 17, "calcCalories": 580 },
@@ -56,13 +56,13 @@
 			"DINNER": { "quantityG": 882, "calcProteinG": 101, "calcCarbsG": 46, "calcFatG": 34, "calcCalories": 899 }
 		},
 		"recipeCycle": [
-			{ "BREAKFAST": 3, "LUNCH": 0, "DINNER": 1 },
-			{ "BREAKFAST": 3, "LUNCH": 1, "DINNER": 0 },
-			{ "BREAKFAST": 3, "LUNCH": 0, "DINNER": 1 },
-			{ "BREAKFAST": 3, "LUNCH": 1, "DINNER": 0 },
-			{ "BREAKFAST": 3, "LUNCH": 0, "DINNER": 1 },
-			{ "BREAKFAST": 3, "LUNCH": 1, "DINNER": 0 },
-			{ "BREAKFAST": 3, "LUNCH": 0, "DINNER": 1 }
+			{ "BREAKFAST": 4, "LUNCH": 10, "DINNER": 16 },
+			{ "BREAKFAST": 4, "LUNCH": 16, "DINNER": 10 },
+			{ "BREAKFAST": 4, "LUNCH": 10, "DINNER": 16 },
+			{ "BREAKFAST": 4, "LUNCH": 16, "DINNER": 10 },
+			{ "BREAKFAST": 4, "LUNCH": 10, "DINNER": 16 },
+			{ "BREAKFAST": 4, "LUNCH": 16, "DINNER": 10 },
+			{ "BREAKFAST": 4, "LUNCH": 10, "DINNER": 16 }
 		]
 	},
 	"shopping": {

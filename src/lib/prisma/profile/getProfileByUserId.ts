@@ -16,6 +16,8 @@ export type UserProfileSnapshot = {
 	alcoholHabit?: boolean | null;
 	tobaccoHabit?: boolean | null;
 	breakfastEnabled: boolean;
+	bodyFatPercent?: number | null;
+	weightLossGoalKg?: number | null;
 	familyCoefficients?: unknown | null;
 	shoppingListSortOrder?: string | null;
 };

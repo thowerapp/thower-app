@@ -1,9 +1,13 @@
 import { json } from '@sveltejs/kit';
 import Stripe from 'stripe';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/index';
 import { createTransactionFromStripeSession } from '$lib/prisma/transaction/createTransactionFromStripeSession';
 import { getSubscriptionEndDateFromPlan, type PlanId } from '$lib/server/subscription-plans';
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
+import { claimNutritionSegmentCreditOnTransaction } from '$lib/server/mongo/claimNutritionSegmentCredit';
+import { incUserNutritionDaysAllocatedMongo } from '$lib/server/mongo/incUserNutritionDaysAllocated';
+import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -11,6 +15,13 @@ dotenv.config();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 const VALID_PLANS: PlanId[] = ['monthly', 'annual'];
+
+/** Ligne User minimale pour le repli webhook (assertions : certains caches TS servent un User Prisma sans ce champ). */
+type UserNutritionAllocatedRow = { nutritionDaysAllocated: number };
+
+const selectNutritionDaysAllocated = {
+	nutritionDaysAllocated: true
+} as unknown as Prisma.UserSelect;
 
 export async function POST({ request }: { request: Request }) {
 	const sig = request.headers.get('stripe-signature');
@@ -50,44 +61,86 @@ export async function POST({ request }: { request: Request }) {
 
 async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 	try {
-		const existing = await prisma.transaction.findUnique({
+		let transaction = await prisma.transaction.findUnique({
 			where: { stripePaymentId: session.id }
 		});
-		if (existing) {
+
+		if (!transaction) {
+			transaction = await createTransactionFromStripeSession(session);
+			console.log('Transaction created for session:', session.id);
+		} else {
 			console.log('Transaction already recorded for session:', session.id);
-			if (session.payment_status === 'paid' && existing.userId) {
-				void scheduleProgramGenerationAfterPayment(existing.userId).catch((err) => {
-					console.error('scheduleProgramGenerationAfterPayment failed', existing.userId, err);
-				});
-			}
+		}
+
+		// Paiement validé : crédit abonnement + jours nutrition (une seule fois par session Stripe).
+		// Stripe peut envoyer checkout.session.completed plusieurs fois ; la 2e arrivait parfois
+		// après la création Transaction mais avant user.update → génération avec nutritionDaysAllocated=0.
+		if (session.payment_status !== 'paid' || !transaction.userId) {
 			return;
 		}
 
-		const transaction = await createTransactionFromStripeSession(session);
-		console.log('Transaction created for session:', session.id);
+		const planId = (session.metadata?.plan as PlanId | undefined) ?? 'annual';
+		const user = await prisma.user.findUnique({
+			where: { id: transaction.userId },
+			select: { subscriptionEndsAt: true }
+		});
+		const currentEndsAt = user?.subscriptionEndsAt ?? null;
+		const endsAt =
+			VALID_PLANS.includes(planId)
+				? getSubscriptionEndDateFromPlan(planId, currentEndsAt)
+				: getSubscriptionEndDateFromPlan('annual', currentEndsAt);
 
-		// Marquer l'accès accompagnement : durée selon la formule, et prolongation à partir de la date de fin actuelle si déjà abonné
-		if (session.payment_status === 'paid' && transaction.userId) {
-			const planId = (session.metadata?.plan as PlanId | undefined) ?? 'annual';
-			const user = await prisma.user.findUnique({
-				where: { id: transaction.userId },
-				select: { subscriptionEndsAt: true }
-			});
-			const currentEndsAt = user?.subscriptionEndsAt ?? null;
-			const endsAt =
-				VALID_PLANS.includes(planId)
-					? getSubscriptionEndDateFromPlan(planId, currentEndsAt)
-					: getSubscriptionEndDateFromPlan('annual', currentEndsAt);
+		const credited = await claimNutritionSegmentCreditOnTransaction(transaction.id);
+
+		if (credited) {
 			await prisma.user.update({
 				where: { id: transaction.userId },
 				data: { subscriptionEndsAt: endsAt }
 			});
-			console.log('User subscriptionEndsAt updated for', transaction.userId, 'plan', planId, 'until', endsAt.toISOString());
-
-			void scheduleProgramGenerationAfterPayment(transaction.userId).catch((err) => {
-				console.error('scheduleProgramGenerationAfterPayment failed', transaction.userId, err);
-			});
+			const { modified } = await incUserNutritionDaysAllocatedMongo(
+				transaction.userId,
+				NUTRITION_SEGMENT_DAYS
+			);
+			if (modified < 1) {
+				const u = (await prisma.user.findUnique({
+					where: { id: transaction.userId },
+					select: selectNutritionDaysAllocated
+				})) as UserNutritionAllocatedRow | null;
+				const base = u?.nutritionDaysAllocated ?? 0;
+				await prisma.user.update({
+					where: { id: transaction.userId },
+					data: {
+						nutritionDaysAllocated: base + NUTRITION_SEGMENT_DAYS
+					} as unknown as Prisma.UserUpdateInput
+				});
+				console.warn(
+					'[webhook] $inc Mongo n’a touché aucun User — repli Prisma set explicite nutritionDaysAllocated'
+				);
+			}
+			const after = (await prisma.user.findUnique({
+				where: { id: transaction.userId },
+				select: selectNutritionDaysAllocated
+			})) as UserNutritionAllocatedRow | null;
+			console.log(
+				'User subscriptionEndsAt updated for',
+				transaction.userId,
+				'plan',
+				planId,
+				'until',
+				endsAt.toISOString(),
+				'| nutritionDaysAllocated=',
+				after?.nutritionDaysAllocated ?? '?'
+			);
+		} else {
+			console.log(
+				'Checkout session already credited (nutrition segment) — skip user update:',
+				session.id
+			);
 		}
+
+		void scheduleProgramGenerationAfterPayment(transaction.userId).catch((err) => {
+			console.error('scheduleProgramGenerationAfterPayment failed', transaction.userId, err);
+		});
 	} catch (error) {
 		console.error('Failed to create transaction for session', session.id, error);
 	}

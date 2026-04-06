@@ -13,22 +13,26 @@ export type ProgramSummaryResponse = {
 	days: ProgramDaySummary[];
 };
 
-/** GET : retourne les 90 jours avec sport et nutrition pour l'utilisateur (JSON). */
+/** GET : retourne les jours programme (sport + nutrition) pour l'utilisateur (JSON). */
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const userId = params.id;
-	const totalDays = 90;
 
 	const user = await prisma.user.findUnique({
 		where: { id: userId },
 		select: {
+			nutritionDaysAllocated: true,
 			workoutDays: {
+				orderBy: { dayIndex: 'asc' },
+				take: 400,
 				include: { session: { select: { name: true } } }
 			},
 			nutritionDays: {
+				orderBy: { dayIndex: 'asc' },
+				take: 400,
 				include: {
 					meals: {
 						include: { recipe: { select: { name: true } } }
@@ -62,6 +66,11 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		nutritionByDay.set(n.dayIndex, n);
 	}
 
+	const alloc = user.nutritionDaysAllocated ?? 0;
+	const maxN = nutritionDays.reduce((m, n) => Math.max(m, n.dayIndex), 0);
+	const maxW = workoutDays.reduce((m, w) => Math.max(m, w.dayIndex), 0);
+	const totalDays = Math.min(Math.max(Math.max(alloc, maxN, maxW, 91), 1), 400);
+
 	const days: ProgramDaySummary[] = [];
 	for (let dayIndex = 1; dayIndex <= totalDays; dayIndex++) {
 		const w = workoutByDay.get(dayIndex);
@@ -84,7 +93,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 	return json({ days } satisfies ProgramSummaryResponse, {
 		headers: {
-			'Content-Disposition': `attachment; filename="programme-${userId}-90jours.json"`
+			'Content-Disposition': `attachment; filename="programme-${userId}-${totalDays}j.json"`
 		}
 	});
 };

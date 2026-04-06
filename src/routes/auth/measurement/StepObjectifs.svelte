@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Form from '$shadcn/form';
 	import * as Card from '$shadcn/card';
+	import { Input } from '$shadcn/input';
 	import { Textarea } from '$shadcn/textarea';
 	import { Separator } from '$shadcn/separator';
 	import { Checkbox } from '$shadcn/checkbox';
@@ -60,6 +61,36 @@
 					</button>
 				{/each}
 			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root class="meas-card mt-4">
+		<Card.Header class="pb-3">
+			<Card.Title class="text-sm font-semibold">Perte de poids ciblée</Card.Title>
+			<Card.Description class="text-xs">
+				Utilisé pour calculer ton déficit calorique sur la période méthode (91 jours). Laisse vide si tu n’as pas d’objectif chiffré.
+			</Card.Description>
+		</Card.Header>
+		<Card.Content class="pb-5">
+			<Form.Field name="weightLossGoalKg" {form}>
+				<Form.Control>
+					<Form.Label class="meas-label font-medium">Objectif de perte (kg)</Form.Label>
+					<div class="input-unit-wrap">
+						<Input
+							class="meas-input"
+							type="number"
+							name="weightLossGoalKg"
+							bind:value={$formData.weightLossGoalKg}
+							min={0.5}
+							max={150}
+							step="0.1"
+							placeholder="ex. 6"
+						/>
+						<span class="unit">kg</span>
+					</div>
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
 		</Card.Content>
 	</Card.Root>
 
@@ -129,6 +160,25 @@
 			border-color: var(--primary);
 			background: var(--accent);
 		}
+	}
+
+	.input-unit-wrap {
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
+
+	.input-unit-wrap :global(input) {
+		padding-right: 2.5rem;
+		width: 100%;
+	}
+
+	.unit {
+		position: absolute;
+		right: 0.75rem;
+		font-size: 0.75rem;
+		color: var(--muted-foreground);
+		pointer-events: none;
 	}
 
 	.objective-chip.selected {

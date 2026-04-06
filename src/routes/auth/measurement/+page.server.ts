@@ -41,6 +41,8 @@ export const load = async (event: RequestEvent) => {
 		waistCm: lastBody?.waistCm ?? undefined,
 		chestCm: lastBody?.chestCm ?? undefined,
 		armCm: lastBody?.armCm ?? undefined,
+		bodyFatPercent: profile?.bodyFatPercent ?? undefined,
+		weightLossGoalKg: profile?.weightLossGoalKg ?? undefined,
 		intermittentFastingMorning: profile?.intermittentFastingMorning ?? undefined,
 		activityLevel: profile?.activityLevel ?? undefined,
 		objectives: profile?.objectives ?? [],
@@ -103,6 +105,8 @@ export const actions: Actions = {
 
 		await upsertProfile(event.locals.user.id, {
 			allergens,
+			bodyFatPercent: data.bodyFatPercent,
+			weightLossGoalKg: data.weightLossGoalKg,
 			breakfastEnabled: data.breakfastEnabled,
 			intermittentFastingMorning: data.intermittentFastingMorning,
 			activityLevel: data.activityLevel,

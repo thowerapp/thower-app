@@ -50,6 +50,28 @@
 					</Form.Control>
 					<Form.FieldErrors />
 				</Form.Field>
+				<Form.Field name="bodyFatPercent" {form}>
+					<Form.Control>
+						<Form.Label class="meas-label">Masse grasse (%)</Form.Label>
+						<p class="text-xs text-muted-foreground mb-2">
+							Optionnel si tu ne la connais pas : une estimation pourra être proposée plus tard (photos / IA).
+						</p>
+						<div class="input-unit-wrap">
+							<Input
+								class="meas-input"
+								type="number"
+								name="bodyFatPercent"
+								bind:value={$formData.bodyFatPercent}
+								min={3}
+								max={70}
+								step="0.1"
+								placeholder="18"
+							/>
+							<span class="unit">%</span>
+						</div>
+					</Form.Control>
+					<Form.FieldErrors />
+				</Form.Field>
 				<Form.Field name="waistCm" {form}>
 					<Form.Control>
 						<Form.Label class="meas-label">Tour de taille</Form.Label>

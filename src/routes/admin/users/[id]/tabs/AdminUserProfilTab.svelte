@@ -14,6 +14,18 @@
 </script>
 
 <div class="space-y-6">
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Planning nutrition</Card.Title>
+		</Card.Header>
+		<Card.Content>
+			<dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+				<dt class="text-muted-foreground">Jours alloués (paiements)</dt>
+				<dd>{userSelected.nutritionDaysAllocated ?? 0}</dd>
+			</dl>
+		</Card.Content>
+	</Card.Root>
+
 	{#if userSelected.profile}
 		<Card.Root>
 			<Card.Header>
@@ -47,6 +59,10 @@
 					<dd>{userSelected.profile.tobaccoHabit == null ? '—' : userSelected.profile.tobaccoHabit ? 'Oui' : 'Non'}</dd>
 					<dt class="text-muted-foreground">Petit-déjeuner</dt>
 					<dd>{userSelected.profile.breakfastEnabled ? 'Oui' : 'Non'}</dd>
+					<dt class="text-muted-foreground">Masse grasse (%)</dt>
+					<dd>{userSelected.profile.bodyFatPercent ?? '—'}</dd>
+					<dt class="text-muted-foreground">Objectif perte (kg)</dt>
+					<dd>{userSelected.profile.weightLossGoalKg ?? '—'}</dd>
 					<dt class="text-muted-foreground">Jeûne intermittent matin</dt>
 					<dd>{userSelected.profile.intermittentFastingMorning == null ? '—' : userSelected.profile.intermittentFastingMorning ? 'Oui' : 'Non'}</dd>
 					<dt class="text-muted-foreground">Sport existant</dt>

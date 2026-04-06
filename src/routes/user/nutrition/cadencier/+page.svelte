@@ -1,129 +1,140 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	export let data: PageData;
+	import { goto } from '$app/navigation';
+
+	let { data }: { data: PageData } = $props();
 
 	const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
-	$: weekNum = Math.ceil((data.dayIndex || 5) / 7);
-	$: today = data.dayIndex || 21;
-	$: todayName = dayNames[(today - 1) % 7];
+	/** null = utiliser defaultSelectedDay du serveur pour cette semaine */
+	let userPickedDay = $state<number | null>(null);
+	let syncedWeek = $state(-1);
 
-	let selectedDay = 21; // Default to day 21
-
-	function getDayName(dayNum: number): string {
-		return dayNames[(dayNum - 1) % 7];
-	}
-
-	function getDayNum(dayNum: number): number {
-		return ((dayNum - 1) % 7) + 1;
-	}
-
-	function selectDay(dayNum: number) {
-		selectedDay = dayNum;
-	}
-
-	// Mock data for meals
-	const meals = {
-		1: {
-			name: 'Salade niçoise revisitée',
-			time: '12h30',
-			macros: { calories: 380, protein: 32, carbs: 18, fat: 14 }
-		},
-		2: {
-			name: 'Non planifié',
-			time: '19h00',
-			macros: { calories: 0, protein: 0, carbs: 0, fat: 0 }
+	$effect.pre(() => {
+		const w = data.selectedWeek;
+		if (w !== syncedWeek) {
+			syncedWeek = w;
+			userPickedDay = null;
 		}
-	};
+	});
+
+	const selectedDay = $derived(userPickedDay ?? data.defaultSelectedDay);
+
+	const selectedDayData = $derived(
+		data.weekDays.find((d) => d.dayIndex === selectedDay) ?? null
+	);
+
+	function selectDay(dayIndex: number) {
+		userPickedDay = dayIndex;
+	}
+
+	function changeWeek(week: number) {
+		goto(`?semaine=${week}`, { invalidateAll: true, keepFocus: true });
+	}
+
+	function getDayName(dayIndex: number): string {
+		return dayNames[(dayIndex - 1) % 7] ?? '—';
+	}
+
+	function getDayNumInWeek(dayIndex: number): number {
+		return ((dayIndex - 1) % 7) + 1;
+	}
 </script>
 
 <div class="back-row">
-	<a href="/user" class="home-btn">← Accueil</a>
+	<a href="/user/nutrition" class="home-btn">← Nutrition</a>
 	<div class="page-title">Cadencier</div>
 </div>
 
 <div class="week-info">
-	<div class="week-header">Semaine {weekNum} / 13</div>
-	<div class="week-sub">91 jours · Sélectionne un jour pour voir les repas</div>
+	<div class="week-header-row">
+		<span class="week-header">Semaine {data.selectedWeek} / 13</span>
+		<label class="week-switch">
+			<span class="week-switch-lbl">Semaine</span>
+			<select
+				class="week-select"
+				value={String(data.selectedWeek)}
+				onchange={(e) => changeWeek(Number.parseInt(e.currentTarget.value, 10))}
+				aria-label="Choisir la semaine du programme"
+			>
+				{#each Array(13) as _, i}
+					<option value={String(i + 1)}>
+						S. {i + 1}
+						{i + 1 === data.currentWeek ? ' (en cours)' : ''}
+					</option>
+				{/each}
+			</select>
+		</label>
+	</div>
+	<div class="week-sub">
+		91 jours · Jour programme : {data.currentDayIndex}
+		{#if !data.hasProgramStart}
+			· <span class="warn">Début de programme non défini — jour affiché comme J1</span>
+		{/if}
+	</div>
 </div>
 
 <div class="week-grid">
-	{#each Array(7) as _, i}
-		{@const dayNum = (weekNum - 1) * 7 + i + 1}
-		<button 
+	{#each data.weekDays as d (d.dayIndex)}
+		<button
 			type="button"
-			class="day-btn" 
-			class:active={dayNum === selectedDay}
-			onclick={() => selectDay(dayNum)}
+			class="day-btn"
+			class:active={d.dayIndex === selectedDay}
+			class:today={d.isToday}
+			onclick={() => selectDay(d.dayIndex)}
 		>
-			<div class="day-name">{getDayName(dayNum)}</div>
-			<div class="day-num">{getDayNum(dayNum)}</div>
+			<div class="day-name">{d.dayName}</div>
+			<div class="day-num">{d.dayNumInWeek}</div>
+			{#if d.isToday}
+				<div class="today-pill">Auj.</div>
+			{/if}
 		</button>
 	{/each}
 </div>
 
 <div class="meals-section">
 	<div class="section-header">
-		{getDayName(selectedDay).charAt(0).toUpperCase() + getDayName(selectedDay).slice(1)} {getDayNum(selectedDay)}
+		{getDayName(selectedDay).charAt(0).toUpperCase() + getDayName(selectedDay).slice(1)} · Jour {selectedDay}
 	</div>
 
-	<div class="meals-list">
-		<a href="/user/nutrition/cadencier/{selectedDay}/edit-meal/1" class="meal-item">
-			<div class="meal-header-top">
-				<div class="meal-time">Repas 1 — Déjeuner</div>
-				<div class="meal-time-clock">12h30</div>
-			</div>
-			<div class="meal-name">{meals[1].name}</div>
-			
-			<div class="meal-macros">
-				<div class="macro-box">
-					<div class="macro-val">{meals[1].macros.calories}</div>
-					<div class="macro-lbl">kcal</div>
-				</div>
-				<div class="macro-box">
-					<div class="macro-val">{meals[1].macros.protein}g</div>
-					<div class="macro-lbl">P</div>
-				</div>
-				<div class="macro-box">
-					<div class="macro-val">{meals[1].macros.carbs}g</div>
-					<div class="macro-lbl">C</div>
-				</div>
-				<div class="macro-box">
-					<div class="macro-val">{meals[1].macros.fat}g</div>
-					<div class="macro-lbl">L</div>
-				</div>
-			</div>
-			<div class="meal-arrow">Modifier →</div>
-		</a>
+	{#if selectedDayData && selectedDayData.meals.length > 0}
+		<div class="meals-list">
+			{#each selectedDayData.meals as meal (meal.id)}
+				<a href="/user/nutrition/cadencier/{selectedDay}" class="meal-item">
+					<div class="meal-header-top">
+						<div class="meal-time">{meal.label}</div>
+						<div class="meal-time-clock">{meal.timeLabel}</div>
+					</div>
+					<div class="meal-name">{meal.recipeName}</div>
 
-		<a href="/user/nutrition/cadencier/{selectedDay}/edit-meal/2" class="meal-item">
-			<div class="meal-header-top">
-				<div class="meal-time">Repas 2 — Dîner</div>
-				<div class="meal-time-clock">19h00</div>
-			</div>
-			<div class="meal-name">{meals[2].name}</div>
-			
-			<div class="meal-macros">
-				<div class="macro-box">
-					<div class="macro-val">{meals[2].macros.calories}</div>
-					<div class="macro-lbl">kcal</div>
-				</div>
-				<div class="macro-box">
-					<div class="macro-val">{meals[2].macros.protein}g</div>
-					<div class="macro-lbl">P</div>
-				</div>
-				<div class="macro-box">
-					<div class="macro-val">{meals[2].macros.carbs}g</div>
-					<div class="macro-lbl">C</div>
-				</div>
-				<div class="macro-box">
-					<div class="macro-val">{meals[2].macros.fat}g</div>
-					<div class="macro-lbl">L</div>
-				</div>
-			</div>
-			<div class="meal-arrow">Modifier →</div>
-		</a>
-	</div>
+					<div class="meal-macros">
+						<div class="macro-box">
+							<div class="macro-val">{meal.calories}</div>
+							<div class="macro-lbl">kcal</div>
+						</div>
+						<div class="macro-box">
+							<div class="macro-val">{meal.proteinG}g</div>
+							<div class="macro-lbl">P</div>
+						</div>
+						<div class="macro-box">
+							<div class="macro-val">{meal.carbsG}g</div>
+							<div class="macro-lbl">C</div>
+						</div>
+						<div class="macro-box">
+							<div class="macro-val">{meal.fatG}g</div>
+							<div class="macro-lbl">L</div>
+						</div>
+					</div>
+					<div class="meal-arrow">Fiche jour →</div>
+				</a>
+			{/each}
+		</div>
+	{:else}
+		<p class="empty-msg">
+			Aucun repas planifié pour ce jour. La génération du programme ou une mensuration peuvent être
+			nécessaires.
+		</p>
+	{/if}
 </div>
 
 <style>
@@ -172,16 +183,53 @@
 		border-bottom: 1px solid rgba(201, 168, 76, 0.15);
 	}
 
+	.week-header-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+
 	.week-header {
 		font-size: 0.7rem;
 		font-weight: 600;
 		color: #f0ede8;
 	}
 
+	.week-switch {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.week-switch-lbl {
+		font-size: 0.55rem;
+		color: rgba(240, 237, 232, 0.55);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+
+	.week-select {
+		font-size: 0.62rem;
+		padding: 6px 10px;
+		border-radius: 4px;
+		border: 1px solid rgba(201, 168, 76, 0.35);
+		background: #0a0a0a;
+		color: #f0ede8;
+		min-width: 120px;
+		cursor: pointer;
+	}
+
 	.week-sub {
 		font-size: 0.55rem;
 		color: #c9a84c;
-		margin-top: 2px;
+		margin-top: 8px;
+		line-height: 1.4;
+	}
+
+	.warn {
+		color: rgba(255, 180, 120, 0.95);
 	}
 
 	.week-grid {
@@ -192,6 +240,7 @@
 	}
 
 	.day-btn {
+		position: relative;
 		aspect-ratio: 1;
 		display: flex;
 		flex-direction: column;
@@ -217,6 +266,11 @@
 		border-color: #c9a84c;
 	}
 
+	.day-btn.today:not(.active) {
+		border-color: rgba(58, 184, 184, 0.55);
+		box-shadow: 0 0 0 1px rgba(58, 184, 184, 0.25);
+	}
+
 	.day-name {
 		font-size: 0.5rem;
 		color: rgba(240, 237, 232, 0.4);
@@ -232,6 +286,20 @@
 		font-weight: 700;
 	}
 
+	.today-pill {
+		position: absolute;
+		bottom: 3px;
+		font-size: 0.42rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: #3ab8b8;
+	}
+
+	.day-btn.active .today-pill {
+		color: rgba(10, 10, 10, 0.65);
+	}
+
 	.meals-section {
 		padding: 12px 18px;
 	}
@@ -244,6 +312,13 @@
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
 		font-family: 'Bebas Neue', sans-serif;
+	}
+
+	.empty-msg {
+		font-size: 0.62rem;
+		color: rgba(240, 237, 232, 0.45);
+		line-height: 1.5;
+		margin: 0;
 	}
 
 	.meals-list {

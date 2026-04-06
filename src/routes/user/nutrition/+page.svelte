@@ -50,7 +50,7 @@
 		<div class="item-icon">●</div>
 		<div class="item-body">
 			<div class="item-title">Jeûne intermittent</div>
-			<div class="item-sub">50/50 · 30/35/35</div>
+			<div class="item-sub">Sans JIM : déj./dîner 50/50 · Avec JIM : PD + déj./dîner 30/35/35</div>
 		</div>
 		<div class="item-arrow">›</div>
 	</a>

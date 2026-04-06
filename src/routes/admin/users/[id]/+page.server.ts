@@ -23,12 +23,27 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		bodyMeasurements: { orderBy: { createdAt: 'desc' as const }, take: 50 },
 		transactions: { orderBy: { createdAt: 'desc' as const }, take: 20 },
 		sessions: true,
-		workoutDays: { take: 91, include: { session: true } },
+		workoutDays: { orderBy: { dayIndex: 'asc' as const }, take: 400, include: { session: true } },
 		pointEvents: { orderBy: { createdAt: 'desc' as const }, take: 30 },
 		progressPhotos: true,
 		userBadges: { include: { badge: true } },
 		recipes: { where: { isCustom: true }, take: 20 },
-		nutritionDays: { take: 91, include: { meals: { include: { recipe: { select: { name: true } } } } } },
+		nutritionDays: {
+			orderBy: { dayIndex: 'asc' as const },
+			take: 400,
+			include: {
+				meals: {
+					select: {
+						id: true,
+						position: true,
+						eatenAt: true,
+						quantityG: true,
+						calcCalories: true,
+						recipe: { select: { name: true } }
+					}
+				}
+			}
+		},
 		shoppingLists: { take: 5 },
 		dailyTaskCompletions: { orderBy: { completedAt: 'desc' as const }, take: 20 },
 		challenges: { include: { challenge: true } }

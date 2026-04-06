@@ -145,6 +145,8 @@ model User {
   role                      Role                       @default(CLIENT)
   /// Fin de validité de l'accès accompagnement (null = accès à vie ou non souscrit)
   subscriptionEndsAt        DateTime?
+  /// Jours nutrition alloués (ex. +91 à chaque paiement validé) — génération des jours 1..N
+  nutritionDaysAllocated    Int                        @default(0)
   /// Date de début du programme 91 jours (pour calculer le jour courant)
   programStartDate          DateTime?
   /// Stop/Report activé par l’admin uniquement (maladie, blessure)
@@ -263,6 +265,8 @@ model Transaction {
   customer_details_name  String?  @default("")
   /// Offres achetées dans ce paiement (slugs)
   offerSlugs             String[] @default([])
+  /// Une seule fois par session Stripe : crédit nutrition + abo (évite double incrément / course entre webhooks)
+  nutritionSegmentCreditedAt DateTime?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
@@ -303,6 +307,11 @@ model UserProfile {
   alcoholHabit               Boolean?
   tobaccoHabit               Boolean?
   breakfastEnabled           Boolean        @default(false)
+
+  /// % masse grasse (saisie ou estimation ultérieure via IA / photos)
+  bodyFatPercent             Float?
+  /// Objectif de perte de poids (kg) — déficit réparti sur la période méthode (91 j)
+  weightLossGoalKg           Float?
 
   // Jeûne intermittent (activation globale ; peut être surchargé par NutritionDay)
   intermittentFastingMorning Boolean?

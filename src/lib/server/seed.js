@@ -20,6 +20,7 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { PrismaClient } from '@prisma/client';
+import { RECIPE_CATALOG_DEFS } from './seed/recipeCatalogDefs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -210,64 +211,8 @@ async function main() {
 		console.warn('  → Migration category recettes ignorée :', e?.message ?? e);
 	}
 
-	const recipeDefs = [
-		{
-			name: 'Poulet riz coco curry',
-			category: 'MEAL',
-			totalTimeMin: 40,
-			referenceYieldG: 555,
-			allergens: [],
-			instructions: "Faire revenir le poulet en dés. Ajouter le lait de coco et le curry. Servir avec le riz basmati.",
-			ingredients: [
-				{ name: 'Blanc de poulet', quantityG: 300, unit: 'g', category: 'Viandes' },
-				{ name: 'Riz basmati cuit', quantityG: 150, unit: 'g', category: 'Féculents' },
-				{ name: 'Lait de coco', quantityG: 100, unit: 'ml', category: 'Conserves' },
-				{ name: 'Curry en poudre', quantityG: 5, unit: 'g', category: 'Épices' }
-			]
-		},
-		{
-			name: 'Salade noix gorgonzola poulet',
-			category: 'MEAL',
-			totalTimeMin: 10,
-			referenceYieldG: 350,
-			allergens: ['fruits_a_coque', 'lait'],
-			instructions: "Mélanger tous les ingrédients. Assaisonner huile d'olive + vinaigre balsamique.",
-			ingredients: [
-				{ name: 'Poulet cuit', quantityG: 200, unit: 'g', category: 'Viandes' },
-				{ name: 'Mesclun', quantityG: 80, unit: 'g', category: 'Légumes' },
-				{ name: 'Noix', quantityG: 30, unit: 'g', category: 'Fruits secs' },
-				{ name: 'Gorgonzola', quantityG: 40, unit: 'g', category: 'Fromages' }
-			]
-		},
-		{
-			name: 'Saumon patate douce épinards',
-			category: 'MEAL',
-			totalTimeMin: 30,
-			referenceYieldG: 495,
-			allergens: ['poisson'],
-			instructions: "Cuire le saumon à la poêle, patate douce à la vapeur, épinards sautés à l'ail.",
-			ingredients: [
-				{ name: 'Saumon', quantityG: 180, unit: 'g', category: 'Poissons' },
-				{ name: 'Patate douce', quantityG: 200, unit: 'g', category: 'Légumes' },
-				{ name: 'Épinards frais', quantityG: 100, unit: 'g', category: 'Légumes' },
-				{ name: "Huile d'olive", quantityG: 15, unit: 'ml', category: 'Condiments' }
-			]
-		},
-		{
-			name: 'Bowl protéiné œuf quinoa légumes',
-			category: 'MEAL',
-			totalTimeMin: 25,
-			referenceYieldG: 400,
-			allergens: ['oeufs'],
-			instructions: "Cuire quinoa, faire revenir les légumes, pocher les œufs. Assembler en bowl.",
-			ingredients: [
-				{ name: 'Quinoa cuit', quantityG: 120, unit: 'g', category: 'Féculents' },
-				{ name: 'Œufs', quantityG: 100, unit: 'g', category: 'Produits frais' },
-				{ name: 'Courgette', quantityG: 100, unit: 'g', category: 'Légumes' },
-				{ name: 'Poivron rouge', quantityG: 80, unit: 'g', category: 'Légumes' }
-			]
-		}
-	];
+	/** 31 recettes catalogue (10 petits-déj + 21 plats) — voir seed/recipeCatalogDefs.js */
+	const recipeDefs = RECIPE_CATALOG_DEFS;
 	const recipes = [];
 	for (const def of recipeDefs) {
 		const { ingredients, allergens = [], ...recipeData } = def;
@@ -295,6 +240,7 @@ async function main() {
 		}
 		recipes.push(recipe);
 	}
+	console.log(`  → ${recipes.length} recettes catalogue (définitions : ${RECIPE_CATALOG_DEFS.length})`);
 
 	// ── 6. BADGES ─────────────────────────────────────────────────────────────
 	console.log('6/10 — Badges…');
@@ -441,9 +387,19 @@ async function main() {
 	// ── 10. UTILISATEURS DE DÉMO ──────────────────────────────────────────────
 	console.log('10/10 — Utilisateurs de démo…');
 	const dailyTaskCompletion = db.dailyTaskCompletion;
+	// Transactions seed (stripePaymentId fixe) : sans cascade User→Transaction, un re-seed laissait
+	// des lignes orphelines → doublons et échec de l’index unique sur stripePaymentId au db push.
+	await db.transaction.deleteMany({
+		where: {
+			stripePaymentId: {
+				in: ['pi_demo_marie_nutrition', 'pi_demo_thomas_sport', 'pi_demo_lucas_both']
+			}
+		}
+	});
 	for (const email of TEST_EMAILS) {
 		const existing = await db.user.findUnique({ where: { email } });
 		if (existing) {
+			await db.transaction.deleteMany({ where: { userId: existing.id } });
 			// Nettoyer les relations sans cascade explicite avant suppression
 			await db.emailVerificationRequest.deleteMany({ where: { userId: existing.id } });
 			await db.passwordResetSession.deleteMany({ where: { userId: existing.id } });
@@ -515,8 +471,9 @@ async function main() {
 		const nd = await db.nutritionDay.create({
 			data: { userId: marie.id, dayIndex: i, intermittentFasting: true }
 		});
-		await db.meal.create({ data: { nutritionDayId: nd.id, position: 'LUNCH', recipeId: recipes[0].id, quantityG: 450, calcProteinG: 52, calcCarbsG: 38, calcFatG: 12, calcCalories: 476 } });
-		await db.meal.create({ data: { nutritionDayId: nd.id, position: 'DINNER', recipeId: recipes[2].id, quantityG: 380, calcProteinG: 42, calcCarbsG: 32, calcFatG: 10, calcCalories: 390 } });
+		// Indices catalogue : 10 = Poulet riz coco curry, 13 = Cabillaud citron quinoa (ex-saumon)
+		await db.meal.create({ data: { nutritionDayId: nd.id, position: 'LUNCH', recipeId: recipes[10].id, quantityG: 450, calcProteinG: 52, calcCarbsG: 38, calcFatG: 12, calcCalories: 476 } });
+		await db.meal.create({ data: { nutritionDayId: nd.id, position: 'DINNER', recipeId: recipes[13].id, quantityG: 380, calcProteinG: 42, calcCarbsG: 32, calcFatG: 10, calcCalories: 390 } });
 	}
 
 	// Liste de courses (J1–J7)

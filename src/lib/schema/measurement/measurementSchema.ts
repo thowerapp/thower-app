@@ -88,6 +88,15 @@ const profileFieldsSchema = z.object({
 		}, z.unknown().optional()),
 	shoppingListSortOrder: z.enum(['category', 'alphabetical']).optional(),
 
+	bodyFatPercent: z.preprocess(
+		(val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
+		z.number().min(3).max(70).optional()
+	),
+	weightLossGoalKg: z.preprocess(
+		(val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
+		z.number().min(0.5).max(150).optional()
+	),
+
 	// Bien-être (échelle 1-10)
 	stressLevel: optionalInt1to10,
 	sleepQuality: optionalInt1to10,

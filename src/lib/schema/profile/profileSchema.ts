@@ -58,6 +58,14 @@ export const profileSchema = z.object({
 			z.boolean()
 		)
 		.default(false),
+	bodyFatPercent: z.preprocess(
+		(val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
+		z.number().min(3).max(70).optional()
+	),
+	weightLossGoalKg: z.preprocess(
+		(val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
+		z.number().min(0.5).max(150).optional()
+	),
 	intermittentFastingMorning: z
 		.preprocess(
 			(val) => (val === true || val === 'on' ? true : val === false || val === 'off' ? false : undefined),

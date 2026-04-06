@@ -10,8 +10,9 @@
 	import Copy from 'lucide-svelte/icons/copy';
 	import Download from 'lucide-svelte/icons/download';
 	import { CalendarDate, getLocalTimeZone } from '@internationalized/date';
+	import { dev } from '$app/environment';
 
-	/** Résumé 90 jours : sport + nutrition par jour (source unique pour le calendrier et l’export JSON). */
+	/** Résumé programme : sport + nutrition par jour (source unique pour le calendrier et l’export JSON). */
 	export type ProgramDaySummary = {
 		dayIndex: number;
 		sport: { session: { name: string }; completedAt?: string | null } | null;
@@ -31,7 +32,7 @@
 
 	let { userSelected }: { userSelected: UserSelected } = $props();
 
-	/** Date du jour N du programme (N = 1, 2, … 90) à partir de programStart. */
+	/** Date du jour N du programme à partir de programStart. */
 	function programDayToDate(programStart: Date, dayIndex: number): Date {
 		return new Date(programStart.getTime() + (dayIndex - 1) * MS_PER_DAY);
 	}
@@ -44,14 +45,23 @@
 		return c.toDate(getLocalTimeZone());
 	}
 
-	/** Calcule le dayIndex (1–90) pour une date donnée par rapport à programStart ; 0 si hors plage. */
-	function dateToDayIndex(programStart: Date, date: Date): number {
+	/** Calcule le dayIndex pour une date donnée par rapport à programStart ; 0 si hors plage. */
+	function dateToDayIndex(programStart: Date, date: Date, totalDays: number): number {
 		const t0 = new Date(programStart.getFullYear(), programStart.getMonth(), programStart.getDate()).getTime();
 		const t = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 		const days = Math.round((t - t0) / MS_PER_DAY) + 1;
-		if (days < 1 || days > 90) return 0;
+		if (days < 1 || days > totalDays) return 0;
 		return days;
 	}
+
+	const programTotalDays = $derived.by((): number => {
+		const alloc = userSelected.nutritionDaysAllocated ?? 0;
+		const nut = userSelected.nutritionDays ?? [];
+		const w = userSelected.workoutDays ?? [];
+		const maxN = nut.reduce((max, n) => Math.max(max, n.dayIndex ?? 0), 0);
+		const maxW = w.reduce((max, x) => Math.max(max, x.dayIndex ?? 0), 0);
+		return Math.min(Math.max(Math.max(alloc, maxN, maxW, 91), 1), 400);
+	});
 
 	const MEAL_POSITION_LABELS: Record<string, string> = {
 		BREAKFAST: 'Petit-déj',
@@ -64,9 +74,9 @@
 		return `${label}: ${recipeName ?? '—'}`;
 	}
 
-	/** Résumé 90 jours (sport + nutrition) — source unique pour le calendrier et l’export JSON. */
+	/** Résumé (sport + nutrition) — source unique pour le calendrier et l’export JSON. */
 	const programSummary = $derived.by((): ProgramSummary => {
-		const totalDays = 90;
+		const totalDays = programTotalDays;
 		const workoutDays = userSelected.workoutDays ?? [];
 		const nutritionDays = userSelected.nutritionDays ?? [];
 		const workoutByDay = new Map<number, (typeof workoutDays)[0]>();
@@ -118,14 +128,14 @@
 		return new CalendarDate(today.getFullYear(), today.getMonth() + 1, today.getDate());
 	});
 
-	/** Bornes du calendrier pour les 90 jours (optionnel : limiter la sélection au programme). */
+	/** Bornes du calendrier sur la durée allouée du programme. */
 	const minValue = $derived.by((): CalendarDate | undefined => {
 		if (!programStart) return undefined;
 		return dateToCalendarDate(programStart);
 	});
 	const maxValue = $derived.by((): CalendarDate | undefined => {
 		if (!programStart) return undefined;
-		return dateToCalendarDate(programDayToDate(programStart, 90));
+		return dateToCalendarDate(programDayToDate(programStart, programTotalDays));
 	});
 
 	let selectedValue = $state<CalendarDate | undefined>(undefined);
@@ -137,16 +147,16 @@
 		}
 	});
 
-	/** Jour du programme correspondant à la date sélectionnée (1–90), 0 si hors programme. */
+	/** Jour du programme correspondant à la date sélectionnée, 0 si hors programme. */
 	const selectedDayIndex = $derived.by((): number => {
 		if (!selectedValue || !programStart) return 0;
 		const d = calendarDateToDate(selectedValue);
-		return dateToDayIndex(programStart, d);
+		return dateToDayIndex(programStart, d, programTotalDays);
 	});
 
 	/** Infos du jour sélectionné (sport + nutrition) pour le panneau détail. */
 	const selectedDayInfo = $derived.by((): ProgramDaySummary | null => {
-		if (selectedDayIndex < 1 || selectedDayIndex > 90) return null;
+		if (selectedDayIndex < 1 || selectedDayIndex > programTotalDays) return null;
 		return programSummary.days[selectedDayIndex - 1] ?? null;
 	});
 
@@ -154,7 +164,7 @@
 		try {
 			const json = JSON.stringify(programSummary, null, 2);
 			await navigator.clipboard.writeText(json);
-			toast.success('Résumé 90 jours copié dans le presse-papier');
+			toast.success(`Résumé ${programTotalDays} jours copié dans le presse-papier`);
 		} catch (e) {
 			toast.error('Copie impossible');
 			console.error(e);
@@ -203,21 +213,51 @@
 			mealToggling = null;
 		}
 	}
+
+	/** Journalise tout le programme affiché (dev uniquement) — console navigateur. */
+	$effect(() => {
+		if (!dev) return;
+
+		const summary = programSummary;
+		const daysWithMeals = summary.days.filter((d) => d.nutrition.meals.length > 0).length;
+		const daysWithSport = summary.days.filter((d) => d.sport != null).length;
+		const totalMeals = summary.days.reduce((acc, d) => acc + d.nutrition.meals.length, 0);
+
+		console.groupCollapsed(
+			`[AdminUserCalendrierTab] Programme user=${userSelected.id ?? '?'} · ${programTotalDays} j.`
+		);
+		console.log('Méta', {
+			userId: userSelected.id,
+			programStartDate: userSelected.programStartDate ?? null,
+			nutritionDaysAllocated: userSelected.nutritionDaysAllocated ?? 0,
+			programTotalDays,
+			nutritionDaysLoaded: userSelected.nutritionDays?.length ?? 0,
+			workoutDaysLoaded: userSelected.workoutDays?.length ?? 0,
+			daysWithMeals,
+			daysWithSport,
+			totalMeals
+		});
+		console.log('Résumé complet (sport + repas par jour)', summary);
+		console.log('JSON (copiable)', JSON.stringify(summary, null, 2));
+		console.log('Jours nutrition bruts (API)', userSelected.nutritionDays ?? []);
+		console.log('Jours sport bruts (API)', userSelected.workoutDays ?? []);
+		console.groupEnd();
+	});
 </script>
 
 <div class="space-y-6">
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Calendrier — 90 jours programme</Card.Title>
+			<Card.Title>Calendrier — programme ({programTotalDays} j.)</Card.Title>
 			<Card.Description class="flex flex-wrap items-center gap-x-4 gap-y-2">
 				<span class="basis-full sm:basis-auto"
-					>Cliquez sur une date pour afficher le sport et les repas du jour. Les 90 jours du programme sont affichés.</span
+					>Cliquez sur une date pour afficher le sport et les repas du jour. Fenêtre alignée sur les jours alloués / données présentes.</span
 				>
 				{#if userSelected?.id}
 					<span class="flex items-center gap-2 shrink-0">
 						<Button variant="outline" size="sm" onclick={copyProgramSummaryJson}>
 							<Copy class="mr-1.5 size-4" />
-							Copier résumé 90j (JSON)
+							Copier résumé (JSON)
 						</Button>
 						<a
 							href="/admin/users/{userSelected.id}/program-summary"
@@ -312,7 +352,7 @@
 						</div>
 					{:else}
 						<p class="text-sm text-muted-foreground">
-							Cette date est hors des 90 jours du programme (début : {programStart
+							Cette date est hors de la fenêtre du programme ({programTotalDays} j., début : {programStart
 								? programStart.toLocaleDateString('fr-FR')
 								: '—'}).
 						</p>

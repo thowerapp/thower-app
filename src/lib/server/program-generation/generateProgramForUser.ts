@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server';
 import { generateNutritionDaysForUser } from './nutrition/generateNutrition91Days';
+import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/generateFromPlanning';
 import { programGenLog, programGenWarn } from './programGenerationLog';
 
 /** Contourne un UserSelect Prisma parfois désynchronisé dans l’IDE (champ absent des types générés en cache). */
@@ -116,6 +117,12 @@ export async function generateProgramForUser(userId: string): Promise<void> {
 		programGenLog('6/ Appel generateNutritionDaysForUser', { userId, targetDays });
 		await generateNutritionDaysForUser(userId, targetDays);
 		programGenLog('7/ generateNutritionDaysForUser terminé', { userId, targetDays });
+
+		programGenLog('7b/ Génération liste de courses (jours 1..targetDays)', { userId, targetDays });
+		const shoppingResult = await generateShoppingListFromPlanning(userId, 1, targetDays, {
+			includeReportedFromPrevious: false
+		});
+		programGenLog('7c/ Liste de courses générée', { userId, listId: shoppingResult?.listId ?? null });
 
 		const user = await prisma.user.findUnique({
 			where: { id: userId },

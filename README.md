@@ -11,7 +11,7 @@ stripe listen --forward-to localhost:2000/api/webhooks
 
 la génération doit prendre en charge plusieurs choses.
 
--les allergènes (faire une liste des allergène dans le formulaire afin de pouvoir faire quelque chose de dynamique)
+~~-les allergènes (faire une liste des allergène dans le formulaire afin de pouvoir faire quelque chose de dynamique)~~
 
 -ingérendients non désirés (faire une liste des ingérendients non désirés dans le formulaire afin de pouvoir faire quelque chose de dynamique)
 
@@ -23,6 +23,6 @@ la génération doit prendre en charge plusieurs choses.
 
 -extraire les ingrédients des recettes et les ajouter dans la liste de courses
 
--Le raccourci doit de l'application doit ramener directeemnt sur l'accueil de /user/
+-Le raccourci de l'application doit ramener directement sur l'accueil de /user/
 
 -Le score des joueurs doit remonter dans leur data sur le dashboard admin

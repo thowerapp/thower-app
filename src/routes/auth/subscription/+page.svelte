@@ -2,7 +2,7 @@
 	import * as Card from '$shadcn/card';
 	import { Button } from '$shadcn/button';
 	import type { PageProps } from './$types';
-	import { CreditCard, Ruler, AlertCircle, CheckCircle, XCircle } from 'lucide-svelte';
+	import { CreditCard, Ruler, AlertCircle, CheckCircle, XCircle, LayoutDashboard } from 'lucide-svelte';
 	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
 
@@ -65,16 +65,22 @@
 	<h1 class="titleHome mb-8 text-3xl font-bold tracking-tight">Souscription</h1>
 
 	{#if success}
-		<Card.Root class="border-green-500/50 bg-green-500/5">
+		<Card.Root class="border-green-500/50 bg-green-500/5 mb-6">
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2 text-green-700 dark:text-green-400">
 					<CheckCircle class="w-6 h-6" />
 					<span>Paiement réussi</span>
 				</Card.Title>
 				<Card.Description>
-					Merci pour votre souscription. Votre accompagnement Thower est actif. Vous pouvez accéder à l'app depuis vos paramètres.
+					Merci pour votre souscription. Votre accompagnement Thower est actif. Vous pouvez maintenant commencer votre programme.
 				</Card.Description>
 			</Card.Header>
+			<Card.Content>
+				<Button href="/user" class="w-full gap-2">
+					<LayoutDashboard class="w-4 h-4" />
+					Accéder à l'application
+				</Button>
+			</Card.Content>
 		</Card.Root>
 	{:else if canceled}
 		<Card.Root class="border-muted">
@@ -100,7 +106,7 @@
 		</Card.Root>
 	{/if}
 
-	{#if !data.hasMeasurements}
+	{#if !success && !data.hasMeasurements}
 		<Card.Root class="border-amber-500/50 bg-amber-500/5">
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
@@ -125,7 +131,7 @@
 				</Button>
 			</Card.Content>
 		</Card.Root>
-	{:else}
+	{:else if !success}
 		{#if hasValidPayment && subscriptionLabel}
 			<Card.Root class="border-green-500/50 bg-green-500/5">
 				<Card.Header>

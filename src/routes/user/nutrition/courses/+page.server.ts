@@ -1,23 +1,22 @@
-import type { PageServerLoad } from './$types';
+import { fail, redirect } from '@sveltejs/kit';
+import { getCurrentShoppingList } from '$lib/prisma/shoppingList/getCurrentList';
+import { toggleShoppingItemChecked } from '$lib/prisma/shoppingList/toggleItemChecked';
+import type { PageServerLoad, Actions } from './$types';
 
-export const load: PageServerLoad = async () => {
-	// Demo shopping list data aggregated from meal planning
-	return {
-		week: 4,
-		days: 7,
-		categories: {
-			Protéines: [
-				{ id: '1', name: 'Thon', qty: 400, unit: 'g' },
-				{ id: '2', name: 'Poulet', qty: 500, unit: 'g' }
-			],
-			Légumes: [
-				{ id: '3', name: 'Tomates', qty: 500, unit: 'g' },
-				{ id: '4', name: 'Endives', qty: 300, unit: 'g' }
-			],
-			Condiments: [
-				{ id: '5', name: 'Olives', qty: 200, unit: 'g' },
-				{ id: '6', name: 'Huile olive', qty: 250, unit: 'ml' }
-			]
-		}
-	};
+export const load: PageServerLoad = async ({ locals }) => {
+	if (!locals.user) return redirect(302, '/auth/login');
+	const list = await getCurrentShoppingList(locals.user.id);
+	return { list };
+};
+
+export const actions: Actions = {
+	toggleItem: async ({ request, locals }) => {
+		if (!locals.user) return fail(401);
+		const data = await request.formData();
+		const itemId = data.get('itemId');
+		const isChecked = data.get('isChecked') === 'true';
+		if (typeof itemId !== 'string' || !itemId) return fail(400, { message: 'itemId manquant' });
+		await toggleShoppingItemChecked(itemId, isChecked);
+		return { success: true };
+	}
 };

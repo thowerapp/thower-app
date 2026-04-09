@@ -1,7 +1,5 @@
 <script lang="ts">
-	export let label: string;
-	export let pts: number;
-	export let checked: boolean = false;
+	let { label, pts, checked = false } = $props<{ label: string; pts: number; checked?: boolean }>();
 
 	function toggle() {
 		checked = !checked;

@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { CheckCircle, XCircle, MapPin, Home, Clock, Shield, Truck } from 'lucide-svelte';
 	
-	export let option: any;
-	export let isSelected: boolean;
-	export let onSelect: (option: any) => void;
+	let { option, isSelected, onSelect } = $props<{ option: any; isSelected: boolean; onSelect: (option: any) => void }>();
 	
 	// Fonction pour obtenir l'icône du transporteur
 	function getCarrierIcon(carrierName: string) {

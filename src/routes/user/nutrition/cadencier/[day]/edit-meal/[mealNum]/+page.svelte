@@ -2,7 +2,7 @@
 	import type { PageData } from './$types';
 	import { page } from '$app/stores';
 
-	export let data: PageData;
+	let { data } = $props<{ data: PageData }>();
 
 	$: dayNum = parseInt($page.params.day as string) || 21;
 	$: mealNum = parseInt($page.params.mealNum as string) || 1;

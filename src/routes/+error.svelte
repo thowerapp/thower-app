@@ -1,7 +1,7 @@
 <script lang="ts">
 	import SEO from '$lib/components/SEO.svelte';
 	
-	export let error; // Message d'erreur passé par SvelteKit
+	let { error } = $props<{ error: any }>();
 </script>
 
 <!-- SEO pour la page d'erreur -->

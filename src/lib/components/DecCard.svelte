@@ -1,8 +1,5 @@
 <script lang="ts">
-	export let title: string;
-	export let sub: string = '';
-	export let count: string = '';
-	export let href: string = '#';
+	let { title, sub = '', count = '', href = '#' } = $props<{ title: string; sub?: string; count?: string; href?: string }>();
 </script>
 
 <a class="dec-card" href={href}>

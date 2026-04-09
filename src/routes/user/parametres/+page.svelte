@@ -1,155 +1,60 @@
-<script lang="ts">
-	import type { PageData } from './$types';
+﻿<script lang="ts">
 
-	export let data: PageData;
 </script>
 
 <div class="hero">
-	<div class="hero-brand">
-		<div class="hero-title">Paramètres</div>
-		<div class="hero-sub">Compte & préférences</div>
-	</div>
+<div class="hero-top">
+<div>
+<div class="hero-title">Paramètres</div>
+<div class="hero-sub">Compte &amp; préférences</div>
+</div>
+<svg class="logo-svg" viewBox="0 0 44 38" fill="none">
+<polygon points="22,2 42,36 2,36" fill="#2A1E0C"/>
+<polygon points="22,2 42,36 22,24" fill="#3A2810"/>
+</svg>
+</div>
 </div>
 
-<div class="list-item">
-	<div class="li-thumb"><div class="shape-square-sm"></div></div>
-	<div class="li-body">
-		<div class="li-title">Profil & Données</div>
-		<div class="li-sub">Objectif · Mesures · Allergies</div>
-	</div>
-	<div class="li-right"><div class="arrow-right"></div></div>
-</div>
-
-<div class="list-item">
-	<div class="li-thumb"><div class="shape-circle-sm"></div></div>
-	<div class="li-body">
-		<div class="li-title">Ma checklist journalière</div>
-		<div class="li-sub">Activer / désactiver les tâches</div>
-	</div>
-	<div class="li-right"><div class="arrow-right"></div></div>
-</div>
-
-<div class="list-item">
-	<div class="li-thumb"><div class="shape-square-sm"></div></div>
-	<div class="li-body">
-		<div class="li-title">Abonnement</div>
-		<div class="li-sub">Plan actif</div>
-	</div>
-	<div class="li-right"><div class="arrow-right"></div></div>
-</div>
-
-<div class="list-item">
-	<div class="li-thumb"><div class="shape-circle-sm"></div></div>
-	<div class="li-body">
-		<div class="li-title">Notifications</div>
-		<div class="li-sub">Rappels séances · Horaires</div>
-	</div>
-	<div class="li-right"><div class="arrow-right"></div></div>
-</div>
-
-<div class="list-item">
-	<div class="li-thumb"><div class="shape-square-sm"></div></div>
-	<div class="li-body">
-		<div class="li-title">Langue</div>
-		<div class="li-sub">Français</div>
-	</div>
-	<div class="li-right"><div class="arrow-right"></div></div>
-</div>
+<a href="/user/parametres/profil" class="li">
+<div class="li-th"><div style="width:10px;height:10px;background:var(--g)"></div></div>
+<div class="li-b"><div class="li-t">Profil &amp; Données</div><div class="li-s">Objectif · Mesures · Allergies</div></div>
+<div class="li-r"><div class="arr"></div></div>
+</a>
+<a href="/user/parametres/checklist" class="li">
+<div class="li-th"><div style="width:10px;height:10px;border-radius:50%;background:var(--cyd)"></div></div>
+<div class="li-b"><div class="li-t">Checklist journalière</div><div class="li-s">Activer / désactiver les tâches</div></div>
+<div class="li-r"><div class="arr"></div></div>
+</a>
+<a href="/user/parametres/abonnement" class="li">
+<div class="li-th"><div style="width:10px;height:10px;background:var(--gd)"></div></div>
+<div class="li-b"><div class="li-t">Abonnement</div><div class="li-s">Plan actif</div></div>
+<div class="li-r"><div class="arr"></div></div>
+</a>
+<a href="/user/parametres/notifications" class="li">
+<div class="li-th"><div style="width:10px;height:10px;border-radius:50%;background:var(--txd)"></div></div>
+<div class="li-b"><div class="li-t">Notifications</div><div class="li-s">Rappels séances · Horaires</div></div>
+<div class="li-r"><div class="arr"></div></div>
+</a>
+<a href="/auth/logout" class="li li-logout">
+<div class="li-th"><div style="width:10px;height:10px;border:1.5px solid var(--txd)"></div></div>
+<div class="li-b"><div class="li-t" style="color:var(--txd)">Se déconnecter</div></div>
+<div class="li-r"><div class="arr" style="border-color:var(--txm)"></div></div>
+</a>
 
 <style>
-	.hero {
-		background: #111;
-		padding: 20px 18px;
-	}
+.hero { background:var(--s1); padding:14px 18px 18px; border-bottom:1px solid var(--br); position:sticky; top:0; z-index:10; }
+.hero-top { display:flex; justify-content:space-between; align-items:flex-start; }
+.hero-title { font-family:var(--fh); font-size:2.4rem; font-weight:700; color:var(--gb); letter-spacing:-.07em; line-height:.92; text-shadow:0 0 22px var(--gg); }
+.hero-sub { font-size:.55rem; color:var(--txd); letter-spacing:.1em; text-transform:uppercase; margin-top:5px; font-family:var(--fb); }
+.logo-svg { width:40px; height:34px; opacity:.5; flex-shrink:0; }
 
-	.hero-brand {
-		display: flex;
-		flex-direction: column;
-		gap: 3px;
-	}
-
-	.hero-title {
-		font-size: 1.6rem;
-		font-weight: 700;
-		color: #fff;
-		letter-spacing: -0.03em;
-		line-height: 1;
-	}
-
-	.hero-sub {
-		font-size: 0.6rem;
-		color: #666;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-	}
-
-	.list-item {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		padding: 11px 18px;
-		border-bottom: 1px solid #f0f0f0;
-		cursor: pointer;
-		transition: background 0.1s;
-	}
-
-	.list-item:hover {
-		background: #fafafa;
-	}
-
-	.li-thumb {
-		width: 36px;
-		height: 36px;
-		background: #e8e8e8;
-		flex-shrink: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.li-body {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.li-title {
-		font-size: 0.7rem;
-		font-weight: 500;
-		color: #111;
-	}
-
-	.li-sub {
-		font-size: 0.55rem;
-		color: #aaa;
-		margin-top: 2px;
-	}
-
-	.li-right {
-		flex-shrink: 0;
-		display: flex;
-		align-items: center;
-	}
-
-	.arrow-right {
-		width: 6px;
-		height: 6px;
-		border-right: 1.5px solid #bbb;
-		border-top: 1.5px solid #bbb;
-		transform: rotate(45deg);
-	}
-
-	.shape-square-sm {
-		width: 13px;
-		height: 13px;
-		background: #555;
-		flex-shrink: 0;
-	}
-
-	.shape-circle-sm {
-		width: 14px;
-		height: 14px;
-		border-radius: 50%;
-		background: #555;
-		flex-shrink: 0;
-	}
+.li { display:flex; align-items:center; gap:10px; padding:10px 18px; border-bottom:1px solid var(--br); -webkit-tap-highlight-color:transparent; }
+.li:active { background:rgba(200,130,20,.05); }
+.li-th { width:34px; height:34px; background:var(--s2); border:1px solid var(--br2); flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+.li-b { flex:1; min-width:0; }
+.li-t { font-size:.68rem; font-weight:500; color:var(--tx); font-family:var(--fb); }
+.li-s { font-size:.5rem; color:var(--txd); margin-top:2px; font-family:var(--fb); }
+.li-r { flex-shrink:0; }
+.arr { width:5px; height:5px; border-right:1.5px solid var(--txd); border-top:1.5px solid var(--txd); transform:rotate(45deg); }
+.li-logout { margin-top:20px; border-top:1px solid var(--br); }
 </style>

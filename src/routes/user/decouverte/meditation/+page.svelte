@@ -1,223 +1,37 @@
-<script lang="ts">
-	import type { PageData } from './$types';
+﻿<script lang="ts">
 
-	export let data: PageData;
-
-	let activeTab = $state<'unlocked' | 'locked'>('unlocked');
 </script>
 
 <div class="back-row">
-	<a href="/user/decouverte" class="back-btn">← Découverte</a>
-	<div class="page-title">Méditation</div>
+<a href="/user/decouverte" class="back-lnk">
+<svg width="12" height="12" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="var(--txd)" stroke-width="1.5" stroke-linecap="round"/></svg>
+<span class="back-lbl">Découverte</span>
+</a>
+<div class="back-head">Méditation</div>
 </div>
-
-<div class="sec-head">
-	<div class="sh-title">Méditation</div>
-	<div class="sh-sub">Pleine conscience · Corps · Guidée</div>
-</div>
-
-<div class="toggle-row">
-	<button 
-		class="toggle-btn" 
-		class:on={activeTab === 'unlocked'}
-		onclick={() => activeTab = 'unlocked'}
-	>
-		Débloqué
-	</button>
-	<button 
-		class="toggle-btn" 
-		class:on={activeTab === 'locked'}
-		onclick={() => activeTab = 'locked'}
-	>
-		Bloqué
-	</button>
-</div>
-
+<div class="sh"><div class="sh-t">Pleine conscience · Guidée</div><div class="sh-s">3 débloquées · 3 à venir</div></div>
 <div class="media-grid">
-	{#if activeTab === 'unlocked'}
-		<div class="media-cell">
-			<div class="shape-square-sm"></div>
-			<div class="mc-title">Intro méditation</div>
-		</div>
-		<div class="media-cell">
-			<div class="shape-circle-sm"></div>
-			<div class="mc-title">Séance 2</div>
-		</div>
-		<div class="media-cell">
-			<div class="shape-square-sm"></div>
-			<div class="mc-title">Pleine conscience</div>
-		</div>
-	{:else}
-		<div class="media-cell locked">
-			<div class="lock-shape"></div>
-			<div class="mc-title">Avancé 1</div>
-		</div>
-		<div class="media-cell locked">
-			<div class="lock-shape"></div>
-			<div class="mc-title">Avancé 2</div>
-		</div>
-		<div class="media-cell locked">
-			<div class="lock-shape"></div>
-			<div class="mc-title">Soir</div>
-		</div>
-		<div class="media-cell locked">
-			<div class="lock-shape"></div>
-			<div class="mc-title">Scan corporel</div>
-		</div>
-		<div class="media-cell locked">
-			<div class="lock-shape"></div>
-			<div class="mc-title">Guidée</div>
-		</div>
-		<div class="media-cell locked">
-			<div class="lock-shape"></div>
-			<div class="mc-title">Avancé 3</div>
-		</div>
-	{/if}
+<div class="mcell"><div style="width:9px;height:9px;background:var(--g)"></div><div class="mc-t">Intro</div></div>
+<div class="mcell"><div style="width:9px;height:9px;border-radius:50%;background:var(--gd)"></div><div class="mc-t">Séance 2</div></div>
+<div class="mcell"><div style="width:9px;height:9px;background:var(--cyd)"></div><div class="mc-t">Pleine conscience</div></div>
+<div class="mcell locked"><div class="lock-sq"></div><div class="mc-t">Avancé 1</div></div>
+<div class="mcell locked"><div class="lock-sq"></div><div class="mc-t">Avancé 2</div></div>
+<div class="mcell locked"><div class="lock-sq"></div><div class="mc-t">Soir</div></div>
 </div>
 
 <style>
-	.back-row {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 10px 18px;
-		background: #111;
-		border-bottom: 1px solid #222;
-	}
-
-	.back-btn {
-		color: #aaa;
-		text-decoration: none;
-		font-size: 0.62rem;
-		transition: color 0.15s;
-	}
-
-	.back-btn:hover {
-		color: #ccc;
-	}
-
-	.page-title {
-		margin-left: auto;
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: #fff;
-	}
-
-	.sec-head {
-		padding: 12px 18px 8px;
-		border-bottom: 1px solid #eee;
-	}
-
-	.sh-title {
-		font-size: 0.72rem;
-		font-weight: 600;
-		color: #111;
-	}
-
-	.sh-sub {
-		font-size: 0.56rem;
-		color: #aaa;
-		margin-top: 2px;
-	}
-
-	.toggle-row {
-		display: flex;
-		gap: 8px;
-		padding: 10px 12px;
-	}
-
-	.toggle-btn {
-		flex: 1;
-		padding: 6px 8px;
-		font-size: 0.55rem;
-		font-weight: 500;
-		border: 1px solid #ddd;
-		background: #fff;
-		border-radius: 2px;
-		cursor: pointer;
-		color: #666;
-		transition: all 0.15s;
-		font-family: inherit;
-	}
-
-	.toggle-btn.on {
-		background: #111;
-		color: #fff;
-		border-color: #111;
-	}
-
-	.media-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 5px;
-		padding: 10px 18px;
-	}
-
-	.media-cell {
-		aspect-ratio: 1;
-		background: #f0f0f0;
-		border: 1px solid #e0e0e0;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
-		gap: 5px;
-		transition: background 0.1s;
-	}
-
-	.media-cell:hover:not(.locked) {
-		background: #e8e8e8;
-	}
-
-	.media-cell.locked {
-		background: #f8f8f8;
-		cursor: not-allowed;
-	}
-
-	.mc-title {
-		font-size: 0.42rem;
-		color: #888;
-		text-align: center;
-		padding: 0 4px;
-		line-height: 1.3;
-	}
-
-	.shape-square-sm {
-		width: 13px;
-		height: 13px;
-		background: #555;
-		flex-shrink: 0;
-	}
-
-	.shape-circle-sm {
-		width: 14px;
-		height: 14px;
-		border-radius: 50%;
-		background: #555;
-		flex-shrink: 0;
-	}
-
-	.lock-shape {
-		width: 11px;
-		height: 11px;
-		border: 1.5px solid #ccc;
-		background: #f0f0f0;
-		position: relative;
-		flex-shrink: 0;
-	}
-
-	.lock-shape::before {
-		content: '';
-		position: absolute;
-		top: -5px;
-		left: 50%;
-		transform: translateX(-50%);
-		width: 7px;
-		height: 5px;
-		border: 1.5px solid #ccc;
-		border-bottom: none;
-		border-radius: 4px 4px 0 0;
-		background: transparent;
-	}
+.back-row { display:flex; align-items:center; justify-content:space-between; padding:11px 18px; background:var(--s1); border-bottom:1px solid var(--br); position:sticky; top:0; z-index:10; }
+.back-lnk { display:flex; align-items:center; gap:7px; -webkit-tap-highlight-color:transparent; }
+.back-lbl { font-size:.55rem; color:var(--txd); font-family:var(--fb); }
+.back-head { font-family:var(--fh2); font-size:1.35rem; color:var(--gb); letter-spacing:.06em; line-height:1; text-shadow:0 0 10px var(--gg); }
+.sh { padding:12px 18px 8px; border-bottom:1px solid var(--br); }
+.sh-t { font-family:var(--fh2); font-size:1rem; color:var(--tx); letter-spacing:.05em; }
+.sh-s { font-size:.5rem; color:var(--txd); margin-top:3px; font-family:var(--fb); }
+.media-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; padding:8px 18px; }
+.mcell { aspect-ratio:1; background:var(--s2); border:1px solid var(--br2); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; -webkit-tap-highlight-color:transparent; }
+.mcell:active { background:var(--s3); border-color:var(--gd); }
+.mcell.locked { background:var(--s1); opacity:.45; }
+.mc-t { font-size:.44rem; color:var(--txd); text-align:center; padding:0 3px; line-height:1.3; font-family:var(--fb); }
+.lock-sq { width:9px; height:9px; border:1.5px solid var(--txd); background:var(--s1); position:relative; }
+.lock-sq::before { content:''; position:absolute; top:-4px; left:50%; transform:translateX(-50%); width:6px; height:4px; border:1.5px solid var(--txd); border-bottom:none; border-radius:3px 3px 0 0; }
 </style>

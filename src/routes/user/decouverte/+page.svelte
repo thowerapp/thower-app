@@ -1,64 +1,63 @@
-<script lang="ts">
-	import type { PageData } from './$types';
-	import SecHead from '$lib/components/SecHead.svelte';
-	import DecCard from '$lib/components/DecCard.svelte';
-
-	export let data: PageData;
+﻿<script lang="ts">
+import type { PageData } from './$types';
+let { data } = $props<{ data: PageData }>();
 </script>
 
-<SecHead title="Mes pratiques" sub="3 catégories disponibles" />
+<div class="hero">
+<div class="hero-top">
+<div>
+<div class="hero-title">Découverte</div>
+<div class="hero-sub">Bibliothèques · Pratiques</div>
+</div>
+<svg class="logo-svg" viewBox="0 0 44 38" fill="none">
+<polygon points="22,2 42,36 2,36" fill="#2A1E0C"/>
+<polygon points="22,2 42,36 22,24" fill="#3A2810"/>
+</svg>
+</div>
+</div>
 
-<DecCard
-	title="Méditation"
-	sub="Pleine conscience · Guidée · Corps"
-	count="3 débloquées · 6 à venir"
-	href="/user/decouverte/meditation"
->
-	<svelte:fragment slot="icon">
-		<div class="icon-circle"></div>
-	</svelte:fragment>
-</DecCard>
-
-<DecCard
-	title="Mindset"
-	sub="Motivation · Discipline · Objectifs"
-	count="2 débloquées · 4 à venir"
-	href="/user/decouverte/mindset"
->
-	<svelte:fragment slot="icon">
-		<div class="icon-triangle"></div>
-	</svelte:fragment>
-</DecCard>
-
-<DecCard
-	title="Breathwork"
-	sub="Cohérence · Anti-stress · Activation"
-	count="2 débloquées · 4 à venir"
-	href="/user/decouverte/breathwork"
->
-	<svelte:fragment slot="icon">
-		<div class="icon-square"></div>
-	</svelte:fragment>
-</DecCard>
+<a href="/user/decouverte/meditation" class="dec-card">
+<div class="dec-icon"><div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--g)"></div></div>
+<div class="dec-body">
+<div class="dec-t">Méditation</div>
+<div class="dec-s">Pleine conscience · Guidée</div>
+<div class="dec-c">3 débloquées</div>
+</div>
+<div class="arr-wrap"><div class="arr"></div></div>
+</a>
+<a href="/user/decouverte/mindset" class="dec-card">
+<div class="dec-icon"><div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:13px solid var(--cy)"></div></div>
+<div class="dec-body">
+<div class="dec-t">Mindset</div>
+<div class="dec-s">Motivation · Discipline</div>
+<div class="dec-c">2 débloquées</div>
+</div>
+<div class="arr-wrap"><div class="arr"></div></div>
+</a>
+<a href="/user/decouverte/breathwork" class="dec-card">
+<div class="dec-icon"><div style="width:14px;height:14px;border:2px solid var(--g);border-radius:2px"></div></div>
+<div class="dec-body">
+<div class="dec-t">Breathwork</div>
+<div class="dec-s">Cohérence · Anti-stress</div>
+<div class="dec-c">2 débloquées</div>
+</div>
+<div class="arr-wrap"><div class="arr"></div></div>
+</a>
 
 <style>
-	.icon-circle {
-		width: 16px;
-		height: 16px;
-		border-radius: 50%;
-		border: 2px solid #c9a84c;
-	}
-	.icon-triangle {
-		width: 0;
-		height: 0;
-		border-left: 8px solid transparent;
-		border-right: 8px solid transparent;
-		border-bottom: 14px solid #3ab8b8;
-	}
-	.icon-square {
-		width: 16px;
-		height: 16px;
-		border: 2px solid #c9a84c;
-		border-radius: 2px;
-	}
+.hero { background:var(--s1); padding:14px 18px 18px; border-bottom:1px solid var(--br); position:sticky; top:0; z-index:10; }
+.hero-top { display:flex; justify-content:space-between; align-items:flex-start; }
+.hero-title { font-family:var(--fh); font-size:2.4rem; font-weight:700; color:var(--gb); letter-spacing:-.07em; line-height:.92; text-shadow:0 0 22px var(--gg); }
+.hero-sub { font-size:.55rem; color:var(--txd); letter-spacing:.1em; text-transform:uppercase; margin-top:5px; font-family:var(--fb); }
+.logo-svg { width:40px; height:34px; opacity:.5; flex-shrink:0; }
+
+.dec-card { display:flex; align-items:center; gap:14px; padding:14px 18px; border-bottom:1px solid var(--br); -webkit-tap-highlight-color:transparent; }
+.dec-card:active { background:rgba(200,130,20,.04); }
+.dec-icon { width:42px; height:42px; background:var(--s2); border:1px solid var(--br2); flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+.dec-body { flex:1; }
+.dec-t { font-family:var(--fh2); font-size:1.05rem; color:var(--tx); letter-spacing:.05em; line-height:1; }
+.dec-s { font-size:.5rem; color:var(--txd); margin-top:3px; font-family:var(--fb); }
+.dec-c { font-size:.5rem; color:var(--txm); margin-top:2px; font-family:var(--fb); }
+.arr-wrap { flex-shrink:0; }
+.arr { width:5px; height:5px; border-right:1.5px solid var(--txd); border-top:1.5px solid var(--txd); transform:rotate(45deg); }
 </style>

@@ -1,6 +1,5 @@
 <script lang="ts">
-	export let value: string | number;
-	export let label: string;
+	let { value, label } = $props<{ value: string | number; label: string }>();
 </script>
 
 <div class="stat-box">

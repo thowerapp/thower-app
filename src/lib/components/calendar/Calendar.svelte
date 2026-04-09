@@ -55,9 +55,7 @@
 		vlen?: number;
 	}
 
-	export let headers: string[] = [];
-	export let days: CalendarDay[] = [];
-	export let items: CalendarItem[] = [];
+	let { headers = [], days = [], items = [] } = $props<{ headers?: string[]; days?: CalendarDay[]; items?: CalendarItem[] }>();
 
 	let dispatch = createEventDispatcher<{
 		headerClick: string;

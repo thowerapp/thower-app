@@ -1,6 +1,5 @@
 <script lang="ts">
-	export let title: string;
-	export let sub: string = '';
+	let { title, sub = '' } = $props<{ title: string; sub?: string }>();
 </script>
 
 <div class="sec-head">

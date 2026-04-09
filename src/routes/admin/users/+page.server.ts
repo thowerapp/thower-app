@@ -3,30 +3,16 @@ import type { PageServerLoad, Actions } from './$types';
 import { message, superValidate } from 'sveltekit-superforms';
 import { deleteUserSchema } from '$lib/schema/users/userSchema';
 import { deleteUser, getAllUsers } from '$lib/prisma/user/user';
-import { redirect } from '@sveltejs/kit';
 import { serializeData } from '$lib/utils/serializeData';
 
-// Fonction de chargement côté serveur
-export const load: PageServerLoad = async ({ locals }) => {
-	// Vérifie si l'utilisateur est connecté
-	if (!locals.user) {
-		throw redirect(302, '/auth/login'); // Redirige vers la page de connexion
-	}
-
-	// Vérifie le rôle
-	if (locals.role !== 'ADMIN') {
-		throw redirect(302, '/'); // Redirige vers la page d'accueil
-	}
-
-	const IdeleteUserSchema = await superValidate(zod(deleteUserSchema));
-
-	const UsersFetch = await getAllUsers();
-
-	const allUsers = serializeData(UsersFetch);
-
+export const load: PageServerLoad = async () => {
+	const [IdeleteUserSchema, UsersFetch] = await Promise.all([
+		superValidate(zod(deleteUserSchema)),
+		getAllUsers()
+	]);
 	return {
 		IdeleteUserSchema,
-		allUsers
+		allUsers: serializeData(UsersFetch)
 	};
 };
 

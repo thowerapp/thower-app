@@ -13,10 +13,7 @@ function toDatetimeLocal(isoOrNull: string | null | undefined): string | null {
 	return isoOrNull.slice(0, 16);
 }
 
-export const load: PageServerLoad = async ({ params, locals }) => {
-	if (!locals.user) {
-		return fail(401, { message: 'Unauthorized' });
-	}
+export const load: PageServerLoad = async ({ params }) => {
 
 	const includeRelations = {
 		profile: true,

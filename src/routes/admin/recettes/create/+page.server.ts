@@ -1,14 +1,11 @@
 import { zod } from '$lib/superforms-zod';
 import type { PageServerLoad, Actions } from './$types';
 import { message, superValidate, fail } from 'sveltekit-superforms';
-import { redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit'; // needed for throw redirect in action
 import { recipeSchema, type RecipeSchema } from '$lib/schema/recipe/recipeSchema';
 import { createRecipe } from '$lib/prisma/recipe/createRecipe';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) throw redirect(302, '/auth/login');
-	if (locals.role !== 'ADMIN') throw redirect(302, '/');
-
+export const load: PageServerLoad = async () => {
 	const form = await superValidate(zod(recipeSchema));
 	return { form };
 };

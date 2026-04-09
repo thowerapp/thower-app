@@ -83,16 +83,6 @@
 		return unsubscribe;
 	});
 
-  $effect(() => {
-    const unsubscribe = page.subscribe((currentPage) => {
-      initializeLayoutState(currentPage);
-    });
-    setupNavigationEffect();
-    setFirstOpen(true);
-    setRessourceToValide(true);
-    return unsubscribe;
-  });
-
   let contentRef: HTMLElement | null = $state(null);
 
   $effect(() => {

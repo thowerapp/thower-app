@@ -4,24 +4,16 @@ import { message, superValidate } from 'sveltekit-superforms';
 import { deleteContactSchema } from '$lib/schema/contact/contactSchema';
 import { getAllContacts } from '$lib/prisma/contact/getAllContacts';
 import { deleteContact } from '$lib/prisma/contact/deleteContact';
-import { redirect } from '@sveltejs/kit';
 import { serializeData } from '$lib/utils/serializeData';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) {
-		throw redirect(302, '/auth/login');
-	}
-	if (locals.role !== 'ADMIN') {
-		throw redirect(302, '/');
-	}
-
-	const IdeleteContactSchema = await superValidate(zod(deleteContactSchema));
-	const contacts = await getAllContacts();
-	const allContacts = serializeData(contacts);
-
+export const load: PageServerLoad = async () => {
+	const [IdeleteContactSchema, contacts] = await Promise.all([
+		superValidate(zod(deleteContactSchema)),
+		getAllContacts()
+	]);
 	return {
 		IdeleteContactSchema,
-		allContacts
+		allContacts: serializeData(contacts)
 	};
 };
 

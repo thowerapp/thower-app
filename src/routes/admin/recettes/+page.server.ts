@@ -1,15 +1,11 @@
 import { zod } from '$lib/superforms-zod';
 import type { PageServerLoad, Actions } from './$types';
 import { message, superValidate, fail } from 'sveltekit-superforms';
-import { redirect } from '@sveltejs/kit';
 import { deleteRecipeSchema } from '$lib/schema/recipe/recipeSchema';
 import { prisma } from '$lib/server';
 import { serializeData } from '$lib/utils/serializeData';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) throw redirect(302, '/auth/login');
-	if (locals.role !== 'ADMIN') throw redirect(302, '/');
-
+export const load: PageServerLoad = async () => {
 	const IdeleteRecipeSchema = await superValidate(zod(deleteRecipeSchema));
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any

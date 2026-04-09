@@ -1,10 +1,10 @@
-import { error } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw redirect(302, '/auth/login');
 	}
 
 	// Get all recipe categories with counts

@@ -6,10 +6,7 @@ import { recipeSchema, type RecipeSchema } from '$lib/schema/recipe/recipeSchema
 import { prisma } from '$lib/server';
 import { serializeData } from '$lib/utils/serializeData';
 
-export const load: PageServerLoad = async ({ locals, params }) => {
-	if (!locals.user) throw redirect(302, '/auth/login');
-	if (locals.role !== 'ADMIN') throw redirect(302, '/');
-
+export const load: PageServerLoad = async ({ params }) => {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const db = prisma as any;
 

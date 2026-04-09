@@ -3,7 +3,7 @@ import { page } from '$app/stores';
 import type { LayoutData } from './$types';
 let { data } = $props<{ data: LayoutData }>();
 
-$: currentTab = getTabFromRoute($page.url.pathname);
+let currentTab = $derived(getTabFromRoute($page.url.pathname));
 
 function getTabFromRoute(pathname: string): string {
 if (pathname.includes('/decouverte')) return 'decouverte';

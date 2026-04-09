@@ -4,11 +4,11 @@
 
 	let { data } = $props<{ data: PageData }>();
 
-	$: dayNum = parseInt($page.params.day as string) || 21;
-	$: mealNum = parseInt($page.params.mealNum as string) || 1;
-	$: dayName = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][(dayNum - 1) % 7];
-	$: mealLabel = mealNum === 1 ? 'Déjeuner' : 'Dîner';
-	$: mealTime = mealNum === 1 ? '12h30' : '19h00';
+	let dayNum = $derived(parseInt($page.params.day as string) || 21);
+	let mealNum = $derived(parseInt($page.params.mealNum as string) || 1);
+	let dayName = $derived(['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][(dayNum - 1) % 7]);
+	let mealLabel = $derived(mealNum === 1 ? 'Déjeuner' : 'Dîner');
+	let mealTime = $derived(mealNum === 1 ? '12h30' : '19h00');
 
 	let quantities = 1;
 	let selectedRecipe: 'salad' | 'chicken' | 'pasta' = 'salad';
@@ -32,13 +32,13 @@
 		}
 	} as const;
 
-	$: currentRecipe = recipes[selectedRecipe];
-	$: calculatedMacros = {
+	let currentRecipe = $derived(recipes[selectedRecipe]);
+	let calculatedMacros = $derived({
 		calories: Math.round(currentRecipe.macros.calories * quantities),
 		protein: Math.round(currentRecipe.macros.protein * quantities),
 		carbs: Math.round(currentRecipe.macros.carbs * quantities),
 		fat: Math.round(currentRecipe.macros.fat * quantities)
-	};
+	});
 
 	function goBack() {
 		history.back();

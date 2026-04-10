@@ -22,6 +22,8 @@
 
   import SmoothScrollBarStore from '$lib/store/SmoothScrollBarStore';
   import type Scrollbar from 'smooth-scrollbar';
+  import PersistentParticleCanvas from '$lib/components/PersistentParticleCanvas.svelte';
+  import { registerSources } from '$lib/utils/particles';
 
   let { data, children } = $props();
 
@@ -83,6 +85,13 @@
 		return unsubscribe;
 	});
 
+  // Re-scan les sources de particules à chaque changement de route
+  $effect(() => {
+    const _ = $page.url.pathname;
+    if (typeof window === 'undefined') return;
+    setTimeout(() => registerSources(document.body), 80);
+  });
+
   let contentRef: HTMLElement | null = $state(null);
 
   $effect(() => {
@@ -118,6 +127,7 @@
 {/if}
 {#if $isClient}
   <div class="wrapper">
+    <PersistentParticleCanvas />
     <ModeWatcher />
     <GlobalCursor />
     <!-- <Navigation user={data?.user ?? null} /> -->
@@ -226,6 +236,19 @@
     z-index: 1;
     width: 100%;
     min-height: 100vh;
+  }
+
+  /* ── Éléments en attente : lueur dorée + flammes via PersistentParticleCanvas ── */
+  :global(.pending) {
+    box-shadow: 0 0 0 1px rgba(200, 130, 20, 0.3), 0 0 12px rgba(200, 130, 20, 0.18) !important;
+    border-color: rgba(92, 74, 26, 0.9) !important;
+  }
+  :global(.pending.notif-banner) {
+    border-left-color: #F0C040 !important;
+    box-shadow:
+      0 0 0 1px rgba(200, 130, 20, 0.25),
+      0 0 16px rgba(200, 130, 20, 0.22),
+      inset 0 0 20px rgba(200, 130, 20, 0.04) !important;
   }
 
   /* ── PWA Toast ── */

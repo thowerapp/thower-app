@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
+	import { fireElement, registerSources } from '$lib/utils/particles';
 
 	let { data }: { data: PageData } = $props();
 
@@ -24,8 +25,10 @@
 		data.weekDays.find((d) => d.dayIndex === selectedDay) ?? null
 	);
 
-	function selectDay(dayIndex: number) {
+	function selectDay(e: MouseEvent & { currentTarget: HTMLButtonElement }, dayIndex: number) {
 		userPickedDay = dayIndex;
+		fireElement(e.currentTarget);
+		setTimeout(() => registerSources(document.body), 40);
 	}
 
 	function changeWeek(week: number) {
@@ -41,9 +44,12 @@
 	}
 </script>
 
-<div class="back-row">
-	<a href="/user/nutrition" class="home-btn">← Nutrition</a>
-	<div class="page-title">Cadencier</div>
+<div class="u-back-row">
+	<a href="/user/nutrition" class="u-back-lnk">
+		<svg width="12" height="12" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="var(--txd)" stroke-width="1.5" stroke-linecap="round"/></svg>
+		<span class="u-back-lbl">Nutrition</span>
+	</a>
+	<div class="u-back-head">Cadencier</div>
 </div>
 
 <div class="week-info">
@@ -81,7 +87,8 @@
 			class="day-btn"
 			class:active={d.dayIndex === selectedDay}
 			class:today={d.isToday}
-			onclick={() => selectDay(d.dayIndex)}
+			class:pending={d.isToday && d.meals.length === 0}
+			onclick={(e) => selectDay(e, d.dayIndex)}
 		>
 			<div class="day-name">{d.dayName}</div>
 			<div class="day-num">{d.dayNumInWeek}</div>
@@ -138,51 +145,11 @@
 </div>
 
 <style>
-	.back-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 14px 18px;
-		background: #0a0a0a;
-		flex-shrink: 0;
-		gap: 12px;
-		border-bottom: 1px solid rgba(201, 168, 76, 0.15);
-	}
-
-	.home-btn {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		text-decoration: none;
-		color: #c9a84c;
-		font-size: 0.7rem;
-		font-weight: 500;
-		padding: 6px 10px;
-		border-radius: 3px;
-		background: rgba(201, 168, 76, 0.1);
-		transition: all 0.15s;
-	}
-
-	.home-btn:active {
-		background: rgba(201, 168, 76, 0.2);
-	}
-
-	.page-title {
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: #f0ede8;
-		margin-left: auto;
-		font-family: 'Bebas Neue', sans-serif;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-	}
-
 	.week-info {
 		padding: 14px 18px;
-		background: rgba(201, 168, 76, 0.08);
-		border-bottom: 1px solid rgba(201, 168, 76, 0.15);
+		background: rgba(200, 164, 74, 0.08);
+		border-bottom: 1px solid var(--br);
 	}
-
 	.week-header-row {
 		display: flex;
 		align-items: center;
@@ -190,47 +157,38 @@
 		gap: 10px;
 		flex-wrap: wrap;
 	}
-
 	.week-header {
-		font-size: 0.7rem;
+		font-size: 0.6875rem;
 		font-weight: 600;
-		color: #f0ede8;
+		color: var(--tx);
+		font-family: var(--fb);
 	}
-
-	.week-switch {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-
+	.week-switch { display: flex; align-items: center; gap: 8px; }
 	.week-switch-lbl {
-		font-size: 0.55rem;
-		color: rgba(240, 237, 232, 0.55);
+		font-size: 0.5rem;
+		color: var(--txd);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
+		font-family: var(--fb);
 	}
-
 	.week-select {
-		font-size: 0.62rem;
+		font-size: 0.5rem;
 		padding: 6px 10px;
-		border-radius: 4px;
-		border: 1px solid rgba(201, 168, 76, 0.35);
-		background: #0a0a0a;
-		color: #f0ede8;
+		border: 1px solid rgba(200, 164, 74, 0.35);
+		background: var(--s1);
+		color: var(--tx);
 		min-width: 120px;
 		cursor: pointer;
+		font-family: var(--fb);
 	}
-
 	.week-sub {
-		font-size: 0.55rem;
-		color: #c9a84c;
+		font-size: 0.5rem;
+		color: var(--g);
 		margin-top: 8px;
 		line-height: 1.4;
+		font-family: var(--fb);
 	}
-
-	.warn {
-		color: rgba(255, 180, 120, 0.95);
-	}
+	.warn { color: rgba(255, 180, 120, 0.95); }
 
 	.week-grid {
 		display: grid;
@@ -238,7 +196,6 @@
 		gap: 4px;
 		padding: 10px 12px;
 	}
-
 	.day-btn {
 		position: relative;
 		aspect-ratio: 1;
@@ -246,169 +203,106 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		background: rgba(240, 237, 232, 0.05);
-		border: 1px solid rgba(201, 168, 76, 0.2);
-		border-radius: 4px;
-		text-decoration: none;
-		color: #f0ede8;
+		background: rgba(237, 229, 208, 0.05);
+		border: 1px solid rgba(200, 164, 74, 0.2);
+		color: var(--tx);
 		cursor: pointer;
-		transition: all 0.15s;
+		transition: border-color 0.15s;
 		font-weight: 500;
+		-webkit-tap-highlight-color: transparent;
 	}
-
-	.day-btn:active {
-		background: rgba(240, 237, 232, 0.08);
-	}
-
-	.day-btn.active {
-		background: #c9a84c;
-		color: #0a0a0a;
-		border-color: #c9a84c;
-	}
-
+	.day-btn:active { background: rgba(237, 229, 208, 0.08); }
+	.day-btn.active { background: var(--g); color: var(--s1); border-color: var(--g); }
 	.day-btn.today:not(.active) {
-		border-color: rgba(58, 184, 184, 0.55);
-		box-shadow: 0 0 0 1px rgba(58, 184, 184, 0.25);
+		border-color: rgba(0, 212, 232, 0.55);
+		box-shadow: 0 0 0 1px rgba(0, 212, 232, 0.2);
 	}
-
 	.day-name {
-		font-size: 0.5rem;
-		color: rgba(240, 237, 232, 0.4);
+		font-size: 0.4375rem;
+		color: var(--txd);
 		margin-bottom: 2px;
+		font-family: var(--fb);
 	}
-
-	.day-btn.active .day-name {
-		color: rgba(10, 10, 10, 0.5);
-	}
-
-	.day-num {
-		font-size: 0.75rem;
-		font-weight: 700;
-	}
-
+	.day-btn.active .day-name { color: rgba(13, 10, 5, 0.5); }
+	.day-num { font-size: 0.6875rem; font-weight: 700; font-family: var(--fh); }
 	.today-pill {
 		position: absolute;
 		bottom: 3px;
-		font-size: 0.42rem;
+		font-size: 0.4375rem;
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-		color: #3ab8b8;
+		color: var(--cy);
+		font-family: var(--fb);
 	}
+	.day-btn.active .today-pill { color: rgba(13, 10, 5, 0.65); }
 
-	.day-btn.active .today-pill {
-		color: rgba(10, 10, 10, 0.65);
-	}
-
-	.meals-section {
-		padding: 12px 18px;
-	}
-
+	.meals-section { padding: 12px 18px; }
 	.section-header {
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: #c9a84c;
+		font-family: var(--fh2);
+		font-size: 1rem;
+		color: var(--g);
 		margin-bottom: 10px;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		font-family: 'Bebas Neue', sans-serif;
+		letter-spacing: 0.05em;
 	}
-
 	.empty-msg {
-		font-size: 0.62rem;
-		color: rgba(240, 237, 232, 0.45);
+		font-size: 0.5rem;
+		color: var(--txd);
 		line-height: 1.5;
 		margin: 0;
+		font-family: var(--fb);
 	}
 
-	.meals-list {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-
+	.meals-list { display: flex; flex-direction: column; gap: 8px; }
 	.meal-item {
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
 		padding: 12px 14px;
-		background: rgba(201, 168, 76, 0.08);
-		border: 1px solid rgba(201, 168, 76, 0.15);
-		border-radius: 6px;
+		background: rgba(200, 164, 74, 0.08);
+		border: 1px solid var(--br2);
 		text-decoration: none;
 		color: inherit;
 		cursor: pointer;
-		transition: all 0.15s;
+		transition: background 0.15s;
 	}
-
-	.meal-item:active {
-		background: rgba(201, 168, 76, 0.12);
-	}
-
-	.meal-header-top {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
-
+	.meal-item:active { background: rgba(200, 164, 74, 0.12); }
+	.meal-header-top { display: flex; justify-content: space-between; align-items: center; }
 	.meal-time {
-		font-size: 0.62rem;
+		font-size: 0.5rem;
 		font-weight: 600;
-		color: #f0ede8;
+		color: var(--tx);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
-		font-family: 'DM Sans', sans-serif;
+		font-family: var(--fb);
 	}
+	.meal-time-clock { font-size: 0.5rem; color: var(--txd); font-family: var(--fb); }
+	.meal-name { font-size: 0.6875rem; color: var(--g); font-weight: 500; font-family: var(--fb); }
 
-	.meal-time-clock {
-		font-size: 0.56rem;
-		color: rgba(240, 237, 232, 0.6);
-		font-family: 'DM Sans', sans-serif;
-	}
-
-	.meal-name {
-		font-size: 0.65rem;
-		color: #c9a84c;
-		font-weight: 500;
-	}
-
-	.meal-macros {
-		display: grid;
-		grid-template-columns: repeat(4, 1fr);
-		gap: 6px;
-	}
-
+	.meal-macros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 	.macro-box {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		gap: 2px;
 		padding: 6px 4px;
-		background: rgba(58, 184, 184, 0.15);
-		border-radius: 3px;
+		background: rgba(0, 212, 232, 0.12);
 	}
-
-	.macro-val {
-		font-size: 0.72rem;
-		font-weight: 700;
-		color: #3ab8b8;
-	}
-
+	.macro-val { font-size: 0.6875rem; font-weight: 700; color: var(--cy); font-family: var(--fh); }
 	.macro-lbl {
-		font-size: 0.46rem;
-		color: rgba(240, 237, 232, 0.5);
+		font-size: 0.4375rem;
+		color: var(--txd);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-		font-weight: 500;
-		font-family: 'DM Sans', sans-serif;
+		font-family: var(--fb);
 	}
-
 	.meal-arrow {
-		font-size: 0.58rem;
+		font-size: 0.5rem;
 		font-weight: 600;
-		color: #3ab8b8;
+		color: var(--cy);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		align-self: flex-end;
+		font-family: var(--fb);
 	}
 </style>

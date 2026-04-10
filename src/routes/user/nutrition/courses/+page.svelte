@@ -66,7 +66,7 @@
 </script>
 
 <div class="back-row">
-	<a href="/user" class="home-btn">← Accueil</a>
+	<a href="/user/nutrition" class="home-btn">← Nutrition</a>
 	<div class="page-title">Courses</div>
 </div>
 

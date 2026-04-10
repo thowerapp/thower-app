@@ -2,7 +2,7 @@
 </script>
 
 <div class="back-row">
-	<a href="/user" class="back-link">
+	<a href="/user/nutrition" class="back-link">
 		<div class="back-arrow">←</div>
 		<span class="back-txt">Nutrition</span>
 	</a>

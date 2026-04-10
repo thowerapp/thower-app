@@ -3,6 +3,14 @@ import type { PageData } from './$types';
 let { data } = $props<{ data: PageData }>();
 </script>
 
+<div class="u-back-row">
+<a href="/user" class="u-back-lnk">
+<svg width="12" height="12" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="var(--txd)" stroke-width="1.5" stroke-linecap="round"/></svg>
+<span class="u-back-lbl">Accueil</span>
+</a>
+<div class="u-back-head">Découverte</div>
+</div>
+
 <div class="hero">
 <div class="hero-top">
 <div>

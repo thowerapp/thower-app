@@ -20,6 +20,14 @@
 	const loginForm = $derived.by(() => superForm(data?.loginForm ?? {}, formOptions));
 
 	const { form: loginData, enhance: loginEnhance, message: loginMessage } = $derived(loginForm);
+	const showCreateAccountCta = $derived.by(() => {
+		const text = ($loginMessage ?? '').toLowerCase();
+		return (
+			text.includes('creer un compte') ||
+			text.includes("compte n'existe pas") ||
+			text.includes('compte nexiste pas')
+		);
+	});
 
 	$effect(() => {
 		if ($loginMessage) {
@@ -282,6 +290,13 @@
 			</Card.Header>
 			<Card.Content>
 				<form method="POST" action="?/login" use:loginEnhance class="login-form">
+					{#if showCreateAccountCta}
+						<div class="create-account-alert" role="alert">
+							<p>Veuillez creer un compte pour vous authentifier.</p>
+							<a href="/" class="create-account-btn">Retour a l'accueil</a>
+						</div>
+					{/if}
+
 					<Form.Field name="email" form={loginForm}>
 						<Form.Control>
 							<Form.Label class="form-label">Email</Form.Label>
@@ -337,6 +352,10 @@
 					<p class="signup-prompt">
 						Pas encore de compte ?
 						<a href="/auth/signup" class="signup-link"> Créer un compte </a>
+					</p>
+
+					<p class="home-prompt">
+						<a href="/" class="home-link">Retour a l'accueil</a>
 					</p>
 				</form>
 			</Card.Content>
@@ -416,6 +435,37 @@
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
+	}
+
+	.create-account-alert {
+		border: 1px solid rgba(201, 168, 76, 0.35);
+		background: rgba(201, 168, 76, 0.08);
+		border-radius: 8px;
+		padding: 12px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		color: var(--white);
+		font-family: 'DM Sans', sans-serif;
+		font-size: 0.92rem;
+	}
+
+	.create-account-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 10px 12px;
+		border-radius: 6px;
+		border: 1px solid rgba(201, 168, 76, 0.55);
+		color: var(--gold);
+		text-decoration: none;
+		font-family: 'DM Sans', sans-serif;
+		font-weight: 500;
+		transition: background 0.2s ease;
+	}
+
+	.create-account-btn:hover {
+		background: rgba(201, 168, 76, 0.12);
 	}
 
 	:global(.form-label) {
@@ -561,6 +611,28 @@
 
 	.signup-link:hover {
 		opacity: 0.8;
+	}
+
+	.home-prompt {
+		text-align: center;
+		margin: 2px 0 0 0;
+	}
+
+	.home-link {
+		color: rgba(240, 237, 232, 0.8);
+		text-decoration: none;
+		font-family: 'DM Sans', sans-serif;
+		font-size: 0.82rem;
+		letter-spacing: 0.04em;
+		border-bottom: 1px solid rgba(240, 237, 232, 0.35);
+		padding-bottom: 1px;
+		transition: color 0.2s, border-color 0.2s;
+		cursor: none;
+	}
+
+	.home-link:hover {
+		color: var(--gold);
+		border-color: rgba(201, 168, 76, 0.7);
 	}
 
 	@keyframes fadeIn {

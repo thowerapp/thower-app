@@ -66,7 +66,7 @@ export const actions: Actions = {
 		console.log(user);
 
 		if (user === null) {
-			return message(form, 'Le compte nexiste pas');
+			return message(form, "Veuillez creer un compte pour vous authentifier.");
 		}
 
 		// Si l'utilisateur possède un googleId, c'est un utilisateur OAuth

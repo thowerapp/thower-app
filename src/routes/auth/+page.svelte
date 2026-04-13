@@ -42,7 +42,7 @@
 				console.error('[PWA] erreur prompt:', err);
 			}
 		} else {
-			await goto('/');
+			await goto('/user/');
 		}
 	}
 

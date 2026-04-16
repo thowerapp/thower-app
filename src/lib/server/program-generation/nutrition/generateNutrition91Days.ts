@@ -12,8 +12,13 @@ const DEFAULT_REFERENCE_G = 100;
 const SCALE_MIN = 0.35;
 const SCALE_MAX = 2.5;
 
-/** Part du budget repas (hors pain) pour chaque créneau — jeûne intermittent matin : 30 / 35 / 35 ; sinon 50 / 50 déj.–dîner. */
-function kcalFractionForPosition(position: MealPosition, intermittentFastingMorning: boolean): number {
+/**
+ * Répartition équilibrée du budget alimentaire pour chaque créneau repas.
+ * Applique les mêmes fractions aux calories, protéines ET fibres.
+ * - Jeûne intermittent matin : petit-déj 30%, déj. 35%, dîner 35%
+ * - Sinon (2 repas) : déj. et dîner 50% chacun
+ */
+function mealBudgetFractionForPosition(position: MealPosition, intermittentFastingMorning: boolean): number {
 	if (intermittentFastingMorning) {
 		switch (position) {
 			case 'BREAKFAST':
@@ -73,6 +78,7 @@ const recipeCatalogSelect = {
 	nutritionProteinG: true,
 	nutritionCarbsG: true,
 	nutritionFatG: true,
+	nutritionFiberG: true,
 	allergens: true
 } as unknown as Prisma.RecipeSelect;
 
@@ -84,6 +90,7 @@ type CatalogRecipe = {
 	nutritionProteinG: number | null;
 	nutritionCarbsG: number | null;
 	nutritionFatG: number | null;
+	nutritionFiberG: number | null;
 	allergens: string[];
 };
 
@@ -109,7 +116,8 @@ function scaledMacrosForQuantity(recipe: CatalogRecipe, quantityG: number) {
 		calcCalories: recipe.nutritionKcal != null ? recipe.nutritionKcal * factor : null,
 		calcProteinG: recipe.nutritionProteinG != null ? recipe.nutritionProteinG * factor : null,
 		calcCarbsG: recipe.nutritionCarbsG != null ? recipe.nutritionCarbsG * factor : null,
-		calcFatG: recipe.nutritionFatG != null ? recipe.nutritionFatG * factor : null
+		calcFatG: recipe.nutritionFatG != null ? recipe.nutritionFatG * factor : null,
+		calcFiberG: recipe.nutritionFiberG != null ? recipe.nutritionFiberG * factor : null
 	};
 }
 
@@ -268,7 +276,8 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 	programGenLog('N7/ Boucle jours — positions repas', {
 		userId,
 		positions,
-		kcalSplit: intermittentFastingDefault ? '30% / 35% / 35% (PD / déj. / dîner)' : '50% / 50% (déj. / dîner)',
+		budgetFractions: intermittentFastingDefault ? '30% / 35% / 35% (PD / déj. / dîner)' : '50% / 50% (déj. / dîner)',
+		macrosDistributed: 'Calories, Protéines, Fibres répartis proportionnellement',
 		recipeSelection: 'pseudo-aléatoire (graine userId+jour+créneau, Mulberry32)'
 	});
 
@@ -324,7 +333,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 			const baseKcal = kcalAtBaseQuantity(recipe);
 			let scale = 1;
 			if (targetKcal != null && mealBudget > 0 && baseKcal > 0) {
-				const frac = kcalFractionForPosition(position, intermittentFastingDefault);
+				const frac = mealBudgetFractionForPosition(position, intermittentFastingDefault);
 				const targetSlotKcal = mealBudget * frac;
 				scale = clampScale(targetSlotKcal / baseKcal);
 			}

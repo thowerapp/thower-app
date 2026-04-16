@@ -670,6 +670,7 @@ model Meal {
   calcCarbsG   Float?
   calcFatG     Float?
   calcCalories Float?
+  calcFiberG   Float?
 
   /// Saisie manuelle pour plats livrés partenaires
   isManual       Boolean @default(false)
@@ -677,6 +678,7 @@ model Meal {
   manualCarbsG   Float?
   manualFatG     Float?
   manualCalories Float?
+  manualFiberG   Float?
 
   /// Date/heure à laquelle le repas a été consommé (case cochée dans le calendrier / app)
   eatenAt        DateTime?

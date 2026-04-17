@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { fireElement, registerSources } from '$lib/utils/particles';
 
 	let { data }: { data: PageData } = $props();
@@ -10,6 +11,9 @@
 	/** null = utiliser defaultSelectedDay du serveur pour cette semaine */
 	let userPickedDay = $state<number | null>(null);
 	let syncedWeek = $state(-1);
+	let jeune = $derived(data.intermittentFasting ?? false);
+	let jeuneOverride = $state<boolean | null>(null);
+	const jeuneActive = $derived(jeuneOverride ?? jeune);
 
 	$effect.pre(() => {
 		const w = data.selectedWeek;
@@ -80,20 +84,49 @@
 	</div>
 </div>
 
-<div class="week-grid">
-	{#each data.weekDays as d (d.dayIndex)}
+<!-- Toggle jeûne intermittent -->
+<form
+	method="POST"
+	action="?/toggleJeune"
+	use:enhance={() => {
+		jeuneOverride = !jeuneActive;
+		return async ({ update }) => { await update({ invalidateAll: false }); };
+	}}
+>
+	<input type="hidden" name="active" value={String(!jeuneActive)} />
+	<button type="submit" class="jeune-toggle" class:jim-on={jeuneActive}>
+		<div class="jt-left">
+			<div class="jt-label">Jeûne intermittent — aujourd'hui</div>
+			<div class="jt-sub">
+				{#if jeuneActive}
+					Actif · 2 repas à <strong>50 / 50 %</strong> (protéines, fibres, kcal)
+				{:else}
+					Inactif · 3 repas <strong>30 / 35 / 35 %</strong> (PD + déj. + dîner)
+				{/if}
+			</div>
+		</div>
+		<div class="jt-pill" class:on={jeuneActive}>
+			<div class="jt-thumb"></div>
+		</div>
+	</button>
+</form>
+
+<div class="u-sport-week">
+	{#each data.weekDays as d}
 		<button
 			type="button"
-			class="day-btn"
+			class="u-sd"
+			class:today={d.isToday && d.dayIndex !== selectedDay}
 			class:active={d.dayIndex === selectedDay}
-			class:today={d.isToday}
 			class:pending={d.isToday && d.meals.length === 0}
 			onclick={(e) => selectDay(e, d.dayIndex)}
 		>
-			<div class="day-name">{d.dayName}</div>
-			<div class="day-num">{d.dayNumInWeek}</div>
+			<div class="u-sd-n">{d.dayName}</div>
+			<div class="u-sd-d">{d.dayNumInWeek}</div>
 			{#if d.isToday}
-				<div class="today-pill">Auj.</div>
+				<div class="u-sd-b" style="color:var(--cy);font-size:.375rem">Auj.</div>
+			{:else}
+				<div class="u-sd-b">{d.meals.length > 0 ? '●' : '·'}</div>
 			{/if}
 		</button>
 	{/each}
@@ -130,8 +163,10 @@
 						<div class="macro-box">
 							<div class="macro-val">{meal.fatG}g</div>
 							<div class="macro-lbl">L</div>
-						</div>
-					</div>
+						</div>					<div class="macro-box">
+						<div class="macro-val">{meal.fiberG}g</div>
+						<div class="macro-lbl">F</div>
+					</div>					</div>
 					<div class="meal-arrow">Fiche jour →</div>
 				</a>
 			{/each}
@@ -147,7 +182,7 @@
 <style>
 	.week-info {
 		padding: 14px 18px;
-		background: rgba(200, 164, 74, 0.08);
+		background: transparent;
 		border-bottom: 1px solid var(--br);
 	}
 	.week-header-row {
@@ -173,13 +208,15 @@
 	}
 	.week-select {
 		font-size: 0.5rem;
-		padding: 6px 10px;
-		border: 1px solid rgba(200, 164, 74, 0.35);
-		background: var(--s1);
+		padding: 5px 8px;
+		border: 1px solid var(--br2);
+		background: transparent;
 		color: var(--tx);
-		min-width: 120px;
+		min-width: 110px;
 		cursor: pointer;
 		font-family: var(--fb);
+		-webkit-appearance: none;
+		appearance: none;
 	}
 	.week-sub {
 		font-size: 0.5rem;
@@ -190,52 +227,15 @@
 	}
 	.warn { color: rgba(255, 180, 120, 0.95); }
 
-	.week-grid {
-		display: grid;
-		grid-template-columns: repeat(7, 1fr);
-		gap: 4px;
-		padding: 10px 12px;
+	/* ── Overrides spécifiques cadencier ── */
+	/* Jour sélectionné (actif) */
+	:global(.u-sd.active) {
+		background: var(--s3);
+		border-color: var(--g) !important;
+		box-shadow: 0 0 6px rgba(201,168,78,.2);
 	}
-	.day-btn {
-		position: relative;
-		aspect-ratio: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		background: rgba(237, 229, 208, 0.05);
-		border: 1px solid rgba(200, 164, 74, 0.2);
-		color: var(--tx);
-		cursor: pointer;
-		transition: border-color 0.15s;
-		font-weight: 500;
-		-webkit-tap-highlight-color: transparent;
-	}
-	.day-btn:active { background: rgba(237, 229, 208, 0.08); }
-	.day-btn.active { background: var(--g); color: var(--s1); border-color: var(--g); }
-	.day-btn.today:not(.active) {
-		border-color: rgba(0, 212, 232, 0.55);
-		box-shadow: 0 0 0 1px rgba(0, 212, 232, 0.2);
-	}
-	.day-name {
-		font-size: 0.4375rem;
-		color: var(--txd);
-		margin-bottom: 2px;
-		font-family: var(--fb);
-	}
-	.day-btn.active .day-name { color: rgba(13, 10, 5, 0.5); }
-	.day-num { font-size: 0.6875rem; font-weight: 700; font-family: var(--fh); }
-	.today-pill {
-		position: absolute;
-		bottom: 3px;
-		font-size: 0.4375rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: var(--cy);
-		font-family: var(--fb);
-	}
-	.day-btn.active .today-pill { color: rgba(13, 10, 5, 0.65); }
+	:global(.u-sd.active .u-sd-d) { color: var(--g); }
+	:global(.u-sd.active .u-sd-n) { color: rgba(201,168,78,.6); }
 
 	.meals-section { padding: 12px 18px; }
 	.section-header {
@@ -259,14 +259,15 @@
 		flex-direction: column;
 		gap: 8px;
 		padding: 12px 14px;
-		background: rgba(200, 164, 74, 0.08);
-		border: 1px solid var(--br2);
+		background: transparent;
+		border: none;
+		border-bottom: 1px solid var(--br);
 		text-decoration: none;
 		color: inherit;
 		cursor: pointer;
 		transition: background 0.15s;
 	}
-	.meal-item:active { background: rgba(200, 164, 74, 0.12); }
+	.meal-item:active { background: rgba(200, 164, 74, 0.05); }
 	.meal-header-top { display: flex; justify-content: space-between; align-items: center; }
 	.meal-time {
 		font-size: 0.5rem;
@@ -279,14 +280,15 @@
 	.meal-time-clock { font-size: 0.5rem; color: var(--txd); font-family: var(--fb); }
 	.meal-name { font-size: 0.6875rem; color: var(--g); font-weight: 500; font-family: var(--fb); }
 
-	.meal-macros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+	.meal-macros { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
 	.macro-box {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		gap: 2px;
-		padding: 6px 4px;
-		background: rgba(0, 212, 232, 0.12);
+		padding: 5px 2px;
+		border: 1px solid var(--br);
+		background: transparent;
 	}
 	.macro-val { font-size: 0.6875rem; font-weight: 700; color: var(--cy); font-family: var(--fh); }
 	.macro-lbl {
@@ -305,4 +307,46 @@
 		align-self: flex-end;
 		font-family: var(--fb);
 	}
+
+	/* ── Toggle jeûne ── */
+	.jeune-toggle {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		padding: 11px 18px;
+		background: transparent;
+		border: none;
+		border-bottom: 1px solid var(--br);
+		-webkit-tap-highlight-color: transparent;
+		cursor: pointer;
+		gap: 12px;
+		text-align: left;
+	}
+	.jeune-toggle:active { background: rgba(0,229,255,.03); }
+	.jeune-toggle.jim-on .jt-label { color: var(--cy); }
+	.jt-left { flex: 1; min-width: 0; }
+	.jt-label { font-size: .625rem; font-weight: 600; color: var(--tx); font-family: var(--fb); }
+	.jt-sub { font-size: .5rem; color: var(--txd); margin-top: 2px; font-family: var(--fb); line-height: 1.3; }
+	.jt-sub strong { color: var(--g); font-weight: 700; }
+	/* Pill toggle */
+	.jt-pill {
+		width: 34px; height: 18px;
+		border-radius: 9px;
+		background: var(--br2);
+		border: 1px solid var(--br2);
+		position: relative;
+		transition: background .22s, border-color .22s;
+		flex-shrink: 0;
+	}
+	.jt-pill.on { background: rgba(0,229,255,.15); border-color: var(--cy); }
+	.jt-thumb {
+		position: absolute;
+		top: 2px; left: 2px;
+		width: 12px; height: 12px;
+		border-radius: 50%;
+		background: var(--txd);
+		transition: transform .22s, background .22s;
+	}
+	.jt-pill.on .jt-thumb { transform: translateX(16px); background: var(--cy); box-shadow: 0 0 6px rgba(0,229,255,.5); }
 </style>

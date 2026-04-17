@@ -28,11 +28,6 @@
 <div class="li-b"><div class="li-t">Profil &amp; Données</div><div class="li-s">Objectif · Mesures · Allergies</div></div>
 <div class="li-r"><div class="arr"></div></div>
 </a>
-<a href="/user/parametres/checklist" class="li">
-<div class="li-th"><div style="width:10px;height:10px;border-radius:50%;background:var(--cyd)"></div></div>
-<div class="li-b"><div class="li-t">Checklist journalière</div><div class="li-s">Activer / désactiver les tâches</div></div>
-<div class="li-r"><div class="arr"></div></div>
-</a>
 <a href="/user/parametres/abonnement" class="li">
 <div class="li-th"><div style="width:10px;height:10px;background:var(--gd)"></div></div>
 <div class="li-b"><div class="li-t">Abonnement</div><div class="li-s">Plan actif</div></div>
@@ -60,8 +55,8 @@
 .li:active { background:rgba(200,130,20,.05); }
 .li-th { width:34px; height:34px; background:var(--s2); border:1px solid var(--br2); flex-shrink:0; display:flex; align-items:center; justify-content:center; }
 .li-b { flex:1; min-width:0; }
-.li-t { font-size:.68rem; font-weight:500; color:var(--tx); font-family:var(--fb); }
-.li-s { font-size:.5rem; color:var(--txd); margin-top:2px; font-family:var(--fb); }
+.li-t { font-size:.6875rem; font-weight:500; color:var(--tx); font-family:var(--fb); }
+.li-s { font-size:.5625rem; color:var(--txd); margin-top:2px; font-family:var(--fb); }
 .li-r { flex-shrink:0; }
 .arr { width:5px; height:5px; border-right:1.5px solid var(--txd); border-top:1.5px solid var(--txd); transform:rotate(45deg); }
 .li-logout { margin-top:20px; border-top:1px solid var(--br); }

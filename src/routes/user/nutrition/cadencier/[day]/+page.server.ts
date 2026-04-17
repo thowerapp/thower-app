@@ -44,6 +44,7 @@ type DayMealDTO = {
 	proteinG: number;
 	carbsG: number;
 	fatG: number;
+	fiberG: number;
 };
 
 function positionLabel(position: MealPosition): string {
@@ -95,6 +96,8 @@ function mealMacrosRounded(m: {
 	calcCarbsG: number | null;
 	manualFatG: number | null;
 	calcFatG: number | null;
+	manualFiberG: number | null;
+	calcFiberG: number | null;
 }) {
 	const manual = m.isManual === true;
 	return {
@@ -102,7 +105,8 @@ function mealMacrosRounded(m: {
 		proteinG:
 			Math.round((manual ? (m.manualProteinG ?? 0) : (m.calcProteinG ?? 0)) * 10) / 10,
 		carbsG: Math.round((manual ? (m.manualCarbsG ?? 0) : (m.calcCarbsG ?? 0)) * 10) / 10,
-		fatG: Math.round((manual ? (m.manualFatG ?? 0) : (m.calcFatG ?? 0)) * 10) / 10
+		fatG: Math.round((manual ? (m.manualFatG ?? 0) : (m.calcFatG ?? 0)) * 10) / 10,
+		fiberG: Math.round((manual ? (m.manualFiberG ?? 0) : (m.calcFiberG ?? 0)) * 10) / 10
 	};
 }
 
@@ -227,6 +231,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	let totP = 0;
 	let totCb = 0;
 	let totF = 0;
+	let totFib = 0;
 
 	const meals: DayMealDTO[] = sorted.map((m, slotIndex) => {
 		const macros = mealMacrosRounded(m);
@@ -234,6 +239,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		totP += macros.proteinG;
 		totCb += macros.carbsG;
 		totF += macros.fatG;
+		totFib += macros.fiberG;
 
 		const r = m.recipe;
 		const refYield = r?.referenceYieldG ?? null;
@@ -284,7 +290,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			calories: Math.round(totC),
 			proteinG: Math.round(totP * 10) / 10,
 			carbsG: Math.round(totCb * 10) / 10,
-			fatG: Math.round(totF * 10) / 10
+			fatG: Math.round(totF * 10) / 10,
+			fiberG: Math.round(totFib * 10) / 10
 		},
 		targetKcal,
 		mealBudgetKcal,

@@ -170,16 +170,14 @@ textarea::placeholder {
 
 /* Variant: Default (Primary) */
 [class*="btn-default"],
-[class*="btn"][variant="default"],
-button[type="submit"] {
+[class*="btn"][variant="default"] {
   background: var(--thower-gold) !important;
   color: var(--thower-black) !important;
   border: none !important;
   font-weight: 600 !important;
 }
 
-[class*="btn-default"]:hover,
-button[type="submit"]:hover {
+[class*="btn-default"]:hover {
   background: #d4b356 !important;
   transform: translateY(-1px);
 }

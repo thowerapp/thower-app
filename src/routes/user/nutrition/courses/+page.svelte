@@ -65,17 +65,19 @@
 	}
 </script>
 
-<div class="back-row">
-	<a href="/user/nutrition" class="home-btn">← Nutrition</a>
-	<div class="page-title">Courses</div>
+<div class="u-back-row">
+	<a href="/user/nutrition" class="u-back-lnk">
+		<svg width="12" height="12" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="var(--txd)" stroke-width="1.5" stroke-linecap="round"/></svg>
+		<span class="u-back-lbl">Nutrition</span>
+	</a>
+	<div class="u-back-head">Courses</div>
 </div>
 
-<div class="header-section">
-	<div class="title">Liste de courses</div>
+<div class="list-header">
 	{#if list}
-		<div class="sub">{getPeriodLabel()} · {checkedCount()}/{list.items.length} cochés</div>
+		<div class="list-sub">{getPeriodLabel()} · <span class="list-count">{checkedCount()}/{list.items.length}</span> cochés</div>
 	{:else}
-		<div class="sub">Aucune liste disponible</div>
+		<div class="list-sub">Aucune liste disponible</div>
 	{/if}
 </div>
 
@@ -84,7 +86,7 @@
 		<p>Votre liste de courses sera générée automatiquement après la validation de votre programme nutrition.</p>
 	</div>
 {:else}
-	<div class="sort-buttons">
+	<div class="sort-row">
 		<button class="sort-btn" class:active={sortOrder === 'category'} onclick={() => (sortOrder = 'category')}>
 			Par catégorie
 		</button>
@@ -96,12 +98,12 @@
 	{#if sortOrder === 'category'}
 		{#each getCategories() as cat (cat.name)}
 			{#if cat.items.length > 0}
-				<div class="category-header">
-					<div class="cat-title">{cat.name}</div>
-					<div class="cat-sub">{cat.items.length} article{cat.items.length > 1 ? 's' : ''}</div>
+				<div class="cat-head">
+					<div class="cat-name">{cat.name}</div>
+					<div class="cat-count">{cat.items.length}</div>
 				</div>
 				{#each cat.items as item (item.id)}
-					<div class="list-item">
+					<div class="list-item" class:done={checkedMap[item.id]}>
 						<form method="POST" action="?/toggleItem" use:enhance={() => {
 							checkedMap[item.id] = !checkedMap[item.id];
 							return async ({ update }) => update({ reset: false });
@@ -109,7 +111,7 @@
 							<input type="hidden" name="itemId" value={item.id} />
 							<input type="hidden" name="isChecked" value={String(!checkedMap[item.id])} />
 							<button type="submit" class="checkbox" class:checked={checkedMap[item.id]}>
-								{#if checkedMap[item.id]}✓{/if}
+								{#if checkedMap[item.id]}<span class="check-mark">✓</span>{/if}
 							</button>
 						</form>
 						<div class="item-body">
@@ -127,7 +129,7 @@
 		{/each}
 	{:else}
 		{#each getItems() as item (item.id)}
-			<div class="list-item">
+			<div class="list-item" class:done={checkedMap[item.id]}>
 				<form method="POST" action="?/toggleItem" use:enhance={() => {
 					checkedMap[item.id] = !checkedMap[item.id];
 					return async ({ update }) => update({ reset: false });
@@ -135,7 +137,7 @@
 					<input type="hidden" name="itemId" value={item.id} />
 					<input type="hidden" name="isChecked" value={String(!checkedMap[item.id])} />
 					<button type="submit" class="checkbox" class:checked={checkedMap[item.id]}>
-						{#if checkedMap[item.id]}✓{/if}
+						{#if checkedMap[item.id]}<span class="check-mark">✓</span>{/if}
 					</button>
 				</form>
 				<div class="item-body">
@@ -153,180 +155,156 @@
 {/if}
 
 <style>
-.back-row {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 12px 16px;
-	background: #111;
-	flex-shrink: 0;
-	gap: 12px;
+.list-header {
+	padding: 10px 18px;
+	border-bottom: 1px solid var(--br);
 }
-
-.home-btn {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	text-decoration: none;
-	color: #fff;
-	font-size: 0.7rem;
-	font-weight: 500;
-	padding: 6px 10px;
-	border-radius: 3px;
-	background: rgba(255, 255, 255, 0.1);
-	transition: all 0.15s;
+.list-sub {
+	font-size: .5625rem;
+	color: var(--txd);
+	font-family: var(--fb);
 }
-
-.home-btn:active {
-	background: rgba(255, 255, 255, 0.2);
-}
-
-.page-title {
-	font-size: 0.72rem;
-	font-weight: 600;
-	color: #fff;
-	margin-left: auto;
-}
-
-.header-section {
-	padding: 14px 16px;
-	background: #f5f5f5;
-	border-bottom: 1px solid #eee;
-}
-
-.title {
-	font-size: 0.68rem;
-	font-weight: 600;
-	color: #111;
-}
-
-.sub {
-	font-size: 0.54rem;
-	color: #888;
-	margin-top: 2px;
+.list-count {
+	color: var(--cy);
+	font-weight: 700;
 }
 
 .empty-state {
-	padding: 32px 16px;
+	padding: 32px 18px;
 	text-align: center;
-	color: #888;
-	font-size: 0.62rem;
+	color: var(--txd);
+	font-size: .6875rem;
 	line-height: 1.6;
+	font-family: var(--fb);
 }
 
-.sort-buttons {
+.sort-row {
 	display: flex;
 	gap: 8px;
-	padding: 10px 12px;
+	padding: 10px 18px;
+	border-bottom: 1px solid var(--br);
 }
-
 .sort-btn {
 	flex: 1;
-	padding: 6px 8px;
-	font-size: 0.55rem;
-	font-weight: 500;
-	border: 1px solid #ddd;
-	background: #fff;
+	padding: 7px 8px;
+	font-size: .5625rem;
+	font-weight: 600;
+	border: 1px solid var(--br2);
+	background: transparent;
 	border-radius: 2px;
 	cursor: pointer;
-	color: #666;
-	transition: all 0.15s;
+	color: var(--txd);
+	transition: border-color .15s, color .15s;
 	font-family: inherit;
+	text-transform: uppercase;
+	letter-spacing: .04em;
 }
-
 .sort-btn.active {
-	background: #111;
-	color: #fff;
-	border-color: #111;
+	border-color: var(--cy);
+	color: var(--cy);
 }
 
-.category-header {
-	padding: 12px 16px 8px;
-	background: #f9f9f9;
-	border-bottom: 1px solid #f0f0f0;
+.cat-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 18px 7px;
+	border-bottom: 1px solid var(--br);
+	background: var(--s2);
 }
-
-.cat-title {
-	font-size: 0.66rem;
-	font-weight: 600;
-	color: #111;
+.cat-name {
+	font-size: .5625rem;
+	font-weight: 700;
+	color: var(--g);
+	text-transform: uppercase;
+	letter-spacing: .08em;
+	font-family: var(--fb);
 }
-
-.cat-sub {
-	font-size: 0.52rem;
-	color: #999;
-	margin-top: 1px;
+.cat-count {
+	font-size: .5rem;
+	color: var(--txd);
+	font-family: var(--fb);
+	background: var(--br2);
+	padding: 1px 6px;
+	border-radius: 2px;
 }
 
 .list-item {
 	display: flex;
 	align-items: center;
-	gap: 12px;
-	padding: 12px 16px;
-	border-bottom: 1px solid #f5f5f5;
+	gap: 14px;
+	padding: 13px 18px;
+	border-bottom: 1px solid var(--br);
+	transition: background .1s;
 }
-
+.list-item.done {
+	opacity: .5;
+}
 .list-item form {
 	display: contents;
 }
 
 .checkbox {
-	width: 20px;
-	height: 20px;
-	border: 1.5px solid #ccc;
-	background: #fff;
-	border-radius: 2px;
-	cursor: pointer;
+	width: 22px;
+	height: 22px;
+	border: 1.5px solid var(--br2);
+	background: transparent;
 	flex-shrink: 0;
-	font-size: 0.7rem;
-	color: #fff;
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	cursor: pointer;
 	font-family: inherit;
 	padding: 0;
+	transition: border-color .15s, background .15s;
 }
-
 .checkbox.checked {
-	background: #111;
-	border-color: #111;
-	color: #fff;
+	background: var(--cy);
+	border-color: var(--cy);
+	box-shadow: 0 0 8px rgba(0,229,255,.3);
+}
+.check-mark {
+	font-size: .625rem;
+	color: var(--s1);
+	font-weight: 700;
 }
 
 .item-body {
 	flex: 1;
 }
-
 .item-name {
-	font-size: 0.64rem;
+	font-size: .75rem;
 	font-weight: 500;
-	color: #222;
+	color: var(--tx);
+	font-family: var(--fb);
+	transition: color .15s;
 }
-
 .item-name.done {
 	text-decoration: line-through;
-	color: #bbb;
+	color: var(--txd);
 }
-
 .item-qty {
-	font-size: 0.52rem;
-	color: #999;
+	font-size: .5625rem;
+	color: var(--txd);
 	margin-top: 2px;
+	font-family: var(--fb);
 }
-
 .item-qty.done {
 	text-decoration: line-through;
-	color: #ddd;
 }
 
 .reported-badge {
-	font-size: 0.46rem;
-	background: #f0e68c;
-	color: #7a6a00;
+	font-size: .5rem;
+	background: transparent;
+	color: var(--g);
+	border: 1px solid rgba(201,168,78,.4);
 	border-radius: 2px;
-	padding: 0 3px;
-	margin-left: 4px;
+	padding: 0 4px;
+	margin-left: 5px;
 	vertical-align: middle;
+	font-family: var(--fb);
+	text-transform: uppercase;
+	letter-spacing: .04em;
 }
 </style>
 

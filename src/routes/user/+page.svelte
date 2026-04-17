@@ -12,27 +12,29 @@ const pending = $derived(($page.data as { pending?: LayoutData['pending'] })?.pe
 function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement); }
 </script>
 
-<!-- Hero -->
-<div class="u-hero">
-  <div class="u-hero-top">
-    <div>
-      <div class="u-hero-title">Thower</div>
-      <div class="u-hero-sub">Semaine 4 · Jour {data?.currentDayIndex ?? 21}</div>
-    </div>
-    <div class="hero-right">
-      <svg class="u-logo-svg" viewBox="0 0 44 38" fill="none">
-        <polygon points="22,2 42,36 2,36" fill="#2A1E0C"/>
-        <polygon points="22,2 42,36 22,24" fill="#3A2810"/>
-      </svg>
-      <a href="/user/parametres" class="pbtn" onclick={fire}>
+<!-- Hero immersif -->
+<div class="home-hero">
+  <EmberCanvas active={pending.journee || pending.seance} />
+  <!-- Fond de profondeur : triangles flous -->
+  <div class="hh-depth" aria-hidden="true">
+    <svg class="hh-tri1" viewBox="0 0 44 38" fill="none"><polygon points="22,2 42,36 2,36" fill="rgba(201,168,78,0.07)"/></svg>
+    <svg class="hh-tri2" viewBox="0 0 44 38" fill="none"><polygon points="22,2 42,36 22,24" fill="rgba(201,168,78,0.04)"/></svg>
+  </div>
+  <div class="hh-inner">
+    <div class="hh-top">
+      <div>
+        <div class="hh-eyebrow">Jour {data?.currentDayIndex ?? 21} / 91</div>
+        <div class="hh-title">Thower</div>
+        <div class="hh-sub">Semaine 4 · Programme Méthode</div>
+      </div>
+      <a href="/user/parametres/profil" class="pbtn">
         <div class="pbtn-sq"></div>
         <div class="npip"></div>
       </a>
     </div>
-  </div>
-  <div class="hero-pills">
-    <a href="/user/journee" class="u-hpill" class:pending={pending.journee} onclick={fire}>Aujourd'hui</a>
-    <a href="/user/parametres" class="u-hpill" onclick={fire}>Profil</a>
+    <div class="hh-pills">
+      <a href="/user/journee" class="u-hpill" class:pending={pending.journee}>Aujourd'hui</a>
+    </div>
   </div>
 </div>
 
@@ -48,7 +50,7 @@ function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement); }
   <div class="u-ncta">Commencer →</div>
 </a>
 {:else}
-<a href="/user/sport" class="u-notif-banner" onclick={fire}>
+<a href="/user/sport" class="u-notif-banner">
   <div class="u-ndot" style="background:var(--g);animation:none;opacity:.4"></div>
   <div class="u-nb">
     <div class="u-nb-t">Séance du jour validée ✓</div>
@@ -74,7 +76,7 @@ function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement); }
 </div>
 
 <div class="u-sh"><div class="u-sh-t">À la une</div></div>
-<a href="/user/decouverte" class="u-li" onclick={fire}>
+<a href="/user/decouverte" class="u-li">
   <div class="u-li-th"><div style="width:11px;height:11px;border-radius:50%;background:var(--gd)"></div></div>
   <div class="u-li-b"><div class="u-li-t">La méthode Thower</div><div class="u-li-s">Vidéo principale</div></div>
   <div class="u-li-r"><div class="u-arr"></div></div>
@@ -86,11 +88,47 @@ function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement); }
 </div>
 
 <style>
-.hero-right { display:flex; align-items:flex-start; gap:8px; }
-.pbtn { width:32px; height:32px; background:var(--s2); border:1px solid var(--br2); display:flex; align-items:center; justify-content:center; position:relative; -webkit-tap-highlight-color:transparent; }
+/* ── Home Hero ── */
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--s1);
+  padding: 20px 18px 22px;
+  border-bottom: 1px solid var(--br);
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.home-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,229,255,.15), transparent);
+}
+.hh-depth { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.hh-tri1 { position: absolute; right: -20px; top: -10px; width: 160px; height: 140px; filter: blur(2px); }
+.hh-tri2 { position: absolute; right: 20px; bottom: 30px; width: 90px; height: 78px; filter: blur(1px); opacity: .6; }
+.hh-inner { position: relative; z-index: 4; }
+.hh-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.hh-eyebrow { font-size: .4375rem; color: var(--txd); letter-spacing: .14em; text-transform: uppercase; font-family: var(--fb); margin-bottom: 4px; }
+.hh-title {
+  font-family: var(--fh2);
+  font-size: 3.25rem;
+  color: var(--gb);
+  letter-spacing: -.02em;
+  line-height: .88;
+  text-shadow: 0 0 28px rgba(201,168,78,.3), 0 0 60px rgba(201,168,78,.1);
+}
+.hh-sub { font-size: .5rem; color: var(--txd); letter-spacing: .08em; text-transform: uppercase; margin-top: 5px; font-family: var(--fb); }
+.hh-pills { display: flex; gap: 5px; flex-wrap: wrap; }
+
+/* Bouton paramètres */
+.pbtn { width:32px; height:32px; background:transparent; border:1px solid var(--br2); display:flex; align-items:center; justify-content:center; position:relative; -webkit-tap-highlight-color:transparent; transition: border-color .2s; }
 .pbtn:active { border-color:var(--g); }
 .pbtn-sq { width:11px; height:11px; background:var(--txd); }
-.npip { position:absolute; top:-3px; right:-3px; width:7px; height:7px; border-radius:50%; background:var(--cy); border:1.5px solid var(--s1); animation:npip 2s ease-in-out infinite; }
-.hero-pills { display:flex; gap:5px; flex-wrap:wrap; }
+.npip { position:absolute; top:-3px; right:-3px; width:7px; height:7px; border-radius:50%; background:var(--cy); border:1.5px solid var(--s1); animation:cyPulse 2s ease-in-out infinite; }
 </style>
 

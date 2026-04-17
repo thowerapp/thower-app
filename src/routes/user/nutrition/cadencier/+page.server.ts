@@ -1,5 +1,5 @@
-import { error, redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import { error, fail, redirect } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import type { MealPosition, Prisma } from '@prisma/client';
 
@@ -72,6 +72,7 @@ type CadencierMealDTO = {
 	proteinG: number;
 	carbsG: number;
 	fatG: number;
+	fiberG: number;
 };
 
 type CadencierDayDTO = {
@@ -87,12 +88,14 @@ type CadencierDayDTO = {
 type CadencierUserRow = {
 	programStartDate: Date | null;
 	nutritionDaysAllocated: number;
+	profile: { intermittentFastingMorning: boolean | null } | null;
 };
 
 /** Même motif que generateProgramForUser : UserSelect parfois désynchronisé côté types. */
 const cadencierUserSelect = {
 	programStartDate: true,
-	nutritionDaysAllocated: true
+	nutritionDaysAllocated: true,
+	profile: { select: { intermittentFastingMorning: true } }
 } as unknown as Prisma.UserSelect;
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -161,6 +164,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			const fatG = Math.round(
 				(manual ? (m.manualFatG ?? 0) : (m.calcFatG ?? 0)) * 10
 			) / 10;
+			const fiberG = Math.round(
+				(manual ? (m.manualFiberG ?? 0) : (m.calcFiberG ?? 0)) * 10
+			) / 10;
 			return {
 				id: m.id,
 				position: m.position,
@@ -171,7 +177,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				calories,
 				proteinG,
 				carbsG,
-				fatG
+				fatG,
+				fiberG
 			};
 		});
 
@@ -199,6 +206,27 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		weekDays,
 		defaultSelectedDay,
 		nutritionDaysAllocated: user?.nutritionDaysAllocated ?? 0,
-		hasProgramStart: user?.programStartDate != null
+		hasProgramStart: user?.programStartDate != null,
+		intermittentFasting: user?.profile?.intermittentFastingMorning ?? false,
 	};
+};
+
+export const actions: Actions = {
+	toggleJeune: async ({ locals, request }) => {
+		if (!locals.user) return fail(401, { error: 'Non authentifié' });
+		const userId = locals.user.id;
+		const data = await request.formData();
+		const active = data.get('active') === 'true';
+		try {
+			await prisma.userProfile.upsert({
+				where: { userId },
+				create: { userId, intermittentFastingMorning: active },
+				update: { intermittentFastingMorning: active },
+			});
+			return { success: true };
+		} catch (e) {
+			console.error('[cadencier toggleJeune]', e);
+			return fail(500, { error: 'Erreur serveur' });
+		}
+	}
 };

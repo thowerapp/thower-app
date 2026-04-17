@@ -133,8 +133,8 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 12px 16px;
-		background: #0a0a0a;
-		border-bottom: 1px solid rgba(201, 168, 76, 0.15);
+		background: transparent;
+		border-bottom: 1px solid var(--br);
 		flex-shrink: 0;
 	}
 
@@ -142,26 +142,26 @@
 		display: flex;
 		align-items: center;
 		gap: 6px;
-		background: rgba(201, 168, 76, 0.1);
-		border: 1px solid rgba(201, 168, 76, 0.2);
-		color: #c9a84c;
+		background: transparent;
+		border: 1px solid var(--br2);
+		color: var(--txd);
 		font-size: 0.65rem;
 		font-weight: 500;
 		padding: 6px 10px;
 		border-radius: 3px;
 		cursor: pointer;
-		transition: all 0.15s;
+		transition: color 0.15s;
 	}
 
 	.back-btn:active {
-		background: rgba(201, 168, 76, 0.2);
+		color: var(--tx);
 	}
 
 	.header-title {
 		font-size: 0.7rem;
 		font-weight: 700;
-		color: #f0ede8;
-		font-family: 'Bebas Neue', sans-serif;
+		color: var(--tx);
+		font-family: var(--fh2), sans-serif;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
 	}
@@ -171,36 +171,36 @@
 		align-items: center;
 		gap: 8px;
 		padding: 12px 16px;
-		background: rgba(58, 184, 184, 0.08);
-		border-bottom: 1px solid rgba(58, 184, 184, 0.15);
+		background: transparent;
+		border-bottom: 1px solid var(--br);
 	}
 
 	.info-day {
 		font-size: 0.65rem;
 		font-weight: 600;
-		color: #f0ede8;
-		font-family: 'DM Sans', sans-serif;
+		color: var(--tx);
+		font-family: var(--fh), sans-serif;
 	}
 
 	.info-time {
 		font-size: 0.56rem;
-		color: #3ab8b8;
-		font-family: 'DM Sans', sans-serif;
+		color: var(--cy);
+		font-family: var(--fh), sans-serif;
 	}
 
 	.section-block {
 		padding: 14px 16px;
-		border-bottom: 1px solid rgba(240, 237, 232, 0.08);
+		border-bottom: 1px solid var(--br);
 	}
 
 	.section-title {
 		font-size: 0.62rem;
 		font-weight: 700;
-		color: #c9a84c;
+		color: var(--g);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		margin-bottom: 10px;
-		font-family: 'DM Sans', sans-serif;
+		font-family: var(--fh), sans-serif;
 	}
 
 	.recipe-buttons {
@@ -214,32 +214,32 @@
 		justify-content: space-between;
 		align-items: center;
 		padding: 10px 12px;
-		background: rgba(240, 237, 232, 0.05);
-		border: 1px solid rgba(240, 237, 232, 0.1);
+		background: transparent;
+		border: 1px solid var(--br2);
 		border-radius: 4px;
 		cursor: pointer;
-		transition: all 0.15s;
+		transition: border-color 0.15s;
 	}
 
 	.recipe-btn:active {
-		background: rgba(240, 237, 232, 0.08);
+		border-color: var(--cy);
 	}
 
 	.recipe-btn.active {
-		background: rgba(201, 168, 76, 0.15);
-		border-color: #c9a84c;
+		background: transparent;
+		border-color: var(--g);
 	}
 
 	.recipe-btn-name {
 		font-size: 0.64rem;
 		font-weight: 500;
-		color: #f0ede8;
+		color: var(--tx);
 		text-align: left;
 	}
 
 	.recipe-btn-macros {
 		font-size: 0.56rem;
-		color: #3ab8b8;
+		color: var(--cy);
 		font-weight: 600;
 	}
 
@@ -254,14 +254,14 @@
 		align-items: center;
 		gap: 8px;
 		font-size: 0.64rem;
-		color: #f0ede8;
+		color: var(--tx);
 	}
 
 	.ingredient-dot {
 		width: 4px;
 		height: 4px;
 		border-radius: 50%;
-		background: #c9a84c;
+		background: var(--g);
 		flex-shrink: 0;
 	}
 
@@ -278,18 +278,19 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: rgba(201, 168, 76, 0.15);
-		border: 1px solid rgba(201, 168, 76, 0.3);
-		color: #c9a84c;
+		background: transparent;
+		border: 1px solid var(--br2);
+		color: var(--tx);
 		font-size: 1.2rem;
 		font-weight: 700;
 		border-radius: 4px;
 		cursor: pointer;
-		transition: all 0.15s;
+		transition: border-color 0.15s, color 0.15s;
 	}
 
 	.qty-btn:active {
-		background: rgba(201, 168, 76, 0.25);
+		border-color: var(--cy);
+		color: var(--cy);
 	}
 
 	.qty-display {
@@ -303,20 +304,20 @@
 	.qty-value {
 		font-size: 1.5rem;
 		font-weight: 700;
-		color: #f0ede8;
+		color: var(--tx);
 	}
 
 	.qty-label {
 		font-size: 0.52rem;
-		color: rgba(240, 237, 232, 0.6);
+		color: var(--txd);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-		font-family: 'DM Sans', sans-serif;
+		font-family: var(--fh), sans-serif;
 	}
 
 	.macros-section {
 		padding: 14px 16px;
-		border-bottom: 1px solid rgba(240, 237, 232, 0.08);
+		border-bottom: 1px solid var(--br);
 	}
 
 	.macros-grid {
@@ -331,8 +332,8 @@
 		align-items: center;
 		gap: 6px;
 		padding: 12px 8px;
-		background: rgba(58, 184, 184, 0.1);
-		border: 1px solid rgba(58, 184, 184, 0.2);
+		background: transparent;
+		border: 1px solid var(--br2);
 		border-radius: 4px;
 	}
 
@@ -343,63 +344,63 @@
 	.macro-value {
 		font-size: 1rem;
 		font-weight: 700;
-		color: #3ab8b8;
+		color: var(--cy);
 	}
 
 	.macro-label {
 		font-size: 0.5rem;
-		color: rgba(240, 237, 232, 0.6);
+		color: var(--txd);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		text-align: center;
-		font-family: 'DM Sans', sans-serif;
+		font-family: var(--fh), sans-serif;
 	}
 
 	.action-bar {
 		display: flex;
 		gap: 8px;
 		padding: 12px 16px;
-		background: rgba(240, 237, 232, 0.03);
-		border-top: 1px solid rgba(240, 237, 232, 0.08);
+		background: transparent;
+		border-top: 1px solid var(--br);
 	}
 
 	.btn-secondary {
 		flex: 1;
 		padding: 10px 12px;
-		background: rgba(240, 237, 232, 0.08);
-		border: 1px solid rgba(240, 237, 232, 0.15);
-		color: #f0ede8;
+		background: transparent;
+		border: 1px solid var(--br2);
+		color: var(--tx);
 		font-size: 0.62rem;
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		border-radius: 4px;
 		cursor: pointer;
-		transition: all 0.15s;
-		font-family: 'DM Sans', sans-serif;
+		transition: border-color 0.15s;
+		font-family: var(--fh), sans-serif;
 	}
 
 	.btn-secondary:active {
-		background: rgba(240, 237, 232, 0.12);
+		border-color: var(--tx);
 	}
 
 	.btn-primary {
 		flex: 1;
 		padding: 10px 12px;
-		background: #c9a84c;
+		background: var(--g);
 		border: none;
-		color: #0a0a0a;
+		color: var(--s1);
 		font-size: 0.62rem;
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		border-radius: 4px;
 		cursor: pointer;
-		transition: all 0.15s;
-		font-family: 'DM Sans', sans-serif;
+		transition: opacity 0.15s;
+		font-family: var(--fh), sans-serif;
 	}
 
 	.btn-primary:active {
-		background: #b8933f;
+		opacity: 0.85;
 	}
 </style>

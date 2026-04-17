@@ -1,164 +1,49 @@
 <script lang="ts">
+import { fireElement } from '$lib/utils/particles';
+function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement); }
 </script>
 
-<div class="back-row">
-	<a href="/user" class="back-link">
-		<div class="back-arrow">←</div>
-		<span class="back-txt">Accueil</span>
+<div class="u-back-row">
+	<a href="/user" class="u-back-lnk" onclick={fire}>
+		<svg width="12" height="12" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="var(--txd)" stroke-width="1.5" stroke-linecap="round"/></svg>
+		<span class="u-back-lbl">Accueil</span>
 	</a>
-	<div class="page-title">Nutrition</div>
+	<div class="u-back-head">Nutrition</div>
 </div>
 
-<div class="menu-list">
-	<a href="/user/nutrition/cadencier" class="menu-item">
-		<div class="item-icon">■</div>
-		<div class="item-body">
-			<div class="item-title">Cadencier libre</div>
-			<div class="item-sub">91 jours · 2 repas/jour · Génération automatique</div>
+<div class="u-hero">
+	<div class="u-hero-top">
+		<div>
+			<div class="u-hero-title">Nutrition</div>
+			<div class="u-hero-sub">Cadencier · Recettes · Courses</div>
 		</div>
-		<div class="item-arrow">›</div>
-	</a>
-
-	<a href="/user/nutrition/courses" class="menu-item">
-		<div class="item-icon">●</div>
-		<div class="item-body">
-			<div class="item-title">Liste de courses</div>
-			<div class="item-sub">Générée depuis ton planning repas</div>
-		</div>
-		<div class="item-arrow">›</div>
-	</a>
-
-	<a href="/user/nutrition/recettes" class="menu-item">
-		<div class="item-icon">●</div>
-		<div class="item-body">
-			<div class="item-title">Bibliothèque recettes</div>
-			<div class="item-sub">Recettes Thower + Mes recettes</div>
-		</div>
-		<div class="item-arrow">›</div>
-	</a>
-
-	<a href="/user/nutrition/recettes" class="menu-item">
-		<div class="item-icon">■</div>
-		<div class="item-body">
-			<div class="item-title">Créer une recette</div>
-			<div class="item-sub">Recettes personnalisées</div>
-		</div>
-		<div class="item-arrow">›</div>
-	</a>
-
-	<a href="/user/nutrition/jeune" class="menu-item">
-		<div class="item-icon">●</div>
-		<div class="item-body">
-			<div class="item-title">Jeûne intermittent</div>
-			<div class="item-sub">Sans JIM : déj./dîner 50/50 · Avec JIM : PD + déj./dîner 30/35/35</div>
-		</div>
-		<div class="item-arrow">›</div>
-	</a>
+		<svg class="u-logo-svg" viewBox="0 0 44 38" fill="none">
+			<polygon points="22,2 42,36 2,36" fill="#2A1E0C"/>
+			<polygon points="22,2 42,36 22,24" fill="#3A2810"/>
+		</svg>
+	</div>
 </div>
 
-<style>
-	.back-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 12px 16px;
-		background: #0a0a0a;
-		flex-shrink: 0;
-		gap: 12px;
-		border-bottom: 1px solid rgba(201, 168, 76, 0.15);
-	}
+<a href="/user/nutrition/cadencier" class="u-li" onclick={fire}>
+	<div class="u-li-th"><div style="width:10px;height:10px;background:var(--g)"></div></div>
+	<div class="u-li-b"><div class="u-li-t">Cadencier libre</div><div class="u-li-s">91 jours · 2 repas/jour · Génération automatique</div></div>
+	<div class="u-li-r"><div class="u-arr"></div></div>
+</a>
 
-	.back-link {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		text-decoration: none;
-		color: #c9a84c;
-		font-size: 0.62rem;
-		font-weight: 400;
-	}
+<a href="/user/nutrition/courses" class="u-li" onclick={fire}>
+	<div class="u-li-th"><div style="width:10px;height:10px;border-radius:50%;background:var(--cy)"></div></div>
+	<div class="u-li-b"><div class="u-li-t">Liste de courses</div><div class="u-li-s">Générée depuis ton planning repas</div></div>
+	<div class="u-li-r"><div class="u-arr"></div></div>
+</a>
 
-	.back-arrow {
-		font-size: 0.75rem;
-		color: #c9a84c;
-	}
+<a href="/user/nutrition/recettes" class="u-li" onclick={fire}>
+	<div class="u-li-th"><div style="width:10px;height:10px;border-radius:50%;background:var(--cy)"></div></div>
+	<div class="u-li-b"><div class="u-li-t">Bibliothèque recettes</div><div class="u-li-s">Recettes Thower + Mes recettes</div></div>
+	<div class="u-li-r"><div class="u-arr"></div></div>
+</a>
 
-	.back-txt {
-		font-weight: 400;
-	}
-
-	.page-title {
-		font-size: 0.72rem;
-		font-weight: 600;
-		color: #f0ede8;
-		margin-left: auto;
-		font-family: 'Bebas Neue', sans-serif;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-	}
-
-	.menu-list {
-		display: flex;
-		flex-direction: column;
-		background: #0a0a0a;
-	}
-
-	.menu-item {
-		display: flex;
-		align-items: center;
-		gap: 14px;
-		padding: 16px 16px;
-		border-bottom: 1px solid rgba(240, 237, 232, 0.08);
-		text-decoration: none;
-		color: inherit;
-		cursor: pointer;
-		transition: all 0.1s;
-	}
-
-	.menu-item:last-child {
-		border-bottom: none;
-	}
-
-	.menu-item:active {
-		background: rgba(201, 168, 76, 0.08);
-	}
-
-	.item-icon {
-		width: 36px;
-		height: 36px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: #c9a84c;
-		font-size: 1rem;
-		flex-shrink: 0;
-		border-radius: 3px;
-		color: #0a0a0a;
-	}
-
-	.item-body {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.item-title {
-		font-size: 0.68rem;
-		font-weight: 600;
-		color: #f0ede8;
-		letter-spacing: -0.01em;
-	}
-
-	.item-sub {
-		font-size: 0.54rem;
-		color: rgba(240, 237, 232, 0.5);
-		margin-top: 3px;
-		line-height: 1.3;
-	}
-
-	.item-arrow {
-		font-size: 0.9rem;
-		color: #c9a84c;
-		flex-shrink: 0;
-		font-weight: 300;
-	}
-</style>
+<a href="/user/nutrition/recettes" class="u-li" onclick={fire}>
+	<div class="u-li-th"><div style="width:10px;height:10px;background:var(--g)"></div></div>
+	<div class="u-li-b"><div class="u-li-t">Créer une recette</div><div class="u-li-s">Recettes personnalisées</div></div>
+	<div class="u-li-r"><div class="u-arr"></div></div>
+</a>

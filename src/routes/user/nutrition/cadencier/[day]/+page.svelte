@@ -26,12 +26,13 @@
 	function macrosScaled(
 		m: DayMealRow,
 		mult: number
-	): { kcal: number; p: number; c: number; f: number } {
+	): { kcal: number; p: number; c: number; f: number; fib: number } {
 		return {
 			kcal: Math.round(m.calories * mult),
 			p: Math.round(m.proteinG * mult * 10) / 10,
 			c: Math.round(m.carbsG * mult * 10) / 10,
-			f: Math.round(m.fatG * mult * 10) / 10
+			f: Math.round(m.fatG * mult * 10) / 10,
+			fib: Math.round(m.fiberG * mult * 10) / 10
 		};
 	}
 
@@ -40,18 +41,21 @@
 		let p = 0;
 		let c = 0;
 		let f = 0;
+		let fib = 0;
 		for (const m of data.meals) {
 			const u = multOf(m.id);
 			kcal += m.calories * u;
 			p += m.proteinG * u;
 			c += m.carbsG * u;
 			f += m.fatG * u;
+			fib += m.fiberG * u;
 		}
 		return {
 			kcal: Math.round(kcal),
 			p: Math.round(p * 10) / 10,
 			c: Math.round(c * 10) / 10,
-			f: Math.round(f * 10) / 10
+			f: Math.round(f * 10) / 10,
+			fib: Math.round(fib * 10) / 10
 		};
 	});
 
@@ -195,6 +199,10 @@
 					<div class="value">{ms.f}g</div>
 					<div class="lbl">Lip.</div>
 				</div>
+				<div class="macro">
+					<div class="value">{ms.fib}g</div>
+					<div class="lbl">Fib.</div>
+				</div>
 			</div>
 
 			<div class="portions">
@@ -260,11 +268,15 @@
 				<div class="value">{dayTotalsLive.f}g</div>
 				<div class="lbl">Lip.</div>
 			</div>
+			<div class="macro">
+				<div class="value">{dayTotalsLive.fib}g</div>
+				<div class="lbl">Fib.</div>
+			</div>
 		</div>
 		{#if data.dayTotals.calories !== dayTotalsLive.kcal}
 			<p class="muted small">
 				Sans multiplicateur : {data.dayTotals.calories} kcal · P {data.dayTotals.proteinG} g · C
-				{data.dayTotals.carbsG} g · L {data.dayTotals.fatG} g
+				{data.dayTotals.carbsG} g · L {data.dayTotals.fatG} g · F {data.dayTotals.fiberG} g
 			</p>
 		{/if}
 	</div>
@@ -276,10 +288,10 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 14px 18px;
-		background: #0a0a0a;
+		background: transparent;
 		flex-shrink: 0;
 		gap: 12px;
-		border-bottom: 1px solid rgba(201, 168, 76, 0.15);
+		border-bottom: 1px solid var(--br);
 	}
 
 	.home-btn {
@@ -287,25 +299,25 @@
 		align-items: center;
 		gap: 6px;
 		text-decoration: none;
-		color: #c9a84c;
+		color: var(--txd);
 		font-size: 0.7rem;
 		font-weight: 500;
 		padding: 6px 10px;
 		border-radius: 3px;
-		background: rgba(201, 168, 76, 0.1);
-		transition: all 0.15s;
+		background: transparent;
+		transition: color 0.15s;
 	}
 
 	.home-btn:active {
-		background: rgba(201, 168, 76, 0.2);
+		color: var(--tx);
 	}
 
 	.page-title {
 		font-size: 0.72rem;
 		font-weight: 600;
-		color: #f0ede8;
+		color: var(--tx);
 		margin-left: auto;
-		font-family: 'Bebas Neue', sans-serif;
+		font-family: var(--fh2), sans-serif;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		text-align: right;
@@ -315,19 +327,22 @@
 
 	.section-head {
 		padding: 14px 18px;
-		background: rgba(201, 168, 76, 0.08);
-		border-bottom: 1px solid rgba(201, 168, 76, 0.15);
+		background: transparent;
+		border-bottom: 1px solid var(--br);
 	}
 
 	.title {
 		font-size: 0.7rem;
 		font-weight: 600;
-		color: #f0ede8;
+		color: var(--tx);
+		font-family: var(--fh2), sans-serif;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
 	}
 
 	.sub {
 		font-size: 0.55rem;
-		color: rgba(240, 237, 232, 0.55);
+		color: var(--txd);
 		margin-top: 6px;
 		line-height: 1.45;
 	}
@@ -335,15 +350,16 @@
 	.targets-card {
 		margin: 12px 18px;
 		padding: 12px 14px;
-		background: rgba(58, 184, 184, 0.1);
-		border: 1px solid rgba(58, 184, 184, 0.25);
+		background: transparent;
+		border: 1px solid var(--br2);
+		border-left: 2px solid var(--cy);
 		border-radius: 6px;
 	}
 
 	.targets-title {
 		font-size: 0.62rem;
 		font-weight: 600;
-		color: #3ab8b8;
+		color: var(--cy);
 		margin-bottom: 8px;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
@@ -353,7 +369,7 @@
 		margin: 0;
 		padding-left: 1.1rem;
 		font-size: 0.58rem;
-		color: #f0ede8;
+		color: var(--tx);
 		line-height: 1.55;
 	}
 
@@ -362,7 +378,7 @@
 	}
 
 	.muted {
-		color: rgba(240, 237, 232, 0.45);
+		color: var(--txd);
 		font-weight: 400;
 	}
 
@@ -370,9 +386,10 @@
 		margin: 12px 18px;
 		padding: 12px 14px;
 		font-size: 0.58rem;
-		color: #f0ede8;
-		background: rgba(201, 100, 76, 0.12);
-		border: 1px solid rgba(201, 100, 76, 0.3);
+		color: var(--tx);
+		background: transparent;
+		border: 1px solid var(--br2);
+		border-left: 2px solid rgba(255, 140, 100, 0.7);
 		border-radius: 6px;
 		line-height: 1.45;
 	}
@@ -381,7 +398,7 @@
 		padding: 28px 18px;
 		text-align: center;
 		font-size: 0.65rem;
-		color: #f0ede8;
+		color: var(--tx);
 	}
 
 	.empty-state .muted {
@@ -391,8 +408,8 @@
 
 	.meal-section {
 		padding: 16px 18px;
-		border-bottom: 1px solid rgba(240, 237, 232, 0.08);
-		background: #0a0a0a;
+		border-bottom: 1px solid var(--br);
+		background: transparent;
 	}
 
 	.meal-header {
@@ -405,14 +422,14 @@
 	.meal-label {
 		font-size: 0.6rem;
 		font-weight: 600;
-		color: #f0ede8;
+		color: var(--tx);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 	}
 
 	.meal-time {
 		font-size: 0.55rem;
-		color: rgba(240, 237, 232, 0.5);
+		color: var(--txd);
 	}
 
 	.recipe-title-row {
@@ -427,7 +444,7 @@
 		margin: 0;
 		font-size: 0.72rem;
 		font-weight: 600;
-		color: #c9a84c;
+		color: var(--g);
 		line-height: 1.25;
 	}
 
@@ -435,7 +452,7 @@
 		flex-shrink: 0;
 		font-size: 0.55rem;
 		font-weight: 600;
-		color: #3ab8b8;
+		color: var(--cy);
 		text-decoration: none;
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
@@ -443,13 +460,13 @@
 
 	.badge-manual {
 		font-size: 0.52rem;
-		color: rgba(240, 237, 232, 0.55);
+		color: var(--txd);
 		margin: 0 0 8px;
 	}
 
 	.desc {
 		font-size: 0.58rem;
-		color: rgba(240, 237, 232, 0.65);
+		color: var(--txd);
 		line-height: 1.45;
 		margin: 0 0 8px;
 	}
@@ -459,13 +476,13 @@
 		flex-wrap: wrap;
 		gap: 10px 14px;
 		font-size: 0.54rem;
-		color: rgba(240, 237, 232, 0.5);
+		color: var(--txd);
 		margin-bottom: 10px;
 	}
 
 	.allergens {
 		font-size: 0.52rem;
-		color: rgba(201, 168, 76, 0.85);
+		color: var(--g);
 		margin: 0 0 10px;
 		line-height: 1.4;
 	}
@@ -483,19 +500,20 @@
 		align-items: center;
 		gap: 2px;
 		padding: 8px 4px;
-		background: rgba(58, 184, 184, 0.12);
+		background: transparent;
+		border: 1px solid var(--br2);
 		border-radius: 4px;
 	}
 
 	.value {
 		font-size: 0.72rem;
 		font-weight: 700;
-		color: #3ab8b8;
+		color: var(--cy);
 	}
 
 	.lbl {
 		font-size: 0.46rem;
-		color: rgba(240, 237, 232, 0.45);
+		color: var(--txd);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 	}
@@ -505,7 +523,7 @@
 		align-items: center;
 		justify-content: space-between;
 		font-size: 0.58rem;
-		color: rgba(240, 237, 232, 0.65);
+		color: var(--txd);
 		margin-bottom: 12px;
 	}
 
@@ -518,14 +536,20 @@
 	.qty-control button {
 		width: 28px;
 		height: 28px;
-		border: 1px solid rgba(201, 168, 76, 0.35);
-		background: rgba(201, 168, 76, 0.12);
-		color: #c9a84c;
+		border: 1px solid var(--br2);
+		background: transparent;
+		color: var(--tx);
 		cursor: pointer;
 		font-size: 0.75rem;
 		font-weight: 600;
 		border-radius: 4px;
 		font-family: inherit;
+		transition: border-color 0.15s, color 0.15s;
+	}
+
+	.qty-control button:active {
+		border-color: var(--cy);
+		color: var(--cy);
 	}
 
 	.qty-control button:disabled {
@@ -537,7 +561,7 @@
 		margin: 0 0 8px;
 		font-size: 0.58rem;
 		font-weight: 600;
-		color: #f0ede8;
+		color: var(--tx);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 	}
@@ -546,7 +570,7 @@
 		margin: 0;
 		padding-left: 1rem;
 		font-size: 0.58rem;
-		color: #f0ede8;
+		color: var(--tx);
 		line-height: 1.5;
 	}
 
@@ -560,7 +584,7 @@
 
 	.ing-qty {
 		display: block;
-		color: #c9a84c;
+		color: var(--g);
 		margin-top: 2px;
 	}
 
@@ -568,13 +592,13 @@
 		display: inline-block;
 		margin-left: 6px;
 		font-size: 0.5rem;
-		color: rgba(240, 237, 232, 0.4);
+		color: var(--txd);
 		text-transform: uppercase;
 	}
 
 	.ing-note {
 		font-size: 0.52rem;
-		color: rgba(240, 237, 232, 0.45);
+		color: var(--txd);
 		margin-top: 2px;
 	}
 
@@ -583,28 +607,28 @@
 		padding: 12px;
 		font-size: 0.58rem;
 		line-height: 1.5;
-		color: rgba(240, 237, 232, 0.85);
-		background: rgba(240, 237, 232, 0.04);
+		color: var(--tx);
+		background: transparent;
 		border-radius: 6px;
-		border: 1px solid rgba(240, 237, 232, 0.08);
+		border: 1px solid var(--br);
 		white-space: pre-wrap;
 		font-family: inherit;
 	}
 
 	.total-section {
 		padding: 18px;
-		background: rgba(201, 168, 76, 0.06);
-		border-top: 1px solid rgba(201, 168, 76, 0.15);
+		background: transparent;
+		border-top: 1px solid var(--br);
 	}
 
 	.total-title {
 		font-size: 0.65rem;
 		font-weight: 600;
-		color: #c9a84c;
+		color: var(--g);
 		margin-bottom: 12px;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
-		font-family: 'Bebas Neue', sans-serif;
+		font-family: var(--fh2), sans-serif;
 	}
 
 	.small {

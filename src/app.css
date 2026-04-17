@@ -264,15 +264,14 @@ button:not([class*="shadcn"]):not([class*="btn"]) {
 }
 
 /* Bouton primaire (gold) */
-.btn-primary, button[type="submit"]:not([variant]) {
+.btn-primary {
   background: var(--thower-gold);
   color: var(--thower-black);
   border: none;
   font-weight: 600;
 }
 
-.btn-primary:hover,
-button[type="submit"]:not([variant]):hover {
+.btn-primary:hover {
   background: #d4b356;
   transform: translateY(-1px);
 }

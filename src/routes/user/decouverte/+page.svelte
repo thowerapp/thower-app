@@ -64,8 +64,8 @@ let { data } = $props<{ data: PageData }>();
 .dec-icon { width:42px; height:42px; background:var(--s2); border:1px solid var(--br2); flex-shrink:0; display:flex; align-items:center; justify-content:center; }
 .dec-body { flex:1; }
 .dec-t { font-family:var(--fh2); font-size:1.05rem; color:var(--tx); letter-spacing:.05em; line-height:1; }
-.dec-s { font-size:.5rem; color:var(--txd); margin-top:3px; font-family:var(--fb); }
-.dec-c { font-size:.5rem; color:var(--txm); margin-top:2px; font-family:var(--fb); }
+.dec-s { font-size:.5625rem; color:var(--txd); margin-top:3px; font-family:var(--fb); }
+.dec-c { font-size:.5625rem; color:var(--txm); margin-top:2px; font-family:var(--fb); }
 .arr-wrap { flex-shrink:0; }
 .arr { width:5px; height:5px; border-right:1.5px solid var(--txd); border-top:1.5px solid var(--txd); transform:rotate(45deg); }
 </style>

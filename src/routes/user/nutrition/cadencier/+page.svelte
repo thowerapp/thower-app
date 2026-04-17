@@ -31,7 +31,7 @@
 
 	function selectDay(e: MouseEvent & { currentTarget: HTMLButtonElement }, dayIndex: number) {
 		userPickedDay = dayIndex;
-		fireElement(e.currentTarget);
+		fireElement(e.currentTarget, e);
 		setTimeout(() => registerSources(document.body), 40);
 	}
 

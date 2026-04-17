@@ -63,29 +63,59 @@ export function registerSources(container: HTMLElement = document.body): void {
 }
 
 /**
- * Émet un burst de 28 particules depuis le centre d'un élément cliqué.
+ * Effet "consume" : un flash radial se propage depuis le point de clic
+ * puis se dissipe rapidement — remplace l'explosion de particules.
  */
-export function fireElement(el: HTMLElement): void {
+export function fireElement(el: HTMLElement, event?: MouseEvent | PointerEvent): void {
+	// Calcul du point d'origine (clic ou centre de l'élément)
 	const rect = el.getBoundingClientRect();
-	const cx = rect.left + rect.width / 2;
-	const cy = rect.top + rect.height / 2;
-
-	for (let i = 0; i < 28; i++) {
-		const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.3;
-		const sp = 1.5 + Math.random() * 3;
-		const life = 0.5 + Math.random() * 0.7;
-		particles.push({
-			x: cx + (Math.random() - 0.5) * 10,
-			y: cy + (Math.random() - 0.5) * 10,
-			vx: Math.cos(angle) * sp,
-			vy: Math.sin(angle) * sp,
-			life,
-			ml: life,
-			sz: 1.2 + Math.random() * 2,
-			seed: Math.random() * 200,
-			isDot: false
-		});
+	let ox = rect.width / 2;
+	let oy = rect.height / 2;
+	if (event) {
+		ox = event.clientX - rect.left;
+		oy = event.clientY - rect.top;
 	}
 
-	_onChanged?.();
+	// Taille du cercle : doit couvrir tout l'élément depuis le point d'impact
+	const maxDist = Math.max(
+		Math.hypot(ox, oy),
+		Math.hypot(rect.width - ox, oy),
+		Math.hypot(ox, rect.height - oy),
+		Math.hypot(rect.width - ox, rect.height - oy)
+	);
+	const size = maxDist * 2.2;
+
+	const ripple = document.createElement('span');
+	ripple.style.cssText = `
+		position:absolute;
+		left:${ox}px;top:${oy}px;
+		width:${size}px;height:${size}px;
+		transform:translate(-50%,-50%) scale(0);
+		border-radius:50%;
+		background:radial-gradient(circle, rgba(0,229,255,0.18) 0%, rgba(0,229,255,0.06) 50%, transparent 70%);
+		pointer-events:none;
+		z-index:999;
+		animation:_consume 380ms cubic-bezier(.2,.8,.4,1) forwards;
+	`;
+
+	// Injecte le keyframe une seule fois
+	if (!document.getElementById('_consume-kf')) {
+		const style = document.createElement('style');
+		style.id = '_consume-kf';
+		style.textContent = `
+			@keyframes _consume {
+				0%   { transform:translate(-50%,-50%) scale(0);   opacity:1; }
+				55%  { transform:translate(-50%,-50%) scale(1);   opacity:.85; }
+				100% { transform:translate(-50%,-50%) scale(1.1); opacity:0; }
+			}
+		`;
+		document.head.appendChild(style);
+	}
+
+	// S'assure que l'élément peut contenir un enfant positionné
+	const pos = getComputedStyle(el).position;
+	if (pos === 'static') el.style.position = 'relative';
+
+	el.appendChild(ripple);
+	ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
 }

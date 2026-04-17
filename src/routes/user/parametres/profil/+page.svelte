@@ -5,7 +5,7 @@ import { fireElement } from '$lib/utils/particles';
 
 let { data } = $props<{ data: PageData }>();
 
-function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement); }
+function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
 
 const activityLabels: Record<string, string> = {
   SEDENTARY: 'Sédentaire',
@@ -22,6 +22,28 @@ function daysSince(date: string | null | undefined): number | null {
   if (!date) return null;
   return Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000);
 }
+
+// Animation barre de niveau et score au montage
+let barPct = $state(0);
+let displayedPts = $state(0);
+
+$effect(() => {
+  const target = data.levelPercent ?? 0;
+  const pts = data.totalPoints ?? 0;
+  setTimeout(() => {
+    barPct = target;
+    // Count-up score
+    const duration = 900;
+    const start = performance.now();
+    function step(now: number) {
+      const p = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      displayedPts = Math.round(pts * ease);
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }, 120);
+});
 </script>
 
 <div class="u-back-row">
@@ -36,8 +58,8 @@ function daysSince(date: string | null | undefined): number | null {
 <div class="profil-hero">
   <EmberCanvas active={true} />
   <div class="ph-depth" aria-hidden="true">
-    <svg class="ph-tri1" viewBox="0 0 44 38" fill="none"><polygon points="22,2 42,36 2,36" fill="rgba(201,168,78,0.06)"/></svg>
-    <svg class="ph-tri2" viewBox="0 0 44 38" fill="none"><polygon points="22,2 42,36 22,24" fill="rgba(201,168,78,0.03)"/></svg>
+    <img class="ph-logo" src="/logo-app.png" alt="" />
+    <div class="ph-logo-glow"></div>
   </div>
   <div class="ph-inner">
     <div class="ph-top-row">
@@ -47,8 +69,8 @@ function daysSince(date: string | null | undefined): number | null {
         <div class="ph-level-num">Niveau {data.levelData.num}</div>
         <!-- Barre de progression niveau -->
         <div class="ph-bar-wrap">
-          <div class="ph-bar"><div class="ph-fill" style="width:{data.levelPercent}%"></div></div>
-          <div class="ph-bar-pct">{data.levelPercent}%</div>
+          <div class="ph-bar"><div class="ph-fill" style="width:{barPct}%"></div></div>
+          <div class="ph-bar-pct">{barPct}%</div>
         </div>
       </div>
     </div>
@@ -58,7 +80,7 @@ function daysSince(date: string | null | undefined): number | null {
       {#if data.user?.programStartDate}
         <div class="ph-stat"><span class="ph-sv">Jour {daysSince(data.user.programStartDate ?? null) ?? '—'}</span><span class="ph-sl">/ 91</span></div>
       {/if}
-      <div class="ph-stat"><span class="ph-sv" style="color:var(--cy)">{data.totalPoints}</span><span class="ph-sl">pts</span></div>
+      <div class="ph-stat"><span class="ph-sv" style="color:var(--cy)">{displayedPts}</span><span class="ph-sl">pts</span></div>
       {#if data.badgesCount > 0}
         <div class="ph-stat"><span class="ph-sv" style="color:var(--g)">{data.badgesCount}</span><span class="ph-sl">badge{data.badgesCount > 1 ? 's' : ''}</span></div>
       {/if}
@@ -242,8 +264,24 @@ function daysSince(date: string | null | undefined): number | null {
   opacity: .4;
 }
 .ph-depth { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-.ph-tri1 { position: absolute; right: -20px; top: -10px; width: 140px; height: 120px; filter: blur(2px); }
-.ph-tri2 { position: absolute; right: 30px; bottom: 20px; width: 80px; height: 70px; filter: blur(1px); opacity: .5; }
+.ph-logo {
+  position: absolute;
+  width: 110px; height: auto;
+  object-fit: contain;
+  opacity: .11;
+  filter: saturate(0) brightness(2);
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+}
+.ph-logo-glow {
+  position: absolute;
+  width: 150px; height: 150px;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201,168,78,.15) 0%, rgba(201,168,78,.05) 45%, transparent 70%);
+  filter: blur(16px);
+}
 .ph-inner { position: relative; z-index: 4; }
 
 /* Top row: avatar + level block */
@@ -285,7 +323,7 @@ function daysSince(date: string | null | undefined): number | null {
 }
 .ph-bar-wrap { display: flex; align-items: center; gap: 7px; margin-top: 7px; }
 .ph-bar { flex: 1; height: 3px; background: var(--br2); position: relative; }
-.ph-fill { height: 3px; background: linear-gradient(90deg, var(--g), var(--gb)); box-shadow: 0 0 8px rgba(201,168,78,.4); }
+.ph-fill { height: 3px; background: linear-gradient(90deg, var(--g), var(--gb)); box-shadow: 0 0 8px rgba(201,168,78,.4); transition: width .9s cubic-bezier(.22,1,.36,1); }
 .ph-bar-pct { font-size: .5rem; color: var(--g); font-family: var(--fb); font-weight: 700; white-space: nowrap; }
 
 .ph-name { font-family: var(--fb); font-size: .875rem; font-weight: 600; color: var(--tx); }

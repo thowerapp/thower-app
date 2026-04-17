@@ -2,7 +2,7 @@
 import type { PageData } from './$types';
 import { fireElement } from '$lib/utils/particles';
 let { data } = $props<{ data: PageData }>();
-function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement); }
+function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
 </script>
 
 <div class="u-back-row">

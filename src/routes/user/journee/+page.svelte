@@ -19,7 +19,7 @@ let countDone    = $derived(items.filter(i => i.done).length);
 function handleToggle(e: MouseEvent & { currentTarget: HTMLButtonElement }, idx: number) {
   // Optimistic update
   items[idx].done = !items[idx].done;
-  fireElement(e.currentTarget);
+  fireElement(e.currentTarget, e);
   // Re-scan les sources après changement d'état
   setTimeout(() => registerSources(document.body), 40);
 }

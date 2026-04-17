@@ -1,6 +1,6 @@
 <script lang="ts">
 import { fireElement } from '$lib/utils/particles';
-function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement); }
+function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
 </script>
 
 <div class="u-back-row">

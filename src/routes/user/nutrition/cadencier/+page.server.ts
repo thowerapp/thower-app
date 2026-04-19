@@ -1,4 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
+import { requireNutritionAccess } from '$lib/server/programAccessGuard';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import type { MealPosition, Prisma } from '@prisma/client';
@@ -203,6 +204,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 export const actions: Actions = {
 	toggleJeune: async ({ locals, request }) => {
 		if (!locals.user) return fail(401, { error: 'Non authentifié' });
+		await requireNutritionAccess(locals.user.id, locals.user.role);
 		const userId = locals.user.id;
 		const data = await request.formData();
 		const active = data.get('active') === 'true';

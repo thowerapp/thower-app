@@ -108,5 +108,6 @@ export { createTransactionFromStripeSession, type CreateTransactionData } from '
 export { getTransactionById } from './transaction/getTransactionById';
 export { getTransactionsByUserId } from './transaction/getTransactionsByUserId';
 export { getHasValidPaymentByUserId } from './transaction/getHasValidPaymentByUserId';
+export { getProgramOfferEntitlements } from './transaction/getProgramOfferEntitlements';
 export { getAllTransactions } from './transaction/getAllTransactions';
 export { getAllTransactionsDashboard } from './transaction/getAllTransactionsDashboard';

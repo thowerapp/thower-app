@@ -117,15 +117,6 @@ export const load = async (event: PageServerLoadEvent) => {
 		hasValidPayment,
 		hasAnyTransaction,
 		subscriptionEndsAt: userRow?.subscriptionEndsAt ?? null,
-		nutritionProgramLog: isClient
-			? {
-					nutritionDaysAllocated: userRow?.nutritionDaysAllocated ?? 0,
-					nutritionDayRows: nutritionAgg._count._all,
-					maxNutritionDayIndex: nutritionAgg._max.dayIndex ?? null,
-					mealCount
-				}
-			: null,
-		showNutritionProgramDebug: process.env.NODE_ENV !== 'production',
 		passwordForm,
 		emailForm,
 		isMfaEnabledForm

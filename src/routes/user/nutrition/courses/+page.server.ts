@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { getCurrentShoppingList } from '$lib/prisma/shoppingList/getCurrentList';
 import { toggleShoppingItemChecked } from '$lib/prisma/shoppingList/toggleItemChecked';
+import { requireNutritionAccess } from '$lib/server/programAccessGuard';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -12,6 +13,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	toggleItem: async ({ request, locals }) => {
 		if (!locals.user) return fail(401);
+		await requireNutritionAccess(locals.user.id, locals.user.role);
 		const data = await request.formData();
 		const itemId = data.get('itemId');
 		const isChecked = data.get('isChecked') === 'true';

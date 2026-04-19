@@ -9,6 +9,14 @@ let { data } = $props<{ data: PageData }>();
 
 const pending = $derived(($page.data as { pending?: LayoutData['pending'] })?.pending ?? { seance: false, tasks: 0, repas: false, photos: false, journee: false });
 
+/** Droits selon les offres payées (`offerSlugs` sur les transactions). */
+const access = $derived(data.programAccess ?? { nutrition: true, sport: true });
+
+const currentDayIndex = $derived(
+	($page.data as { currentDayIndex?: number }).currentDayIndex ?? 1
+);
+const currentWeekNum = $derived(Math.min(13, Math.max(1, Math.ceil(currentDayIndex / 7))));
+
 function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
 
 // ── Checklist ─────────────────────────────────────────────────────────────
@@ -71,9 +79,9 @@ $effect(() => {
   <div class="hh-inner">
     <div class="hh-top">
       <div>
-        <div class="hh-eyebrow">Jour {data?.currentDayIndex ?? 21} / 91</div>
+        <div class="hh-eyebrow">Jour {currentDayIndex} / 91</div>
         <div class="hh-title">Thower</div>
-        <div class="hh-sub">Semaine 4 · Programme Méthode</div>
+        <div class="hh-sub">Semaine {currentWeekNum} · Programme Méthode</div>
       </div>
       <a href="/user/parametres/profil" class="pbtn">
         <div class="pbtn-sq"></div>
@@ -87,7 +95,16 @@ $effect(() => {
 </div>
 
 <!-- Notification séance -->
-{#if pending.seance}
+{#if !access.sport}
+<a href="/auth/subscription" class="u-notif-banner program-locked" onclick={fire}>
+  <div class="u-ndot" style="background:var(--txd);animation:none;opacity:.5"></div>
+  <div class="u-nb">
+    <div class="u-nb-t">Programme sport</div>
+    <div class="u-nb-s">Non inclus dans ton offre · Ajoute l’option sport</div>
+  </div>
+  <div class="u-ncta">Offres →</div>
+</a>
+{:else if pending.seance}
 <a href="/user/sport" class="u-notif-banner pending" onclick={fire}>
   <EmberCanvas active={true} />
   <div class="u-ndot"></div>
@@ -108,18 +125,42 @@ $effect(() => {
 </a>
 {/if}
 
-<div class="u-sh"><div class="u-sh-t">Mon programme</div><div class="u-sh-s">Jour {data?.currentDayIndex ?? 21} / 91</div></div>
+<div class="u-sh"><div class="u-sh-t">Mon programme</div><div class="u-sh-s">Jour {currentDayIndex} / 91</div></div>
 
 <div class="u-split-cards">
-  <a href="/user/sport" class="u-scard" class:pending={pending.seance} onclick={fire}>
+  <a
+    href={access.sport ? '/user/sport' : '/auth/subscription'}
+    class="u-scard"
+    class:pending={access.sport && pending.seance}
+    class:program-locked={!access.sport}
+    onclick={fire}
+  >
     <div class="scard-circle" style="width:18px;height:18px;border-radius:50%;background:var(--gd);box-shadow:0 0 6px var(--gg);margin-bottom:12px"></div>
     <div class="u-scard-lbl">Sport</div>
-    <div class="u-scard-sub">{pending.seance ? 'Séance en attente' : 'Calendrier · Séances'}</div>
+    <div class="u-scard-sub">
+      {#if !access.sport}
+        Non inclus · Souscrire
+      {:else}
+        {pending.seance ? 'Séance en attente' : 'Calendrier · Séances'}
+      {/if}
+    </div>
   </a>
-  <a href="/user/nutrition" class="u-scard" class:pending={pending.repas} onclick={fire}>
+  <a
+    href={access.nutrition ? '/user/nutrition' : '/auth/subscription'}
+    class="u-scard"
+    class:pending={access.nutrition && pending.repas}
+    class:program-locked={!access.nutrition}
+    onclick={fire}
+  >
     <div style="width:16px;height:16px;background:var(--cyd);box-shadow:0 0 6px var(--cyg);margin-bottom:12px"></div>
     <div class="u-scard-lbl">Nutrition</div>
-    <div class="u-scard-sub">{pending.repas ? 'Repas non planifié' : 'Cadencier · Recettes'}</div>
+    <div class="u-scard-sub">
+      {#if !access.nutrition}
+        Non inclus · Souscrire
+      {:else}
+        {pending.repas ? 'Repas non planifié' : 'Cadencier · Recettes'}
+      {/if}
+    </div>
   </a>
 </div>
 
@@ -245,6 +286,17 @@ $effect(() => {
 </div>
 
 <style>
+/* Offre nutrition / sport non achetée */
+:global(.u-notif-banner.program-locked),
+:global(.u-scard.program-locked) {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+:global(.u-scard.program-locked.pending) {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
 /* ── Home Hero ── */
 .home-hero {
   position: relative;

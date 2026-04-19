@@ -7,6 +7,7 @@ import {
 	startOfUtcDay
 } from '$lib/utils/programDay';
 import { serializeData } from '$lib/utils/serializeData';
+import { requireSportAccess } from '$lib/server/programAccessGuard';
 
 const OID = /^[a-f\d]{24}$/i;
 
@@ -106,6 +107,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 export const actions: Actions = {
 	markCompleted: async ({ locals, params, request }) => {
 		if (!locals.user) return fail(401, { message: 'Non authentifié.' });
+		await requireSportAccess(locals.user.id, locals.user.role);
 		const sessionId = params.sessionId;
 		if (!OID.test(sessionId)) return fail(400, { message: 'Identifiant invalide.' });
 

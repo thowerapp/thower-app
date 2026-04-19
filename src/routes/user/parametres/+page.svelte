@@ -38,7 +38,7 @@
 <div class="li-b"><div class="li-t">Notifications</div><div class="li-s">Rappels séances · Horaires</div></div>
 <div class="li-r"><div class="arr"></div></div>
 </a>
-<a href="/auth/logout" class="li li-logout">
+<a href="/auth/signout" class="li li-logout">
 <div class="li-th"><div style="width:10px;height:10px;border:1.5px solid var(--txd)"></div></div>
 <div class="li-b"><div class="li-t" style="color:var(--txd)">Se déconnecter</div></div>
 <div class="li-r"><div class="arr" style="border-color:var(--txm)"></div></div>

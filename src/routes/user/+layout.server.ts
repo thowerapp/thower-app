@@ -5,6 +5,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { prisma } from '$lib/server';
+import { getProgramOfferEntitlements } from '$lib/prisma';
 
 function startOfUtcDay(d: Date = new Date()): Date {
 	const r = new Date(d);
@@ -17,6 +18,11 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 	const todayStart = startOfUtcDay();
+
+	let programAccess = await getProgramOfferEntitlements(userId);
+	if (locals.user.role === 'ADMIN') {
+		programAccess = { nutrition: true, sport: true };
+	}
 
 	try {
 		// ── 1. Séance du jour ─────────────────────────────────────────────
@@ -96,7 +102,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 				journee: pendingTasksCount > 0 || seancePending
 			},
 			currentDayIndex,
-			programStartDate: programStart?.toISOString() ?? null
+			programStartDate: programStart?.toISOString() ?? null,
+			programAccess
 		};
 	} catch {
 		// En cas d'erreur DB (ex: programme pas encore initialisé), retours neutres
@@ -109,7 +116,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 				journee: false
 			},
 			currentDayIndex: 1,
-			programStartDate: null
+			programStartDate: null,
+			programAccess
 		};
 	}
 };

@@ -24,9 +24,18 @@ function computeLevel(points: number) {
 	return { levelData, levelPercent };
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
 	const userId = locals.user.id;
+
+	const parentData = await parent();
+	type PA = { nutrition: boolean; sport: boolean };
+	const programAccess: PA =
+		(parentData as { programAccess?: PA }).programAccess ?? {
+			nutrition: true,
+			sport: true
+		};
+
 	const todayStart = startOfUtcDay();
 
 	const [activeTasks, optOuts, todayCompletions, pointEvents] = await Promise.all([
@@ -68,6 +77,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		totalPoints,
 		levelData,
 		levelPercent,
+		programAccess
 	};
 };
 

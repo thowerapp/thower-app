@@ -15,8 +15,7 @@
 		LayoutDashboard,
 		Download,
 		ChevronDown,
-		ChevronUp,
-		Bug
+		ChevronUp
 	} from 'lucide-svelte';
 	import { pwaInstallPrompt } from '$lib/store/pwaInstallStore';
 	import {
@@ -240,22 +239,6 @@
 						</div>
 						<div class="card-foot">
 							<a href="/admin" class="btn btn-outline w-full">Dashboard Admin</a>
-						</div>
-					</div>
-				{/if}
-
-				<!-- Dev : état programme nutrition en base (même source que les logs [auth/load]) -->
-				{#if data.showNutritionProgramDebug && data.nutritionProgramLog}
-					<div class="card dev-program-log-card">
-						<div class="card-head">
-							<span class="card-icon"><Bug size={15} /></span>
-							<div>
-								<div class="card-title">Debug — programme nutrition</div>
-								<div class="card-desc">Visible hors production · voir aussi la console serveur [auth/load]</div>
-							</div>
-						</div>
-						<div class="card-body">
-							<pre class="dev-program-log-pre">{JSON.stringify(data.nutritionProgramLog, null, 2)}</pre>
 						</div>
 					</div>
 				{/if}
@@ -764,20 +747,6 @@
 	}
 	:global(.card-foot.space-y-2 button) {
 		width: 100%;
-	}
-
-	.dev-program-log-card {
-		border-color: rgba(58, 184, 184, 0.25);
-		background: rgba(58, 184, 184, 0.04);
-	}
-	.dev-program-log-pre {
-		margin: 0;
-		font-size: 0.7rem;
-		line-height: 1.45;
-		color: rgba(240, 237, 232, 0.65);
-		overflow-x: auto;
-		white-space: pre-wrap;
-		word-break: break-word;
 	}
 
 	/* ─── RESPONSIVE ─── */

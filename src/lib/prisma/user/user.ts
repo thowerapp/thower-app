@@ -13,10 +13,9 @@ export const findUserWithRecoveryCode = async (userId: string) => {
 };
 
 export const findUserByGoogleId = async (googleId: string) => {
-	return await prisma.user.findUnique({
+	// `googleId` n'est pas une clé Prisma @unique → findFirst, pas findUnique
+	return await prisma.user.findFirst({
 		where: { googleId }
-		// Ajoutez createdAt: true si nécessaire, par exemple :
-		// select: { googleId: true, email: true, createdAt: true, ... }
 	});
 };
 
@@ -95,7 +94,7 @@ export const getUserByEmailPrisma = async (email: string) => {
 
 // 2. Idem ici
 export const getUserByGoogleIdPrisma = async (googleId: string) => {
-	return await prisma.user.findUnique({
+	return await prisma.user.findFirst({
 		where: { googleId },
 		select: {
 			id: true,

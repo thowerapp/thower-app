@@ -6,6 +6,16 @@ export { getProgram } from './program/getProgram';
 export { getProgramDayWithItems } from './program/getProgramDayWithItems';
 export { createProgramDayItem, type CreateProgramDayItemData } from './program/createProgramDayItem';
 export { updateProgramDayItem, type UpdateProgramDayItemData } from './program/updateProgramDayItem';
+export {
+	listProgramDayItemsForVideo,
+	type ProgramDayItemForVideo
+} from './programDayItem/listForVideo';
+export {
+	attachVideoToDay,
+	type AttachVideoToDayInput,
+	type AttachVideoToDayResult
+} from './programDayItem/attachVideo';
+export { detachProgramDayItem } from './programDayItem/detach';
 export { createProgramDayItemCompletion, type CreateCompletionData } from './programDayCompletion/createCompletion';
 export { getCompletionsForUserAndDay } from './programDayCompletion/getCompletionsForUserAndDay';
 export { getPopupsForDay } from './dayPopup/getPopupsForDay';
@@ -13,11 +23,27 @@ export { getPopupsForDay } from './dayPopup/getPopupsForDay';
 // Sport
 export { getActiveSessions } from './workoutSession/getActiveSessions';
 export { getSessionWithVideos } from './workoutSession/getSessionWithVideos';
+
+// Vidéos Cloudflare Stream — administration unifiée (sport + découverte)
+export { getAllAdminVideos, type AdminVideoRow } from './video/getAllAdminVideos';
+export { createVideo } from './video/createVideo';
+export { updateVideo, getVideoById } from './video/updateVideo';
+export { deleteVideo } from './video/deleteVideo';
 export { getWorkoutDaysByUserId } from './userWorkoutDay/getByUserId';
 export { assignSessionToDay, type AssignSessionToDayData } from './userWorkoutDay/assignSessionToDay';
 export { setWorkoutDayCompleted } from './userWorkoutDay/setCompleted';
-export { markVideoWatched } from './userVideoWatch/markWatched';
-export { getWatchedVideoIdsForUser } from './userVideoWatch/getWatchedIdsForUser';
+
+// Progression vidéos Cloudflare Stream (sport + découverte unifiés)
+export {
+	upsertVideoProgress,
+	VIDEO_COMPLETION_THRESHOLD,
+	type UpsertVideoProgressInput,
+	type UpsertVideoProgressResult
+} from './userVideoProgress/upsertProgress';
+export {
+	getCompletedWorkoutVideoIds,
+	getCompletedDiscoveryContentIds
+} from './userVideoProgress/getCompletedIds';
 
 // Nutrition
 export { getRecipesByUserIdOrCatalog, type GetRecipesOptions } from './recipe/getByUserIdOrCatalog';
@@ -57,7 +83,6 @@ export { completeDailyTask } from './dailyTaskCompletion/completeTask';
 
 // Découverte
 export { getDiscoveryContentByCategory } from './discoveryContent/getByCategory';
-export { markDiscoveryWatched } from './userDiscoveryWatch/markWatched';
 
 // Progression
 export { createProgressPhoto, type CreateProgressPhotoData } from './progressPhoto/createProgressPhoto';

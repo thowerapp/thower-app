@@ -167,7 +167,6 @@ model User {
 
   // Sport (lot 3)
   workoutDays               UserWorkoutDay[]
-  videoWatches              UserVideoWatch[]
 
   // Nutrition (lot 4 & 5)
   nutritionDays             NutritionDay[]
@@ -185,8 +184,8 @@ model User {
   dailyTaskOptOuts          UserDailyTaskOptOut[]
   dailyTaskCompletions      DailyTaskCompletion[]
 
-  // Découverte (lot 9)
-  discoveryWatches          UserDiscoveryWatch[]
+  // Vidéos Cloudflare Stream (sport + découverte) — progression unifiée
+  videoProgress             UserVideoProgress[]
 
   // Progression (lot 10)
   progressPhotos            ProgressPhoto[]
@@ -494,19 +493,26 @@ model WorkoutSession {
 }
 
 /// Vidéos d'une séance (pré facultative + vid1 + vid2 obligatoires)
-/// Admin : ajout/suppression de vidéos sans redéploiement (YouTube)
+/// Admin : ajout/suppression de vidéos sans redéploiement (Cloudflare Stream)
 model WorkoutVideo {
   id          String               @id @default(auto()) @map("_id") @db.ObjectId
   session     WorkoutSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sessionId   String               @db.ObjectId
-  youtubeId   String
+  /// UID Cloudflare Stream (identifiant unique de la vidéo côté Cloudflare)
+  cloudflareUid   String           @unique
   title       String
   position    WorkoutVideoPosition
   isOptional  Boolean             @default(false)
   order       Int                  @default(0)
+  /// Durée en secondes — renseignée par le webhook Cloudflare quand la vidéo est ready
+  durationSeconds Float?
+  /// pending | ready | error — statut de traitement Cloudflare
+  status      String               @default("pending")
+  /// Vignette générée par Cloudflare (renseignée au webhook ready)
+  thumbnailUrl String?
   updatedAt   DateTime             @updatedAt
 
-  watches UserVideoWatch[]
+  progress UserVideoProgress[]
 
   @@index([sessionId])
   @@map("workout_videos")
@@ -532,18 +538,34 @@ model UserWorkoutDay {
   @@map("user_workout_days")
 }
 
-/// Suivi du visionnage d'une vidéo par un utilisateur
-model UserVideoWatch {
-  id        String       @id @default(auto()) @map("_id") @db.ObjectId
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String       @db.ObjectId
-  video     WorkoutVideo @relation(fields: [videoId], references: [id])
-  videoId   String       @db.ObjectId
-  watchedAt DateTime     @default(now())
+/// Suivi de progression unifié d'une vidéo Cloudflare Stream (sport ou découverte)
+/// Un seul des deux IDs (workoutVideoId / discoveryContentId) est renseigné.
+/// completedAt est posé quand maxPositionSec atteint COMPLETION_THRESHOLD * durationSeconds (90 %)
+/// ou que le player émet "ended". Sert aussi à attribuer les points (PointEvent VIDEO_WATCHED).
+model UserVideoProgress {
+  id                 String            @id @default(auto()) @map("_id") @db.ObjectId
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String            @db.ObjectId
 
-  @@unique([userId, videoId])
+  workoutVideo       WorkoutVideo?     @relation(fields: [workoutVideoId], references: [id], onDelete: Cascade)
+  workoutVideoId     String?           @db.ObjectId
+
+  discoveryContent   DiscoveryContent? @relation(fields: [discoveryContentId], references: [id], onDelete: Cascade)
+  discoveryContentId String?           @db.ObjectId
+
+  /// Position max atteinte par l'utilisateur (secondes)
+  maxPositionSec     Float             @default(0)
+  /// Dernière mise à jour côté serveur (heartbeat lecture)
+  lastHeartbeatAt    DateTime          @default(now())
+  /// Date de complétion (>= 90 % de la durée OU événement ended)
+  completedAt        DateTime?
+
+  /// Pas de @@unique sur les FK optionnels : MongoDB compterait plusieurs `null`
+  /// comme doublons sur (userId, discoveryContentId). Unicité assurée en app (upsert).
+  @@index([userId, workoutVideoId])
+  @@index([userId, discoveryContentId])
   @@index([userId])
-  @@map("user_video_watches")
+  @@map("user_video_progress")
 }
 
 
@@ -856,38 +878,32 @@ model DailyTaskCompletion {
 // LOT 9 — DÉCOUVERTE (Méditation / Mindset / Breathwork) — catalogue admin
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Contenu vidéo YouTube du hub Découverte (catalogue admin)
+/// Contenu vidéo Cloudflare Stream du hub Découverte (catalogue admin)
 /// Admin : ajout de vidéos sans redéploiement ; déblocage progressif par points/jour
 model DiscoveryContent {
   id               String            @id @default(auto()) @map("_id") @db.ObjectId
   category         DiscoveryCategory
   title            String
-  youtubeId        String
+  /// UID Cloudflare Stream (identifiant unique de la vidéo côté Cloudflare)
+  cloudflareUid    String            @unique
   order            Int               @default(0)
   unlockThreshold  Int               @default(0)
   breathworkIntent String?
   tags             String[]          @default([])
   active           Boolean           @default(true)
+  /// Durée en secondes — renseignée par le webhook Cloudflare quand la vidéo est ready
+  durationSeconds  Float?
+  /// pending | ready | error — statut de traitement Cloudflare
+  status           String            @default("pending")
+  /// Vignette générée par Cloudflare (renseignée au webhook ready)
+  thumbnailUrl     String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  watches         UserDiscoveryWatch[]
+  progress        UserVideoProgress[]
   programDayItems ProgramDayItem[]
 
   @@map("discovery_contents")
-}
-
-model UserDiscoveryWatch {
-  id        String           @id @default(auto()) @map("_id") @db.ObjectId
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String           @db.ObjectId
-  content   DiscoveryContent @relation(fields: [contentId], references: [id])
-  contentId String           @db.ObjectId
-  watchedAt DateTime         @default(now())
-
-  @@unique([userId, contentId])
-  @@index([userId])
-  @@map("user_discovery_watches")
 }
 
 

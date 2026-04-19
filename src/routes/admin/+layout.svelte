@@ -18,7 +18,8 @@
 					{ title: 'Ventes', url: '/admin/sales' },
 					{ title: 'Utilisateurs', url: '/admin/users' },
 					{ title: 'Recettes', url: '/admin/recettes' },
-					{ title: 'Contact', url: '/admin/contact' }
+					{ title: 'Contact', url: '/admin/contact' },
+					{ title: 'Vidéos', url: '/admin/videos' }
 				]
 			}
 		]

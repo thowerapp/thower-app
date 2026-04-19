@@ -2,25 +2,14 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import type { MealPosition, Prisma } from '@prisma/client';
+import {
+	currentProgramDayIndex,
+	TOTAL_PROGRAM_DAYS,
+	TOTAL_PROGRAM_WEEKS
+} from '$lib/utils/programDay';
 
-const TOTAL_DAYS = 91;
-const WEEKS = 13;
-
-function startOfUtcDay(d: Date): Date {
-	const x = new Date(d);
-	x.setUTCHours(0, 0, 0, 0);
-	return x;
-}
-
-/** Jour courant du programme (1..91) selon `programStartDate` (UTC minuit). */
-function currentProgramDayIndex(programStartDate: Date | null): number {
-	if (!programStartDate) return 1;
-	const start = startOfUtcDay(programStartDate);
-	const now = new Date();
-	const today = startOfUtcDay(now);
-	const diffDays = Math.floor((today.getTime() - start.getTime()) / 86400000) + 1;
-	return Math.min(TOTAL_DAYS, Math.max(1, diffDays));
-}
+const TOTAL_DAYS = TOTAL_PROGRAM_DAYS;
+const WEEKS = TOTAL_PROGRAM_WEEKS;
 
 function positionLabel(position: MealPosition): string {
 	switch (position) {

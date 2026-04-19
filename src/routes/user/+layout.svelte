@@ -13,6 +13,7 @@ function getTabFromRoute(pathname: string): string {
   if (pathname.includes('/journee'))    return 'journee';
   if (pathname.includes('/progression')) return 'progression';
   if (pathname.includes('/parametres')) return 'parametres';
+  if (pathname.includes('/sport')) return 'sport';
   return 'home';
 }
 

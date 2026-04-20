@@ -3,7 +3,7 @@ import { ObjectParser } from '@pilcrowjs/object-parser';
 import { getUserFromGoogleId, getUserFromEmail } from '$lib/lucia/user';
 import { decodeIdToken } from 'arctic';
 import { auth } from '$lib/lucia';
-import { createUserWithGoogleOAuth } from '$lib/prisma/user/user';
+import { createUserWithGoogleOAuth, linkGoogleOAuthToExistingUser } from '$lib/prisma/user/user';
 
 import type { RequestEvent } from './$types';
 import type { OAuth2Tokens } from 'arctic';
@@ -35,11 +35,13 @@ export async function GET(event: RequestEvent): Promise<Response> {
 
 	let user: { id: string } | null = await getUserFromGoogleId(googleId);
 	if (!user) {
-		user = await getUserFromEmail(email);
+		const existingUser = await getUserFromEmail(email);
 
-		if (!user) {
-			// console.log(googleId, email, name, picture, "Création d'un nouvel utilisateur OAuth");
+		if (!existingUser) {
 			user = await createUserWithGoogleOAuth(googleId, email, name, picture);
+		} else {
+			const linkedUser = await linkGoogleOAuthToExistingUser(existingUser.id, googleId, name, picture);
+			user = { id: linkedUser.id };
 		}
 	}
 

@@ -25,13 +25,43 @@ export const createUserWithGoogleOAuth = async (
 	name: string,
 	picture: string
 ) => {
+	const emailLocalPart = email.split('@')[0]?.trim();
+	const usernameFallback = emailLocalPart && emailLocalPart.length > 0 ? emailLocalPart : null;
+
 	return await prisma.user.create({
 		data: {
 			googleId,
 			email,
+			username: usernameFallback,
+			passwordHash: null,
+			recoveryCode: null,
 			name,
 			picture,
 			role: 'CLIENT',
+			emailVerified: true,
+			isMfaEnabled: false,
+			totpKey: null,
+			subscriptionEndsAt: null,
+			nutritionDaysAllocated: 0,
+			programStartDate: null,
+			programPausedAt: null,
+			programPausedReason: null
+		}
+	});
+};
+
+export const linkGoogleOAuthToExistingUser = async (
+	userId: string,
+	googleId: string,
+	name: string,
+	picture: string
+) => {
+	return await prisma.user.update({
+		where: { id: userId },
+		data: {
+			googleId,
+			name,
+			picture,
 			emailVerified: true
 		}
 	});

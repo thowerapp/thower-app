@@ -75,6 +75,21 @@
 	);
 	const isGoogleUser = $derived(!!data?.user?.googleId);
 
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		console.log('[auth/page] rendered user context', {
+			userId: data?.user?.id ?? null,
+			email: data?.user?.email ?? null,
+			role: data?.user?.role ?? null,
+			googleId: data?.user?.googleId ?? null,
+			isGoogleUser: !!data?.user?.googleId,
+			hasMeasurements: !!(data?.hasMeasurements ?? false),
+			hasValidPayment: !!(data?.hasValidPayment ?? false),
+			hasAnyTransaction: !!((data as { hasAnyTransaction?: boolean } | null)?.hasAnyTransaction ?? false),
+			subscriptionEndsAt: data?.subscriptionEndsAt ?? null
+		});
+	});
+
 	onMount(() => {
 		// ── THREE.JS ──
 		const canvas = document.createElement('canvas');
@@ -246,8 +261,8 @@
 			</div>
 		</section>
 
-		<!-- ── PROCÉDURE (non-Google seulement + non-admin) ── -->
-		{#if !isGoogleUser && data.user.role !== 'ADMIN'}
+		<!-- ── PROCÉDURE (clients, y compris OAuth, hors admin) ── -->
+		{#if data.user.role !== 'ADMIN'}
 		<section class="section">
 			<h2 class="section-title">
 				<Smartphone size={16} />

@@ -79,6 +79,13 @@ export const load = async (event: PageServerLoadEvent) => {
 
 	const userId = event.locals.user.id;
 	const isClient = event.locals.user.role === 'CLIENT';
+	logAuth('user auth context', {
+		userId,
+		email: event.locals.user.email,
+		role: event.locals.user.role,
+		googleId: event.locals.user.googleId,
+		isClient
+	});
 
 	const bodyMeasurements = await getBodyMeasurementsByUserId(userId, 1);
 	const hasMeasurements = bodyMeasurements.length > 0;
@@ -107,9 +114,22 @@ export const load = async (event: PageServerLoadEvent) => {
 			maxNutritionDayIndex: nutritionAgg._max.dayIndex ?? null,
 			mealCount
 		});
+	} else {
+		logAuth('non-client role detected, client UX disabled', {
+			userId,
+			role: event.locals.user.role,
+			hasAnyTransaction
+		});
 	}
 
-	logAuth('return settings data');
+	logAuth('return settings data', {
+		userId,
+		role: event.locals.user.role,
+		hasMeasurements,
+		hasValidPayment,
+		hasAnyTransaction,
+		subscriptionEndsAt: userRow?.subscriptionEndsAt ?? null
+	});
 	return {
 		user: event.locals.user,
 		recoveryCode,

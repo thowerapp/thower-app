@@ -1,51 +1,56 @@
 <script lang="ts">
-	// Importation des composants principaux
 	import * as Sidebar from '$shadcn/sidebar/index.js';
-	import { Search } from 'lucide-svelte';
+	import { LogOut } from 'lucide-svelte';
 	import SmoothScrollBar from '$lib/components/smoothScrollBar/SmoothScrollBar.svelte';
 	import { page } from '$app/stores';
+	import { enhance } from '$app/forms';
 
 	let { children } = $props();
 
-	// Données de navigation (isActive dérivé de la route courante dans le template)
-	const data = {
-		versions: ['1.0.1', '1.1.0-alpha', '2.0.0-beta1'],
-		navMain: [
-			{
-				title: 'Dashboard',
-				items: [
-					{ title: 'Accueil', url: '/admin' },
-					{ title: 'Ventes', url: '/admin/sales' },
-					{ title: 'Utilisateurs', url: '/admin/users' },
-					{ title: 'Recettes', url: '/admin/recettes' },
-					{ title: 'Contact', url: '/admin/contact' },
-					{ title: 'Vidéos', url: '/admin/videos' }
-				]
-			}
-		]
-	};
+	const navItems = [
+		{ title: 'Accueil',       url: '/admin' },
+		{ title: 'Ventes',        url: '/admin/sales' },
+		{ title: 'Utilisateurs',  url: '/admin/users' },
+		{ title: 'Recettes',      url: '/admin/recettes' },
+		{ title: 'Contact',       url: '/admin/contact' },
+		{ title: 'Vidéos',        url: '/admin/videos' }
+	];
 </script>
 
 <div class="w-screen h-screen">
 	<Sidebar.Provider>
 		<Sidebar.Root class="border-none">
-			<!-- Contenu de la Sidebar -->
 			<Sidebar.Content>
-				{#each data.navMain as group}
-					<Sidebar.Group>
-						<Sidebar.GroupLabel>{group.title}</Sidebar.GroupLabel>
-						<Sidebar.Menu>
-							{#each group.items as item}
-								<Sidebar.MenuItem>
-									<Sidebar.MenuButton isActive={$page.url.pathname === item.url}>
-										<a href={item.url}>{item.title}</a>
-									</Sidebar.MenuButton>
-								</Sidebar.MenuItem>
-							{/each}
-						</Sidebar.Menu>
-					</Sidebar.Group>
-				{/each}
+				<Sidebar.Group>
+					<Sidebar.GroupLabel>Dashboard</Sidebar.GroupLabel>
+					<Sidebar.Menu>
+						{#each navItems as item}
+							<Sidebar.MenuItem>
+								<Sidebar.MenuButton isActive={$page.url.pathname === item.url}>
+									<!-- preload data on hover + preload code eagerly for instant tab switching -->
+									<a
+										href={item.url}
+										data-sveltekit-preload-data="hover"
+										data-sveltekit-preload-code="eager"
+									>{item.title}</a>
+								</Sidebar.MenuButton>
+							</Sidebar.MenuItem>
+						{/each}
+					</Sidebar.Menu>
+				</Sidebar.Group>
 			</Sidebar.Content>
+
+			<Sidebar.Footer>
+				<form method="POST" action="/auth?/signout" use:enhance>
+					<button
+						type="submit"
+						class="flex w-full items-center gap-2 px-3 py-2 text-sm rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+					>
+						<LogOut class="size-4 shrink-0" />
+						<span>Déconnexion</span>
+					</button>
+				</form>
+			</Sidebar.Footer>
 		</Sidebar.Root>
 
 		<!-- Contenu principal -->

@@ -29,6 +29,39 @@
 		data.weekDays.find((d) => d.dayIndex === selectedDay) ?? null
 	);
 
+	const displayMeals = $derived(
+		!selectedDayData
+			? []
+			: !jeuneActive
+				? selectedDayData.meals
+				: (() => {
+						const meals = selectedDayData.meals;
+						const noBreakfast = meals.filter((m) => m.position !== 'BREAKFAST');
+						if (noBreakfast.length === 0) return [];
+						const total = meals.reduce(
+							(acc, m) => ({
+								calories: acc.calories + m.calories,
+								proteinG: acc.proteinG + m.proteinG,
+								carbsG: acc.carbsG + m.carbsG,
+								fatG: acc.fatG + m.fatG,
+								fiberG: acc.fiberG + m.fiberG
+							}),
+							{ calories: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 }
+						);
+						const count = noBreakfast.length;
+						return noBreakfast.map((m, i) => ({
+							...m,
+							slotIndex: i + 1,
+							label: `Repas ${i + 1} — ${m.position === 'LUNCH' ? 'Déjeuner' : m.position === 'DINNER' ? 'Dîner' : m.label.split('—')[1]?.trim() ?? m.label}`,
+							calories: Math.round(total.calories / count),
+							proteinG: Math.round((total.proteinG / count) * 10) / 10,
+							carbsG: Math.round((total.carbsG / count) * 10) / 10,
+							fatG: Math.round((total.fatG / count) * 10) / 10,
+							fiberG: Math.round((total.fiberG / count) * 10) / 10
+						}));
+					})()
+	);
+
 	function selectDay(e: MouseEvent & { currentTarget: HTMLButtonElement }, dayIndex: number) {
 		userPickedDay = dayIndex;
 		fireElement(e.currentTarget, e);
@@ -137,9 +170,9 @@
 		{getDayName(selectedDay).charAt(0).toUpperCase() + getDayName(selectedDay).slice(1)} · Jour {selectedDay}
 	</div>
 
-	{#if selectedDayData && selectedDayData.meals.length > 0}
+	{#if displayMeals.length > 0}
 		<div class="meals-list">
-			{#each selectedDayData.meals as meal (meal.id)}
+			{#each displayMeals as meal (meal.id)}
 				<a href="/user/nutrition/cadencier/{selectedDay}" class="meal-item">
 					<div class="meal-header-top">
 						<div class="meal-time">{meal.label}</div>

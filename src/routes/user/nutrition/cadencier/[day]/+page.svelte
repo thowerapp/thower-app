@@ -19,7 +19,14 @@
 	}
 
 	function setMult(mealId: string, value: number) {
-		const v = Math.min(9, Math.max(1, Math.round(value)));
+		const v = Math.min(9, Math.max(0.5, Math.round(value * 10) / 10));
+		mealMult = { ...mealMult, [mealId]: v };
+	}
+
+	function setMultRaw(mealId: string, raw: string) {
+		const parsed = parseFloat(raw.replace(',', '.'));
+		if (!Number.isFinite(parsed)) return;
+		const v = Math.min(9, Math.max(0.5, Math.round(parsed * 10) / 10));
 		mealMult = { ...mealMult, [mealId]: v };
 	}
 
@@ -206,15 +213,19 @@
 			</div>
 
 			<div class="portions">
-				<span>Multiplicateur portions (×{u})</span>
+				<span>Coefficient familial</span>
 				<div class="qty-control">
-					<button type="button" onclick={() => setMult(meal.id, u - 1)} disabled={u <= 1}
-						>−</button
-					>
-					<span>{u}</span>
-					<button type="button" onclick={() => setMult(meal.id, u + 1)} disabled={u >= 9}
-						>+</button
-					>
+					<button type="button" onclick={() => setMult(meal.id, u - 0.1)} disabled={u <= 0.5}>−</button>
+					<input
+						type="number"
+						min="0.5"
+						max="9"
+						step="0.1"
+						value={u}
+						oninput={(e) => setMultRaw(meal.id, e.currentTarget.value)}
+						class="mult-input"
+					/>
+					<button type="button" onclick={() => setMult(meal.id, u + 0.1)} disabled={u >= 9}>+</button>
 				</div>
 			</div>
 
@@ -556,6 +567,23 @@
 		opacity: 0.35;
 		cursor: not-allowed;
 	}
+
+	.mult-input {
+		width: 48px;
+		text-align: center;
+		background: transparent;
+		border: 1px solid var(--br2);
+		color: var(--tx);
+		font-size: 0.7rem;
+		font-weight: 600;
+		font-family: var(--fh);
+		padding: 4px 2px;
+		border-radius: 3px;
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+	.mult-input::-webkit-outer-spin-button,
+	.mult-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 	.subh {
 		margin: 0 0 8px;

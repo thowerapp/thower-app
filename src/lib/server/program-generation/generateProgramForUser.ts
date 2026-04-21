@@ -110,7 +110,19 @@ export async function generateProgramForUser(userId: string): Promise<void> {
 		}
 
 		if (await isNutritionPlanComplete(userId, targetDays)) {
-			programGenLog('5/ Sortie sans écriture : déjà complet', { userId, targetDays });
+			programGenLog('5/ Planning déjà complet — vérification liste de courses', { userId, targetDays });
+			// Le plan est complet mais la liste de courses n'existe peut-être pas encore
+			// (cas : programme généré avant l'ajout de la fonctionnalité).
+			const existingList = await (prisma as any).shoppingList?.findFirst({ where: { userId } });
+			if (!existingList) {
+				programGenLog('5b/ Aucune liste de courses — génération rattrapée', { userId, targetDays });
+				const shoppingResult = await generateShoppingListFromPlanning(userId, 1, targetDays, {
+					includeReportedFromPrevious: false
+				});
+				programGenLog('5c/ Liste de courses rattrapée', { userId, listId: shoppingResult?.listId ?? null });
+			} else {
+				programGenLog('5b/ Liste de courses déjà présente — sortie', { userId });
+			}
 			return;
 		}
 

@@ -1,5 +1,6 @@
 ﻿<script lang="ts">
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -22,10 +23,27 @@
 		items: ShoppingItem[];
 	};
 
+	type Periode = 'jour' | '3jours' | 'semaine';
+
+	const periodes: { value: Periode; label: string }[] = [
+		{ value: 'jour',    label: "Aujourd'hui" },
+		{ value: '3jours',  label: '3 jours' },
+		{ value: 'semaine', label: 'Semaine' }
+	];
+
 	let sortOrder = $state<'category' | 'alpha'>('category');
 	let regenerating = $state(false);
 
-	const list = $derived((data as unknown as { list: ShoppingList | null }).list);
+	const d = $derived(data as unknown as {
+		list: ShoppingList | null;
+		periode: Periode;
+		currentDay: number;
+		startDayIndex: number;
+		endDayIndex: number;
+	});
+
+	const list = $derived(d.list);
+	const periode = $derived(d.periode ?? 'semaine');
 
 	let checkedMap = $state<Record<string, boolean>>({});
 
@@ -34,6 +52,10 @@
 			checkedMap = Object.fromEntries(list.items.map((item) => [item.id, item.isChecked]));
 		}
 	});
+
+	function switchPeriode(p: Periode) {
+		goto(`?periode=${p}`, { invalidateAll: true, keepFocus: true });
+	}
 
 	function getItems(): ShoppingItem[] {
 		if (!list?.items) return [];
@@ -58,7 +80,9 @@
 
 	function getPeriodLabel(): string {
 		if (!list) return '';
-		return `Jours ${list.startDayIndex} – ${list.endDayIndex} du programme`;
+		if (list.startDayIndex === list.endDayIndex)
+			return `Jour ${list.startDayIndex} du programme`;
+		return `Jours ${list.startDayIndex}–${list.endDayIndex} du programme`;
 	}
 
 	function checkedCount(): number {
@@ -74,6 +98,18 @@
 	<div class="u-back-head">Courses</div>
 </div>
 
+<!-- Sélecteur de période -->
+<div class="periode-row">
+	{#each periodes as p}
+		<button
+			type="button"
+			class="periode-btn"
+			class:active={periode === p.value}
+			onclick={() => switchPeriode(p.value)}
+		>{p.label}</button>
+	{/each}
+</div>
+
 <div class="list-header">
 	{#if list}
 		<div class="list-sub">{getPeriodLabel()} · <span class="list-count">{checkedCount()}/{list.items.length}</span> cochés</div>
@@ -84,7 +120,7 @@
 
 {#if !list}
 	<div class="empty-state">
-		<p>Votre liste de courses sera générée automatiquement après la validation de votre programme nutrition.</p>
+		<p>Aucun repas planifié sur cette période.</p>
 		<form
 			method="POST"
 			action="?/regenerate"
@@ -93,6 +129,7 @@
 				return async ({ update }) => { await update({ invalidateAll: true }); regenerating = false; };
 			}}
 		>
+			<input type="hidden" name="periode" value={periode} />
 			<button type="submit" class="regen-btn" disabled={regenerating}>
 				{regenerating ? 'Génération…' : 'Générer la liste maintenant'}
 			</button>
@@ -114,6 +151,7 @@
 				return async ({ update }) => { await update({ invalidateAll: true }); regenerating = false; };
 			}}
 		>
+			<input type="hidden" name="periode" value={periode} />
 			<button type="submit" class="sort-btn regen-small" disabled={regenerating} title="Régénérer la liste">
 				{regenerating ? '…' : '↺'}
 			</button>
@@ -180,6 +218,33 @@
 {/if}
 
 <style>
+.periode-row {
+	display: flex;
+	gap: 6px;
+	padding: 10px 18px;
+	border-bottom: 1px solid var(--br);
+}
+.periode-btn {
+	flex: 1;
+	padding: 8px 6px;
+	font-size: .5625rem;
+	font-weight: 700;
+	border: 1px solid var(--br2);
+	background: transparent;
+	border-radius: 2px;
+	cursor: pointer;
+	color: var(--txd);
+	transition: border-color .15s, color .15s, background .15s;
+	font-family: var(--fb);
+	text-transform: uppercase;
+	letter-spacing: .05em;
+}
+.periode-btn.active {
+	border-color: var(--cy);
+	color: var(--cy);
+	background: rgba(0,229,255,.06);
+}
+
 .list-header {
 	padding: 10px 18px;
 	border-bottom: 1px solid var(--br);

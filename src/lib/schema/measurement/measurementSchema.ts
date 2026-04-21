@@ -108,6 +108,7 @@ const profileFieldsSchema = z.object({
 	// Alimentation & équipement
 	kitchenEquipment: z.preprocess(parseStringArray, z.array(z.string())).default([]),
 	disgustingFoods: z.string().max(2000).optional(),
+	otherAllergens: z.string().max(2000).optional(),
 
 	// Objectifs détaillés
 	physicalObjective: z.string().max(2000).optional(),

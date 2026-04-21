@@ -63,6 +63,7 @@ export const load = async (event: RequestEvent) => {
 		// Alimentation & équipement
 		kitchenEquipment: (profile as { kitchenEquipment?: string[] } | null)?.kitchenEquipment ?? [],
 		disgustingFoods: (profile as { disgustingFoods?: string | null } | null)?.disgustingFoods ?? undefined,
+		otherAllergens: (profile as { otherAllergens?: string | null } | null)?.otherAllergens ?? undefined,
 		// Objectifs détaillés
 		physicalObjective: (profile as { physicalObjective?: string | null } | null)?.physicalObjective ?? undefined,
 		eventMotivation: (profile as { eventMotivation?: string | null } | null)?.eventMotivation ?? undefined,
@@ -128,6 +129,7 @@ export const actions: Actions = {
 			// Alimentation & équipement
 			kitchenEquipment,
 			disgustingFoods: data.disgustingFoods,
+			otherAllergens: data.otherAllergens,
 			// Objectifs détaillés
 			physicalObjective: data.physicalObjective,
 			eventMotivation: data.eventMotivation,

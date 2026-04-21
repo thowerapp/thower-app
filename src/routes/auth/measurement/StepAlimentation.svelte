@@ -182,6 +182,20 @@
 						</button>
 					{/each}
 				</div>
+				<Form.Field name="otherAllergens" {form}>
+					<Form.Control>
+						<Form.Label class="meas-label font-medium">Autres allergènes</Form.Label>
+						<p class="text-xs text-muted-foreground mb-2">Des allergènes non listés ci-dessus ? Précise-les ici.</p>
+						<Textarea
+							class="meas-input resize-y"
+							name="otherAllergens"
+							bind:value={$formData.otherAllergens}
+							rows={2}
+							placeholder="Ex. : kiwi, arachides, latex..."
+						/>
+					</Form.Control>
+					<Form.FieldErrors />
+				</Form.Field>
 			</div>
 			<Separator />
 			<Form.Field name="disgustingFoods" {form}>

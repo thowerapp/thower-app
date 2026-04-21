@@ -334,6 +334,7 @@ model UserProfile {
   // Alimentation & équipement
   kitchenEquipment           String[]       @default([])
   disgustingFoods            String?
+  otherAllergens             String?
 
   // Objectifs détaillés
   physicalObjective          String?

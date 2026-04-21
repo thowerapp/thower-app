@@ -56,6 +56,8 @@ type NutritionGenProfileRow = {
 	breadGramsPerDay: number | null;
 	/** Enum Prisma `BreadType` — typé en string pour éviter les exports d’enum variables selon versions client. */
 	breadType: string | null;
+	disgustingFoods: string | null;
+	otherAllergens: string | null;
 };
 
 const nutritionGenProfileSelect = {
@@ -67,7 +69,9 @@ const nutritionGenProfileSelect = {
 	weightLossGoalKg: true,
 	breadDaily: true,
 	breadGramsPerDay: true,
-	breadType: true
+	breadType: true,
+	disgustingFoods: true,
+	otherAllergens: true
 } as unknown as Prisma.UserProfileSelect;
 
 const recipeCatalogSelect = {
@@ -79,7 +83,9 @@ const recipeCatalogSelect = {
 	nutritionCarbsG: true,
 	nutritionFatG: true,
 	nutritionFiberG: true,
-	allergens: true
+	allergens: true,
+	name: true,
+	ingredients: { select: { name: true } }
 } as unknown as Prisma.RecipeSelect;
 
 type CatalogRecipe = {
@@ -92,11 +98,49 @@ type CatalogRecipe = {
 	nutritionFatG: number | null;
 	nutritionFiberG: number | null;
 	allergens: string[];
+	ingredients: { name: string }[];
+	name: string;
 };
 
-function recipeConflictsAllergens(recipeAllergens: string[], userAllergens: string[]): boolean {
+/** Normalise une chaîne : minuscules + suppression des diacritiques. */
+function normalize(str: string): string {
+	return str
+		.toLowerCase()
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Parse un champ texte libre (virgules, points-virgules, sauts de ligne) en termes normalisés non vides. */
+function parseTextTerms(text: string | null | undefined): string[] {
+	if (!text) return [];
+	return text
+		.split(/[,;\n]+/)
+		.map((t) => normalize(t.trim()))
+		.filter((t) => t.length > 0);
+}
+
+/**
+ * Retourne true si la recette entière doit être exclue :
+ * - Correspondance exacte sur les codes allergènes enum
+ * - OU l'un des termes libres (otherAllergens, disgustingFoods) est contenu
+ *   dans le nom de la recette ou le nom d'un ingrédient (insensible à la casse et aux accents).
+ */
+function recipeConflictsUser(
+	recipe: CatalogRecipe,
+	userAllergens: string[],
+	freeTerms: string[]
+): boolean {
 	const avoid = new Set(userAllergens);
-	return recipeAllergens.some((a) => avoid.has(a));
+	if (recipe.allergens.some((a) => avoid.has(a))) return true;
+
+	if (freeTerms.length === 0) return false;
+	const recipeName = normalize(recipe.name);
+	const ingredientNames = recipe.ingredients.map((i) => normalize(i.name));
+	return freeTerms.some(
+		(term) =>
+			recipeName.includes(term) ||
+			ingredientNames.some((ing) => ing.includes(term))
+	);
 }
 
 function mealQuantityG(recipe: CatalogRecipe): number {
@@ -178,6 +222,10 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 
 	const intermittentFastingDefault = profile?.intermittentFastingMorning === true;
 	const userAllergens = profile?.allergens ?? [];
+	const userFreeTerms = [
+		...parseTextTerms(profile?.otherAllergens),
+		...parseTextTerms(profile?.disgustingFoods)
+	];
 
 	programGenLog('N2/ Profil nutrition (extrait)', {
 		userId,
@@ -239,7 +287,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		select: recipeCatalogSelect
 	})) as unknown as CatalogRecipe[];
 
-	const recipes = recipesRaw.filter((r) => !recipeConflictsAllergens(r.allergens, userAllergens));
+	const recipes = recipesRaw.filter((r) => !recipeConflictsUser(r, userAllergens, userFreeTerms));
 
 	programGenLog('N5/ Catalogue recettes admin', {
 		userId,

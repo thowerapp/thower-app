@@ -41,6 +41,7 @@ export type UpsertProfileData = {
 	// Alimentation & équipement
 	kitchenEquipment?: string[];
 	disgustingFoods?: string | null;
+	otherAllergens?: string | null;
 	// Objectifs détaillés
 	physicalObjective?: string | null;
 	eventMotivation?: string | null;
@@ -78,6 +79,7 @@ const toPayload = (data: UpsertProfileData) => ({
 	// Alimentation & équipement
 	kitchenEquipment: data.kitchenEquipment ?? [],
 	disgustingFoods: data.disgustingFoods ?? undefined,
+	otherAllergens: data.otherAllergens ?? undefined,
 	// Objectifs détaillés
 	physicalObjective: data.physicalObjective ?? undefined,
 	eventMotivation: data.eventMotivation ?? undefined,

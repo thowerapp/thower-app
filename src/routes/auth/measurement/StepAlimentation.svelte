@@ -77,13 +77,16 @@
 
 	<Card.Root class="meas-card mt-4">
 		<Card.Content class="pt-5 pb-5 space-y-4">
+			<p class="text-xs text-muted-foreground leading-relaxed">
+				• Contre-indications a un regime alimentaire ?
+			</p>
 			<div class="space-y-3">
-				<p class="meas-label font-medium">Pain</p>
+				<p class="meas-label font-semibold text-base">Pain</p>
 				<p class="text-xs text-muted-foreground">
 					Ces infos servent au calcul des apports (macros pour la quantité et le type choisis, référence pour 100 g).
 				</p>
 				<div class="space-y-2">
-					<p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Consommation quotidienne ?</p>
+					<p class="text-sm font-medium">Consommation quotidienne de pain ?</p>
 					<div class="equipment-grid">
 						<button
 							type="button"
@@ -200,7 +203,7 @@
 			<Separator />
 			<Form.Field name="disgustingFoods" {form}>
 				<Form.Control>
-				<Form.Label class="meas-label font-medium">Aliments dégoutants</Form.Label>
+				<Form.Label class="meas-label font-medium">Aliments non désirés</Form.Label>
 					<p class="text-xs text-muted-foreground mb-2">Des aliments que tu ne supportes pas ? (Pour garantir des recettes savoureuses.)</p>
 					<Textarea
 					class="meas-input resize-y"

@@ -19,6 +19,11 @@
 
 	<Card.Root class="meas-card">
 		<Card.Content class="pt-5 pb-5">
+			<p class="text-xs text-muted-foreground mb-4 leading-relaxed">
+				Astuce : pour mesurer correctement vos mensurations, si vous n'avez pas de mètre ruban,
+				utilisez un simple fil (ou fil electrique), puis regardez combien cela represente sur un
+				metre classique.
+			</p>
 			<div class="measures-grid">
 				<Form.Field name="age" {form}>
 					<Form.Control>

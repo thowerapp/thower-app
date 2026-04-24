@@ -37,14 +37,6 @@
 			<p class="text-sm text-muted-foreground leading-relaxed">
 				Sois <strong>100% cash et honnête</strong> : plus tu es vrai avec moi, plus la Méthode Thower sera une machine de guerre pour transformer ton corps et ton énergie.
 			</p>
-			<div class="intro-steps-preview">
-				{#each stepLabels.slice(1) as label, i}
-					<div class="intro-step-item">
-						<span class="intro-step-num">{i + 1}</span>
-						<span class="text-sm">{label}</span>
-					</div>
-				{/each}
-			</div>
 		</Card.Content>
 	</Card.Root>
 

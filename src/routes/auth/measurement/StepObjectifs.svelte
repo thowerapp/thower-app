@@ -18,8 +18,11 @@
 		more_libido: 'Plus de libido',
 		better_sleep: 'Meilleur sommeil',
 		better_body: 'Se sentir mieux dans son corps',
-		better_mind: 'Se sentir mieux dans sa tête'
+		better_mind: 'Se sentir mieux dans sa tête',
+		other: 'Autres'
 	};
+
+	const allObjectiveValues = [...objectiveValues, 'other' as const];
 
 	function toggleObjective(value: string) {
 		const current = ($formData.objectives ?? []) as string[];
@@ -45,7 +48,7 @@
 		</Card.Header>
 		<Card.Content class="pb-5">
 			<div class="objectives-grid">
-				{#each objectiveValues as value}
+				{#each allObjectiveValues as value}
 					<button
 						type="button"
 						class="objective-chip"
@@ -114,7 +117,7 @@
 			<Form.Field name="eventMotivation" {form}>
 				<Form.Control>
 				<Form.Label class="meas-label font-medium">Événement / Motivation</Form.Label>
-					<p class="text-xs text-muted-foreground mb-2">Ex. : Mariage le 7 juillet, semi-marathon le 14 nov, être fier de ton corps...</p>
+					<p class="text-xs text-muted-foreground mb-2">Ex. : Mariage le 7 juillet, semi-marathon le 14 nov, reprendre le foot en salle ou le padel en étant en forme...</p>
 					<Textarea
 					class="meas-input resize-y"
 					name="eventMotivation"

@@ -48,7 +48,7 @@
 	<div class="step-heading">
 		<Activity class="step-icon" />
 		<div>
-			<h2 class="step-title">Bien-être & Addictions</h2>
+			<h2 class="step-title">Bien-être</h2>
 			<p class="step-desc">Un snapshot honnête de où tu en es aujourd'hui.</p>
 		</div>
 	</div>
@@ -65,17 +65,17 @@
 						</span>
 					</div>
 					{#if i === 0}
-						<Slider type="single" bind:value={sliderStress} min={1} max={10} step={1} class="w-full" />
+						<Slider type="single" bind:value={sliderStress} min={1} max={10} step={1} class="w-full wellbeing-slider" />
 					{:else if i === 1}
-						<Slider type="single" bind:value={sliderSleep} min={1} max={10} step={1} class="w-full" />
+						<Slider type="single" bind:value={sliderSleep} min={1} max={10} step={1} class="w-full wellbeing-slider" />
 					{:else if i === 2}
-						<Slider type="single" bind:value={sliderBody} min={1} max={10} step={1} class="w-full" />
+						<Slider type="single" bind:value={sliderBody} min={1} max={10} step={1} class="w-full wellbeing-slider" />
 					{:else if i === 3}
-						<Slider type="single" bind:value={sliderDigestion} min={1} max={10} step={1} class="w-full" />
+						<Slider type="single" bind:value={sliderDigestion} min={1} max={10} step={1} class="w-full wellbeing-slider" />
 					{:else if i === 4}
-						<Slider type="single" bind:value={sliderHappiness} min={1} max={10} step={1} class="w-full" />
+						<Slider type="single" bind:value={sliderHappiness} min={1} max={10} step={1} class="w-full wellbeing-slider" />
 					{:else}
-						<Slider type="single" bind:value={sliderReadiness} min={1} max={10} step={1} class="w-full" />
+						<Slider type="single" bind:value={sliderReadiness} min={1} max={10} step={1} class="w-full wellbeing-slider" />
 					{/if}
 					<div class="flex justify-between mt-1.5 text-xs text-muted-foreground">
 						<span>{meta.low}</span>
@@ -121,7 +121,7 @@
 	.slider-value {
 		font-size: 1.75rem;
 		font-weight: 800;
-		color: var(--primary);
+		color: #3ab8b8;
 		line-height: 1;
 		white-space: nowrap;
 	}
@@ -129,6 +129,34 @@
 	.slider-value-max {
 		font-size: 0.875rem;
 		font-weight: 400;
-		color: var(--muted-foreground);
+		color: #8ccccc;
+	}
+
+	:global(.wellbeing-slider[data-slot='slider']) {
+		padding: 0.4rem 0;
+		cursor: pointer;
+	}
+
+	:global(.wellbeing-slider [data-slot='slider-track']) {
+		height: 0.62rem !important;
+		background: #162828 !important;
+	}
+
+	:global(.wellbeing-slider [data-slot='slider-range']) {
+		background: #3ab8b8 !important;
+	}
+
+	:global(.wellbeing-slider [data-slot='slider-thumb']) {
+		width: 1.35rem !important;
+		height: 1.35rem !important;
+		background: #3ab8b8 !important;
+		border-color: #000 !important;
+		border-width: 2px !important;
+		box-shadow: 0 0 0 4px rgba(58, 184, 184, 0.18);
+	}
+
+	:global(.wellbeing-slider [data-slot='slider-thumb']:hover),
+	:global(.wellbeing-slider [data-slot='slider-thumb']:focus-visible) {
+		box-shadow: 0 0 0 6px rgba(58, 184, 184, 0.24);
 	}
 </style>

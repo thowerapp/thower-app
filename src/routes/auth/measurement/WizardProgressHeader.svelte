@@ -1,163 +1,142 @@
 <script lang="ts">
-	import { Badge } from '$shadcn/badge';
-	import { Progress } from '$shadcn/progress';
-	import { browser } from '$app/environment';
-
 	let {
 		currentStep,
 		TOTAL_STEPS,
-		progress,
 		stepLabels
 	}: {
 		currentStep: number;
 		TOTAL_STEPS: number;
-		progress: number;
+		progress?: number;
 		stepLabels: string[];
 	} = $props();
 
-	function portal(node: HTMLElement) {
-		if (!browser) return {};
-		document.body.appendChild(node);
-		return {
-			destroy() {
-				node.parentNode?.removeChild(node);
-			}
-		};
-	}
+	const formSteps = $derived(stepLabels.slice(1));
+	const n = $derived(formSteps.length);
+	const trackStart = $derived(n > 0 ? 50 / n : 0);
+	const fillWidth = $derived(
+		n > 1 ? Math.max(0, ((currentStep - 2) / (n - 1)) * (100 - 100 / n)) : 0
+	);
 </script>
 
-<div class="wizard-header-spacer" aria-hidden="true"></div>
-<header use:portal class="wizard-header-fixed" aria-label="Progression du formulaire">
-	<div class="wizard-header-inner">
-		<div class="step-meta">
-			<span class="step-label">{stepLabels[currentStep - 1]}</span>
-			<Badge variant="secondary" class="step-badge">
-				{currentStep - 1} / {TOTAL_STEPS - 1}
-			</Badge>
-		</div>
-		<Progress value={progress} class="h-2 mt-2" />
-		<div class="step-dots" aria-hidden="true">
-			{#each Array.from({ length: TOTAL_STEPS - 1 }, (_, i) => i + 2) as step}
-				<span
-					class="step-dot-shell"
-					class:step-dot-shell-active={step === currentStep}
-					class:step-dot-shell-done={step < currentStep}
-				>
-					{#if step === currentStep}
-						<span class="step-dot-pill" aria-hidden="true"></span>
+<div class="wizard-timeline" aria-label="Progression du formulaire">
+	<div class="timeline">
+		<div class="timeline-track" style="left: {trackStart}%; right: {trackStart}%;"></div>
+		<div class="timeline-fill" style="left: {trackStart}%; width: {fillWidth}%;"></div>
+		{#each formSteps as label, i}
+			{@const stepNum = i + 2}
+			{@const isDone = stepNum < currentStep}
+			{@const isActive = stepNum === currentStep}
+			<div class="timeline-step">
+				<div class="timeline-dot" class:dot-done={isDone} class:dot-active={isActive}>
+					{#if isDone}
+						<svg viewBox="0 0 12 12" width="9" height="9" aria-hidden="true">
+							<polyline points="1.5,6 4.5,9.5 10.5,2.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+						</svg>
 					{/if}
-					<span class="step-dot-core"></span>
-				</span>
-			{/each}
-		</div>
+				</div>
+				<span class="timeline-label" class:label-active={isActive} class:label-done={isDone}>{label}</span>
+			</div>
+		{/each}
 	</div>
-</header>
+</div>
 
 <style lang="scss">
-	.wizard-header-spacer {
-		height: calc(5.35rem + env(safe-area-inset-top, 0px));
-		margin-bottom: 1rem;
-		flex-shrink: 0;
+	.wizard-timeline {
+		background: #000;
+		border-radius: 0.75rem;
+		padding: 0.9rem 1rem 0.6rem;
+		margin-bottom: 0;
 	}
 
-	:global(.wizard-header-fixed) {
-		position: fixed !important;
-		top: 0;
-		left: 0;
-		right: 0;
-		z-index: 9980;
-		padding-top: env(safe-area-inset-top, 0px);
-		padding-bottom: 0.65rem;
-		background: color-mix(in oklch, var(--background) 88%, transparent);
-		backdrop-filter: blur(14px) saturate(1.25);
-		-webkit-backdrop-filter: blur(14px) saturate(1.25);
-		border-bottom: 1px solid color-mix(in oklch, var(--border) 65%, transparent);
-		box-shadow: 0 4px 20px color-mix(in oklch, var(--foreground) 5%, transparent);
-	}
-
-	:global(.wizard-header-inner) {
-		max-width: 560px;
-		margin: 0 auto;
-		padding: 0.5rem 1rem 0;
-	}
-
-	.step-meta {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 0.5rem;
-	}
-
-	.step-label {
-		font-size: 0.9rem;
-		font-weight: 600;
-	}
-
-	:global(.step-badge) {
-		font-size: 0.75rem;
-	}
-
-	.step-dots {
-		display: flex;
-		gap: 0.35rem;
-		margin-top: 0.75rem;
-		justify-content: center;
-		align-items: center;
-	}
-
-	.step-dot-shell {
+	.timeline {
 		position: relative;
 		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		padding-bottom: 0.2rem;
+	}
+
+	.timeline-track,
+	.timeline-fill {
+		position: absolute;
+		top: 0.625rem;
+		height: 2px;
+		pointer-events: none;
+	}
+
+	.timeline-track {
+		background: #1a2a2a;
+		z-index: 0;
+	}
+
+	.timeline-fill {
+		background: #3ab8b8;
+		z-index: 1;
+		transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	.timeline-step {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		position: relative;
+		z-index: 2;
+		gap: 0.3rem;
+	}
+
+	.timeline-dot {
+		width: 1.25rem;
+		height: 1.25rem;
+		border-radius: 50%;
+		border: 2px solid #1a3a3a;
+		background: #000;
+		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 1.125rem;
-		height: 1.125rem;
 		flex-shrink: 0;
+		transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 	}
 
-	.step-dot-pill {
-		position: absolute;
-		inset: 0;
-		border-radius: 10px;
-		background: color-mix(in oklch, var(--primary) 14%, transparent);
-		animation: wizard-step-pill-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+	.timeline-dot.dot-done {
+		border-color: #3ab8b8;
+		background: #3ab8b8;
+		color: #000;
 	}
 
-	@keyframes wizard-step-pill-in {
-		from { transform: scale(0.5); opacity: 0; }
-		to { transform: scale(1); opacity: 1; }
+	.timeline-dot.dot-active {
+		border-color: #3ab8b8;
+		background: rgba(58, 184, 184, 0.12);
+		box-shadow: 0 0 0 3px rgba(58, 184, 184, 0.22);
+	}
+
+	.timeline-label {
+		font-size: 0.5rem;
+		color: #2a5a5a;
+		text-align: center;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 2.8rem;
+		line-height: 1.2;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		transition: color 0.2s;
+	}
+
+	.timeline-label.label-active {
+		color: #3ab8b8;
+		font-weight: 700;
+	}
+
+	.timeline-label.label-done {
+		color: #3ab8b8;
+		opacity: 0.6;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.step-dot-pill {
-			animation: none;
-			opacity: 1;
-			transform: scale(1);
-		}
-		.step-dot-shell-active .step-dot-core {
-			transform: scale(1);
-		}
-	}
-
-	.step-dot-core {
-		position: relative;
-		z-index: 1;
-		width: 0.5rem;
-		height: 0.5rem;
-		border-radius: 50%;
-		background: var(--border);
-		transition: background 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
-	}
-
-	.step-dot-shell-done .step-dot-core {
-		background: var(--primary);
-		opacity: 0.4;
-	}
-
-	.step-dot-shell-active .step-dot-core {
-		background: var(--primary);
-		opacity: 1;
-		transform: scale(1.35);
+		.timeline-fill { transition: none; }
+		.timeline-dot { transition: none; }
 	}
 
 	@media (min-width: 640px) {

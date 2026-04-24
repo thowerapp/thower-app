@@ -44,6 +44,13 @@
 	const progress = $derived(((currentStep - 1) / (TOTAL_STEPS - 1)) * 100);
 
 	function next() {
+		if (currentStep === 2) {
+			const d = $measurementData;
+			if (!d.age || !d.heightCm || !d.weightKg || !d.waistCm || !d.chestCm || !d.armCm) {
+				toast.error('Merci de remplir toutes les mensurations obligatoires avant de continuer.');
+				return;
+			}
+		}
 		if (currentStep < TOTAL_STEPS) {
 			stepDir = 1;
 			currentStep++;
@@ -113,6 +120,23 @@
 		</button>
 	</div>
 
+	{#if activeTab === 'wizard' && currentStep === TOTAL_STEPS}
+		<div class="mb-4 sm:mb-6 lg:mb-8 flex flex-col gap-3">
+			<div class="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-4 py-3">
+				<span class="mt-0.5 text-base leading-none">📱</span>
+				<p class="text-xs leading-relaxed text-yellow-300/80">
+					<strong class="font-semibold text-yellow-300">Pour une meilleure expérience</strong>, télécharge l'application directement depuis ton smartphone. Thower est conçue pour le mobile : suivi, recettes et programme sont optimisés sur téléphone.
+				</p>
+			</div>
+			<a
+				href="/auth/subscription"
+				class="inline-flex w-full items-center justify-center rounded-lg border border-cyan-400/60 bg-cyan-400/10 px-4 py-2.5 font-['DM_Sans'] text-sm font-semibold uppercase tracking-wide text-cyan-300 transition-colors hover:bg-cyan-400/20"
+			>
+				Continuer vers paiement et téléchargement
+			</a>
+		</div>
+	{/if}
+
 	{#if activeTab === 'wizard'}
 		<form method="POST" action="?/save" use:measurementEnhance class="space-y-4 sm:space-y-6">
 		<div class="overflow-hidden rounded-lg bg-black">
@@ -147,7 +171,9 @@
 				{/key}
 			</div>
 
-			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-between sm:items-center mt-6 sm:mt-8">
+			<WizardProgressHeader {currentStep} {TOTAL_STEPS} {stepLabels} />
+
+			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-between sm:items-center mt-4 sm:mt-6">
 				{#if currentStep > 1}
 					<Button
 						type="button"
@@ -367,6 +393,40 @@
 
 	:global(.meas-btn-secondary svg) {
 		color: #c9a84c !important;
+	}
+
+	/* Checkboxes : fond noir, bordure cyan */
+	:global([data-slot='checkbox']) {
+		background: #000 !important;
+		border-color: #3ab8b8 !important;
+		border-radius: 4px !important;
+	}
+	:global([data-slot='checkbox'][data-state='checked']) {
+		background: #3ab8b8 !important;
+		border-color: #3ab8b8 !important;
+		color: #000 !important;
+	}
+
+	/* Chips : fond noir, bordure cyan sombre, label cyan */
+	:global(.objective-chip),
+	:global(.equipment-chip),
+	:global(.allergen-chip) {
+		background: #000 !important;
+		border-color: #1a3a3a !important;
+		color: #3ab8b8 !important;
+	}
+	:global(.objective-chip:hover),
+	:global(.equipment-chip:hover),
+	:global(.allergen-chip:hover) {
+		border-color: #3ab8b8 !important;
+		background: rgba(58, 184, 184, 0.08) !important;
+	}
+	:global(.objective-chip.selected),
+	:global(.equipment-chip.selected),
+	:global(.allergen-chip.selected) {
+		background: rgba(58, 184, 184, 0.15) !important;
+		border-color: #3ab8b8 !important;
+		color: #3ab8b8 !important;
 	}
 
 	:global(.btn-prev) {

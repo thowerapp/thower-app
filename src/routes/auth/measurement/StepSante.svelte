@@ -27,7 +27,6 @@
 						• Douleurs physiques particulières ?<br />
 						• Pathologies physiques particulières ?<br />
 						• Contre-indications à l'activité physique ?<br />
-						• Contre-indications à un régime alimentaire ?<br />
 						• Traitement médical en cours ?
 					</p>
 					<Textarea

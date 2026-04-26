@@ -1,10 +1,30 @@
 import { prisma } from '$lib/server';
 
 /**
- * Seuil de complétion : une vidéo est considérée vue à 90 % de sa durée
+ * Seuil de complétion : une vidéo est considérée vue à 80 % de sa durée
  * (ou si l'événement player "ended" est reçu — voir route progress).
  */
-export const VIDEO_COMPLETION_THRESHOLD = 0.9;
+export const VIDEO_COMPLETION_THRESHOLD = 0.8;
+
+/**
+ * Calcul pur (sans I/O) : détermine si la progression doit déclencher une complétion.
+ * - `maxPositionSec` : position max atteinte après la mise à jour en cours.
+ * - `durationSeconds` : durée totale connue de la vidéo (null = inconnue).
+ * - `ended` : l'événement "ended" du player a été reçu.
+ * - `alreadyCompleted` : la vidéo était déjà marquée complète en base.
+ * Retourne `true` uniquement lors de la **première** complétion.
+ */
+export function computeCompletion(
+	maxPositionSec: number,
+	durationSeconds: number | null,
+	ended: boolean,
+	alreadyCompleted: boolean
+): boolean {
+	if (alreadyCompleted) return false;
+	if (ended) return true;
+	if (!durationSeconds) return false;
+	return maxPositionSec >= durationSeconds * VIDEO_COMPLETION_THRESHOLD;
+}
 
 export type UpsertVideoProgressInput =
 	| { kind: 'workout'; userId: string; workoutVideoId: string; positionSec: number; ended?: boolean }
@@ -42,10 +62,12 @@ export async function upsertVideoProgress(
 		const previousMax = existing?.maxPositionSec ?? 0;
 		const newMax = Math.max(previousMax, Math.max(0, input.positionSec));
 
-		const reached = video.durationSeconds
-			? newMax >= video.durationSeconds * VIDEO_COMPLETION_THRESHOLD
-			: false;
-		const shouldComplete = !existing?.completedAt && (reached || input.ended === true);
+		const shouldComplete = computeCompletion(
+			newMax,
+			video.durationSeconds ?? null,
+			input.ended === true,
+			!!existing?.completedAt
+		);
 
 		const data = {
 			maxPositionSec: newMax,
@@ -88,10 +110,12 @@ export async function upsertVideoProgress(
 	const previousMax = existing?.maxPositionSec ?? 0;
 	const newMax = Math.max(previousMax, Math.max(0, input.positionSec));
 
-	const reached = content.durationSeconds
-		? newMax >= content.durationSeconds * VIDEO_COMPLETION_THRESHOLD
-		: false;
-	const shouldComplete = !existing?.completedAt && (reached || input.ended === true);
+	const shouldComplete = computeCompletion(
+		newMax,
+		content.durationSeconds ?? null,
+		input.ended === true,
+		!!existing?.completedAt
+	);
 
 	const data = {
 		maxPositionSec: newMax,

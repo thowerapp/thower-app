@@ -499,8 +499,8 @@ model WorkoutVideo {
   id          String               @id @default(auto()) @map("_id") @db.ObjectId
   session     WorkoutSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sessionId   String               @db.ObjectId
-  /// UID Cloudflare Stream (identifiant unique de la vidéo côté Cloudflare)
-  cloudflareUid   String           @unique
+  /// UID Cloudflare Stream — le même asset peut être référencé sur plusieurs fiches (seed / rotation)
+  cloudflareUid   String
   title       String
   position    WorkoutVideoPosition
   isOptional  Boolean             @default(false)
@@ -516,6 +516,7 @@ model WorkoutVideo {
   progress UserVideoProgress[]
 
   @@index([sessionId])
+  @@index([cloudflareUid])
   @@map("workout_videos")
 }
 

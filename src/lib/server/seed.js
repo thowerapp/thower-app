@@ -39,6 +39,16 @@ const nutritionAnnual = Number(process.env.STRIPE_PLAN_ANNUAL_NUTRITION_CENTS ??
 const sportMonthly = Number(process.env.STRIPE_PLAN_MONTHLY_SPORT_CENTS ?? defaultMonthly);
 const sportAnnual = Number(process.env.STRIPE_PLAN_ANNUAL_SPORT_CENTS ?? defaultAnnual);
 
+// ─── UIDs Cloudflare Stream (catalogue sport seed) : 4 vraies vidéos, rotation 3×3 séances
+const SEED_SPORT_STREAM_UIDS = [
+	'07188608eec7f3490a3115cdb06767b2',
+	'4b06a38364e54bb1b4da7eb189c09c7f',
+	'cdc4f8d1d3b47abfe186fd113387c908',
+	'0c9e4177ad86dee26e0c1e2b7674666b'
+];
+/** @param {number} slot index global 0=PRE A … 8=VID2 C (rotation % 4) */
+const sportStreamUidAtSlot = (slot) => SEED_SPORT_STREAM_UIDS[slot % SEED_SPORT_STREAM_UIDS.length];
+
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 /** @param {number} n */
 const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d; };
@@ -204,6 +214,7 @@ async function main() {
 		{ type: 'MAIN_B', name: 'Séance B — Cardio & mobilité', description: 'HIIT + étirements dynamiques', weekNumber: 1, order: 1 },
 		{ type: 'MAIN_C', name: 'Séance C — Abdos & gainage', description: 'Core training intensif 30 min', weekNumber: 1, order: 2 }
 	];
+	let sportStreamSlot = 0;
 	const sessions = [];
 	for (const def of sessionDefs) {
 		let session = await db.workoutSession.findFirst({ where: { name: def.name } });
@@ -214,18 +225,36 @@ async function main() {
 					active: true,
 					videos: {
 						create: [
-							{ cloudflareUid: `cf_seed_pre_${def.type}`, title: `Pré-séance — ${def.name}`, position: 'PRE', isOptional: true, order: 0, status: 'pending' },
-							{ cloudflareUid: `cf_seed_v1_${def.type}`, title: `Vidéo 1 — ${def.name}`, position: 'VID1', isOptional: false, order: 1, status: 'pending' },
-							{ cloudflareUid: `cf_seed_v2_${def.type}`, title: `Vidéo 2 — ${def.name}`, position: 'VID2', isOptional: false, order: 2, status: 'pending' }
+							{ cloudflareUid: sportStreamUidAtSlot(sportStreamSlot++), title: `Pré-séance — ${def.name}`, position: 'PRE', isOptional: true, order: 0, status: 'ready' },
+							{ cloudflareUid: sportStreamUidAtSlot(sportStreamSlot++), title: `Vidéo 1 — ${def.name}`, position: 'VID1', isOptional: false, order: 1, status: 'ready' },
+							{ cloudflareUid: sportStreamUidAtSlot(sportStreamSlot++), title: `Vidéo 2 — ${def.name}`, position: 'VID2', isOptional: false, order: 2, status: 'ready' }
 						]
 					}
 				},
-				include: { videos: true }
+				include: { videos: { orderBy: { order: 'asc' } } }
 			});
 		} else {
-			session = await db.workoutSession.findUnique({ where: { id: session.id }, include: { videos: true } });
+			session = await db.workoutSession.findUnique({ where: { id: session.id }, include: { videos: { orderBy: { order: 'asc' } } } });
 		}
 		sessions.push(session);
+	}
+	// Idempotent : ré-applique la rotation (remplace d’éventuels cf_seed_* après ancien seed)
+	let syncStreamSlot = 0;
+	for (const def of sessionDefs) {
+		const s = await db.workoutSession.findFirst({ where: { name: def.name }, include: { videos: { orderBy: { order: 'asc' } } } });
+		if (!s) continue;
+		for (const v of s.videos) {
+			await db.workoutVideo.update({
+				where: { id: v.id },
+				data: { cloudflareUid: sportStreamUidAtSlot(syncStreamSlot++), status: 'ready' }
+			});
+		}
+	}
+	// Recharge pour user démo (références .videos / .id à jour)
+	sessions.length = 0;
+	for (const def of sessionDefs) {
+		const s = await db.workoutSession.findFirst({ where: { name: def.name }, include: { videos: { orderBy: { order: 'asc' } } } });
+		if (s) sessions.push(s);
 	}
 
 	// ── 5. RECETTES ───────────────────────────────────────────────────────────
@@ -554,13 +583,12 @@ async function main() {
 		await db.shoppingItem.create({ data: { listId: marieList.id, ...item } });
 	}
 
-	// Points (total : 120 pts)
+	// Points (VIDEO_WATCHED retiré : progressions laissées libres pour tests manuels)
 	for (const ev of [
 		{ type: 'DAILY_TASK', amount: 20, metadata: { label: "Eau au lever" } },
 		{ type: 'DAILY_TASK', amount: 20, metadata: { label: 'Pas de téléphone 30 min' } },
 		{ type: 'DAILY_TASK', amount: 20, metadata: { label: "Eau au lever" } },
 		{ type: 'DAILY_TASK', amount: 30, metadata: { label: 'Pas de sucre' } },
-		{ type: 'VIDEO_WATCHED', amount: 10, metadata: { cloudflareUid: 'cf_seed_mot_001' } },
 		{ type: 'PHOTO_UPLOAD', amount: 50, metadata: { month: 1 } }
 	]) {
 		await db.pointEvent.create({ data: { userId: marie.id, ...ev } });
@@ -573,15 +601,7 @@ async function main() {
 	await dailyTaskCompletion.create({ data: { userId: marie.id, taskId: tasks[0].id, date: today } });
 	await dailyTaskCompletion.create({ data: { userId: marie.id, taskId: tasks[3].id, date: today } });
 
-	// Vidéo Découverte vue (UserVideoProgress unifié — completedAt posé pour points)
-	await db.userVideoProgress.create({
-		data: {
-			userId: marie.id,
-			discoveryContentId: discoveries[3].id,
-			maxPositionSec: 60,
-			completedAt: daysAgo(5)
-		}
-	});
+	// Pas d’UserVideoProgress « validé » en seed — à tester en lecture réelle (Découverte + sport)
 
 	// Photo de progression mois 1
 	await db.progressPhoto.create({
@@ -669,28 +689,12 @@ async function main() {
 		});
 	}
 
-	// Vidéos vues pour séances A et B (toutes les vidéos)
-	for (const sa of thomasSessions.slice(0, 2)) {
-		for (const video of sa.session.videos) {
-			await db.userVideoProgress.create({
-				data: {
-					userId: thomas.id,
-					workoutVideoId: video.id,
-					maxPositionSec: 600,
-					completedAt: sa.completedAt
-				}
-			});
-		}
-	}
+	// Pas d’UserVideoProgress workout validé en seed (tests lecture / seuil 80 % côté navigateur)
 
-	// Points (total : 200 pts)
+	// Points (WORKOUT_* et points vidéo conservés comme historique ; pas de UVP validé côté DB)
 	for (const ev of [
 		{ type: 'WORKOUT_COMPLETE', amount: 50, metadata: { sessionName: 'Séance A' } },
-		{ type: 'VIDEO_WATCHED', amount: 10, metadata: { cloudflareUid: 'cf_seed_v1_MAIN_A' } },
-		{ type: 'VIDEO_WATCHED', amount: 10, metadata: { cloudflareUid: 'cf_seed_v2_MAIN_A' } },
 		{ type: 'WORKOUT_COMPLETE', amount: 50, metadata: { sessionName: 'Séance B' } },
-		{ type: 'VIDEO_WATCHED', amount: 10, metadata: { cloudflareUid: 'cf_seed_v1_MAIN_B' } },
-		{ type: 'VIDEO_WATCHED', amount: 10, metadata: { cloudflareUid: 'cf_seed_v2_MAIN_B' } },
 		{ type: 'DAILY_TASK', amount: 20, metadata: { label: "Eau au lever" } },
 		{ type: 'DAILY_TASK', amount: 20, metadata: { label: 'Pas de téléphone 30 min' } },
 		{ type: 'BADGE_UNLOCK', amount: 0, metadata: { badgeSlug: '7-jours-seance' } }
@@ -709,14 +713,6 @@ async function main() {
 
 	// Thomas ne suit pas "Pas de sucre" (opt-out)
 	await db.userDailyTaskOptOut.create({ data: { userId: thomas.id, taskId: tasks[3].id } });
-
-	// Vidéos Découverte vues (UserVideoProgress unifié)
-	await db.userVideoProgress.create({
-		data: { userId: thomas.id, discoveryContentId: discoveries[1].id, maxPositionSec: 300, completedAt: daysAgo(10) }
-	});
-	await db.userVideoProgress.create({
-		data: { userId: thomas.id, discoveryContentId: discoveries[3].id, maxPositionSec: 180, completedAt: daysAgo(8) }
-	});
 
 	// Photos de progression mois 1 (2 angles)
 	await db.progressPhoto.create({ data: { userId: thomas.id, angle: 'FRONT', url: 'https://placeholder.thower.test/thomas-front-m1.jpg', month: 1 } });
@@ -807,20 +803,7 @@ async function main() {
 		});
 	}
 
-	// Vidéos vues pour les séances complétées (J2, J4, J6, J9 — sessions 0,1,2,0)
-	const completedSessionIndices = [...new Set(sessionDays.filter((d) => d.dayIndex <= completedBeforeDayIndex).map((d) => d.sessionIndex))];
-	for (const sessionIdx of completedSessionIndices) {
-		for (const video of sessions[sessionIdx].videos.filter((/** @type {{ position: string }} */ v) => v.position !== 'PRE')) {
-			await db.userVideoProgress.create({
-				data: {
-					userId: lucas.id,
-					workoutVideoId: video.id,
-					maxPositionSec: 600,
-					completedAt: daysAgo(5)
-				}
-			}).catch(() => {});
-		}
-	}
+	// Pas d’UserVideoProgress workout validé en seed (tests manuels)
 
 	// Nutrition : 90 jours (cycle de recettes depuis lucasDemoData.json)
 	const { recipeCycle, mealMacros } = LUCAS_DEMO_DATA.nutrition;
@@ -857,11 +840,9 @@ async function main() {
 		}
 	}
 
-	// Points (total : 160 pts)
+	// Points (VIDEO_WATCHED retiré — UVP laissé vide pour tests)
 	for (const ev of [
 		{ type: 'WORKOUT_COMPLETE', amount: 50, metadata: { sessionName: 'Séance A' } },
-		{ type: 'VIDEO_WATCHED', amount: 10, metadata: { cloudflareUid: 'cf_seed_v1_MAIN_A' } },
-		{ type: 'VIDEO_WATCHED', amount: 10, metadata: { cloudflareUid: 'cf_seed_v2_MAIN_A' } },
 		{ type: 'DAILY_TASK', amount: 20, metadata: { label: "Eau au lever" } },
 		{ type: 'DAILY_TASK', amount: 20, metadata: { label: 'Pas de téléphone 30 min' } },
 		{ type: 'PHOTO_UPLOAD', amount: 50, metadata: { month: 1 } }
@@ -875,11 +856,6 @@ async function main() {
 	// Tâches cochées aujourd'hui
 	await dailyTaskCompletion.create({ data: { userId: lucas.id, taskId: tasks[0].id, date: today } });
 	await dailyTaskCompletion.create({ data: { userId: lucas.id, taskId: tasks[1].id, date: today } });
-
-	// Vidéo Découverte vue (UserVideoProgress unifié)
-	await db.userVideoProgress.create({
-		data: { userId: lucas.id, discoveryContentId: discoveries[0].id, maxPositionSec: 300, completedAt: daysAgo(2) }
-	});
 
 	// Photos de progression mois 1 (3 angles)
 	for (const angle of ['FRONT', 'SIDE', 'BACK']) {

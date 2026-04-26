@@ -8,8 +8,11 @@ import {
 } from '$lib/utils/programDay';
 import { serializeData } from '$lib/utils/serializeData';
 import { requireSportAccess } from '$lib/server/programAccessGuard';
+import { VIDEO_COMPLETION_THRESHOLD } from '$lib/prisma/userVideoProgress/upsertProgress';
 
 const OID = /^[a-f\d]{24}$/i;
+
+type VideoProgressState = 'preparing' | 'not_started' | 'in_progress' | 'validated';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
@@ -57,15 +60,34 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		}),
 		videoIds.length > 0
 			? prisma.userVideoProgress.findMany({
-					where: { userId, workoutVideoId: { in: videoIds }, completedAt: { not: null } },
-					select: { workoutVideoId: true, completedAt: true }
+					where: { userId, workoutVideoId: { in: videoIds } },
+					select: {
+						workoutVideoId: true,
+						completedAt: true,
+						maxPositionSec: true
+					}
 				})
 			: Promise.resolve([])
 	]);
 
-	const completedVideoIds = new Set(
-		(progressRows as { workoutVideoId: string }[]).map((r) => r.workoutVideoId)
-	);
+	const progressByVideoId = new Map<
+		string,
+		{ completedAt: Date | null; maxPositionSec: number }
+	>();
+	for (const r of progressRows as {
+		workoutVideoId: string | null;
+		completedAt: Date | null;
+		maxPositionSec: number;
+	}[]) {
+		if (r.workoutVideoId) {
+			progressByVideoId.set(r.workoutVideoId, {
+				completedAt: r.completedAt,
+				maxPositionSec: r.maxPositionSec ?? 0
+			});
+		}
+	}
+
+	const validationThresholdPercent = Math.round(VIDEO_COMPLETION_THRESHOLD * 100);
 
 	let scheduledISO: string | null = null;
 	const ps = user?.programStartDate;
@@ -73,22 +95,57 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		scheduledISO = calendarDateForProgramDay(ps, dayIndex).toISOString();
 	}
 
-	const videos = session.videos.map((v) => ({
-		id: v.id,
-		title: v.title,
-		position: v.position,
-		order: v.order,
-		status: v.status ?? 'pending',
-		cloudflareUid: v.cloudflareUid,
-		isOptional: v.isOptional,
-		videoCompleted: completedVideoIds.has(v.id),
-		durationSeconds: v.durationSeconds ?? null
-	}));
+	const videos = session.videos.map((v) => {
+		const status = v.status ?? 'pending';
+		const prog = progressByVideoId.get(v.id);
+		const videoCompleted = prog?.completedAt != null;
+		const maxPositionSec = prog?.maxPositionSec ?? 0;
+		const durationSec = v.durationSeconds != null && v.durationSeconds > 0 ? v.durationSeconds : null;
+
+		let progressState: VideoProgressState;
+		if (status !== 'ready') {
+			progressState = 'preparing';
+		} else if (videoCompleted) {
+			progressState = 'validated';
+		} else if (maxPositionSec > 0) {
+			progressState = 'in_progress';
+		} else {
+			progressState = 'not_started';
+		}
+
+		const watchedPercent =
+			durationSec != null
+				? Math.min(100, Math.round((maxPositionSec / durationSec) * 100))
+				: null;
+
+		return {
+			id: v.id,
+			title: v.title,
+			position: v.position,
+			order: v.order,
+			status,
+			cloudflareUid: v.cloudflareUid,
+			isOptional: v.isOptional,
+			videoCompleted,
+			progressState,
+			maxPositionSec: Math.round(maxPositionSec * 10) / 10,
+			durationSeconds: v.durationSeconds ?? null,
+			watchedPercent
+		};
+	});
 
 	const mandatoryVideos = session.videos.filter((v) => !v.isOptional);
+	const optionalVideos = session.videos.filter((v) => v.isOptional);
 	const allMandatoryVideosCompleted =
 		mandatoryVideos.length === 0 ||
-		mandatoryVideos.every((v) => completedVideoIds.has(v.id));
+		mandatoryVideos.every((v) => progressByVideoId.get(v.id)?.completedAt != null);
+
+	const mandatoryValidated = mandatoryVideos.filter(
+		(v) => progressByVideoId.get(v.id)?.completedAt != null
+	).length;
+	const optionalValidated = optionalVideos.filter(
+		(v) => progressByVideoId.get(v.id)?.completedAt != null
+	).length;
 
 	return serializeData({
 		sessionId,
@@ -100,7 +157,14 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		seanceLocked: userDay?.isLocked ?? false,
 		userDayExists: !!userDay,
 		videos,
-		allMandatoryVideosCompleted
+		allMandatoryVideosCompleted,
+		validationThresholdPercent,
+		seanceVideoSummary: {
+			mandatoryValidated,
+			mandatoryTotal: mandatoryVideos.length,
+			optionalValidated,
+			optionalTotal: optionalVideos.length
+		}
 	});
 };
 

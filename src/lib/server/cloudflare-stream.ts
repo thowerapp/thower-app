@@ -1,20 +1,66 @@
 import { env } from '$env/dynamic/private';
 import { CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_STREAM_API_TOKEN } from '$env/static/private';
 
-const BASE_URL = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/stream`;
+function getStreamBaseUrl(): string {
+	const id = (CLOUDFLARE_ACCOUNT_ID ?? '').trim();
+	const token = (CLOUDFLARE_STREAM_API_TOKEN ?? '').trim();
+	if (!id || !token) {
+		throw new Error(
+			'Configuration Stream incomplète : définis CLOUDFLARE_ACCOUNT_ID et CLOUDFLARE_STREAM_API_TOKEN dans .env, puis redémarre le serveur (Vite ne recharge pas les secrets à chaud).'
+		);
+	}
+	return `https://api.cloudflare.com/client/v4/accounts/${id}/stream`;
+}
 
-const STREAM_AUTH_HEADERS = {
-	Authorization: `Bearer ${CLOUDFLARE_STREAM_API_TOKEN}`,
-	'Content-Type': 'application/json'
-} as const;
+function streamAuthHeaders() {
+	return {
+		Authorization: `Bearer ${(CLOUDFLARE_STREAM_API_TOKEN ?? '').trim()}`,
+		'Content-Type': 'application/json'
+	} as const;
+}
 
 /* ─── 1. Upload direct (tus) ────────────────────────────────────────────── */
+
+/** Erreur API Stream avec code HTTP Cloudflare (413 quota, 401 token, etc.). */
+export class CloudflareStreamRequestError extends Error {
+	readonly httpStatus: number;
+	constructor(message: string, httpStatus: number) {
+		super(message);
+		this.name = 'CloudflareStreamRequestError';
+		this.httpStatus = httpStatus;
+	}
+}
 
 export type CreateDirectUploadOptions = {
 	maxDurationSeconds?: number;
 	requireSignedURLs?: boolean;
 	meta?: Record<string, string>;
 };
+
+function clampDirectUploadMaxSeconds(n: number | undefined): number {
+	const fallback = 7200;
+	if (n == null || !Number.isFinite(n) || n <= 0) return fallback;
+	return Math.max(60, Math.min(21600, n));
+}
+
+/** Extrait le message d’une réponse d’API Cloudflare v4. */
+function formatCloudflareApiFailure(status: number, bodyText: string): string {
+	try {
+		const j = JSON.parse(bodyText) as { errors?: Array<{ message?: string; code?: number }> };
+		const first = j.errors?.[0];
+		if (first?.message) {
+			let text = `Cloudflare (${status}) : ${first.message}${first.code != null ? ` [code ${first.code}]` : ''}`;
+			if (first.code === 10011 || status === 413) {
+				text +=
+					'\n\nQuota Stream dépassé (minutes ou stockage réservé). Supprime des vidéos dans le dashboard Cloudflare → Stream, ou augmente ton forfait / achète des minutes.';
+			}
+			return text;
+		}
+	} catch {
+		// ignore
+	}
+	return `Cloudflare Stream direct_upload a répondu ${status} : ${bodyText || '(corps vide)'}`;
+}
 
 /**
  * Crée une URL d'upload directe (tus). Le navigateur uploade le fichier en
@@ -24,22 +70,52 @@ export type CreateDirectUploadOptions = {
 export async function createDirectUploadUrl(
 	options: CreateDirectUploadOptions = {}
 ): Promise<{ uploadURL: string; uid: string }> {
-	const res = await fetch(`${BASE_URL}/direct_upload`, {
+	const base = getStreamBaseUrl();
+	const maxDurationSeconds = clampDirectUploadMaxSeconds(options.maxDurationSeconds);
+	const requireSignedBool = options.requireSignedURLs ?? true;
+	const meta: Record<string, string> = {};
+	if (options.meta) {
+		for (const [k, v] of Object.entries(options.meta)) {
+			meta[k] = String(v);
+		}
+	}
+
+	const res = await fetch(`${base}/direct_upload`, {
 		method: 'POST',
-		headers: STREAM_AUTH_HEADERS,
+		headers: streamAuthHeaders(),
 		body: JSON.stringify({
-			maxDurationSeconds: options.maxDurationSeconds ?? 7200,
-			requireSignedURLs: options.requireSignedURLs ?? true,
-			meta: options.meta ?? undefined
+			maxDurationSeconds,
+			requireSignedURLs: requireSignedBool,
+			...(Object.keys(meta).length > 0 ? { meta } : {})
 		})
 	});
 
+	const bodyText = await res.text();
+
 	if (!res.ok) {
-		const err = await res.text();
-		throw new Error(`Cloudflare Stream direct_upload error ${res.status}: ${err}`);
+		throw new CloudflareStreamRequestError(
+			formatCloudflareApiFailure(res.status, bodyText),
+			res.status
+		);
 	}
 
-	const data = await res.json();
+	let data: { success?: boolean; result?: { uploadURL?: string; uid?: string }; errors?: unknown };
+	try {
+		data = JSON.parse(bodyText) as typeof data;
+	} catch {
+		throw new CloudflareStreamRequestError(
+			`Réponse direct_upload inattendue (JSON invalide) : ${bodyText.slice(0, 200)}`,
+			502
+		);
+	}
+
+	if (data.success === false || !data.result?.uploadURL || !data.result?.uid) {
+		throw new CloudflareStreamRequestError(
+			formatCloudflareApiFailure(res.status, bodyText),
+			502
+		);
+	}
+
 	return {
 		uploadURL: data.result.uploadURL,
 		uid: data.result.uid
@@ -58,8 +134,8 @@ export type StreamVideoDetails = {
 
 /** Récupère les métadonnées d'une vidéo Cloudflare (durée, statut, vignette). */
 export async function getVideoDetails(uid: string): Promise<StreamVideoDetails | null> {
-	const res = await fetch(`${BASE_URL}/${uid}`, {
-		headers: { Authorization: `Bearer ${CLOUDFLARE_STREAM_API_TOKEN}` }
+	const res = await fetch(`${getStreamBaseUrl()}/${uid}`, {
+		headers: { Authorization: streamAuthHeaders().Authorization }
 	});
 	if (res.status === 404) return null;
 	if (!res.ok) {
@@ -81,9 +157,9 @@ export async function getVideoDetails(uid: string): Promise<StreamVideoDetails |
 
 /** Supprime la vidéo côté Cloudflare. Idempotent (404 ignoré). */
 export async function deleteStreamVideo(uid: string): Promise<void> {
-	const res = await fetch(`${BASE_URL}/${uid}`, {
+	const res = await fetch(`${getStreamBaseUrl()}/${uid}`, {
 		method: 'DELETE',
-		headers: { Authorization: `Bearer ${CLOUDFLARE_STREAM_API_TOKEN}` }
+		headers: { Authorization: streamAuthHeaders().Authorization }
 	});
 	if (res.ok || res.status === 404) return;
 	const err = await res.text();
@@ -118,9 +194,9 @@ export async function createSignedPlaybackToken(
 		body.downloadable = false;
 	}
 
-	const res = await fetch(`${BASE_URL}/${uid}/token`, {
+	const res = await fetch(`${getStreamBaseUrl()}/${uid}/token`, {
 		method: 'POST',
-		headers: STREAM_AUTH_HEADERS,
+		headers: streamAuthHeaders(),
 		body: JSON.stringify(body)
 	});
 	if (!res.ok) {

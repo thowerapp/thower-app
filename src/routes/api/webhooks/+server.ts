@@ -76,6 +76,12 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 		// Stripe peut envoyer checkout.session.completed plusieurs fois ; la 2e arrivait parfois
 		// après la création Transaction mais avant user.update → génération avec nutritionDaysAllocated=0.
 		if (session.payment_status !== 'paid' || !transaction.userId) {
+			console.log(
+				'[webhook] skip generation: session non payée ou userId manquant',
+				session.id,
+				session.payment_status,
+				transaction.userId
+			);
 			return;
 		}
 
@@ -131,16 +137,18 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				'| nutritionDaysAllocated=',
 				after?.nutritionDaysAllocated ?? '?'
 			);
+
+			// On ne génère le programme que lorsqu'un nouveau crédit a réellement été appliqué.
+			// Cela évite les régénérations déclenchées par des webhooks dupliqués/non-opérants.
+			void scheduleProgramGenerationAfterPayment(transaction.userId).catch((err) => {
+				console.error('scheduleProgramGenerationAfterPayment failed', transaction.userId, err);
+			});
 		} else {
 			console.log(
-				'Checkout session already credited (nutrition segment) — skip user update:',
+				'Checkout session already credited (nutrition segment) — skip user update + skip program generation:',
 				session.id
 			);
 		}
-
-		void scheduleProgramGenerationAfterPayment(transaction.userId).catch((err) => {
-			console.error('scheduleProgramGenerationAfterPayment failed', transaction.userId, err);
-		});
 	} catch (error) {
 		console.error('Failed to create transaction for session', session.id, error);
 	}

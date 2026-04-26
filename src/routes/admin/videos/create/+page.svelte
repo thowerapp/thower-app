@@ -8,6 +8,10 @@
 	import { goto } from '$app/navigation';
 	import * as tus from 'tus-js-client';
 	import {
+		CLOUDFLARE_STREAM_BASIC_POST_MAX_BYTES,
+		uploadCloudflareStreamBasicPost
+	} from '$lib/client/cloudflareStreamDirectUpload';
+	import {
 		createVideoSchema,
 		type CreateVideoSchema
 	} from '$lib/schema/video/videoAdminSchema';
@@ -86,68 +90,71 @@
 		uploadError = null;
 
 		try {
-			// 1. Demande une URL d'upload tus à notre serveur (qui interroge Cloudflare)
+			// 1. URL d’upload tus (API admin JSON stable — pas d’enveloppe d’action SvelteKit)
 			const fd = new FormData();
 			fd.append('filename', selectedFile.name);
 			// 7200 s = 2 h max — élargir si besoin pour pré-séances longues
 			fd.append('maxDurationSeconds', '7200');
-			const res = await fetch('?/getUploadUrl', { method: 'POST', body: fd });
-			const json = await res.json();
-
-			// SvelteKit form action wraps payload in { type, status, data } ; data peut être stringifié
-			let parsedData: { uploadURL?: string; uid?: string } = {};
-			if (json && typeof json.data === 'string') {
-				try {
-					const arr = JSON.parse(json.data);
-					// Format devalue : tableau aplati ; on parcourt pour retrouver uploadURL/uid
-					const map = Array.isArray(arr) ? arr[0] : arr;
-					if (map && typeof map === 'object') {
-						const uploadURLIdx = map.uploadURL;
-						const uidIdx = map.uid;
-						parsedData = {
-							uploadURL: typeof uploadURLIdx === 'number' ? arr[uploadURLIdx] : map.uploadURL,
-							uid: typeof uidIdx === 'number' ? arr[uidIdx] : map.uid
-						};
-					}
-				} catch {
-					parsedData = json.data;
-				}
-			} else if (json?.data) {
-				parsedData = json.data;
-			}
-
-			const { uploadURL, uid } = parsedData;
-			if (!uploadURL || !uid) {
-				throw new Error('URL d\'upload Cloudflare non reçue.');
-			}
-
-			// 2. Upload tus direct vers Cloudflare
-			const upload = new tus.Upload(selectedFile, {
-				endpoint: uploadURL,
-				uploadUrl: uploadURL,
-				retryDelays: [0, 1000, 3000, 5000],
-				chunkSize: 50 * 1024 * 1024, // 50 Mo
-				metadata: {
-					name: selectedFile.name,
-					filetype: selectedFile.type
-				},
-				onError(error) {
-					console.error('[tus] upload error', error);
-					uploadStatus = 'error';
-					uploadError = error.message;
-					toast.error('Échec de l\'upload : ' + error.message);
-				},
-				onProgress(bytesUploaded, bytesTotal) {
-					uploadProgress = Math.round((bytesUploaded / bytesTotal) * 100);
-				},
-				onSuccess() {
-					uploadStatus = 'success';
-					cloudflareUid = uid;
-					($form as unknown as CreateVideoSchema).cloudflareUid = uid;
-					toast.success('Vidéo uploadée — finalisation possible.');
-				}
+			const res = await fetch('/api/admin/cloudflare-stream/upload-url', {
+				method: 'POST',
+				body: fd,
+				credentials: 'include',
+				headers: { Accept: 'application/json' }
 			});
-			upload.start();
+			const raw = await res.json().catch(() => ({}));
+			if (!res.ok) {
+				const msg =
+					typeof raw === 'object' && raw && 'message' in raw
+						? String((raw as { message: string }).message)
+						: res.statusText;
+				throw new Error(msg || 'Impossible d’obtenir l’URL d’upload.');
+			}
+			const { uploadURL, uid } = raw as { uploadURL?: string; uid?: string };
+			if (!uploadURL || !uid) {
+				throw new Error('URL d’upload Cloudflare non reçue.');
+			}
+
+			// 2. Envoi vers l’URL one-shot
+			// L’URL `direct_upload` n’est *pas* un point de création TUS classique : un premier
+			// POST TUS (Upload-Length) déclenche 400 « Decoding Error ». Jusqu’à 200 Mio, CF
+			// documente un `multipart` simple (champ `file`) — c’est fiable. Au‑delà : TUS
+			// avec `uploadUrl` seul (HEAD puis PATCH), *sans* `endpoint` (qui force un POST
+			// de création invalide ici).
+			const onDone = () => {
+				uploadStatus = 'success';
+				cloudflareUid = uid;
+				($form as unknown as CreateVideoSchema).cloudflareUid = uid;
+				toast.success('Vidéo uploadée — finalisation possible.');
+			};
+			if (selectedFile.size <= CLOUDFLARE_STREAM_BASIC_POST_MAX_BYTES) {
+				await uploadCloudflareStreamBasicPost(
+					selectedFile,
+					uploadURL,
+					(loaded, total) => {
+						uploadProgress = total ? Math.round((loaded / total) * 100) : 0;
+					}
+				);
+				onDone();
+			} else {
+				const upload = new tus.Upload(selectedFile, {
+					uploadUrl: uploadURL,
+					retryDelays: [0, 1000, 3000, 5000],
+					chunkSize: 50 * 1024 * 1024,
+					onError(error) {
+						console.error('[tus] upload error', error);
+						uploadStatus = 'error';
+						uploadError = error.message;
+						toast.error("Échec de l'upload : " + error.message);
+					},
+					onProgress(bytesUploaded, bytesTotal) {
+						uploadProgress = Math.round((bytesUploaded / bytesTotal) * 100);
+					},
+					onSuccess() {
+						onDone();
+					}
+				});
+				upload.start();
+			}
 		} catch (err) {
 			uploadStatus = 'error';
 			uploadError = err instanceof Error ? err.message : String(err);

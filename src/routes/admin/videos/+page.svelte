@@ -135,10 +135,14 @@
 	<div class="flex flex-wrap items-center justify-between gap-3">
 		<p class="max-w-2xl text-sm text-muted-foreground">
 			L’upload se fait sur la page <strong>Nouvelle vidéo</strong> : choix du fichier, envoi direct vers
-			Cloudflare (tus), puis enregistrement des métadonnées. Prérequis : variables
-			<code class="rounded bg-muted px-1 font-mono text-xs">CLOUDFLARE_ACCOUNT_ID</code> et
-			<code class="rounded bg-muted px-1 font-mono text-xs">CLOUDFLARE_STREAM_API_TOKEN</code> dans
-			<code class="rounded bg-muted px-1 font-mono text-xs">.env</code>.
+			Cloudflare (tus), puis enregistrement des métadonnées. Prérequis :{' '}
+			<code class="rounded bg-muted px-1 font-mono text-xs">CLOUDFLARE_ACCOUNT_ID</code>,{' '}
+			<code class="rounded bg-muted px-1 font-mono text-xs">CLOUDFLARE_STREAM_API_TOKEN</code> et, pour
+			le webhook (mise à jour statut / durée après transcodage),{' '}
+			<code class="rounded bg-muted px-1 font-mono text-xs">CLOUDFLARE_STREAM_WEBHOOK_SECRET</code>{' '}
+			(même valeur que le secret retourné par l’API{' '}
+			<code class="rounded bg-muted px-1 text-xs">PUT …/stream/webhook</code> ; URL de notification
+			publique <code class="rounded bg-muted px-1 text-xs">…/api/cloudflare/stream/webhook</code>).
 		</p>
 		<Button href="/admin/videos/create">
 			<Plus class="size-4" />

@@ -1,5 +1,9 @@
 <script lang="ts">
 	import * as tus from 'tus-js-client';
+	import {
+		CLOUDFLARE_STREAM_BASIC_POST_MAX_BYTES,
+		uploadCloudflareStreamBasicPost
+	} from '$lib/client/cloudflareStreamDirectUpload';
 
 	// ── Stream ──────────────────────────────────────────────────────────────────
 	let videoFile = $state<File | null>(null);
@@ -26,33 +30,40 @@
 			const res = await fetch('/api/cloudflare/stream/upload-url', { method: 'POST' });
 			const { uploadURL, uid } = await res.json();
 
-			await new Promise<void>((resolve, reject) => {
-				const upload = new tus.Upload(videoFile!, {
-					endpoint: uploadURL,
-					uploadUrl: uploadURL,
-					retryDelays: [0, 1000, 3000],
-					metadata: { filename: videoFile!.name, filetype: videoFile!.type },
-					onProgress(bytesUploaded, bytesTotal) {
-						videoProgress = Math.round((bytesUploaded / bytesTotal) * 100);
-					},
-					onSuccess() {
-						videoUid = uid;
-						videoStatus = 'done';
-						resolve();
-					},
-					onError(err) {
-						videoError = err.message;
-						videoStatus = 'error';
-						reject(err);
-					}
+			const file = videoFile!;
+
+			if (file.size <= CLOUDFLARE_STREAM_BASIC_POST_MAX_BYTES) {
+				await uploadCloudflareStreamBasicPost(file, uploadURL, (loaded, total) => {
+					videoProgress = total ? Math.round((loaded / total) * 100) : 0;
 				});
-				upload.start();
-			});
-		} catch (err: unknown) {
-			if (videoStatus !== 'error') {
-				videoError = err instanceof Error ? err.message : 'Erreur inconnue';
-				videoStatus = 'error';
+				videoUid = uid;
+				videoStatus = 'done';
+			} else {
+				await new Promise<void>((resolve, reject) => {
+					const upload = new tus.Upload(file, {
+						uploadUrl: uploadURL,
+						retryDelays: [0, 1000, 3000],
+						chunkSize: 50 * 1024 * 1024,
+						onProgress(bytesUploaded, bytesTotal) {
+							videoProgress = Math.round((bytesUploaded / bytesTotal) * 100);
+						},
+						onSuccess() {
+							videoUid = uid;
+							videoStatus = 'done';
+							resolve();
+						},
+						onError(err) {
+							videoError = err.message;
+							videoStatus = 'error';
+							reject(err);
+						}
+					});
+					upload.start();
+				});
 			}
+		} catch (err: unknown) {
+			videoError = err instanceof Error ? err.message : 'Erreur inconnue';
+			videoStatus = 'error';
 		}
 	}
 
@@ -118,7 +129,11 @@
 				</div>
 				<div>
 					<h2 class="font-semibold">Cloudflare Stream</h2>
-					<p class="text-xs text-muted-foreground">Upload & lecture vidéo</p>
+					<p class="text-xs text-muted-foreground">
+						Upload & lecture vidéo — l’URL publique d’upload ne fonctionne qu’en
+						<strong>dev</strong> (en prod, utiliser l’admin
+						<code class="text-[0.7rem]">/api/admin/cloudflare-stream/upload-url</code>).
+					</p>
 				</div>
 			</div>
 

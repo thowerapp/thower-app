@@ -325,12 +325,12 @@
 
 	.page-title {
 		font-size: 0.72rem;
-		font-weight: 600;
+		font-weight: 800;
 		color: var(--tx);
 		margin-left: auto;
-		font-family: var(--fh2), sans-serif;
+		font-family: var(--fh), sans-serif;
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		letter-spacing: -0.06em;
 		text-align: right;
 		line-height: 1.2;
 		max-width: 62%;
@@ -344,11 +344,11 @@
 
 	.title {
 		font-size: 0.7rem;
-		font-weight: 600;
+		font-weight: 800;
 		color: var(--tx);
-		font-family: var(--fh2), sans-serif;
+		font-family: var(--fh), sans-serif;
 		text-transform: uppercase;
-		letter-spacing: 0.04em;
+		letter-spacing: -0.05em;
 	}
 
 	.sub {

@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { fireElement } from '$lib/utils/particles';
+	import { onMount } from 'svelte';
 
 	let { data } = $props<{ data: PageData }>();
 
@@ -27,41 +28,106 @@
 
 	let dragSourceDayIndex = $state<number | null>(null);
 	let dragTargetDayIndex = $state<number | null>(null);
-	let dragPointerTimer: ReturnType<typeof setTimeout> | null = null;
+	let dragSourceLabel = $state<string | null>(null);
+	let dragging = $state(false);
 	let moving = $state(false);
 	let moveMessage = $state<string | null>(null);
 
 	function clearDragState() {
 		dragSourceDayIndex = null;
 		dragTargetDayIndex = null;
-		if (dragPointerTimer) {
-			clearTimeout(dragPointerTimer);
-			dragPointerTimer = null;
+		dragSourceLabel = null;
+		dragging = false;
+	}
+
+	function sourceLabelFor(row: SessionRow): string {
+		if (row.sessionLetter) return `Séance ${row.sessionLetter}`;
+		return row.sessionName ?? 'Séance';
+	}
+
+	function updateTargetFromPoint(clientX: number, clientY: number) {
+		if (typeof document === 'undefined' || dragSourceDayIndex == null) return;
+		const target = document
+			.elementFromPoint(clientX, clientY)
+			?.closest<HTMLElement>('[data-day-slot]');
+		if (!target) return;
+		const dayIndex = Number.parseInt(target.dataset.daySlot ?? '', 10);
+		if (Number.isInteger(dayIndex)) {
+			dragTargetDayIndex = dayIndex;
 		}
 	}
 
-	function startLongPress(row: SessionRow) {
+	function requestMoveSubmit() {
+		if (typeof document === 'undefined' || moving) return;
+		if (dragSourceDayIndex == null || dragTargetDayIndex == null) return;
+		if (dragSourceDayIndex === dragTargetDayIndex) return;
+		const form = document.getElementById('sport-move-form');
+		if (form instanceof HTMLFormElement) {
+			form.requestSubmit();
+		}
+	}
+
+	function beginMove(row: SessionRow, event?: PointerEvent) {
 		if (row.completedAtISO || !row.sessionId) return;
-		if (dragPointerTimer) clearTimeout(dragPointerTimer);
-		dragPointerTimer = setTimeout(() => {
-			dragSourceDayIndex = row.dayIndex;
-			dragTargetDayIndex = row.dayIndex;
-			moveMessage = 'Déplacement activé. Sélectionne le jour cible ci-dessous.';
-			dragPointerTimer = null;
-		}, 450);
-	}
-
-	function stopLongPress() {
-		if (dragPointerTimer) {
-			clearTimeout(dragPointerTimer);
-			dragPointerTimer = null;
+		dragSourceDayIndex = row.dayIndex;
+		dragTargetDayIndex = row.dayIndex;
+		dragSourceLabel = sourceLabelFor(row);
+		dragging = event != null;
+		moveMessage = 'Glisse la séance sur un jour de la semaine, ou touche directement le jour cible.';
+		if (event) {
+			updateTargetFromPoint(event.clientX, event.clientY);
 		}
 	}
 
-	function selectDropTarget(dayIndex: number) {
+	function toggleMove(row: SessionRow) {
+		if (dragSourceDayIndex === row.dayIndex) {
+			clearDragState();
+			moveMessage = 'Déplacement annulé.';
+			return;
+		}
+		beginMove(row);
+	}
+
+	function selectDropTarget(dayIndex: number, commit = false) {
 		if (dragSourceDayIndex == null) return;
 		dragTargetDayIndex = dayIndex;
+		if (commit && dayIndex !== dragSourceDayIndex) {
+			requestMoveSubmit();
+		}
 	}
+
+	function handlePointerMove(event: PointerEvent) {
+		if (!dragging || moving) return;
+		updateTargetFromPoint(event.clientX, event.clientY);
+	}
+
+	function handlePointerEnd(event: PointerEvent) {
+		if (!dragging || moving) return;
+		updateTargetFromPoint(event.clientX, event.clientY);
+		dragging = false;
+		if (
+			dragSourceDayIndex != null &&
+			dragTargetDayIndex != null &&
+			dragSourceDayIndex !== dragTargetDayIndex
+		) {
+			requestMoveSubmit();
+			return;
+		}
+		moveMessage = 'Choisis un autre jour pour déposer la séance.';
+	}
+
+	onMount(() => {
+		if (typeof window === 'undefined') return;
+		window.addEventListener('pointermove', handlePointerMove, { passive: true });
+		window.addEventListener('pointerup', handlePointerEnd, { passive: true });
+		window.addEventListener('pointercancel', handlePointerEnd, { passive: true });
+
+		return () => {
+			window.removeEventListener('pointermove', handlePointerMove);
+			window.removeEventListener('pointerup', handlePointerEnd);
+			window.removeEventListener('pointercancel', handlePointerEnd);
+		};
+	});
 </script>
 
 <div class="u-back-row">
@@ -119,7 +185,7 @@
 <div class="u-sport-week">
 	{#each strip as cell (cell.dayIndex)}
 		{#if cell.completedAtISO}
-			<div class="u-sd done">
+			<div class="u-sd done" data-day-slot={String(cell.dayIndex)}>
 				<div class="u-sd-n">{cell.weekdayShort}</div>
 				<div class="u-sd-d">{dayNumFromISO(cell.dateISO)}</div>
 				{#if cell.sessionLetter}
@@ -127,7 +193,21 @@
 				{/if}
 			</div>
 		{:else if cell.hrefSeance && cell.isToday}
-			<a href={cell.hrefSeance} class="u-sd today pending" onclick={fire}>
+			<a
+				href={dragSourceDayIndex == null ? cell.hrefSeance : '#'}
+				class="u-sd today pending"
+				class:move-source={dragSourceDayIndex === cell.dayIndex}
+				class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === cell.dayIndex}
+				data-day-slot={String(cell.dayIndex)}
+				onclick={(e) => {
+					if (dragSourceDayIndex != null) {
+						e.preventDefault();
+						selectDropTarget(cell.dayIndex, true);
+						return;
+					}
+					fire(e);
+				}}
+			>
 				<div class="u-sd-n" style="color:var(--txd)">{cell.weekdayShort}</div>
 				<div class="u-sd-d">{dayNumFromISO(cell.dateISO)}</div>
 				{#if cell.sessionLetter}
@@ -136,7 +216,21 @@
 				<div class="pin-dot" style="width:7px;height:7px;border-radius:50%;margin-top:1px"></div>
 			</a>
 		{:else if cell.hrefSeance && !cell.completedAtISO}
-			<a href={cell.hrefSeance} class="u-sd placed" onclick={fire}>
+			<a
+				href={dragSourceDayIndex == null ? cell.hrefSeance : '#'}
+				class="u-sd placed"
+				class:move-source={dragSourceDayIndex === cell.dayIndex}
+				class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === cell.dayIndex}
+				data-day-slot={String(cell.dayIndex)}
+				onclick={(e) => {
+					if (dragSourceDayIndex != null) {
+						e.preventDefault();
+						selectDropTarget(cell.dayIndex, true);
+						return;
+					}
+					fire(e);
+				}}
+			>
 				<div class="u-sd-n">{cell.weekdayShort}</div>
 				<div class="u-sd-d">{dayNumFromISO(cell.dateISO)}</div>
 				{#if cell.sessionLetter}
@@ -144,14 +238,21 @@
 				{/if}
 			</a>
 		{:else}
-			<div class="u-sd" style="opacity:.35">
+			<button
+				type="button"
+				class="u-sd u-sd-empty"
+				class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === cell.dayIndex}
+				data-day-slot={String(cell.dayIndex)}
+				disabled={dragSourceDayIndex == null}
+				onclick={() => selectDropTarget(cell.dayIndex, true)}
+			>
 				<div class="u-sd-n">{cell.weekdayShort}</div>
 				<div class="u-sd-d" style="color:var(--txd)">{dayNumFromISO(cell.dateISO)}</div>
 				<div class="u-sd-b" style="color:var(--txd)">—</div>
 				{#if cell.isToday}
 					<div class="pin-dot" style="width:7px;height:7px;border-radius:50%;margin-top:1px"></div>
 				{/if}
-			</div>
+			</button>
 		{/if}
 	{/each}
 </div>
@@ -160,6 +261,7 @@
 
 {#if dragSourceDayIndex != null}
 	<form
+		id="sport-move-form"
 		method="POST"
 		action="?/moveSession"
 		class="move-card mx-4"
@@ -170,6 +272,13 @@
 				if (result.type === 'success') {
 					moveMessage = 'Séance déplacée.';
 					clearDragState();
+				} else if (result.type === 'failure') {
+					const data = result.data as { message?: unknown } | null;
+					let message = 'Le déplacement a échoué.';
+					if (data && typeof data.message === 'string' && data.message.trim().length > 0) {
+						message = data.message;
+					}
+					moveMessage = message;
 				}
 				await update({ invalidateAll: true });
 			};
@@ -179,11 +288,12 @@
 		<input type="hidden" name="targetDayIndex" value={String(dragTargetDayIndex ?? dragSourceDayIndex)} />
 		<p class="move-title">Déplacer la séance</p>
 		<p class="move-sub">
-			Jour source : <strong>{dragSourceDayIndex}</strong>
+			{dragSourceLabel ?? 'Séance'} · jour source : <strong>{dragSourceDayIndex}</strong>
 			{#if dragTargetDayIndex != null}
 				 · Jour cible : <strong>{dragTargetDayIndex}</strong>
 			{/if}
 		</p>
+		<p class="move-hint">Glisse vers une case de la semaine ou touche le jour où tu veux placer la séance.</p>
 		<div class="move-actions">
 			<button type="submit" class="move-confirm" disabled={moving || dragTargetDayIndex == null || dragTargetDayIndex === dragSourceDayIndex}>
 				{moving ? 'Déplacement…' : 'Confirmer le déplacement'}
@@ -206,90 +316,132 @@
 {:else}
 	{#each rows as row (row.dayIndex)}
 		{#if row.hrefSeance && !row.completedAtISO && row.isToday}
-			<a
-				href={dragSourceDayIndex == null ? row.hrefSeance : '#'}
-				class="u-li li-cta pending"
-				class:move-source={dragSourceDayIndex === row.dayIndex}
-				class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
-				onclick={(e) => {
-					if (dragSourceDayIndex != null) {
-						e.preventDefault();
-						selectDropTarget(row.dayIndex);
-						return;
-					}
-					fire(e);
-				}}
-				onpointerdown={() => startLongPress(row)}
-				onpointerup={stopLongPress}
-				onpointercancel={stopLongPress}
-				onpointerleave={stopLongPress}
-			>
-				<div class="u-li-th" style="background:var(--g)">
-					<span style="font-size:.625rem;font-weight:700;color:var(--s1);font-family:var(--fh2)"
-						>{row.sessionLetter ?? '?'}</span
-					>
-				</div>
-				<div class="u-li-b">
-					<div class="u-li-t">
-						{row.sessionName ?? 'Séance'} · Jour {row.dayIndex}
-						{#if row.dateISO}
-							<span class="text-muted-foreground"> ({row.dateISO})</span>
+			<div class="move-row-shell">
+				<a
+					href={dragSourceDayIndex == null ? row.hrefSeance : '#'}
+					class="u-li u-li-main li-cta pending"
+					class:move-source={dragSourceDayIndex === row.dayIndex}
+					class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
+					onclick={(e) => {
+						if (dragSourceDayIndex != null) {
+							e.preventDefault();
+							selectDropTarget(row.dayIndex, true);
+							return;
+						}
+						fire(e);
+					}}
+				>
+					<div class="u-li-th" style="background:var(--g)">
+						<span style="font-size:.625rem;font-weight:700;color:var(--s1);font-family:var(--fh2)"
+							>{row.sessionLetter ?? '?'}</span
+						>
+					</div>
+					<div class="u-li-b">
+						<div class="u-li-t">
+							{row.sessionName ?? 'Séance'} · Jour {row.dayIndex}
+							{#if row.dateISO}
+								<span class="text-muted-foreground"> ({row.dateISO})</span>
+							{/if}
+						</div>
+						<div class="u-li-s">
+							{#if row.points}&plus;{row.points} pts à gagner{/if}
+						</div>
+					</div>
+					<div class="u-li-r">
+						{#if dragSourceDayIndex === row.dayIndex}
+							<div class="move-tag">Source</div>
+						{:else if dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
+							<div class="move-tag move-tag-target">Cible</div>
+						{:else}
+							<div class="u-arr"></div>
 						{/if}
 					</div>
-					<div class="u-li-s">
-						{#if row.points}&plus;{row.points} pts à gagner{/if}
-					</div>
-				</div>
-				<div class="u-li-r">
-					{#if dragSourceDayIndex === row.dayIndex}
-						<div class="move-tag">Source</div>
-					{:else if dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
-						<div class="move-tag move-tag-target">Cible</div>
-					{:else}
-						<div class="u-arr"></div>
-					{/if}
-				</div>
-			</a>
-		{:else if row.hrefSeance && !row.completedAtISO}
-			<a
-				href={dragSourceDayIndex == null ? row.hrefSeance : '#'}
-				class="u-li"
-				class:move-source={dragSourceDayIndex === row.dayIndex}
-				class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
-				onclick={(e) => {
-					if (dragSourceDayIndex != null) {
+				</a>
+				<button
+					type="button"
+					class="move-launch"
+					aria-label={`Déplacer ${row.sessionName ?? 'la séance'} du jour ${row.dayIndex}`}
+					onpointerdown={(e) => beginMove(row, e)}
+					onclick={(e) => {
 						e.preventDefault();
-						selectDropTarget(row.dayIndex);
-						return;
-					}
-					fire(e);
-				}}
-				onpointerdown={() => startLongPress(row)}
-				onpointerup={stopLongPress}
-				onpointercancel={stopLongPress}
-				onpointerleave={stopLongPress}
+						toggleMove(row);
+					}}
+				>
+					{dragSourceDayIndex === row.dayIndex ? 'Annuler' : 'Glisser'}
+				</button>
+			</div>
+		{:else if row.hrefSeance && !row.completedAtISO}
+			<div class="move-row-shell">
+				<a
+					href={dragSourceDayIndex == null ? row.hrefSeance : '#'}
+					class="u-li u-li-main"
+					class:move-source={dragSourceDayIndex === row.dayIndex}
+					class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
+					onclick={(e) => {
+						if (dragSourceDayIndex != null) {
+							e.preventDefault();
+							selectDropTarget(row.dayIndex, true);
+							return;
+						}
+						fire(e);
+					}}
+				>
+					<div class="u-li-th" style="background:var(--gd)">
+						<span style="font-size:.625rem;font-weight:700;color:var(--gb);font-family:var(--fh2)"
+							>{row.sessionLetter ?? '?'}</span
+						>
+					</div>
+					<div class="u-li-b">
+						<div class="u-li-t">
+							{row.sessionName ?? 'Séance'} · Jour {row.dayIndex}
+						</div>
+						<div class="u-li-s">À faire · {#if row.points}&plus;{row.points} pts{/if}</div>
+					</div>
+					<div class="u-li-r">
+						{#if dragSourceDayIndex === row.dayIndex}
+							<div class="move-tag">Source</div>
+						{:else if dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
+							<div class="move-tag move-tag-target">Cible</div>
+						{:else}
+							<div class="u-arr"></div>
+						{/if}
+					</div>
+				</a>
+				<button
+					type="button"
+					class="move-launch"
+					aria-label={`Déplacer ${row.sessionName ?? 'la séance'} du jour ${row.dayIndex}`}
+					onpointerdown={(e) => beginMove(row, e)}
+					onclick={(e) => {
+						e.preventDefault();
+						toggleMove(row);
+					}}
+				>
+					{dragSourceDayIndex === row.dayIndex ? 'Annuler' : 'Glisser'}
+				</button>
+			</div>
+		{:else if !row.sessionId}
+			<button
+				type="button"
+				class="u-li u-li-empty-row"
+				disabled={dragSourceDayIndex == null}
+				onclick={() => selectDropTarget(row.dayIndex, true)}
 			>
-				<div class="u-li-th" style="background:var(--gd)">
-					<span style="font-size:.625rem;font-weight:700;color:var(--gb);font-family:var(--fh2)"
-						>{row.sessionLetter ?? '?'}</span
-					>
+				<div class="u-li-th" style="background:rgba(255,255,255,.04)">
+					<span style="font-size:.625rem;font-weight:700;color:var(--txd);font-family:var(--fh2)">—</span>
 				</div>
 				<div class="u-li-b">
-					<div class="u-li-t">
-						{row.sessionName ?? 'Séance'} · Jour {row.dayIndex}
-					</div>
-					<div class="u-li-s">À faire · {#if row.points}&plus;{row.points} pts{/if}</div>
+					<div class="u-li-t">Jour {row.dayIndex} libre</div>
+					<div class="u-li-s">Dépose une séance ici pour réorganiser ta semaine</div>
 				</div>
 				<div class="u-li-r">
-					{#if dragSourceDayIndex === row.dayIndex}
-						<div class="move-tag">Source</div>
-					{:else if dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
+					{#if dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
 						<div class="move-tag move-tag-target">Cible</div>
 					{:else}
 						<div class="u-arr"></div>
 					{/if}
 				</div>
-			</a>
+			</button>
 		{:else}
 			<div class="u-li" style="opacity:.85">
 				<div class="u-li-th" style="background:var(--gd)">
@@ -376,6 +528,37 @@
 	.li-cta {
 		border-left: 2px solid var(--g);
 	}
+	.move-row-shell {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 8px;
+		padding: 0 16px;
+		margin-top: 8px;
+	}
+	.move-row-shell :global(.u-li) {
+		margin-top: 0;
+	}
+	.u-li-main {
+		min-width: 0;
+	}
+	.move-launch {
+		align-self: stretch;
+		min-width: 74px;
+		border-radius: 12px;
+		border: 1px solid rgba(0, 229, 255, 0.24);
+		background: rgba(0, 229, 255, 0.08);
+		color: var(--cy);
+		font-family: var(--fh);
+		font-size: 0.72rem;
+		font-weight: 800;
+		letter-spacing: -0.04em;
+		text-transform: uppercase;
+		padding: 0 10px;
+		touch-action: none;
+	}
+	.move-launch:active {
+		background: rgba(0, 229, 255, 0.16);
+	}
 	.move-card {
 		margin-top: 0.65rem;
 		margin-bottom: 0.8rem;
@@ -395,6 +578,13 @@
 		font-size: 0.625rem;
 		font-family: var(--fb);
 		color: var(--tx2);
+	}
+	.move-hint {
+		margin-top: 0.35rem;
+		font-size: 0.5625rem;
+		font-family: var(--fb);
+		color: var(--txd);
+		line-height: 1.4;
 	}
 	.move-actions {
 		margin-top: 0.6rem;
@@ -437,6 +627,21 @@
 	.move-target {
 		outline: 1px solid rgba(201, 168, 78, 0.55);
 		box-shadow: 0 0 0 2px rgba(201, 168, 78, 0.18) inset;
+	}
+	.u-sd-empty {
+		opacity: .4;
+		background: transparent;
+		border: 1px dashed var(--br2);
+	}
+	.u-sd-empty:disabled {
+		cursor: default;
+	}
+	.u-li-empty-row {
+		width: calc(100% - 32px);
+		margin-left: 16px;
+		margin-right: 16px;
+		background: rgba(255,255,255,.03);
+		border-style: dashed;
 	}
 	.move-tag {
 		font-size: 0.55rem;

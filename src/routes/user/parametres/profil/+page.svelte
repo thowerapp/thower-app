@@ -305,11 +305,13 @@ $effect(() => {
 }
 .ph-level-block { flex: 1; min-width: 0; }
 .ph-level-name {
-  font-family: var(--fh2);
+  font-family: var(--fh);
   font-size: 1.5rem;
   color: var(--gb);
-  letter-spacing: -.01em;
+  letter-spacing: -0.08em;
   line-height: .95;
+  text-transform: uppercase;
+  font-weight: 800;
   text-shadow: 0 0 18px rgba(201,168,78,.4);
 }
 .ph-level-num {
@@ -361,12 +363,14 @@ $effect(() => {
 .acc-sum::-webkit-details-marker { display: none; }
 .acc-sum:active { background: rgba(255,255,255,.03); }
 .acc-title {
-  font-family: var(--fh2);
+  font-family: var(--fh);
   font-size: 1rem;
   color: var(--tx);
-  letter-spacing: .05em;
+  letter-spacing: -0.06em;
   flex: 1;
   line-height: 1;
+  text-transform: uppercase;
+  font-weight: 800;
 }
 .acc-sub {
   font-size: .5rem;

@@ -375,11 +375,13 @@ $effect(() => {
 .hh-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
 .hh-eyebrow { font-size: .4375rem; color: var(--txd); letter-spacing: .14em; text-transform: uppercase; font-family: var(--fb); margin-bottom: 4px; }
 .hh-title {
-  font-family: var(--fh2);
+  font-family: var(--fh);
   font-size: 3.25rem;
   color: var(--gb);
-  letter-spacing: -.02em;
+  letter-spacing: -0.1em;
   line-height: .88;
+  text-transform: uppercase;
+  font-weight: 800;
   text-shadow: 0 0 28px rgba(201,168,78,.3), 0 0 60px rgba(201,168,78,.1);
 }
 .hh-sub { font-size: .5rem; color: var(--txd); letter-spacing: .08em; text-transform: uppercase; margin-top: 5px; font-family: var(--fb); }

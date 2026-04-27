@@ -173,11 +173,13 @@ const photoLabels = [
 .ph-inner { position: relative; z-index: 4; }
 .ph-eyebrow { font-size: .625rem; color: var(--txd); letter-spacing: .12em; text-transform: uppercase; font-family: var(--fb); margin-bottom: 6px; }
 .ph-level {
-  font-family: var(--fh2);
+  font-family: var(--fh);
   font-size: 3rem;
   color: var(--gb);
-  letter-spacing: -.01em;
+  letter-spacing: -0.09em;
   line-height: .9;
+  text-transform: uppercase;
+  font-weight: 800;
   text-shadow: 0 0 30px rgba(201,168,78,.45), 0 0 60px rgba(201,168,78,.15);
   animation: gGlow 2.5s ease-in-out infinite;
 }

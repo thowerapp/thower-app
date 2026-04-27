@@ -49,7 +49,7 @@
 <style>
 .hero { background:var(--s1); padding:14px 18px 18px; border-bottom:1px solid var(--br); position:sticky; top:0; z-index:10; }
 .hero-top { display:flex; justify-content:space-between; align-items:flex-start; }
-.hero-title { font-family:var(--fh); font-size:2.4rem; font-weight:700; color:var(--gb); letter-spacing:-.07em; line-height:.92; text-shadow:0 0 22px var(--gg); }
+.hero-title { font-family:var(--fh); font-size:2.4rem; font-weight:800; color:var(--gb); letter-spacing:-.1em; line-height:.92; text-transform:uppercase; text-shadow:0 0 22px var(--gg); }
 .hero-sub { font-size:.55rem; color:var(--txd); letter-spacing:.1em; text-transform:uppercase; margin-top:5px; font-family:var(--fb); }
 .logo-svg { width:40px; height:34px; opacity:.5; flex-shrink:0; }
 

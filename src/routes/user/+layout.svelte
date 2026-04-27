@@ -199,11 +199,13 @@ const backInfo = $derived((() => {
   margin-bottom: 14px;
 }
 :global(.u-hero-title) {
-  font-family: var(--fh2);
+  font-family: var(--fh);
   font-size: 2.375rem; /* 38px */
   color: var(--gb);
-  letter-spacing: -.02em;
+  letter-spacing: -0.09em;
   line-height: .95;
+  text-transform: uppercase;
+  font-weight: 800;
   text-shadow: 0 0 22px var(--gg), 0 0 45px rgba(200,130,20,.12);
 }
 :global(.u-hero-sub) {
@@ -237,12 +239,13 @@ const backInfo = $derived((() => {
 }
 :global(.u-back-lbl) { font-size: .625rem; color: var(--txd); font-family: var(--fb); }
 :global(.u-back-head) {
-  font-family: var(--fh2);
+  font-family: var(--fh);
   font-size: 1.5rem; /* 24px */
   color: var(--tx);
-  letter-spacing: .06em;
+  letter-spacing: -0.08em;
   line-height: 1;
-  font-weight: 700;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 /* ── Section header ── */
@@ -252,12 +255,13 @@ const backInfo = $derived((() => {
   flex-shrink: 0;
 }
 :global(.u-sh-t) {
-  font-family: var(--fh2);
+  font-family: var(--fh);
   font-size: 1.125rem; /* 18px */
   color: var(--tx);
-  letter-spacing: .05em;
+  letter-spacing: -0.07em;
   line-height: 1;
-  font-weight: 700;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 :global(.u-sh-s) {
   font-size: .5625rem; /* 9px */
@@ -415,9 +419,12 @@ const backInfo = $derived((() => {
 }
 :global(.u-scard:active) { background: var(--s3); border-color: var(--cy); box-shadow: 0 0 8px rgba(0, 229, 255, 0.2); }
 :global(.u-scard-lbl) {
-  font-family: var(--fh2);
+  font-family: var(--fh);
   font-size: 1.125rem; /* 18px */
   color: var(--tx);
+  letter-spacing: -0.07em;
+  text-transform: uppercase;
+  font-weight: 800;
   letter-spacing: .06em;
   line-height: 1;
 }

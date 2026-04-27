@@ -272,11 +272,13 @@
 
 	.meals-section { padding: 12px 18px; }
 	.section-header {
-		font-family: var(--fh2);
+		font-family: var(--fh);
 		font-size: 1rem;
 		color: var(--g);
 		margin-bottom: 10px;
-		letter-spacing: 0.05em;
+		letter-spacing: -0.06em;
+		text-transform: uppercase;
+		font-weight: 800;
 	}
 	.empty-msg {
 		font-size: 0.5rem;

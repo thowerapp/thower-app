@@ -55,7 +55,7 @@ let { data } = $props<{ data: PageData }>();
 <style>
 .hero { background:var(--s1); padding:14px 18px 18px; border-bottom:1px solid var(--br); position:sticky; top:0; z-index:10; }
 .hero-top { display:flex; justify-content:space-between; align-items:flex-start; }
-.hero-title { font-family:var(--fh); font-size:2.4rem; font-weight:700; color:var(--gb); letter-spacing:-.07em; line-height:.92; text-shadow:0 0 22px var(--gg); }
+.hero-title { font-family:var(--fh); font-size:2.4rem; font-weight:800; color:var(--gb); letter-spacing:-.1em; line-height:.92; text-transform:uppercase; text-shadow:0 0 22px var(--gg); }
 .hero-sub { font-size:.55rem; color:var(--txd); letter-spacing:.1em; text-transform:uppercase; margin-top:5px; font-family:var(--fb); }
 .logo-svg { width:40px; height:34px; opacity:.5; flex-shrink:0; }
 
@@ -63,7 +63,7 @@ let { data } = $props<{ data: PageData }>();
 .dec-card:active { background:rgba(200,130,20,.04); }
 .dec-icon { width:42px; height:42px; background:var(--s2); border:1px solid var(--br2); flex-shrink:0; display:flex; align-items:center; justify-content:center; }
 .dec-body { flex:1; }
-.dec-t { font-family:var(--fh2); font-size:1.05rem; color:var(--tx); letter-spacing:.05em; line-height:1; }
+.dec-t { font-family:var(--fh); font-size:1.05rem; font-weight:800; color:var(--tx); letter-spacing:-.06em; line-height:1; text-transform:uppercase; }
 .dec-s { font-size:.5625rem; color:var(--txd); margin-top:3px; font-family:var(--fb); }
 .dec-c { font-size:.5625rem; color:var(--txm); margin-top:2px; font-family:var(--fb); }
 .arr-wrap { flex-shrink:0; }

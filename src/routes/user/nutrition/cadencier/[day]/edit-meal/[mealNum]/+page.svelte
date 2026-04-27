@@ -159,11 +159,11 @@
 
 	.header-title {
 		font-size: 0.7rem;
-		font-weight: 700;
+		font-weight: 800;
 		color: var(--tx);
-		font-family: var(--fh2), sans-serif;
+		font-family: var(--fh), sans-serif;
 		text-transform: uppercase;
-		letter-spacing: 0.08em;
+		letter-spacing: -0.05em;
 	}
 
 	.info-section {
@@ -195,10 +195,10 @@
 
 	.section-title {
 		font-size: 0.62rem;
-		font-weight: 700;
+		font-weight: 800;
 		color: var(--g);
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		letter-spacing: -0.04em;
 		margin-bottom: 10px;
 		font-family: var(--fh), sans-serif;
 	}

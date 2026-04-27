@@ -23,9 +23,9 @@
 .back-row { display:flex; align-items:center; justify-content:space-between; padding:11px 18px; background:var(--s1); border-bottom:1px solid var(--br); position:sticky; top:0; z-index:10; }
 .back-lnk { display:flex; align-items:center; gap:7px; -webkit-tap-highlight-color:transparent; }
 .back-lbl { font-size:.55rem; color:var(--txd); font-family:var(--fb); }
-.back-head { font-family:var(--fh2); font-size:1.35rem; color:var(--gb); letter-spacing:.06em; line-height:1; text-shadow:0 0 10px var(--gg); }
+.back-head { font-family:var(--fh); font-size:1.35rem; font-weight:800; color:var(--gb); letter-spacing:-.08em; line-height:1; text-transform:uppercase; text-shadow:0 0 10px var(--gg); }
 .sh { padding:12px 18px 8px; border-bottom:1px solid var(--br); }
-.sh-t { font-family:var(--fh2); font-size:1rem; color:var(--tx); letter-spacing:.05em; }
+.sh-t { font-family:var(--fh); font-size:1rem; font-weight:800; color:var(--tx); letter-spacing:-.06em; text-transform:uppercase; }
 .sh-s { font-size:.5625rem; color:var(--txd); margin-top:3px; font-family:var(--fb); }
 .media-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; padding:8px 18px; }
 .mcell { aspect-ratio:1; background:var(--s2); border:1px solid var(--br2); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }

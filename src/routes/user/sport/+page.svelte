@@ -78,7 +78,7 @@
 			moveMessage = 'Déplacement activé. Fais glisser la séance vers un autre jour de la semaine.';
 			updateTargetFromPoint(event.clientX, event.clientY);
 			dragPointerTimer = null;
-		}, 180);
+		}, 420);
 		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
 	}
 
@@ -125,6 +125,8 @@
 			requestMoveSubmit();
 			return;
 		}
+		clearDragState();
+		moveMessage = null;
 		moveMessage = 'Choisis un autre jour pour déposer la séance.';
 	}
 </script>
@@ -193,7 +195,7 @@
 			</div>
 		{:else if cell.hrefSeance && cell.isToday}
 			<a
-				href={dragSourceDayIndex == null ? cell.hrefSeance : '#'}
+				href={cell.hrefSeance}
 				class="u-sd today pending"
 				class:move-source={dragSourceDayIndex === cell.dayIndex}
 				class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === cell.dayIndex}
@@ -203,9 +205,8 @@
 				onpointerup={handleStripPointerUp}
 				onpointercancel={cancelStripDragStart}
 				onclick={(e) => {
-					if (dragSourceDayIndex != null || suppressNextOpen) {
+					if (suppressNextOpen) {
 						e.preventDefault();
-						selectDropTarget(cell.dayIndex, true);
 						return;
 					}
 					fire(e);
@@ -220,7 +221,7 @@
 			</a>
 		{:else if cell.hrefSeance && !cell.completedAtISO}
 			<a
-				href={dragSourceDayIndex == null ? cell.hrefSeance : '#'}
+				href={cell.hrefSeance}
 				class="u-sd placed"
 				class:move-source={dragSourceDayIndex === cell.dayIndex}
 				class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === cell.dayIndex}
@@ -230,9 +231,8 @@
 				onpointerup={handleStripPointerUp}
 				onpointercancel={cancelStripDragStart}
 				onclick={(e) => {
-					if (dragSourceDayIndex != null || suppressNextOpen) {
+					if (suppressNextOpen) {
 						e.preventDefault();
-						selectDropTarget(cell.dayIndex, true);
 						return;
 					}
 					fire(e);

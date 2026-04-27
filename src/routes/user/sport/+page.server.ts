@@ -184,9 +184,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		});
 	}
 
-	const sessionRows = hasAuthoritativeWeekSchedule
-		? weekStrip
-		: weekStrip.filter((e) => e.hasProgramSession || e.sessionId);
+	const sessionRows = weekStrip.filter((e) => e.hasProgramSession || e.sessionId);
 
 	return serializeData({
 		hasProgram: true,

@@ -74,7 +74,10 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		const optOutIds = new Set(optOuts.map((o) => o.taskId));
 		const completedIds = new Set(todayCompletions.map((c) => c.taskId));
 		const relevantTasks = activeTasks.filter((t) => !optOutIds.has(t.id));
-		const pendingTasksCount = relevantTasks.filter((t) => !completedIds.has(t.id)).length;
+		const checklistValidated = todayCompletions.length > 0;
+		const pendingTasksCount = checklistValidated
+			? 0
+			: relevantTasks.filter((t) => !completedIds.has(t.id)).length;
 
 		// ── 3. Repas non planifiés aujourd'hui ────────────────────────────
 		const todayNutrition = await prisma.nutritionDay.findFirst({

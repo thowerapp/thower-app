@@ -9,8 +9,18 @@ import {
 import { serializeData } from '$lib/utils/serializeData';
 import { requireSportAccess } from '$lib/server/programAccessGuard';
 import { VIDEO_COMPLETION_THRESHOLD } from '$lib/prisma/userVideoProgress/upsertProgress';
+import { createPointEvent } from '$lib/prisma/pointEvent/createEvent';
 
 const OID = /^[a-f\d]{24}$/i;
+const WORKOUT_COMPLETION_POINTS = 50;
+
+const levels = [
+	{ min: 0, num: 1, name: 'Bambou en herbe', nextMin: 200 },
+	{ min: 200, num: 2, name: 'Bambou Furieux', nextMin: 500 },
+	{ min: 500, num: 3, name: 'Guerrier en devenir', nextMin: 1000 },
+	{ min: 1000, num: 4, name: 'Guerrier Thower', nextMin: 2000 },
+	{ min: 2000, num: 5, name: 'Maître Thower', nextMin: null }
+] as const;
 
 type VideoProgressState = 'preparing' | 'not_started' | 'in_progress' | 'validated';
 
@@ -25,6 +35,10 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const user = await prisma.user.findUnique({
 		where: { id: userId },
 		select: { programStartDate: true }
+	});
+	const pointEvents = await prisma.pointEvent.findMany({
+		where: { userId },
+		select: { amount: true }
 	});
 
 	const rawDay = url.searchParams.get('day');
@@ -146,6 +160,12 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const optionalValidated = optionalVideos.filter(
 		(v) => progressByVideoId.get(v.id)?.completedAt != null
 	).length;
+	const totalPoints = pointEvents.reduce((sum, event) => sum + event.amount, 0);
+	const levelData = levels.slice().reverse().find((level) => totalPoints >= level.min) ?? levels[0];
+	const levelPercent =
+		levelData.nextMin != null
+			? Math.round(((totalPoints - levelData.min) / (levelData.nextMin - levelData.min)) * 100)
+			: 100;
 
 	return serializeData({
 		sessionId,
@@ -159,6 +179,10 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		videos,
 		allMandatoryVideosCompleted,
 		validationThresholdPercent,
+		totalPoints,
+		levelData,
+		levelPercent,
+		workoutCompletionPoints: WORKOUT_COMPLETION_POINTS,
 		seanceVideoSummary: {
 			mandatoryValidated,
 			mandatoryTotal: mandatoryVideos.length,
@@ -190,9 +214,40 @@ export const actions: Actions = {
 
 		const session = await prisma.workoutSession.findUnique({
 			where: { id: sessionId },
-			select: { id: true, active: true }
+			include: {
+				videos: {
+					where: { isOptional: false },
+					select: { id: true }
+				}
+			}
 		});
 		if (!session?.active) return fail(404, { message: 'Séance introuvable.' });
+
+		const existingWorkoutDay = await prisma.userWorkoutDay.findFirst({
+			where: { userId, sessionId, dayIndex: dayIdx },
+			select: { completedAt: true }
+		});
+		if (existingWorkoutDay?.completedAt) {
+			return fail(409, { message: 'Cette séance est déjà validée.' });
+		}
+
+		const mandatoryVideoIds = session.videos.map((video) => video.id);
+		if (mandatoryVideoIds.length > 0) {
+			const completedMandatoryCount = await prisma.userVideoProgress.count({
+				where: {
+					userId,
+					workoutVideoId: { in: mandatoryVideoIds },
+					completedAt: { not: null }
+				}
+			});
+
+			if (completedMandatoryCount < mandatoryVideoIds.length) {
+				return fail(409, {
+					message:
+						'Tu dois d’abord valider les 3 vidéos obligatoires avant de confirmer la séance.'
+				});
+			}
+		}
 
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
@@ -219,14 +274,29 @@ export const actions: Actions = {
 				dayIndex: dayIdx,
 				scheduledDate: scheduledDate ?? undefined,
 				completedAt: now,
-				isLocked: false
+				isLocked: true
 			},
 			update: {
 				completedAt: now,
-				scheduledDate: scheduledDate ?? undefined
+				scheduledDate: scheduledDate ?? undefined,
+				isLocked: true
 			}
 		});
 
-		return { success: true };
+		await createPointEvent({
+			userId,
+			type: 'WORKOUT_COMPLETE',
+			amount: WORKOUT_COMPLETION_POINTS,
+			metadata: {
+				sessionId,
+				sessionName: session.name,
+				dayIndex: dayIdx
+			}
+		});
+
+		return {
+			success: true,
+			pointsAwarded: WORKOUT_COMPLETION_POINTS
+		};
 	}
 };

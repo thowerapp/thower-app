@@ -44,6 +44,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 			pts: t.points,
 			done: completedIds.has(t.id)
 		}));
+	const validated = completions.length > 0;
+	const pointsEarned = validated
+		? items.filter((item) => item.done).reduce((sum, item) => sum + item.pts, 0)
+		: 0;
 
 	// Fallback si aucune tâche en base (setup pas encore fait)
 	const fallback = [
@@ -57,6 +61,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		items: items.length > 0 ? items : fallback,
+		validated,
+		pointsEarned,
 		todayLabel: new Intl.DateTimeFormat('fr-FR', {
 			weekday: 'long',
 			day: 'numeric',
@@ -66,41 +72,61 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	toggleTask: async ({ request, locals }) => {
-		if (!locals.user) return fail(401, { error: 'Non authentifié' });
+	validateChecklist: async ({ request, locals }) => {
+		if (!locals.user) return fail(401, { message: 'Non authentifié.' });
 
 		const userId = locals.user.id;
 		const todayStart = startOfUtcDay();
-		const data = await request.formData();
-		const taskId = data.get('taskId') as string | null;
-		const doneStr = data.get('done') as string | null;
 
-		if (!taskId || taskId.startsWith('__')) {
-			// Tâche fallback (pas en DB), on ignore silencieusement
-			return { success: true };
+		const existing = await prisma.dailyTaskCompletion.count({
+			where: { userId, date: todayStart }
+		});
+		if (existing > 0) {
+			return fail(409, { message: 'Checklist déjà validée pour aujourd\'hui.' });
 		}
 
-		const wantsDone = doneStr === 'true';
+		const formData = await request.formData();
+		const checkedIds = formData
+			.getAll('taskIds')
+			.map((value) => String(value))
+			.filter((value) => value.length > 0 && !value.startsWith('__'));
 
-		try {
-			if (wantsDone) {
-				// Upsert pour éviter les doublons
-				await prisma.dailyTaskCompletion.upsert({
-					where: {
-						userId_taskId_date: { userId, taskId, date: todayStart }
-					},
-					create: { userId, taskId, date: todayStart },
-					update: {}
-				});
-			} else {
-				await prisma.dailyTaskCompletion.deleteMany({
-					where: { userId, taskId, date: todayStart }
-				});
-			}
-			return { success: true };
-		} catch (e) {
-			console.error('[journée toggleTask]', e);
-			return fail(500, { error: 'Erreur serveur' });
+		if (checkedIds.length === 0) {
+			return fail(400, { message: 'Aucune tâche sélectionnée.' });
 		}
+
+		const tasks = await prisma.dailyTask.findMany({
+			where: { id: { in: checkedIds }, active: true },
+			select: { id: true, points: true }
+		});
+
+		const totalPoints = tasks.reduce((sum, task) => sum + task.points, 0);
+
+		await prisma.$transaction([
+			prisma.dailyTaskCompletion.createMany({
+				data: tasks.map((task) => ({
+					userId,
+					taskId: task.id,
+					date: todayStart
+				}))
+			}),
+			...(totalPoints > 0
+				? [
+						prisma.pointEvent.create({
+							data: {
+								userId,
+								type: 'DAILY_TASK',
+								amount: totalPoints,
+								metadata: {
+									source: 'journee-checklist',
+									date: todayStart.toISOString()
+								}
+							}
+						})
+					]
+				: [])
+		]);
+
+		return { success: true, pointsEarned: totalPoints };
 	}
 };

@@ -11,6 +11,9 @@ const pending = $derived(($page.data as { pending?: LayoutData['pending'] })?.pe
 
 /** Droits selon les offres payées (`offerSlugs` sur les transactions). */
 const access = $derived(data.programAccess ?? { nutrition: true, sport: true });
+const checklistValidated = $derived(data.validated);
+const totalPointsValue = $derived(data.totalPoints ?? 0);
+const levelPercentValue = $derived(data.levelPercent ?? 0);
 
 const currentDayIndex = $derived(
 	($page.data as { currentDayIndex?: number }).currentDayIndex ?? 1
@@ -33,15 +36,39 @@ const selectedPoints = $derived(
     .reduce((sum: number, t: Task) => sum + t.points, 0)
 );
 
+const checklistPending = $derived(!checklistValidated);
+const sportPending = $derived(access.sport && pending.seance);
+const dailyCtaActive = $derived(checklistPending || sportPending);
+const dailyCtaHref = $derived(checklistPending ? '/user/journee' : '/user/sport');
+const dailyCtaTitle = $derived(
+  checklistPending && sportPending
+    ? 'Complète ta journée'
+    : checklistPending
+      ? 'Valide ta checklist du jour'
+      : sportPending
+        ? 'Lance ta séance du jour'
+        : 'Journée complétée'
+);
+const dailyCtaSubtitle = $derived(
+  checklistPending && sportPending
+    ? 'Checklist quotidienne + séance sport à compléter'
+    : checklistPending
+      ? `${selectedPoints > 0 ? `${selectedPoints} pts sélectionnés` : 'Checklist à valider'} · finalise ta journée`
+      : sportPending
+        ? 'Programme sport en attente · ouvre ta séance'
+        : 'Checklist et sport validés pour aujourd’hui'
+);
+const dailyCtaLabel = $derived(dailyCtaActive ? 'Compléter →' : 'Bravo →');
+
 function toggleTask(id: string) {
-  if (data.validated) return;
+  if (checklistValidated) return;
   const next = new Set(checked);
   if (next.has(id)) next.delete(id); else next.add(id);
   checked = next;
 }
 
 // ── Animation score / barre de niveau ─────────────────────────────────────
-let animatedTotal = $state(data.totalPoints ?? 0);
+let animatedTotal = $state(0);
 let animatedBar = $state(0); // démarre à 0 pour animer à l'entrée
 
 function easeOut(t: number) { return 1 - Math.pow(1 - t, 3); }
@@ -63,14 +90,18 @@ function animateValue(
 
 // Remplissage initial de la barre au montage (délai pour que la transition CSS joue)
 $effect(() => {
-  const pct = data.levelPercent ?? 0;
-  setTimeout(() => { animatedBar = pct; }, 120);
+  const pct = levelPercentValue;
+  const total = totalPointsValue;
+  setTimeout(() => {
+    animatedBar = pct;
+    animatedTotal = total;
+  }, 120);
 });
 </script>
 
 <!-- Hero immersif -->
 <div class="home-hero">
-  <EmberCanvas active={pending.journee || pending.seance} />
+  <EmberCanvas active={dailyCtaActive} />
   <!-- Logo centré en background avec glow doré -->
   <div class="hh-depth" aria-hidden="true">
     <img class="hh-logo" src="/logo-app.png" alt="" />
@@ -83,18 +114,36 @@ $effect(() => {
         <div class="hh-title">Thower</div>
         <div class="hh-sub">Semaine {currentWeekNum} · Programme Méthode</div>
       </div>
-      <a href="/user/parametres/profil" class="pbtn">
+      <a href="/user/parametres/profil" class="pbtn" aria-label="Ouvrir le profil">
         <div class="pbtn-sq"></div>
         <div class="npip"></div>
       </a>
     </div>
     <div class="hh-pills">
-      <a href="/user/journee" class="u-hpill" class:pending={pending.journee}>Aujourd'hui</a>
+      <a href={dailyCtaHref} class="u-hpill" class:pending={dailyCtaActive}>Aujourd'hui</a>
     </div>
   </div>
 </div>
 
-<!-- Notification séance -->
+<!-- CTA quotidien piloté par sport + checklist -->
+<a
+  href={!access.sport && !checklistPending ? '/auth/subscription' : dailyCtaHref}
+  class="u-notif-banner daily-cta"
+  class:pending={dailyCtaActive}
+  class:program-locked={!access.sport && sportPending}
+  onclick={fire}
+>
+  {#if dailyCtaActive}
+    <EmberCanvas active={true} />
+  {/if}
+  <div class="u-ndot" style:background={dailyCtaActive ? undefined : 'var(--g)'} style:animation={dailyCtaActive ? undefined : 'none'} style:opacity={dailyCtaActive ? undefined : '.4'}></div>
+  <div class="u-nb">
+    <div class="u-nb-t">{dailyCtaTitle}</div>
+    <div class="u-nb-s">{dailyCtaSubtitle}</div>
+  </div>
+  <div class="u-ncta" style:color={!dailyCtaActive ? 'var(--g)' : undefined}>{dailyCtaLabel}</div>
+</a>
+
 {#if !access.sport}
 <a href="/auth/subscription" class="u-notif-banner program-locked" onclick={fire}>
   <div class="u-ndot" style="background:var(--txd);animation:none;opacity:.5"></div>
@@ -103,25 +152,6 @@ $effect(() => {
     <div class="u-nb-s">Non inclus dans ton offre · Ajoute l’option sport</div>
   </div>
   <div class="u-ncta">Offres →</div>
-</a>
-{:else if pending.seance}
-<a href="/user/sport" class="u-notif-banner pending" onclick={fire}>
-  <EmberCanvas active={true} />
-  <div class="u-ndot"></div>
-  <div class="u-nb">
-    <div class="u-nb-t">Séance du jour en attente</div>
-    <div class="u-nb-s">Muscu · Corps entier · 30 min</div>
-  </div>
-  <div class="u-ncta">Commencer →</div>
-</a>
-{:else}
-<a href="/user/sport" class="u-notif-banner">
-  <div class="u-ndot" style="background:var(--g);animation:none;opacity:.4"></div>
-  <div class="u-nb">
-    <div class="u-nb-t">Séance du jour validée ✓</div>
-    <div class="u-nb-s">Bravo ! · +50 pts gagnés</div>
-  </div>
-  <div class="u-ncta" style="color:var(--g)">Voir →</div>
 </a>
 {/if}
 
@@ -249,12 +279,13 @@ $effect(() => {
       <p class="ck-warn">⚠ Une fois validée, la checklist ne peut plus être modifiée.</p>
     {/if}
 
-    {#if data.validated && import.meta.env.DEV}
-      <form method="POST" action="?/resetChecklist" use:enhance={() => async ({ update }) => { await update(); }}>
-        <button type="submit" class="ck-reset-btn">↺ Reset checklist (dev)</button>
-      </form>
-    {/if}
   </form>
+
+  {#if data.validated && import.meta.env.DEV}
+    <form method="POST" action="?/resetChecklist" use:enhance={() => async ({ update }) => { await update(); }}>
+      <button type="submit" class="ck-reset-btn">↺ Reset checklist (dev)</button>
+    </form>
+  {/if}
 
   <!-- Score animé + barre de niveau -->
   <div class="ck-score-row">
@@ -295,6 +326,10 @@ $effect(() => {
 :global(.u-scard.program-locked.pending) {
   filter: grayscale(1);
   opacity: 0.55;
+}
+.daily-cta {
+  overflow: hidden;
+  position: relative;
 }
 
 /* ── Home Hero ── */

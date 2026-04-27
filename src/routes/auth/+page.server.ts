@@ -146,11 +146,11 @@ export const load = async (event: PageServerLoadEvent) => {
 export const actions: Actions = {
 	signout: async ({ cookies, locals }) => {
 		if (!locals.session) {
-			return redirect(302, '/auth/login');
+			return redirect(302, '/auth');
 		}
 		await invalidateSession(locals.session.id);
 		cookies.delete('session', { path: '/' });
-		return redirect(302, '/auth/login');
+		return redirect(302, '/auth');
 	},
 
 	password: async (event) => {

@@ -1,15 +1,17 @@
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import { fail, redirect } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
 import { prisma } from '$lib/server';
 import type { WorkoutSessionType } from '@prisma/client';
 import {
 	calendarDateForProgramDay,
 	currentProgramDayIndex,
+	startOfUtcDay,
 	shortWeekdayFrUtc,
 	TOTAL_PROGRAM_DAYS,
 	TOTAL_PROGRAM_WEEKS
 } from '$lib/utils/programDay';
 import { serializeData } from '$lib/utils/serializeData';
+import { requireSportAccess } from '$lib/server/programAccessGuard';
 
 function sessionTypeToLetter(t: WorkoutSessionType | null | undefined): string | null {
 	if (!t) return null;
@@ -142,13 +144,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			? userList.find((u) => u.sessionId === programSessionId) ?? userList[0]
 			: userList[0];
 
-		const sessionId = programSessionId ?? matched?.sessionId ?? null;
+		const sessionId = matched?.sessionId ?? programSessionId;
 		const completedAt = matched?.completedAt ?? null;
 		const letter =
-			sessionTypeToLetter(programSession?.type ?? matched?.session?.type) ??
-			null;
+			sessionTypeToLetter(matched?.session?.type ?? programSession?.type) ?? null;
 		const sessionName =
-			programSession?.name ?? matched?.session?.name ?? null;
+			matched?.session?.name ?? programSession?.name ?? null;
 		const hasProgramSession = !!sportItem;
 
 		let dateISO: string | null = null;
@@ -191,4 +192,144 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		weekStrip,
 		sessionRows
 	});
+};
+
+export const actions: Actions = {
+	moveSession: async ({ locals, request }) => {
+		if (!locals.user) return fail(401, { message: 'Non authentifié.' });
+		await requireSportAccess(locals.user.id, locals.user.role);
+
+		const formData = await request.formData();
+		const sourceDayIndex = Number.parseInt(String(formData.get('sourceDayIndex') ?? ''), 10);
+		const targetDayIndex = Number.parseInt(String(formData.get('targetDayIndex') ?? ''), 10);
+
+		if (!Number.isInteger(sourceDayIndex) || !Number.isInteger(targetDayIndex)) {
+			return fail(400, { message: 'Jour source/cible invalide.' });
+		}
+		if (sourceDayIndex < 1 || sourceDayIndex > 91 || targetDayIndex < 1 || targetDayIndex > 91) {
+			return fail(400, { message: 'Jour hors plage du programme.' });
+		}
+		if (sourceDayIndex === targetDayIndex) {
+			return fail(400, { message: 'Choisis un jour cible différent.' });
+		}
+
+		const userId = locals.user.id;
+
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { programStartDate: true }
+		});
+
+		const program = await prisma.program.findFirst({
+			where: { active: true },
+			select: { id: true }
+		});
+		if (!program) {
+			return fail(404, { message: 'Programme introuvable.' });
+		}
+
+		const [programDays, userRows] = await Promise.all([
+			prisma.programDay.findMany({
+				where: {
+					programId: program.id,
+					dayIndex: { in: [sourceDayIndex, targetDayIndex] }
+				},
+				include: {
+					items: {
+						where: { type: 'SPORT_SESSION' },
+						orderBy: { order: 'asc' },
+						include: {
+							workoutSession: { select: { id: true, name: true } }
+						}
+					}
+				}
+			}),
+			prisma.userWorkoutDay.findMany({
+				where: {
+					userId,
+					dayIndex: { in: [sourceDayIndex, targetDayIndex] }
+				},
+				include: {
+					session: { select: { id: true, name: true } }
+				}
+			})
+		]);
+
+		const baseSessionByDay = new Map<number, string | null>();
+		for (const pd of programDays) {
+			baseSessionByDay.set(pd.dayIndex, pd.items?.[0]?.workoutSession?.id ?? null);
+		}
+
+		const rowsByDay = new Map<number, (typeof userRows)>();
+		for (const row of userRows) {
+			const current = rowsByDay.get(row.dayIndex) ?? [];
+			current.push(row);
+			rowsByDay.set(row.dayIndex, current);
+		}
+
+		const sourceRows = rowsByDay.get(sourceDayIndex) ?? [];
+		const targetRows = rowsByDay.get(targetDayIndex) ?? [];
+		const sourceUserRow = sourceRows[0] ?? null;
+		const targetUserRow = targetRows[0] ?? null;
+
+		const sourceResolvedSessionId = sourceUserRow?.sessionId ?? baseSessionByDay.get(sourceDayIndex) ?? null;
+		const targetResolvedSessionId = targetUserRow?.sessionId ?? baseSessionByDay.get(targetDayIndex) ?? null;
+
+		if (!sourceResolvedSessionId) {
+			return fail(400, { message: 'Aucune séance sur le jour source.' });
+		}
+		if (!targetResolvedSessionId) {
+			return fail(400, {
+				message:
+					'Jour cible sans séance. Pour le moment, le déplacement se fait entre jours qui ont déjà une séance.'
+			});
+		}
+
+		if (sourceUserRow?.completedAt || targetUserRow?.completedAt) {
+			return fail(409, {
+				message: 'Impossible de déplacer une séance déjà validée. Choisis deux jours non validés.'
+			});
+		}
+
+		if (sourceResolvedSessionId === targetResolvedSessionId) {
+			return fail(400, { message: 'Ces deux jours ont déjà la même séance.' });
+		}
+
+		const sourceBaseSessionId = baseSessionByDay.get(sourceDayIndex) ?? null;
+		const targetBaseSessionId = baseSessionByDay.get(targetDayIndex) ?? null;
+
+		const scheduledDateForDay = (dayIndex: number): Date | undefined => {
+			if (!user?.programStartDate) return undefined;
+			return startOfUtcDay(calendarDateForProgramDay(user.programStartDate, dayIndex));
+		};
+
+		await prisma.$transaction(async (tx) => {
+			const applyDay = async (dayIndex: number, desiredSessionId: string, baseSessionId: string | null) => {
+				await tx.userWorkoutDay.deleteMany({ where: { userId, dayIndex } });
+
+				if (desiredSessionId === baseSessionId) {
+					return;
+				}
+
+				await tx.userWorkoutDay.create({
+					data: {
+						userId,
+						sessionId: desiredSessionId,
+						dayIndex,
+						scheduledDate: scheduledDateForDay(dayIndex),
+						completedAt: null,
+						isLocked: false
+					}
+				});
+			};
+
+			await applyDay(sourceDayIndex, targetResolvedSessionId, sourceBaseSessionId);
+			await applyDay(targetDayIndex, sourceResolvedSessionId, targetBaseSessionId);
+		});
+
+		return {
+			success: true,
+			message: `Séance déplacée du jour ${sourceDayIndex} vers le jour ${targetDayIndex}.`
+		};
+	}
 };

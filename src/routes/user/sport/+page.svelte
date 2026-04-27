@@ -1,9 +1,12 @@
 ﻿<script lang="ts">
 	import type { PageData } from './$types';
+	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { fireElement } from '$lib/utils/particles';
 
 	let { data } = $props<{ data: PageData }>();
+
+	type SessionRow = (typeof data.sessionRows)[number];
 
 	function fire(e: MouseEvent) {
 		fireElement(e.currentTarget as HTMLElement, e);
@@ -21,6 +24,44 @@
 
 	const strip = $derived(data.weekStrip ?? []);
 	const rows = $derived(data.sessionRows ?? []);
+
+	let dragSourceDayIndex = $state<number | null>(null);
+	let dragTargetDayIndex = $state<number | null>(null);
+	let dragPointerTimer: ReturnType<typeof setTimeout> | null = null;
+	let moving = $state(false);
+	let moveMessage = $state<string | null>(null);
+
+	function clearDragState() {
+		dragSourceDayIndex = null;
+		dragTargetDayIndex = null;
+		if (dragPointerTimer) {
+			clearTimeout(dragPointerTimer);
+			dragPointerTimer = null;
+		}
+	}
+
+	function startLongPress(row: SessionRow) {
+		if (row.completedAtISO || !row.sessionId) return;
+		if (dragPointerTimer) clearTimeout(dragPointerTimer);
+		dragPointerTimer = setTimeout(() => {
+			dragSourceDayIndex = row.dayIndex;
+			dragTargetDayIndex = row.dayIndex;
+			moveMessage = 'Déplacement activé. Sélectionne le jour cible ci-dessous.';
+			dragPointerTimer = null;
+		}, 450);
+	}
+
+	function stopLongPress() {
+		if (dragPointerTimer) {
+			clearTimeout(dragPointerTimer);
+			dragPointerTimer = null;
+		}
+	}
+
+	function selectDropTarget(dayIndex: number) {
+		if (dragSourceDayIndex == null) return;
+		dragTargetDayIndex = dayIndex;
+	}
 </script>
 
 <div class="u-back-row">
@@ -117,6 +158,47 @@
 
 <div class="u-sh"><div class="u-sh-t">Séances semaine {data.selectedWeek ?? data.currentWeek}</div></div>
 
+{#if dragSourceDayIndex != null}
+	<form
+		method="POST"
+		action="?/moveSession"
+		class="move-card mx-4"
+		use:enhance={() => {
+			moving = true;
+			return async ({ result, update }) => {
+				moving = false;
+				if (result.type === 'success') {
+					moveMessage = 'Séance déplacée.';
+					clearDragState();
+				}
+				await update({ invalidateAll: true });
+			};
+		}}
+	>
+		<input type="hidden" name="sourceDayIndex" value={String(dragSourceDayIndex)} />
+		<input type="hidden" name="targetDayIndex" value={String(dragTargetDayIndex ?? dragSourceDayIndex)} />
+		<p class="move-title">Déplacer la séance</p>
+		<p class="move-sub">
+			Jour source : <strong>{dragSourceDayIndex}</strong>
+			{#if dragTargetDayIndex != null}
+				 · Jour cible : <strong>{dragTargetDayIndex}</strong>
+			{/if}
+		</p>
+		<div class="move-actions">
+			<button type="submit" class="move-confirm" disabled={moving || dragTargetDayIndex == null || dragTargetDayIndex === dragSourceDayIndex}>
+				{moving ? 'Déplacement…' : 'Confirmer le déplacement'}
+			</button>
+			<button type="button" class="move-cancel" onclick={clearDragState} disabled={moving}>
+				Annuler
+			</button>
+		</div>
+	</form>
+{/if}
+
+{#if moveMessage}
+	<p class="move-feedback mx-4">{moveMessage}</p>
+{/if}
+
 {#if rows.length === 0}
 	<p class="mx-4 text-sm text-muted-foreground">
 		Aucune séance sport prévue sur cette semaine dans le programme.
@@ -124,7 +206,24 @@
 {:else}
 	{#each rows as row (row.dayIndex)}
 		{#if row.hrefSeance && !row.completedAtISO && row.isToday}
-			<a href={row.hrefSeance} class="u-li li-cta pending" onclick={fire}>
+			<a
+				href={dragSourceDayIndex == null ? row.hrefSeance : '#'}
+				class="u-li li-cta pending"
+				class:move-source={dragSourceDayIndex === row.dayIndex}
+				class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
+				onclick={(e) => {
+					if (dragSourceDayIndex != null) {
+						e.preventDefault();
+						selectDropTarget(row.dayIndex);
+						return;
+					}
+					fire(e);
+				}}
+				onpointerdown={() => startLongPress(row)}
+				onpointerup={stopLongPress}
+				onpointercancel={stopLongPress}
+				onpointerleave={stopLongPress}
+			>
 				<div class="u-li-th" style="background:var(--g)">
 					<span style="font-size:.625rem;font-weight:700;color:var(--s1);font-family:var(--fh2)"
 						>{row.sessionLetter ?? '?'}</span
@@ -141,10 +240,35 @@
 						{#if row.points}&plus;{row.points} pts à gagner{/if}
 					</div>
 				</div>
-				<div class="u-li-r"><div class="u-arr"></div></div>
+				<div class="u-li-r">
+					{#if dragSourceDayIndex === row.dayIndex}
+						<div class="move-tag">Source</div>
+					{:else if dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
+						<div class="move-tag move-tag-target">Cible</div>
+					{:else}
+						<div class="u-arr"></div>
+					{/if}
+				</div>
 			</a>
 		{:else if row.hrefSeance && !row.completedAtISO}
-			<a href={row.hrefSeance} class="u-li" onclick={fire}>
+			<a
+				href={dragSourceDayIndex == null ? row.hrefSeance : '#'}
+				class="u-li"
+				class:move-source={dragSourceDayIndex === row.dayIndex}
+				class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
+				onclick={(e) => {
+					if (dragSourceDayIndex != null) {
+						e.preventDefault();
+						selectDropTarget(row.dayIndex);
+						return;
+					}
+					fire(e);
+				}}
+				onpointerdown={() => startLongPress(row)}
+				onpointerup={stopLongPress}
+				onpointercancel={stopLongPress}
+				onpointerleave={stopLongPress}
+			>
 				<div class="u-li-th" style="background:var(--gd)">
 					<span style="font-size:.625rem;font-weight:700;color:var(--gb);font-family:var(--fh2)"
 						>{row.sessionLetter ?? '?'}</span
@@ -156,7 +280,15 @@
 					</div>
 					<div class="u-li-s">À faire · {#if row.points}&plus;{row.points} pts{/if}</div>
 				</div>
-				<div class="u-li-r"><div class="u-arr"></div></div>
+				<div class="u-li-r">
+					{#if dragSourceDayIndex === row.dayIndex}
+						<div class="move-tag">Source</div>
+					{:else if dragSourceDayIndex != null && dragTargetDayIndex === row.dayIndex}
+						<div class="move-tag move-tag-target">Cible</div>
+					{:else}
+						<div class="u-arr"></div>
+					{/if}
+				</div>
 			</a>
 		{:else}
 			<div class="u-li" style="opacity:.85">
@@ -243,5 +375,78 @@
 	}
 	.li-cta {
 		border-left: 2px solid var(--g);
+	}
+	.move-card {
+		margin-top: 0.65rem;
+		margin-bottom: 0.8rem;
+		padding: 0.8rem 0.9rem;
+		border-radius: 10px;
+		border: 1px solid rgba(0, 229, 255, 0.24);
+		background: rgba(0, 229, 255, 0.07);
+	}
+	.move-title {
+		font-size: 0.6875rem;
+		font-weight: 700;
+		font-family: var(--fb);
+		color: var(--tx);
+	}
+	.move-sub {
+		margin-top: 0.22rem;
+		font-size: 0.625rem;
+		font-family: var(--fb);
+		color: var(--tx2);
+	}
+	.move-actions {
+		margin-top: 0.6rem;
+		display: flex;
+		gap: 0.45rem;
+	}
+	.move-confirm,
+	.move-cancel {
+		border: 0;
+		border-radius: 8px;
+		padding: 0.45rem 0.72rem;
+		font-size: 0.625rem;
+		font-weight: 600;
+		font-family: var(--fb);
+		cursor: pointer;
+	}
+	.move-confirm {
+		background: var(--cy);
+		color: var(--s1);
+	}
+	.move-confirm:disabled {
+		opacity: 0.45;
+		cursor: default;
+	}
+	.move-cancel {
+		background: rgba(255, 255, 255, 0.08);
+		color: var(--tx);
+	}
+	.move-feedback {
+		margin-top: 0.2rem;
+		margin-bottom: 0.55rem;
+		font-size: 0.625rem;
+		font-family: var(--fb);
+		color: var(--cy);
+	}
+	.move-source {
+		outline: 1px solid rgba(0, 229, 255, 0.55);
+		box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.18) inset;
+	}
+	.move-target {
+		outline: 1px solid rgba(201, 168, 78, 0.55);
+		box-shadow: 0 0 0 2px rgba(201, 168, 78, 0.18) inset;
+	}
+	.move-tag {
+		font-size: 0.55rem;
+		font-family: var(--fb);
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--cy);
+	}
+	.move-tag-target {
+		color: var(--g);
 	}
 </style>

@@ -39,6 +39,48 @@
 			? Math.round((summary.mandatoryValidated / summary.mandatoryTotal) * 100)
 			: 0
 	);
+
+	let displayedPoints = $state(0);
+	let progressBarPct = $state(0);
+	let pointsGain = $state(0);
+	let lastAnimatedPoints = 0;
+
+	function animateProgress(nextPoints: number, nextPercent: number) {
+		const startPoints = displayedPoints;
+		const startPercent = progressBarPct;
+		const deltaPoints = nextPoints - startPoints;
+		const deltaPercent = nextPercent - startPercent;
+		const duration = 650;
+		const startedAt = performance.now();
+
+		function step(now: number) {
+			const progress = Math.min((now - startedAt) / duration, 1);
+			const eased = 1 - Math.pow(1 - progress, 3);
+			displayedPoints = Math.round(startPoints + deltaPoints * eased);
+			progressBarPct = Math.round((startPercent + deltaPercent * eased) * 10) / 10;
+			if (progress < 1) {
+				requestAnimationFrame(step);
+			}
+		}
+
+		requestAnimationFrame(step);
+	}
+
+	$effect(() => {
+		const nextPoints = data.totalPoints ?? 0;
+		const nextPercent = data.levelPercent ?? 0;
+		const delta = nextPoints - lastAnimatedPoints;
+
+		if (nextPoints === displayedPoints && nextPercent === progressBarPct) {
+			lastAnimatedPoints = nextPoints;
+			pointsGain = 0;
+			return;
+		}
+
+		pointsGain = delta > 0 ? delta : 0;
+		animateProgress(nextPoints, nextPercent);
+		lastAnimatedPoints = nextPoints;
+	});
 </script>
 
 <div class="u-back-row">
@@ -60,6 +102,33 @@
 		{/if}
 	</div>
 </div>
+
+<section class="seance-level mx-4" aria-label="Progression utilisateur">
+	<div class="seance-level-head">
+		<div>
+			<p class="seance-level-kicker">Progression Thower</p>
+			<h2 class="seance-level-title">{data.levelData?.name ?? 'Niveau actuel'}</h2>
+		</div>
+		<div class="seance-level-points">
+			<strong>{displayedPoints}</strong>
+			<span>pts</span>
+		</div>
+	</div>
+	<div class="seance-level-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(progressBarPct)}>
+		<div class="seance-level-fill" style="width: {progressBarPct}%"></div>
+	</div>
+	<div class="seance-level-meta">
+		<span>Niveau {data.levelData?.num ?? 1}</span>
+		<span>{Math.round(progressBarPct)}%</span>
+	</div>
+	{#if pointsGain > 0}
+		<p class="seance-level-gain">+{pointsGain} pts gagnés sur cette validation</p>
+	{:else}
+		<p class="seance-level-gain seance-level-gain--muted">
+			Validation séance : +{data.workoutCompletionPoints ?? 50} pts
+		</p>
+	{/if}
+</section>
 
 <!-- Synthèse progression obligatoires -->
 {#if summary.mandatoryTotal > 0}
@@ -91,8 +160,7 @@
 	<p class="seance-banner seance-banner--ok mx-4">Séance enregistrée comme terminée côté programme.</p>
 {:else if !data.allMandatoryVideosCompleted}
 	<p class="seance-banner seance-banner--wait mx-4">
-		Enregistre toutes les vidéos <strong>obligatoires</strong> (statut « Validée »), ou indique manuellement la fin
-		avec le bouton ci-dessous.
+		Le bouton de validation apparaîtra uniquement quand les vidéos <strong>obligatoires</strong> seront toutes au statut « Validée ».
 	</p>
 {/if}
 
@@ -174,24 +242,112 @@
 	{/each}
 </div>
 
-<form
-	method="POST"
-	action="?/markCompleted"
-	use:enhance={() => {
-		return async ({ update }) => {
-			await update();
-			await invalidateAll();
-		};
-	}}
-	class="seance-form"
->
-	<input type="hidden" name="dayIndex" value={data.dayIndex} />
-	<button type="submit" class="seance-cta"> Marquer la séance comme terminée </button>
-</form>
+{#if !data.seanceCompletedAt && data.allMandatoryVideosCompleted}
+	<form
+		method="POST"
+		action="?/markCompleted"
+		use:enhance={() => {
+			return async ({ result, update }) => {
+				if (result.type === 'success' && result.data && 'pointsAwarded' in result.data) {
+					const awarded = Number(result.data.pointsAwarded ?? 0);
+					if (awarded > 0) {
+						pointsGain = awarded;
+					}
+				}
+				await update();
+				await invalidateAll();
+			};
+		}}
+		class="seance-form"
+	>
+		<input type="hidden" name="dayIndex" value={data.dayIndex} />
+		<button type="submit" class="seance-cta">Valider la séance</button>
+	</form>
+{/if}
 
-<p class="seance-footnote mx-4">+50 pts côté gamification quand le programme enregistre la complétion (tâches / points).</p>
+<p class="seance-footnote mx-4">+{data.workoutCompletionPoints ?? 50} pts côté gamification quand le programme enregistre la complétion.</p>
 
 <style>
+	.seance-level {
+		margin-bottom: 1rem;
+		padding: 0.95rem 1rem;
+		border-radius: 14px;
+		border: 1px solid rgba(34, 211, 238, 0.2);
+		background:
+			linear-gradient(135deg, rgba(34, 211, 238, 0.12), rgba(16, 185, 129, 0.08)),
+			rgba(0, 0, 0, 0.22);
+	}
+	.seance-level-head {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.75rem;
+		margin-bottom: 0.75rem;
+	}
+	.seance-level-kicker {
+		margin: 0;
+		font-size: 0.625rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: rgba(255, 255, 255, 0.58);
+		font-family: var(--fb, system-ui);
+	}
+	.seance-level-title {
+		margin: 0.15rem 0 0;
+		font-size: 0.95rem;
+		font-weight: 700;
+		color: var(--tx, #fff);
+		font-family: var(--fb, system-ui);
+	}
+	.seance-level-points {
+		display: flex;
+		align-items: baseline;
+		gap: 0.3rem;
+		color: #67e8f9;
+		font-family: var(--fb, system-ui);
+	}
+	.seance-level-points strong {
+		font-size: 1.4rem;
+		line-height: 1;
+	}
+	.seance-level-points span {
+		font-size: 0.7rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+	.seance-level-bar {
+		height: 10px;
+		border-radius: 999px;
+		overflow: hidden;
+		background: rgba(255, 255, 255, 0.1);
+	}
+	.seance-level-fill {
+		height: 100%;
+		border-radius: 999px;
+		background: linear-gradient(90deg, #22d3ee, #34d399);
+		transition: width 0.35s ease;
+	}
+	.seance-level-meta {
+		margin-top: 0.45rem;
+		display: flex;
+		justify-content: space-between;
+		gap: 0.75rem;
+		font-size: 0.65rem;
+		color: rgba(255, 255, 255, 0.65);
+		font-family: var(--fb, system-ui);
+	}
+	.seance-level-gain {
+		margin: 0.55rem 0 0;
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: #6ee7b7;
+		font-family: var(--fb, system-ui);
+	}
+	.seance-level-gain--muted {
+		color: rgba(255, 255, 255, 0.62);
+		font-weight: 500;
+	}
+
 	.seance-synth {
 		margin-bottom: 1rem;
 		padding: 0.9rem 1rem;
@@ -429,6 +585,11 @@
 	}
 	.seance-cta:active {
 		transform: scale(0.99);
+	}
+	.seance-cta:disabled {
+		opacity: 0.55;
+		cursor: default;
+		filter: saturate(0.7);
 	}
 
 	.seance-footnote {

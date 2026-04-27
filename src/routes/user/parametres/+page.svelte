@@ -38,11 +38,13 @@
 <div class="li-b"><div class="li-t">Notifications</div><div class="li-s">Rappels séances · Horaires</div></div>
 <div class="li-r"><div class="arr"></div></div>
 </a>
-<a href="/auth/signout" class="li li-logout">
+<form method="POST" action="/auth?/signout" class="li li-logout">
+<button type="submit" class="logout-btn">
 <div class="li-th"><div style="width:10px;height:10px;border:1.5px solid var(--txd)"></div></div>
 <div class="li-b"><div class="li-t" style="color:var(--txd)">Se déconnecter</div></div>
 <div class="li-r"><div class="arr" style="border-color:var(--txm)"></div></div>
-</a>
+</button>
+</form>
 
 <style>
 .hero { background:var(--s1); padding:14px 18px 18px; border-bottom:1px solid var(--br); position:sticky; top:0; z-index:10; }
@@ -60,4 +62,5 @@
 .li-r { flex-shrink:0; }
 .arr { width:5px; height:5px; border-right:1.5px solid var(--txd); border-top:1.5px solid var(--txd); transform:rotate(45deg); }
 .li-logout { margin-top:20px; border-top:1px solid var(--br); }
+.logout-btn { display:flex; align-items:center; gap:10px; width:100%; padding:0; border:0; background:transparent; text-align:left; cursor:pointer; color:inherit; }
 </style>

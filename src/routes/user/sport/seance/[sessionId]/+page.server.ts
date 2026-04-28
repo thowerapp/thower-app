@@ -344,6 +344,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		levelData.nextMin != null
 			? Math.round(((totalPoints - levelData.min) / (levelData.nextMin - levelData.min)) * 100)
 			: 100;
+	const canWatchSession = dayIndex <= currentUnlockedDayIndex;
 
 	return serializeData({
 		sessionId,
@@ -351,6 +352,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		sessionType: session.type,
 		dayIndex,
 		currentUnlockedDayIndex,
+		canWatchSession,
 		canValidateSession: dayIndex <= currentUnlockedDayIndex,
 		scheduledDateISO: scheduledISO,
 		seanceCompletedAt: userDay?.completedAt?.toISOString() ?? null,

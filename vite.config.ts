@@ -16,19 +16,7 @@ export default defineConfig({
 			strategies: 'injectManifest',
 			srcDir: 'src',
 			filename: 'sw.ts',
-			manifest: {
-				name: 'Thower',
-				short_name: 'Thower',
-				description: 'Accompagnement Thower - coach et programme personnalisé',
-				icons: [
-					{ src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-					{ src: '/android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
-				],
-				start_url: '/user/',
-				display: 'standalone',
-				background_color: '#ffffff',
-				theme_color: '#000000'
-			},
+			manifest: false,
 			injectManifest: {},
 			injectRegister: false,
 			registerType: 'prompt',

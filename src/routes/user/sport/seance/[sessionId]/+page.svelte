@@ -43,6 +43,7 @@
 	const sessionVideos = $derived(data.videos ?? []);
 
 	function isVideoUnlocked(index: number): boolean {
+		if (!data.canWatchSession) return false;
 		if (index === 0) return true;
 		for (let i = 0; i < index; i++) {
 			if (sessionVideos[i]?.progressState !== 'validated') return false;
@@ -164,7 +165,13 @@
 			<div class="vp-player">
 				{#if !unlocked}
 					<div class="vp-placeholder">
-						<p>Visionne d’abord la vidéo précédente pour débloquer ce bloc.</p>
+						<p>
+							{#if !data.canWatchSession}
+								Cette séance se débloque au jour {data.dayIndex}.
+							{:else}
+								Visionne d’abord la vidéo précédente pour débloquer ce bloc.
+							{/if}
+						</p>
 					</div>
 				{:else if v.cloudflareUid != null}
 					<CloudflareVideoPlayer

@@ -78,14 +78,6 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 onMount(() => {
-  const viewportMeta = document.querySelector('meta[name="viewport"]');
-  const previousViewport = viewportMeta?.getAttribute('content') ?? null;
-
-  viewportMeta?.setAttribute(
-    'content',
-    'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover'
-  );
-
   document.body.classList.add('user-app-mode');
   document.documentElement.classList.add('user-app-mode');
 
@@ -125,12 +117,6 @@ onMount(() => {
   document.addEventListener('selectstart', preventSelection);
 
   return () => {
-    if (previousViewport) {
-      viewportMeta?.setAttribute('content', previousViewport);
-    } else {
-      viewportMeta?.setAttribute('content', 'width=device-width, initial-scale=1');
-    }
-
     document.body.classList.remove('user-app-mode');
     document.documentElement.classList.remove('user-app-mode');
 

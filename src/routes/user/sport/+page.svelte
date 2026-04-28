@@ -39,6 +39,8 @@
 	let movingSession = $state(false);
 	let moveMessage = $state<string | null>(null);
 	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+	let activePointerId = $state<number | null>(null);
+	let activePointerElement = $state<HTMLElement | null>(null);
 
 	function clearLongPressTimer() {
 		if (longPressTimer != null) {
@@ -61,8 +63,10 @@
 
 	function updateHoveredDay(clientX: number, clientY: number) {
 		if (typeof document === 'undefined') return;
+		const safeX = Math.max(0, Math.min(clientX, window.innerWidth - 1));
+		const safeY = Math.max(0, Math.min(clientY, window.innerHeight - 1));
 		const target = document
-			.elementFromPoint(clientX, clientY)
+			.elementFromPoint(safeX, safeY)
 			?.closest<HTMLElement>('[data-day-slot]');
 		if (!target) {
 			hoveredDayIndex = null;
@@ -81,6 +85,8 @@
 		dragSourceDayIndex = null;
 		hoveredDayIndex = null;
 		dragEnabled = false;
+		activePointerId = null;
+		activePointerElement = null;
 	}
 
 	function requestMoveSession(sourceDayIndex: number, targetDayIndex: number) {
@@ -95,6 +101,10 @@
 
 	function handleDayPointerDown(cell: SessionRow, event: PointerEvent) {
 		if (!isMovableCell(cell) || movingSession) return;
+		event.preventDefault();
+		activePointerId = event.pointerId;
+		activePointerElement = event.currentTarget as HTMLElement;
+		activePointerElement.setPointerCapture?.(event.pointerId);
 		clearLongPressTimer();
 		longPressTimer = setTimeout(() => {
 			dragSourceDayIndex = cell.dayIndex;
@@ -106,6 +116,11 @@
 	}
 
 	function handleDayPointerUp(event: PointerEvent) {
+		if (activePointerId != null && event.pointerId !== activePointerId) return;
+		if (dragEnabled) event.preventDefault();
+		if (activePointerElement && activePointerId != null && activePointerElement.hasPointerCapture?.(activePointerId)) {
+			activePointerElement.releasePointerCapture?.(activePointerId);
+		}
 		clearLongPressTimer();
 		if (!dragEnabled || dragSourceDayIndex == null) return;
 		updateHoveredDay(event.clientX, event.clientY);
@@ -133,13 +148,15 @@
 	onMount(() => {
 		if (typeof window === 'undefined') return;
 		const handlePointerMove = (event: PointerEvent) => {
+			if (activePointerId != null && event.pointerId !== activePointerId) return;
 			if (!dragEnabled || movingSession) return;
+			event.preventDefault();
 			updateHoveredDay(event.clientX, event.clientY);
 		};
 
-		window.addEventListener('pointermove', handlePointerMove, { passive: true });
-		window.addEventListener('pointerup', handleDayPointerUp, { passive: true });
-		window.addEventListener('pointercancel', handleDayPointerUp, { passive: true });
+		window.addEventListener('pointermove', handlePointerMove, { passive: false });
+		window.addEventListener('pointerup', handleDayPointerUp, { passive: false });
+		window.addEventListener('pointercancel', handleDayPointerUp, { passive: false });
 
 		return () => {
 			window.removeEventListener('pointermove', handlePointerMove);
@@ -405,6 +422,9 @@
 	.u-sport-week .u-sd {
 		background: transparent;
 		transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+		touch-action: none;
+		-webkit-user-select: none;
+		user-select: none;
 	}
 	.u-sport-week .u-sd:active {
 		background: rgba(0, 229, 255, 0.08);

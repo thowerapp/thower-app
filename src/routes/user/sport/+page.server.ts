@@ -305,6 +305,43 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const sessionRows = weekStrip.filter((e) => e.hasProgramSession || e.sessionId);
 
+	// Inject virtual D slot (Découverte) if no real DISCOVERY session is in DB
+	if (!sessionRows.some((e) => e.sessionLetter === 'D')) {
+		// Pick the last free day in the week (prefer end of week for the optional session)
+		const occupiedDays = new Set(sessionRows.map((e) => e.dayIndex));
+		let virtualDDay: number | null = null;
+		for (let d = weekEnd; d >= weekStart; d--) {
+			if (!occupiedDays.has(d)) {
+				virtualDDay = d;
+				break;
+			}
+		}
+		// Fallback: last day of week even if occupied (shouldn't happen with 3 sessions / 7 days)
+		if (virtualDDay == null) virtualDDay = weekEnd;
+
+		let virtualDateISO: string | null = null;
+		let virtualWeekdayShort = '—';
+		if (programStart) {
+			const cal = calendarDateForProgramDay(programStart, virtualDDay);
+			virtualDateISO = cal.toISOString().slice(0, 10);
+			virtualWeekdayShort = shortWeekdayFrUtc(cal);
+		}
+
+		sessionRows.push({
+			dayIndex: virtualDDay,
+			dateISO: virtualDateISO,
+			weekdayShort: virtualWeekdayShort,
+			hasProgramSession: true,
+			sessionId: null,
+			sessionLetter: 'D',
+			sessionName: 'Découverte',
+			points: 0,
+			completedAtISO: null,
+			isToday: virtualDDay === currentDayIndex,
+			hrefSeance: '/user/decouverte'
+		});
+	}
+
 	return serializeData({
 		hasProgram: true,
 		hasProgramStart: programStart !== null,
@@ -494,5 +531,27 @@ export const actions: Actions = {
 			success: true,
 			message: `Séance déplacée du jour ${sourceDayIndex} vers le jour ${targetDayIndex}.`
 		};
+	},
+
+	startProgram: async ({ locals }) => {
+		if (!locals.user) return fail(401, { message: 'Non authentifié.' });
+		await requireSportAccess(locals.user.id, locals.user.role);
+
+		const userId = locals.user.id;
+		const existing = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { programStartDate: true }
+		});
+
+		if (existing?.programStartDate != null) {
+			return fail(409, { message: 'Programme déjà démarré.' });
+		}
+
+		await prisma.user.update({
+			where: { id: userId },
+			data: { programStartDate: new Date() }
+		});
+
+		return { success: true };
 	}
 };

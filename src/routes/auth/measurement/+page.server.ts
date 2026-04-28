@@ -13,6 +13,7 @@ import {
 	getBodyMeasurementsByUserId,
 	type BodyMeasurementSnapshot
 } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
+import { prisma } from '$lib/server';
 
 import type { Actions, RequestEvent } from './$types';
 
@@ -23,6 +24,16 @@ export const load = async (event: RequestEvent) => {
 
 	if (!event.locals.user.emailVerified) {
 		return redirect(302, '/auth/verify-email');
+	}
+
+	// Vérifier que les photos ont été validées par l'admin
+	const user = await prisma.user.findUnique({
+		where: { id: event.locals.user.id },
+		select: { photoValidationStatus: true }
+	});
+
+	if (user?.photoValidationStatus !== 'VALIDATED') {
+		return redirect(302, '/auth/photos/pending');
 	}
 
 	const [profile, bodyMeasurements] = await Promise.all([

@@ -2,6 +2,10 @@
 import type { PageData } from './$types';
 import EmberCanvas from '$lib/components/EmberCanvas.svelte';
 import { fireElement } from '$lib/utils/particles';
+import { enhance } from '$app/forms';
+import { toast } from 'svelte-sonner';
+import { Button } from '$shadcn/button';
+import { Input } from '$shadcn/input';
 
 let { data } = $props<{ data: PageData }>();
 function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
@@ -11,6 +15,37 @@ const photoLabels = [
   { key: 'SIDE',  label: 'Profil' },
   { key: 'BACK',  label: 'Dos' },
 ];
+
+// État du formulaire check-in
+let submitCheckInLoading = $state(false);
+let checkInMetrics = $state({
+  stressLevel: '',
+  sleepQuality: '',
+  bodyConfidence: '',
+  digestionQuality: '',
+  happinessLevel: '',
+  readinessToChange: ''
+});
+let checkInPhotos = $state({
+  frontUrl: '',
+  sideUrl: '',
+  backUrl: ''
+});
+
+async function handlePhotoUpload(angle: 'FRONT' | 'SIDE' | 'BACK') {
+  // Placeholder : normalement, cela ouvrirait un file input
+  console.log('Upload photo:', angle);
+}
+
+const checkInMetricsComplete = $derived(
+  checkInMetrics.stressLevel !== '' &&
+  checkInMetrics.sleepQuality !== '' &&
+  checkInMetrics.bodyConfidence !== '' &&
+  checkInMetrics.digestionQuality !== '' &&
+  checkInMetrics.happinessLevel !== '' &&
+  checkInMetrics.readinessToChange !== ''
+);
+
 </script>
 
 <div class="u-back-row">
@@ -134,6 +169,159 @@ const photoLabels = [
 <div class="u-li">
   <div class="u-li-b"><div class="u-li-s">Défi 30 jours complété</div><div class="u-li-t pts-row"><span class="pts-val">+200 pts</span></div></div>
 </div>
+
+<!-- Check-in mensuel (si dû) -->
+{#if data.checkInDue}
+  <div class="u-sh"><div class="u-sh-t">Check-in du mois {data.currentMonth}</div><div class="u-sh-s">Rapportez votre bien-être · +100 pts</div></div>
+  <div style="padding: 18px; background: var(--s2); border-bottom: 1px solid var(--br); margin-bottom: 12px;">
+    <form
+      method="POST"
+      action="?/submitMonthlyCheckIn"
+      use:enhance={() => {
+        submitCheckInLoading = true;
+        return async ({ result, update }) => {
+          submitCheckInLoading = false;
+          if (result.type === 'success') {
+            toast.success('Check-in soumis ! +100 points gagnés.');
+            await update();
+            // Réinitialiser le formulaire
+            checkInMetrics = { stressLevel: '', sleepQuality: '', bodyConfidence: '', digestionQuality: '', happinessLevel: '', readinessToChange: '' };
+            checkInPhotos = { frontUrl: '', sideUrl: '', backUrl: '' };
+          } else if (result.type === 'failure') {
+            toast.error((result.data as { message?: string })?.message || 'Erreur');
+          }
+        };
+      }}
+      class="space-y-4"
+    >
+      <!-- Métriques bien-être (1-10) -->
+      <div class="checkin-grid">
+        <div class="checkin-field">
+          <label for="stressLevel">Stress (1-10)</label>
+          <Input
+            id="stressLevel"
+            type="number"
+            name="stressLevel"
+            min="1"
+            max="10"
+            bind:value={checkInMetrics.stressLevel}
+            placeholder="—"
+            disabled={submitCheckInLoading}
+            required
+          />
+        </div>
+        <div class="checkin-field">
+          <label for="sleepQuality">Sommeil (1-10)</label>
+          <Input
+            id="sleepQuality"
+            type="number"
+            name="sleepQuality"
+            min="1"
+            max="10"
+            bind:value={checkInMetrics.sleepQuality}
+            placeholder="—"
+            disabled={submitCheckInLoading}
+            required
+          />
+        </div>
+        <div class="checkin-field">
+          <label for="bodyConfidence">Confiance (1-10)</label>
+          <Input
+            id="bodyConfidence"
+            type="number"
+            name="bodyConfidence"
+            min="1"
+            max="10"
+            bind:value={checkInMetrics.bodyConfidence}
+            placeholder="—"
+            disabled={submitCheckInLoading}
+            required
+          />
+        </div>
+        <div class="checkin-field">
+          <label for="digestionQuality">Digestion (1-10)</label>
+          <Input
+            id="digestionQuality"
+            type="number"
+            name="digestionQuality"
+            min="1"
+            max="10"
+            bind:value={checkInMetrics.digestionQuality}
+            placeholder="—"
+            disabled={submitCheckInLoading}
+            required
+          />
+        </div>
+        <div class="checkin-field">
+          <label for="happinessLevel">Bonheur (1-10)</label>
+          <Input
+            id="happinessLevel"
+            type="number"
+            name="happinessLevel"
+            min="1"
+            max="10"
+            bind:value={checkInMetrics.happinessLevel}
+            placeholder="—"
+            disabled={submitCheckInLoading}
+            required
+          />
+        </div>
+        <div class="checkin-field">
+          <label for="readinessToChange">Motivation (1-10)</label>
+          <Input
+            id="readinessToChange"
+            type="number"
+            name="readinessToChange"
+            min="1"
+            max="10"
+            bind:value={checkInMetrics.readinessToChange}
+            placeholder="—"
+            disabled={submitCheckInLoading}
+            required
+          />
+        </div>
+      </div>
+
+      <!-- Photos optionnelles -->
+      <div class="space-y-2">
+        <div style="font-size: .8rem; font-weight: 600; color: var(--txd);">Photos optionnelles</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+          <input type="hidden" name="frontUrl" bind:value={checkInPhotos.frontUrl} />
+          <input type="hidden" name="sideUrl" bind:value={checkInPhotos.sideUrl} />
+          <input type="hidden" name="backUrl" bind:value={checkInPhotos.backUrl} />
+          {#each ['FRONT', 'SIDE', 'BACK'] as angle, idx}
+            <button
+              type="button"
+              disabled={submitCheckInLoading}
+              onclick={() => handlePhotoUpload(angle as 'FRONT' | 'SIDE' | 'BACK')}
+              style="
+                aspect-ratio: 3/4;
+                background: var(--s3);
+                border: 1px dashed var(--br2);
+                border-radius: 4px;
+                cursor: pointer;
+                opacity: {submitCheckInLoading ? 0.5 : 1};
+              "
+            >
+              <div style="text-align: center; color: var(--txd);">
+                {angle === 'FRONT' ? 'Face' : angle === 'SIDE' ? 'Profil' : 'Dos'}
+              </div>
+            </button>
+          {/each}
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <Button
+        type="submit"
+        disabled={!checkInMetricsComplete || submitCheckInLoading}
+        style="width: 100%;"
+      >
+        {submitCheckInLoading ? 'Soumission...' : 'Soumettre le check-in'}
+      </Button>
+    </form>
+  </div>
+{/if}
 
 <!-- Photos du mois -->
 <div class="u-sh"><div class="u-sh-t">Photos du mois {data.currentMonth}</div><div class="u-sh-s">3 angles requis</div></div>
@@ -271,6 +459,25 @@ const photoLabels = [
 .pcell.filled { border:1px solid var(--br2); }
 .pc-plus { font-size:1rem; color:var(--txd); }
 .pc-lbl { font-size:.5625rem; color:var(--txd); text-align:center; font-family:var(--fb); }
+
+/* Check-in mensuel */
+.checkin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.checkin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.checkin-field label {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--txd);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
 
 /* Barème points */
 .pts-row { display: flex; align-items: baseline; gap: 4px; }

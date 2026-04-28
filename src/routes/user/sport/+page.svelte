@@ -58,7 +58,7 @@
 	}
 
 	function isFreeDropCell(cell: SessionRow): boolean {
-		return cell.sessionId == null && cell.completedAtISO == null;
+		return cell.sessionId == null && cell.completedAtISO == null && cell.sessionLetter !== 'D';
 	}
 
 	function updateHoveredDay(clientX: number, clientY: number) {
@@ -182,11 +182,16 @@
 		Aucun programme actif en base. Contacte le support si le message persiste.
 	</p>
 {:else if !data.hasProgramStart}
-	<p class="mx-4 text-sm text-muted-foreground">
-		Démarre ton programme depuis ton profil ou passe à la nutrition pour initialiser ton calendrier.
-	</p>
-{/if}
-
+	<div class="start-cta-wrap">
+		<p class="start-cta-title">Prêt à commencer ?</p>
+		<p class="start-cta-sub">91 jours · 13 semaines · 4 séances par semaine.</p>
+		<form method="POST" action="?/startProgram" use:enhance={() => {
+			return async ({ update }) => { await update({ invalidateAll: true }); };
+		}}>
+			<button type="submit" class="start-cta-btn">Démarrer mon programme</button>
+		</form>
+	</div>
+{:else}
 <div class="week-info">
 	<div class="week-header-row">
 		<span class="week-header">
@@ -312,7 +317,7 @@
 					</div>
 					<div class="u-li-s">
 						{#if isOptionalSessionLetter(row.sessionLetter)}Séance facultative · {/if}
-						{#if row.points}&plus;{row.points} pts à gagner{/if}
+						{#if row.sessionLetter === 'D'}Mindset · Breathwork · Méditation{:else if row.points}&plus;{row.points} pts à gagner{/if}
 					</div>
 				</div>
 				<div class="u-li-r"><div class="u-arr"></div></div>
@@ -330,7 +335,7 @@
 					</div>
 					<div class="u-li-s">
 						{#if isOptionalSessionLetter(row.sessionLetter)}Séance facultative · {/if}
-						À faire
+						{#if row.sessionLetter === 'D'}Mindset · Breathwork · Méditation{:else}À faire{/if}
 						{#if row.points} · &plus;{row.points} pts{/if}
 					</div>
 				</div>
@@ -356,6 +361,8 @@
 			</div>
 		{/if}
 	{/each}
+{/if}
+
 {/if}
 
 <style>
@@ -460,5 +467,37 @@
 		font-size: 0.625rem;
 		font-family: var(--fb);
 		color: var(--cy);
+	}
+	.start-cta-wrap {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 18px;
+		padding: 48px 24px;
+		text-align: center;
+	}
+	.start-cta-title {
+		font-size: 1.125rem;
+		font-weight: 700;
+		color: var(--tx);
+		font-family: var(--fh2);
+		margin: 0;
+	}
+	.start-cta-sub {
+		font-size: 0.75rem;
+		color: var(--txd);
+		font-family: var(--fb);
+		margin: 0;
+	}
+	.start-cta-btn {
+		background: var(--g);
+		color: var(--s1);
+		border: none;
+		padding: 14px 28px;
+		font-size: 0.875rem;
+		font-weight: 700;
+		font-family: var(--fh2);
+		cursor: pointer;
+		letter-spacing: 0.04em;
 	}
 </style>

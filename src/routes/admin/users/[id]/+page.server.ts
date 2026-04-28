@@ -7,6 +7,8 @@ import { getUsersById } from '$lib/prisma/user/user';
 import { serializeData } from '$lib/utils/serializeData';
 import { prisma } from '$lib/server';
 import { hashPassword } from '$lib/lucia/password';
+import { sendPhotoValidatedEmail } from '$lib/server/photoValidatedEmail';
+import { z } from 'zod';
 
 function toDatetimeLocal(isoOrNull: string | null | undefined): string | null {
 	if (!isoOrNull || typeof isoOrNull !== 'string') return null;
@@ -184,6 +186,58 @@ export const actions: Actions = {
 				return fail(400, { form, message: 'Email déjà utilisé' as const });
 			}
 			return fail(500, { message: 'User update failed' as const });
+		}
+	},
+
+	validatePhotos: async ({ request, params }) => {
+		const formData = await request.formData();
+		const bodyFatPercent = formData.get('bodyFatPercent');
+
+		// Valider que bodyFatPercent est un nombre
+		if (bodyFatPercent === null || bodyFatPercent === '') {
+			return fail(400, { message: 'Le % de masse graisseuse est obligatoire.' });
+		}
+
+		const parsedBodyFat = parseFloat(String(bodyFatPercent));
+		if (isNaN(parsedBodyFat) || parsedBodyFat < 0 || parsedBodyFat > 60) {
+			return fail(400, { message: 'Le % de masse graisseuse doit être entre 0 et 60.' });
+		}
+
+		try {
+			const userId = params.id;
+
+			// Mettre à jour le profil avec bodyFatPercent
+			await prisma.userProfile.upsert({
+				where: { userId },
+				create: {
+					userId,
+					bodyFatPercent: parsedBodyFat
+				},
+				update: {
+					bodyFatPercent: parsedBodyFat
+				}
+			});
+
+			// Valider les photos et envoyer email
+			const user = await prisma.user.update({
+				where: { id: userId },
+				data: {
+					photoValidationStatus: 'VALIDATED',
+					photoValidatedAt: new Date()
+				},
+				select: { email: true, name: true }
+			});
+
+			// Envoyer l'email de notification
+			await sendPhotoValidatedEmail({
+				userEmail: user.email,
+				userName: user.name
+			});
+
+			return message({ success: true }, 'Photos validées et email envoyé.');
+		} catch (error: unknown) {
+			console.error('Error validating photos:', error);
+			return fail(500, { message: 'Erreur lors de la validation des photos.' });
 		}
 	}
 };

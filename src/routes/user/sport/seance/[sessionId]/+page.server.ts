@@ -42,6 +42,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	});
 
 	const rawDay = url.searchParams.get('day');
+	const currentUnlockedDayIndex = currentProgramDayIndex(user?.programStartDate ?? null);
 	let dayIndex =
 		rawDay != null && rawDay !== ''
 			? Number.parseInt(rawDay, 10)
@@ -172,6 +173,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		sessionName: session.name,
 		sessionType: session.type,
 		dayIndex,
+		currentUnlockedDayIndex,
+		canValidateSession: dayIndex <= currentUnlockedDayIndex,
 		scheduledDateISO: scheduledISO,
 		seanceCompletedAt: userDay?.completedAt?.toISOString() ?? null,
 		seanceLocked: userDay?.isLocked ?? false,
@@ -253,6 +256,12 @@ export const actions: Actions = {
 			where: { id: userId },
 			select: { programStartDate: true }
 		});
+		const currentUnlockedDayIndex = currentProgramDayIndex(user?.programStartDate ?? null);
+		if (dayIdx > currentUnlockedDayIndex) {
+			return fail(409, {
+				message: 'Cette séance est planifiée dans le futur. Elle se débloquera le jour venu.'
+			});
+		}
 
 		let scheduledDate: Date | undefined;
 		if (user?.programStartDate) {

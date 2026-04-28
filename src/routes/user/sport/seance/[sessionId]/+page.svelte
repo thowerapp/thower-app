@@ -158,6 +158,10 @@
 
 {#if data.seanceCompletedAt}
 	<p class="seance-banner seance-banner--ok mx-4">Séance enregistrée comme terminée côté programme.</p>
+{:else if !data.canValidateSession}
+	<p class="seance-banner seance-banner--wait mx-4">
+		Cette séance est placée après le jour actuel du programme. Elle se débloquera à partir du jour {data.dayIndex}.
+	</p>
 {:else if !data.allMandatoryVideosCompleted}
 	<p class="seance-banner seance-banner--wait mx-4">
 		Le bouton de validation apparaîtra uniquement quand les vidéos <strong>obligatoires</strong> seront toutes au statut « Validée ».
@@ -242,7 +246,7 @@
 	{/each}
 </div>
 
-{#if !data.seanceCompletedAt && data.allMandatoryVideosCompleted}
+{#if !data.seanceCompletedAt && data.allMandatoryVideosCompleted && data.canValidateSession}
 	<form
 		method="POST"
 		action="?/markCompleted"

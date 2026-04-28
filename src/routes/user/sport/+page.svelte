@@ -3,10 +3,12 @@
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { fireElement } from '$lib/utils/particles';
+	import { onMount } from 'svelte';
 
 	let { data } = $props<{ data: PageData }>();
 
 	type SessionRow = (typeof data.sessionRows)[number];
+	type PlannerSession = (typeof data.plannerSessions)[number];
 
 	function fire(e: MouseEvent) {
 		fireElement(e.currentTarget as HTMLElement, e);
@@ -24,111 +26,168 @@
 
 	const strip = $derived(data.weekStrip ?? []);
 	const rows = $derived(data.sessionRows ?? []);
+	const plannerSessions = $derived(data.plannerSessions ?? []);
 
-	let dragSourceDayIndex = $state<number | null>(null);
-	let dragTargetDayIndex = $state<number | null>(null);
-	let dragPointerTimer: ReturnType<typeof setTimeout> | null = null;
-	let draggingFromStrip = $state(false);
-	let suppressNextOpen = $state(false);
-	let moving = $state(false);
+	let organizing = $state(false);
+	let draftPlannerSessions = $state<PlannerSession[]>([]);
+	let selectedSessionId = $state<string | null>(null);
+	let draggingSessionId = $state<string | null>(null);
+	let hoveredDayIndex = $state<number | null>(null);
+	let savingPlan = $state(false);
 	let moveMessage = $state<string | null>(null);
 
-	function clearDragState() {
-		dragSourceDayIndex = null;
-		dragTargetDayIndex = null;
-		draggingFromStrip = false;
-		suppressNextOpen = false;
-		if (dragPointerTimer) {
-			clearTimeout(dragPointerTimer);
-			dragPointerTimer = null;
-		}
+	function clonePlannerSessions(): PlannerSession[] {
+		return plannerSessions.map((session: PlannerSession) => ({ ...session }));
 	}
 
-	function updateTargetFromPoint(clientX: number, clientY: number) {
-		if (typeof document === 'undefined' || dragSourceDayIndex == null) return;
+	function startOrganizer() {
+		organizing = true;
+		draftPlannerSessions = clonePlannerSessions();
+		selectedSessionId =
+			draftPlannerSessions.find((session) => !session.completedAtISO)?.sessionId ?? null;
+		draggingSessionId = null;
+		hoveredDayIndex = null;
+		moveMessage =
+			selectedSessionId != null
+				? 'Glisse une séance sur un jour puis valide ton placement.'
+				: 'Aucune séance modifiable cette semaine.';
+	}
+
+	function stopOrganizer() {
+		organizing = false;
+		draftPlannerSessions = [];
+		selectedSessionId = null;
+		draggingSessionId = null;
+		hoveredDayIndex = null;
+		moveMessage = null;
+	}
+
+	function updateHoveredDay(clientX: number, clientY: number) {
+		if (typeof document === 'undefined') return;
 		const target = document
 			.elementFromPoint(clientX, clientY)
-			?.closest<HTMLElement>('[data-day-slot]');
+			?.closest<HTMLElement>('[data-edit-day]');
 		if (!target) return;
-		const dayIndex = Number.parseInt(target.dataset.daySlot ?? '', 10);
+		const dayIndex = Number.parseInt(target.dataset.editDay ?? '', 10);
 		if (Number.isInteger(dayIndex)) {
-			dragTargetDayIndex = dayIndex;
+			hoveredDayIndex = dayIndex;
 		}
 	}
 
-	function requestMoveSubmit() {
-		if (typeof document === 'undefined' || moving) return;
-		if (dragSourceDayIndex == null || dragTargetDayIndex == null) return;
-		if (dragSourceDayIndex === dragTargetDayIndex) return;
-		const form = document.getElementById('sport-move-form');
+	function plannerSessionAtDay(dayIndex: number): PlannerSession | null {
+		return draftPlannerSessions.find((session) => session.currentDayIndex === dayIndex) ?? null;
+	}
+
+	function assignSessionToDay(sessionId: string, dayIndex: number) {
+		const next = draftPlannerSessions.map((session) => ({ ...session }));
+		const movingSession = next.find((session) => session.sessionId === sessionId);
+		if (!movingSession || movingSession.completedAtISO) return;
+
+		const previousDayIndex = movingSession.currentDayIndex;
+		const occupiedSession = next.find(
+			(session) =>
+				session.sessionId !== sessionId &&
+				!session.completedAtISO &&
+				session.currentDayIndex === dayIndex
+		);
+
+		movingSession.currentDayIndex = dayIndex;
+		if (occupiedSession) {
+			occupiedSession.currentDayIndex = previousDayIndex ?? null;
+		}
+
+		draftPlannerSessions = next;
+		selectedSessionId = sessionId;
+		hoveredDayIndex = dayIndex;
+	}
+
+	function clearOptionalPlacement(sessionId: string) {
+		const next = draftPlannerSessions.map((session) => ({ ...session }));
+		const optionalSession = next.find((session) => session.sessionId === sessionId);
+		if (!optionalSession || !optionalSession.optional || optionalSession.completedAtISO) return;
+		optionalSession.currentDayIndex = null;
+		draftPlannerSessions = next;
+		selectedSessionId = sessionId;
+		hoveredDayIndex = null;
+	}
+
+	function handleEditDayTap(dayIndex: number) {
+		if (!organizing || selectedSessionId == null) return;
+		assignSessionToDay(selectedSessionId, dayIndex);
+	}
+
+	function handlePlannerItemTap(sessionId: string) {
+		selectedSessionId = sessionId;
+		const current = draftPlannerSessions.find((session) => session.sessionId === sessionId);
+		if (!current || current.completedAtISO) return;
+		moveMessage = current.optional
+			? 'Séance facultative sélectionnée. Place-la si tu veux, ou laisse-la libre.'
+			: 'Séance sélectionnée. Touche un jour de la semaine pour la placer.';
+	}
+
+	function startPlannerDrag(sessionId: string, event: PointerEvent) {
+		if (!organizing) return;
+		const current = draftPlannerSessions.find((session) => session.sessionId === sessionId);
+		if (!current || current.completedAtISO) return;
+		selectedSessionId = sessionId;
+		draggingSessionId = sessionId;
+		hoveredDayIndex = current.currentDayIndex;
+		(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+		updateHoveredDay(event.clientX, event.clientY);
+	}
+
+	function handlePlannerPointerMove(event: PointerEvent) {
+		if (!organizing || draggingSessionId == null || savingPlan) return;
+		updateHoveredDay(event.clientX, event.clientY);
+	}
+
+	function handlePlannerPointerUp(event: PointerEvent) {
+		if (!organizing || draggingSessionId == null || savingPlan) return;
+		updateHoveredDay(event.clientX, event.clientY);
+		if (hoveredDayIndex != null) {
+			assignSessionToDay(draggingSessionId, hoveredDayIndex);
+		}
+		draggingSessionId = null;
+	}
+
+	function requestSavePlan() {
+		if (!organizing || savingPlan) return;
+		const form = document.getElementById('sport-plan-form');
 		if (form instanceof HTMLFormElement) {
 			form.requestSubmit();
 		}
 	}
 
-	function startStripDrag(row: SessionRow, event: PointerEvent) {
-		if (row.completedAtISO || !row.sessionId) return;
-		if (dragPointerTimer) {
-			clearTimeout(dragPointerTimer);
-		}
-		dragPointerTimer = setTimeout(() => {
-			dragSourceDayIndex = row.dayIndex;
-			dragTargetDayIndex = row.dayIndex;
-			draggingFromStrip = true;
-			moveMessage = 'Déplacement activé. Fais glisser la séance vers un autre jour de la semaine.';
-			updateTargetFromPoint(event.clientX, event.clientY);
-			dragPointerTimer = null;
-		}, 420);
-		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-	}
+	const planPayload = $derived(
+		JSON.stringify(
+			draftPlannerSessions
+				.filter((session) => !session.completedAtISO)
+				.map((session) => ({
+					sessionId: session.sessionId,
+					dayIndex: session.currentDayIndex
+				}))
+		)
+	);
 
-	function cancelStripDragStart() {
-		if (dragPointerTimer) {
-			clearTimeout(dragPointerTimer);
-			dragPointerTimer = null;
-		}
-	}
+	const canSavePlan = $derived(
+		organizing &&
+			draftPlannerSessions
+				.filter((session) => !session.optional && !session.completedAtISO)
+				.every((session) => session.currentDayIndex != null)
+	);
 
-	function selectDropTarget(dayIndex: number, commit = false) {
-		if (dragSourceDayIndex == null) return;
-		dragTargetDayIndex = dayIndex;
-		if (commit && dayIndex !== dragSourceDayIndex) {
-			requestMoveSubmit();
-		}
-	}
+	onMount(() => {
+		if (typeof window === 'undefined') return;
+		window.addEventListener('pointermove', handlePlannerPointerMove, { passive: true });
+		window.addEventListener('pointerup', handlePlannerPointerUp, { passive: true });
+		window.addEventListener('pointercancel', handlePlannerPointerUp, { passive: true });
 
-	function handleStripPointerMove(event: PointerEvent) {
-		if (!draggingFromStrip || moving) return;
-		updateTargetFromPoint(event.clientX, event.clientY);
-	}
-
-	function handleStripPointerUp(event: PointerEvent) {
-		if (moving) return;
-		if (dragPointerTimer) {
-			clearTimeout(dragPointerTimer);
-			dragPointerTimer = null;
-			return;
-		}
-		if (!draggingFromStrip) return;
-		event.preventDefault();
-		updateTargetFromPoint(event.clientX, event.clientY);
-		draggingFromStrip = false;
-		suppressNextOpen = true;
-		setTimeout(() => {
-			suppressNextOpen = false;
-		}, 0);
-		if (
-			dragSourceDayIndex != null &&
-			dragTargetDayIndex != null &&
-			dragSourceDayIndex !== dragTargetDayIndex
-		) {
-			requestMoveSubmit();
-			return;
-		}
-		clearDragState();
-		moveMessage = null;
-		moveMessage = 'Choisis un autre jour pour déposer la séance.';
-	}
+		return () => {
+			window.removeEventListener('pointermove', handlePlannerPointerMove);
+			window.removeEventListener('pointerup', handlePlannerPointerUp);
+			window.removeEventListener('pointercancel', handlePlannerPointerUp);
+		};
+	});
 </script>
 
 <div class="u-back-row">
@@ -181,11 +240,53 @@
 			· <span class="warn">Début de programme non défini — dates affichées comme depuis J1</span>
 		{/if}
 	</div>
+	{#if plannerSessions.length > 0}
+		<div class="week-actions">
+			{#if organizing}
+				<button type="button" class="week-action-secondary" onclick={stopOrganizer}>Annuler</button>
+				<button type="button" class="week-action-primary" onclick={requestSavePlan} disabled={!canSavePlan || savingPlan}>
+					{savingPlan ? 'Validation…' : 'Valider le placement'}
+				</button>
+			{:else}
+				<button type="button" class="week-action-primary" onclick={startOrganizer}>Organiser ma semaine</button>
+			{/if}
+		</div>
+	{/if}
 </div>
 
 <div class="u-sport-week">
 	{#each strip as cell (cell.dayIndex)}
-		{#if cell.completedAtISO}
+		{#if organizing}
+			{@const plannedSession = plannerSessionAtDay(cell.dayIndex)}
+			{#if cell.completedAtISO}
+				<div class="u-sd done" data-edit-day={String(cell.dayIndex)}>
+					<div class="u-sd-n">{cell.weekdayShort}</div>
+					<div class="u-sd-d">{dayNumFromISO(cell.dateISO)}</div>
+					{#if cell.sessionLetter}
+						<div class="u-sd-b" style="color:var(--g)">{cell.sessionLetter}✓</div>
+					{/if}
+				</div>
+			{:else}
+				<button
+					type="button"
+					class="u-sd planner-day"
+					class:today={cell.isToday}
+					class:placed={plannedSession != null}
+					class:move-target={hoveredDayIndex === cell.dayIndex || (selectedSessionId != null && plannedSession?.sessionId === selectedSessionId)}
+					data-edit-day={String(cell.dayIndex)}
+					onclick={() => handleEditDayTap(cell.dayIndex)}
+				>
+					<div class="u-sd-n" style:color={cell.isToday ? 'var(--txd)' : undefined}>{cell.weekdayShort}</div>
+					<div class="u-sd-d">{dayNumFromISO(cell.dateISO)}</div>
+					<div class="u-sd-b" style:color={plannedSession?.optional ? 'var(--cy)' : plannedSession != null ? 'var(--g)' : 'var(--txd)'}>
+						{plannedSession?.sessionLetter ?? '—'}
+					</div>
+					{#if cell.isToday}
+						<div class="pin-dot" style="width:7px;height:7px;border-radius:50%;margin-top:1px"></div>
+					{/if}
+				</button>
+			{/if}
+		{:else if cell.completedAtISO}
 			<div class="u-sd done" data-day-slot={String(cell.dayIndex)}>
 				<div class="u-sd-n">{cell.weekdayShort}</div>
 				<div class="u-sd-d">{dayNumFromISO(cell.dateISO)}</div>
@@ -194,24 +295,7 @@
 				{/if}
 			</div>
 		{:else if cell.hrefSeance && cell.isToday}
-			<a
-				href={cell.hrefSeance}
-				class="u-sd today pending"
-				class:move-source={dragSourceDayIndex === cell.dayIndex}
-				class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === cell.dayIndex}
-				data-day-slot={String(cell.dayIndex)}
-				onpointerdown={(e) => startStripDrag(cell, e)}
-				onpointermove={handleStripPointerMove}
-				onpointerup={handleStripPointerUp}
-				onpointercancel={cancelStripDragStart}
-				onclick={(e) => {
-					if (suppressNextOpen) {
-						e.preventDefault();
-						return;
-					}
-					fire(e);
-				}}
-			>
+			<a href={cell.hrefSeance} class="u-sd today pending" onclick={fire}>
 				<div class="u-sd-n" style="color:var(--txd)">{cell.weekdayShort}</div>
 				<div class="u-sd-d">{dayNumFromISO(cell.dateISO)}</div>
 				{#if cell.sessionLetter}
@@ -220,24 +304,7 @@
 				<div class="pin-dot" style="width:7px;height:7px;border-radius:50%;margin-top:1px"></div>
 			</a>
 		{:else if cell.hrefSeance && !cell.completedAtISO}
-			<a
-				href={cell.hrefSeance}
-				class="u-sd placed"
-				class:move-source={dragSourceDayIndex === cell.dayIndex}
-				class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === cell.dayIndex}
-				data-day-slot={String(cell.dayIndex)}
-				onpointerdown={(e) => startStripDrag(cell, e)}
-				onpointermove={handleStripPointerMove}
-				onpointerup={handleStripPointerUp}
-				onpointercancel={cancelStripDragStart}
-				onclick={(e) => {
-					if (suppressNextOpen) {
-						e.preventDefault();
-						return;
-					}
-					fire(e);
-				}}
-			>
+			<a href={cell.hrefSeance} class="u-sd placed" onclick={fire}>
 				<div class="u-sd-n">{cell.weekdayShort}</div>
 				<div class="u-sd-d">{dayNumFromISO(cell.dateISO)}</div>
 				{#if cell.sessionLetter}
@@ -249,10 +316,7 @@
 				class="u-sd"
 				style="opacity:.35"
 				role="presentation"
-				class:move-target={dragSourceDayIndex != null && dragTargetDayIndex === cell.dayIndex}
 				data-day-slot={String(cell.dayIndex)}
-				onpointermove={handleStripPointerMove}
-				onpointerup={handleStripPointerUp}
 			>
 				<div class="u-sd-n">{cell.weekdayShort}</div>
 				<div class="u-sd-d" style="color:var(--txd)">{dayNumFromISO(cell.dateISO)}</div>
@@ -267,46 +331,91 @@
 
 <div class="u-sh"><div class="u-sh-t">Séances semaine {data.selectedWeek ?? data.currentWeek}</div></div>
 
-{#if dragSourceDayIndex != null}
+{#if organizing}
 	<form
-		id="sport-move-form"
+		id="sport-plan-form"
 		method="POST"
-		action="?/moveSession"
+		action="?/saveWeekPlan"
 		class="move-card mx-4"
 		use:enhance={() => {
-			moving = true;
+			savingPlan = true;
 			return async ({ result, update }) => {
-				moving = false;
+				savingPlan = false;
 				if (result.type === 'success') {
-					moveMessage = 'Séance déplacée.';
-					clearDragState();
+					moveMessage = 'Organisation de la semaine enregistrée.';
+					stopOrganizer();
 				} else if (result.type === 'failure') {
-					const data = result.data as { message?: unknown } | null;
-					let message = 'Le déplacement a échoué.';
-					if (data && typeof data.message === 'string' && data.message.trim().length > 0) {
-						message = data.message;
-					}
-					moveMessage = message;
+					const failure = result.data as { message?: unknown } | null;
+					moveMessage =
+						failure && typeof failure.message === 'string'
+							? failure.message
+							: 'Impossible d’enregistrer ton organisation.';
 				}
 				await update({ invalidateAll: true });
 			};
 		}}
 	>
-		<input type="hidden" name="sourceDayIndex" value={String(dragSourceDayIndex)} />
-		<input type="hidden" name="targetDayIndex" value={String(dragTargetDayIndex ?? dragSourceDayIndex)} />
-		<p class="move-title">Déplacer la séance</p>
-		<p class="move-sub">
-			Jour source : <strong>{dragSourceDayIndex}</strong>
-			{#if dragTargetDayIndex != null}
-				 · Jour cible : <strong>{dragTargetDayIndex}</strong>
-			{/if}
-		</p>
-		<p class="move-hint">Glisse vers une case de la semaine ou touche le jour où tu veux placer la séance.</p>
+		<input type="hidden" name="selectedWeek" value={String(data.selectedWeek ?? data.currentWeek)} />
+		<input type="hidden" name="placements" value={planPayload} />
+		<p class="move-title">Organiser la semaine</p>
+		<p class="move-sub">Glisse une séance sur un jour, ou touche la séance puis le jour cible.</p>
+		<p class="move-hint">Les 3 séances obligatoires doivent être placées. La séance facultative peut rester libre.</p>
+
+		<div class="planner-list">
+			{#each draftPlannerSessions as session (session.sessionId)}
+				<button
+					type="button"
+					class="u-li planner-item"
+					class:planner-item-selected={selectedSessionId === session.sessionId}
+					class:planner-item-dragging={draggingSessionId === session.sessionId}
+					disabled={session.completedAtISO != null}
+					onpointerdown={(e) => startPlannerDrag(session.sessionId, e)}
+					onclick={() => handlePlannerItemTap(session.sessionId)}
+				>
+					<div class="u-li-th" style:background={session.optional ? 'rgba(0,229,255,.14)' : 'var(--gd)'}>
+						<span style:color={session.optional ? 'var(--cy)' : 'var(--gb)'} style="font-size:.625rem;font-weight:700;font-family:var(--fh2)">
+							{session.sessionLetter ?? '?'}
+						</span>
+					</div>
+					<div class="u-li-b">
+						<div class="u-li-t">{session.sessionName}</div>
+						<div class="u-li-s">
+							{#if session.completedAtISO}
+								Déjà validée cette semaine
+							{:else if session.currentDayIndex != null}
+								Placée au jour {session.currentDayIndex}
+							{:else if session.optional}
+								Facultative · place-la si tu veux
+							{:else}
+								Obligatoire · à placer
+							{/if}
+						</div>
+					</div>
+					<div class="u-li-r">
+						{#if session.completedAtISO}
+							<div class="planner-tag planner-tag-fixed">Validée</div>
+						{:else if session.currentDayIndex != null}
+							<div class="planner-tag">Jour {session.currentDayIndex}</div>
+						{:else if session.optional}
+							<div class="planner-tag planner-tag-empty">Libre</div>
+						{:else}
+							<div class="planner-tag planner-tag-empty">À placer</div>
+						{/if}
+					</div>
+				</button>
+				{#if session.optional && session.currentDayIndex != null && !session.completedAtISO}
+					<button type="button" class="planner-clear" onclick={() => clearOptionalPlacement(session.sessionId)}>
+						Retirer la séance facultative
+					</button>
+				{/if}
+			{/each}
+		</div>
+
 		<div class="move-actions">
-			<button type="submit" class="move-confirm" disabled={moving || dragTargetDayIndex == null || dragTargetDayIndex === dragSourceDayIndex}>
-				{moving ? 'Déplacement…' : 'Confirmer le déplacement'}
+			<button type="submit" class="move-confirm" disabled={!canSavePlan || savingPlan}>
+				{savingPlan ? 'Validation…' : 'Valider le placement'}
 			</button>
-			<button type="button" class="move-cancel" onclick={clearDragState} disabled={moving}>
+			<button type="button" class="move-cancel" onclick={stopOrganizer} disabled={savingPlan}>
 				Annuler
 			</button>
 		</div>
@@ -317,11 +426,11 @@
 	<p class="move-feedback mx-4">{moveMessage}</p>
 {/if}
 
-{#if rows.length === 0}
+{#if !organizing && rows.length === 0}
 	<p class="mx-4 text-sm text-muted-foreground">
 		Aucune séance sport prévue sur cette semaine dans le programme.
 	</p>
-{:else}
+{:else if !organizing}
 	{#each rows as row (row.dayIndex)}
 		{#if row.hrefSeance && !row.completedAtISO && row.isToday}
 			<a href={row.hrefSeance} class="u-li li-cta pending" onclick={fire}>
@@ -436,10 +545,42 @@
 	.warn {
 		color: rgba(255, 180, 120, 0.95);
 	}
+	.week-actions {
+		margin-top: 10px;
+		display: flex;
+		justify-content: flex-end;
+		gap: 8px;
+	}
+	.week-action-primary,
+	.week-action-secondary {
+		border-radius: 999px;
+		padding: 0.48rem 0.8rem;
+		font-size: 0.625rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		font-family: var(--fh);
+	}
+	.week-action-primary {
+		border: 1px solid rgba(0, 229, 255, 0.28);
+		background: rgba(0, 229, 255, 0.12);
+		color: var(--cy);
+	}
+	.week-action-secondary {
+		border: 1px solid var(--br2);
+		background: rgba(255, 255, 255, 0.06);
+		color: var(--tx);
+	}
 
 	/* Surcharges spécifiques sport */
 	.u-sd.today {
 		animation: gpulse 2.5s ease-in-out infinite;
+	}
+	.planner-day {
+		background: transparent;
+	}
+	.planner-day:active {
+		background: rgba(0, 229, 255, 0.08);
 	}
 	.li-cta {
 		border-left: 2px solid var(--g);
@@ -505,12 +646,57 @@
 		font-family: var(--fb);
 		color: var(--cy);
 	}
-	.move-source {
-		outline: 1px solid rgba(0, 229, 255, 0.55);
-		box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.18) inset;
-	}
 	.move-target {
 		outline: 1px solid rgba(201, 168, 78, 0.55);
 		box-shadow: 0 0 0 2px rgba(201, 168, 78, 0.18) inset;
+	}
+	.planner-list {
+		margin-top: 0.75rem;
+		display: grid;
+		gap: 8px;
+	}
+	button.planner-item {
+		width: 100%;
+		border: 1px solid var(--br2);
+		border-radius: 12px;
+		padding: 12px 14px;
+		background: rgba(255, 255, 255, 0.03);
+		text-align: left;
+		border-bottom-width: 1px;
+	}
+	button.planner-item:disabled {
+		opacity: 0.6;
+	}
+	button.planner-item.planner-item-selected {
+		border-color: rgba(0, 229, 255, 0.42);
+		box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.12) inset;
+	}
+	button.planner-item.planner-item-dragging {
+		opacity: 0.9;
+		transform: scale(0.985);
+	}
+	.planner-tag {
+		font-size: 0.55rem;
+		font-family: var(--fb);
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--cy);
+	}
+	.planner-tag-empty {
+		color: var(--txd);
+	}
+	.planner-tag-fixed {
+		color: var(--g);
+	}
+	.planner-clear {
+		justify-self: end;
+		margin-top: -2px;
+		font-size: 0.5625rem;
+		font-family: var(--fb);
+		color: var(--txd);
+		background: transparent;
+		border: 0;
+		text-decoration: underline;
 	}
 </style>

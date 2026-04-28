@@ -1,13 +1,17 @@
 {
 	"name": "Thower",
 	"short_name": "Thower",
+	"id": "/user/",
 	"description": "Accompagnement Thower - coach et programme personnalisé",
 	"icons": [
 		{ "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
 		{ "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
 	],
 	"start_url": "/user/",
+	"scope": "/user/",
 	"display": "standalone",
-	"background_color": "#ffffff",
-	"theme_color": "#000000"
+	"display_override": ["fullscreen", "standalone", "minimal-ui"],
+	"orientation": "portrait",
+	"background_color": "#0d0d0d",
+	"theme_color": "#0d0d0d"
 }

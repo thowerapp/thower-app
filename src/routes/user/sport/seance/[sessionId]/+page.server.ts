@@ -10,9 +10,21 @@ import { serializeData } from '$lib/utils/serializeData';
 import { requireSportAccess } from '$lib/server/programAccessGuard';
 import { VIDEO_COMPLETION_THRESHOLD } from '$lib/prisma/userVideoProgress/upsertProgress';
 import { createPointEvent } from '$lib/prisma/pointEvent/createEvent';
+import type { WorkoutSessionType } from '@prisma/client';
 
 const OID = /^[a-f\d]{24}$/i;
 const WORKOUT_COMPLETION_POINTS = 50;
+const PLANNER_SESSION_TYPES = ['MAIN_A', 'MAIN_B', 'MAIN_C', 'DISCOVERY'] as const;
+
+type PlannerSessionType = (typeof PLANNER_SESSION_TYPES)[number];
+
+type SessionCatalogRow = {
+	id: string;
+	name: string;
+	type: WorkoutSessionType;
+	weekNumber: number | null;
+	order: number;
+};
 
 const levels = [
 	{ min: 0, num: 1, name: 'Bambou en herbe', nextMin: 200 },
@@ -24,11 +36,146 @@ const levels = [
 
 type VideoProgressState = 'preparing' | 'not_started' | 'in_progress' | 'validated';
 
+function getUserVideoProgressDelegate(): {
+	findMany: (args: unknown) => Promise<unknown[]>;
+	count: (args: unknown) => Promise<number>;
+} | null {
+	const maybeDelegate = (
+		prisma as unknown as {
+			userVideoProgress?: {
+				findMany?: (args: unknown) => Promise<unknown[]>;
+				count?: (args: unknown) => Promise<number>;
+			};
+		}
+	).userVideoProgress;
+
+	if (!maybeDelegate?.findMany || !maybeDelegate?.count) return null;
+	return {
+		findMany: maybeDelegate.findMany,
+		count: maybeDelegate.count
+	};
+}
+
+function pickSessionForType(
+	sessions: SessionCatalogRow[],
+	type: PlannerSessionType,
+	selectedWeek: number
+): SessionCatalogRow | null {
+	const candidates = sessions.filter((session) => session.type === type);
+	if (candidates.length === 0) return null;
+
+	return (
+		candidates.find((session) => session.weekNumber === selectedWeek) ??
+		candidates.find((session) => session.weekNumber == null) ??
+		candidates[0]
+	);
+}
+
+async function resolveSessionIdForDay(userId: string, dayIndex: number): Promise<string | null> {
+	const selectedWeek = Math.max(1, Math.min(13, Math.ceil(dayIndex / 7)));
+	const weekStart = (selectedWeek - 1) * 7 + 1;
+	const weekEnd = Math.min(91, weekStart + 6);
+
+	const sessionCatalog = await prisma.workoutSession.findMany({
+		where: {
+			active: true,
+			type: { in: [...PLANNER_SESSION_TYPES] }
+		},
+		select: {
+			id: true,
+			name: true,
+			type: true,
+			weekNumber: true,
+			order: true
+		},
+		orderBy: [{ order: 'asc' }, { createdAt: 'asc' }]
+	});
+
+	const selectedSessions = [
+		pickSessionForType(sessionCatalog, 'MAIN_A', selectedWeek),
+		pickSessionForType(sessionCatalog, 'MAIN_B', selectedWeek),
+		pickSessionForType(sessionCatalog, 'MAIN_C', selectedWeek),
+		pickSessionForType(sessionCatalog, 'DISCOVERY', selectedWeek)
+	].filter((session): session is SessionCatalogRow => session != null);
+
+	if (selectedSessions.length === 0) return null;
+
+	const selectedIds = new Set(selectedSessions.map((session) => session.id));
+	const userRows = await prisma.userWorkoutDay.findMany({
+		where: {
+			userId,
+			dayIndex: { gte: weekStart, lte: weekEnd },
+			sessionId: { in: [...selectedIds] }
+		},
+		include: {
+			session: { select: { id: true, active: true } }
+		}
+	});
+
+	const direct = userRows.find(
+		(row) => row.dayIndex === dayIndex && row.session?.active && selectedIds.has(row.sessionId)
+	);
+	if (direct) return direct.sessionId;
+
+	const resolvedByDay = new Map<number, string>();
+	const usedDays = new Set<number>();
+	const placedSessionIds = new Set<string>();
+
+	const prioritizedRows = userRows
+		.filter((row) => row.session?.active && selectedIds.has(row.sessionId))
+		.sort((a, b) => {
+			const aCompleted = a.completedAt != null ? 1 : 0;
+			const bCompleted = b.completedAt != null ? 1 : 0;
+			if (aCompleted !== bCompleted) return bCompleted - aCompleted;
+			return a.dayIndex - b.dayIndex;
+		});
+
+	const bestRowBySession = new Map<string, (typeof prioritizedRows)[number]>();
+	for (const row of prioritizedRows) {
+		if (!bestRowBySession.has(row.sessionId)) bestRowBySession.set(row.sessionId, row);
+	}
+
+	for (const row of bestRowBySession.values()) {
+		if (row.dayIndex < weekStart || row.dayIndex > weekEnd) continue;
+		if (usedDays.has(row.dayIndex)) continue;
+		resolvedByDay.set(row.dayIndex, row.sessionId);
+		usedDays.add(row.dayIndex);
+		placedSessionIds.add(row.sessionId);
+	}
+
+	const remainingSessions = selectedSessions.filter((session) => !placedSessionIds.has(session.id));
+	const preferredDays = [weekStart, weekStart + 2, weekStart + 4, weekStart + 6].filter(
+		(day) => day <= weekEnd
+	);
+
+	for (let i = 0; i < remainingSessions.length; i++) {
+		const session = remainingSessions[i];
+		let targetDay: number | null = null;
+		const preferred = preferredDays[i];
+
+		if (preferred != null && !usedDays.has(preferred)) {
+			targetDay = preferred;
+		} else {
+			for (let idx = weekStart; idx <= weekEnd; idx++) {
+				if (!usedDays.has(idx)) {
+					targetDay = idx;
+					break;
+				}
+			}
+		}
+
+		if (targetDay == null) break;
+		resolvedByDay.set(targetDay, session.id);
+		usedDays.add(targetDay);
+	}
+
+	return resolvedByDay.get(dayIndex) ?? null;
+}
+
 export const load: PageServerLoad = async ({ locals, params, url }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
 
-	const sessionId = params.sessionId;
-	if (!OID.test(sessionId)) throw error(400, 'Identifiant de séance invalide.');
+	const requestedSessionId = params.sessionId;
 
 	const userId = locals.user.id;
 
@@ -51,17 +198,39 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		dayIndex = currentProgramDayIndex(user?.programStartDate ?? null);
 	}
 
-	const session = await prisma.workoutSession.findUnique({
-		where: { id: sessionId },
-		include: {
-			videos: { orderBy: { order: 'asc' } }
+	let sessionId = requestedSessionId;
+	let session =
+		OID.test(sessionId)
+			? await prisma.workoutSession.findUnique({
+					where: { id: sessionId },
+					include: {
+						videos: { orderBy: { order: 'asc' } }
+					}
+				})
+			: null;
+
+	if (!session || !session.active) {
+		const fallbackSessionId = await resolveSessionIdForDay(userId, dayIndex);
+		if (fallbackSessionId && fallbackSessionId !== requestedSessionId) {
+			throw redirect(302, `/user/sport/seance/${fallbackSessionId}?day=${dayIndex}`);
 		}
-	});
+		if (fallbackSessionId && OID.test(fallbackSessionId)) {
+			sessionId = fallbackSessionId;
+			session = await prisma.workoutSession.findUnique({
+				where: { id: sessionId },
+				include: {
+					videos: { orderBy: { order: 'asc' } }
+				}
+			});
+		}
+	}
+
 	if (!session || !session.active) {
 		throw error(404, 'Séance introuvable.');
 	}
 
 	const videoIds = session.videos.map((v) => v.id);
+	const progressDelegate = getUserVideoProgressDelegate();
 
 	const [userDay, progressRows] = await Promise.all([
 		prisma.userWorkoutDay.findFirst({
@@ -73,8 +242,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				dayIndex: true
 			}
 		}),
-		videoIds.length > 0
-			? prisma.userVideoProgress.findMany({
+		videoIds.length > 0 && progressDelegate
+			? progressDelegate.findMany({
 					where: { userId, workoutVideoId: { in: videoIds } },
 					select: {
 						workoutVideoId: true,
@@ -110,7 +279,14 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		scheduledISO = calendarDateForProgramDay(ps, dayIndex).toISOString();
 	}
 
-	const videos = session.videos.map((v) => {
+	const orderedSessionVideos = [...session.videos].sort((a, b) => a.order - b.order);
+	const requiredSourceVideos =
+		session.type === 'DISCOVERY'
+			? orderedSessionVideos
+			: orderedSessionVideos.slice(0, 3);
+	const requiredVideoIds = new Set(requiredSourceVideos.map((v) => v.id));
+
+	const videos = requiredSourceVideos.map((v) => {
 		const status = v.status ?? 'pending';
 		const prog = progressByVideoId.get(v.id);
 		const videoCompleted = prog?.completedAt != null;
@@ -140,7 +316,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			order: v.order,
 			status,
 			cloudflareUid: v.cloudflareUid,
-			isOptional: v.isOptional,
+			isOptional: false,
+			isRequired: true,
 			videoCompleted,
 			progressState,
 			maxPositionSec: Math.round(maxPositionSec * 10) / 10,
@@ -149,8 +326,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		};
 	});
 
-	const mandatoryVideos = session.videos.filter((v) => !v.isOptional);
-	const optionalVideos = session.videos.filter((v) => v.isOptional);
+	const mandatoryVideos = requiredSourceVideos;
+	const optionalVideos: typeof requiredSourceVideos = [];
 	const allMandatoryVideosCompleted =
 		mandatoryVideos.length === 0 ||
 		mandatoryVideos.every((v) => progressByVideoId.get(v.id)?.completedAt != null);
@@ -219,7 +396,7 @@ export const actions: Actions = {
 			where: { id: sessionId },
 			include: {
 				videos: {
-					where: { isOptional: false },
+					orderBy: { order: 'asc' },
 					select: { id: true }
 				}
 			}
@@ -234,15 +411,21 @@ export const actions: Actions = {
 			return fail(409, { message: 'Cette séance est déjà validée.' });
 		}
 
-		const mandatoryVideoIds = session.videos.map((video) => video.id);
+		const mandatoryVideoIds =
+			session.type === 'DISCOVERY'
+				? session.videos.map((video) => video.id)
+				: session.videos.slice(0, 3).map((video) => video.id);
+		const progressDelegate = getUserVideoProgressDelegate();
 		if (mandatoryVideoIds.length > 0) {
-			const completedMandatoryCount = await prisma.userVideoProgress.count({
+			const completedMandatoryCount = progressDelegate
+				? await progressDelegate.count({
 				where: {
 					userId,
 					workoutVideoId: { in: mandatoryVideoIds },
 					completedAt: { not: null }
 				}
-			});
+			  })
+				: 0;
 
 			if (completedMandatoryCount < mandatoryVideoIds.length) {
 				return fail(409, {

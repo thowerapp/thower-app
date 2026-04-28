@@ -4,7 +4,7 @@ import type { LayoutData } from './$types';
 import { fireElement, registerSources } from '$lib/utils/particles';
 import { onMount } from 'svelte';
 
-let { data } = $props<{ data: LayoutData }>();
+let { data, children } = $props<{ data: LayoutData; children: import('svelte').Snippet }>();
 
 let currentTab = $derived(getTabFromRoute($page.url.pathname));
 
@@ -71,12 +71,90 @@ const backInfo = $derived((() => {
     label: sectionLabels[parentKey] ?? parentKey.replace(/-/g, ' '),
   };
 })());
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest('input, textarea, [contenteditable="true"]'));
+}
+
+onMount(() => {
+  const viewportMeta = document.querySelector('meta[name="viewport"]');
+  const previousViewport = viewportMeta?.getAttribute('content') ?? null;
+
+  viewportMeta?.setAttribute(
+    'content',
+    'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover'
+  );
+
+  document.body.classList.add('user-app-mode');
+  document.documentElement.classList.add('user-app-mode');
+
+  const preventGesture = (event: Event) => {
+    event.preventDefault();
+  };
+
+  let lastTouchEnd = 0;
+  const preventDoubleTapZoom = (event: TouchEvent) => {
+    if (event.touches.length > 1) {
+      event.preventDefault();
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+      event.preventDefault();
+    }
+    lastTouchEnd = now;
+  };
+
+  const preventContextMenu = (event: Event) => {
+    if (isEditableTarget(event.target)) return;
+    event.preventDefault();
+  };
+
+  const preventSelection = (event: Event) => {
+    if (isEditableTarget(event.target)) return;
+    event.preventDefault();
+  };
+
+  document.addEventListener('gesturestart', preventGesture, { passive: false });
+  document.addEventListener('gesturechange', preventGesture, { passive: false });
+  document.addEventListener('gestureend', preventGesture, { passive: false });
+  document.addEventListener('touchend', preventDoubleTapZoom, { passive: false });
+  document.addEventListener('contextmenu', preventContextMenu);
+  document.addEventListener('selectstart', preventSelection);
+
+  return () => {
+    if (previousViewport) {
+      viewportMeta?.setAttribute('content', previousViewport);
+    } else {
+      viewportMeta?.setAttribute('content', 'width=device-width, initial-scale=1');
+    }
+
+    document.body.classList.remove('user-app-mode');
+    document.documentElement.classList.remove('user-app-mode');
+
+    document.removeEventListener('gesturestart', preventGesture);
+    document.removeEventListener('gesturechange', preventGesture);
+    document.removeEventListener('gestureend', preventGesture);
+    document.removeEventListener('touchend', preventDoubleTapZoom);
+    document.removeEventListener('contextmenu', preventContextMenu);
+    document.removeEventListener('selectstart', preventSelection);
+  };
+});
 </script>
+
+<svelte:head>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0d0d0d" />
+</svelte:head>
 
 <div class="screen">
   <div class="sbar"></div>
   <div class="screen-body">
-    <slot />
+    {@render children()}
   </div>
   {#if backInfo}
     <a href="/user" class="home-btn" onclick={handleNavClick} aria-label="Accueil">
@@ -168,6 +246,32 @@ const backInfo = $derived((() => {
 }
 :global(a) { color: inherit; text-decoration: none; }
 :global(button) { font-family: inherit; }
+
+:global(html.user-app-mode),
+:global(body.user-app-mode) {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+:global(body.user-app-mode) {
+  position: fixed;
+  inset: 0;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+:global(body.user-app-mode input),
+:global(body.user-app-mode textarea),
+:global(body.user-app-mode [contenteditable="true"]) {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
 
 /* ═══════════════════════════════════════════════════════
    COMPOSANTS PARTAGÉS — toutes les routes /user/
@@ -541,6 +645,7 @@ const backInfo = $derived((() => {
   display: flex;
   flex-direction: column;
   height: 100dvh;
+  min-height: 100svh;
   background: var(--s1);
   overflow: hidden;
 }

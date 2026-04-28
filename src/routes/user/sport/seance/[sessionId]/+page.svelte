@@ -40,47 +40,15 @@
 			: 0
 	);
 
-	let displayedPoints = $state(0);
-	let progressBarPct = $state(0);
-	let pointsGain = $state(0);
-	let lastAnimatedPoints = 0;
+	const sessionVideos = $derived(data.videos ?? []);
 
-	function animateProgress(nextPoints: number, nextPercent: number) {
-		const startPoints = displayedPoints;
-		const startPercent = progressBarPct;
-		const deltaPoints = nextPoints - startPoints;
-		const deltaPercent = nextPercent - startPercent;
-		const duration = 650;
-		const startedAt = performance.now();
-
-		function step(now: number) {
-			const progress = Math.min((now - startedAt) / duration, 1);
-			const eased = 1 - Math.pow(1 - progress, 3);
-			displayedPoints = Math.round(startPoints + deltaPoints * eased);
-			progressBarPct = Math.round((startPercent + deltaPercent * eased) * 10) / 10;
-			if (progress < 1) {
-				requestAnimationFrame(step);
-			}
+	function isVideoUnlocked(index: number): boolean {
+		if (index === 0) return true;
+		for (let i = 0; i < index; i++) {
+			if (sessionVideos[i]?.progressState !== 'validated') return false;
 		}
-
-		requestAnimationFrame(step);
+		return true;
 	}
-
-	$effect(() => {
-		const nextPoints = data.totalPoints ?? 0;
-		const nextPercent = data.levelPercent ?? 0;
-		const delta = nextPoints - lastAnimatedPoints;
-
-		if (nextPoints === displayedPoints && nextPercent === progressBarPct) {
-			lastAnimatedPoints = nextPoints;
-			pointsGain = 0;
-			return;
-		}
-
-		pointsGain = delta > 0 ? delta : 0;
-		animateProgress(nextPoints, nextPercent);
-		lastAnimatedPoints = nextPoints;
-	});
 </script>
 
 <div class="u-back-row">
@@ -103,56 +71,17 @@
 	</div>
 </div>
 
-<section class="seance-level mx-4" aria-label="Progression utilisateur">
-	<div class="seance-level-head">
-		<div>
-			<p class="seance-level-kicker">Progression Thower</p>
-			<h2 class="seance-level-title">{data.levelData?.name ?? 'Niveau actuel'}</h2>
-		</div>
-		<div class="seance-level-points">
-			<strong>{displayedPoints}</strong>
-			<span>pts</span>
-		</div>
-	</div>
-	<div class="seance-level-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(progressBarPct)}>
-		<div class="seance-level-fill" style="width: {progressBarPct}%"></div>
-	</div>
-	<div class="seance-level-meta">
-		<span>Niveau {data.levelData?.num ?? 1}</span>
-		<span>{Math.round(progressBarPct)}%</span>
-	</div>
-	{#if pointsGain > 0}
-		<p class="seance-level-gain">+{pointsGain} pts gagnés sur cette validation</p>
-	{:else}
-		<p class="seance-level-gain seance-level-gain--muted">
-			Validation séance : +{data.workoutCompletionPoints ?? 50} pts
-		</p>
-	{/if}
-</section>
+<div class="seance-expected mx-4">Regarde les 3 vidéos dans l’ordre pour valider la séance.</div>
 
-<!-- Synthèse progression obligatoires -->
 {#if summary.mandatoryTotal > 0}
 	<div class="seance-synth mx-4">
 		<div class="seance-synth-head">
-			<span class="seance-synth-title">Progression (vidéos obligatoires)</span>
-			<span class="seance-synth-count"
-				>{summary.mandatoryValidated} / {summary.mandatoryTotal}</span
-			>
+			<span class="seance-synth-title">Vidéos obligatoires</span>
+			<span class="seance-synth-count">{summary.mandatoryValidated} / {summary.mandatoryTotal}</span>
 		</div>
 		<div class="seance-synth-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={mandatoryPct}>
 			<div class="seance-synth-fill" style="width: {mandatoryPct}%"></div>
 		</div>
-		<p class="seance-synth-hint">
-			Objectif pour valider une vidéo : au moins {data.validationThresholdPercent ?? 80} % de la durée
-			(ou fin de lecture).
-		</p>
-		{#if summary.optionalTotal > 0}
-			<p class="seance-synth-opt">
-				Facultatif : {summary.optionalValidated} / {summary.optionalTotal} validée{summary.optionalTotal > 1
-					? 's'
-					: ''}
-			</p>
-		{/if}
 	</div>
 {/if}
 
@@ -169,9 +98,11 @@
 {/if}
 
 <div class="seance-videos mx-4">
-	{#each data.videos as v (v.id)}
+	{#each sessionVideos as v, i (v.id)}
+		{@const unlocked = isVideoUnlocked(i)}
 		<article
 			class="vp-card"
+			class:vp-card--locked={!unlocked}
 			class:vp-card--ok={v.progressState === 'validated'}
 			class:vp-card--run={v.progressState === 'in_progress'}
 			class:vp-card--wait={v.progressState === 'not_started'}
@@ -186,8 +117,11 @@
 					<span class="vp-sep">·</span>
 					<span class="vp-name">{v.title}</span>
 				</div>
-				<div class="vp-badge" data-state={v.progressState}>
-					{#if v.progressState === 'preparing'}
+				<div class="vp-badge" data-state={!unlocked ? 'locked' : v.progressState}>
+					{#if !unlocked}
+						<span class="vp-badge-ico" aria-hidden="true">🔒</span>
+						Verrouillée
+					{:else if v.progressState === 'preparing'}
 						<span class="vp-badge-ico" aria-hidden="true">⏳</span>
 						Préparation
 					{:else if v.progressState === 'not_started'}
@@ -228,7 +162,11 @@
 			{/if}
 
 			<div class="vp-player">
-				{#if v.status === 'ready'}
+				{#if !unlocked}
+					<div class="vp-placeholder">
+						<p>Visionne d’abord la vidéo précédente pour débloquer ce bloc.</p>
+					</div>
+				{:else if v.cloudflareUid != null}
 					<CloudflareVideoPlayer
 						kind="workout"
 						videoId={v.id}
@@ -252,12 +190,6 @@
 		action="?/markCompleted"
 		use:enhance={() => {
 			return async ({ result, update }) => {
-				if (result.type === 'success' && result.data && 'pointsAwarded' in result.data) {
-					const awarded = Number(result.data.pointsAwarded ?? 0);
-					if (awarded > 0) {
-						pointsGain = awarded;
-					}
-				}
 				await update();
 				await invalidateAll();
 			};
@@ -269,89 +201,7 @@
 	</form>
 {/if}
 
-<p class="seance-footnote mx-4">+{data.workoutCompletionPoints ?? 50} pts côté gamification quand le programme enregistre la complétion.</p>
-
 <style>
-	.seance-level {
-		margin-bottom: 1rem;
-		padding: 0.95rem 1rem;
-		border-radius: 14px;
-		border: 1px solid rgba(34, 211, 238, 0.2);
-		background:
-			linear-gradient(135deg, rgba(34, 211, 238, 0.12), rgba(16, 185, 129, 0.08)),
-			rgba(0, 0, 0, 0.22);
-	}
-	.seance-level-head {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.75rem;
-		margin-bottom: 0.75rem;
-	}
-	.seance-level-kicker {
-		margin: 0;
-		font-size: 0.625rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: rgba(255, 255, 255, 0.58);
-		font-family: var(--fb, system-ui);
-	}
-	.seance-level-title {
-		margin: 0.15rem 0 0;
-		font-size: 0.95rem;
-		font-weight: 700;
-		color: var(--tx, #fff);
-		font-family: var(--fb, system-ui);
-	}
-	.seance-level-points {
-		display: flex;
-		align-items: baseline;
-		gap: 0.3rem;
-		color: #67e8f9;
-		font-family: var(--fb, system-ui);
-	}
-	.seance-level-points strong {
-		font-size: 1.4rem;
-		line-height: 1;
-	}
-	.seance-level-points span {
-		font-size: 0.7rem;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-	.seance-level-bar {
-		height: 10px;
-		border-radius: 999px;
-		overflow: hidden;
-		background: rgba(255, 255, 255, 0.1);
-	}
-	.seance-level-fill {
-		height: 100%;
-		border-radius: 999px;
-		background: linear-gradient(90deg, #22d3ee, #34d399);
-		transition: width 0.35s ease;
-	}
-	.seance-level-meta {
-		margin-top: 0.45rem;
-		display: flex;
-		justify-content: space-between;
-		gap: 0.75rem;
-		font-size: 0.65rem;
-		color: rgba(255, 255, 255, 0.65);
-		font-family: var(--fb, system-ui);
-	}
-	.seance-level-gain {
-		margin: 0.55rem 0 0;
-		font-size: 0.7rem;
-		font-weight: 600;
-		color: #6ee7b7;
-		font-family: var(--fb, system-ui);
-	}
-	.seance-level-gain--muted {
-		color: rgba(255, 255, 255, 0.62);
-		font-weight: 500;
-	}
-
 	.seance-synth {
 		margin-bottom: 1rem;
 		padding: 0.9rem 1rem;
@@ -391,18 +241,6 @@
 		border-radius: 4px;
 		background: linear-gradient(90deg, var(--g, #34d399), var(--cy, #22d3ee));
 		transition: width 0.35s ease;
-	}
-	.seance-synth-hint,
-	.seance-synth-opt {
-		margin: 0.5rem 0 0;
-		font-size: 0.625rem;
-		line-height: 1.45;
-		color: var(--txm, rgba(255, 255, 255, 0.5));
-		font-family: var(--fb, system-ui);
-	}
-	.seance-synth-opt {
-		margin-top: 0.25rem;
-		color: var(--txd, rgba(255, 255, 255, 0.65));
 	}
 
 	.seance-banner {
@@ -448,6 +286,10 @@
 	}
 	.vp-card--prep {
 		border-color: rgba(148, 163, 184, 0.35);
+	}
+	.vp-card--locked {
+		border-color: rgba(148, 163, 184, 0.3);
+		opacity: 0.78;
 	}
 
 	.vp-head {
@@ -515,9 +357,20 @@
 		background: rgba(52, 211, 153, 0.2);
 		color: #6ee7b7;
 	}
+	.vp-badge[data-state='locked'] {
+		background: rgba(148, 163, 184, 0.24);
+		color: #cbd5e1;
+	}
 	.vp-badge-ico {
 		font-size: 0.7rem;
 		line-height: 1;
+	}
+
+	.seance-expected {
+		margin-bottom: 0.8rem;
+		font-size: 0.7rem;
+		color: var(--txd, rgba(255, 255, 255, 0.78));
+		font-family: var(--fb, system-ui);
 	}
 
 	.vp-meter {
@@ -596,11 +449,4 @@
 		filter: saturate(0.7);
 	}
 
-	.seance-footnote {
-		margin-top: 0.75rem;
-		text-align: center;
-		font-size: 0.65rem;
-		color: var(--txm, rgba(255, 255, 255, 0.45));
-		font-family: var(--fb, system-ui);
-	}
 </style>

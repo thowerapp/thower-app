@@ -136,7 +136,7 @@ export const load = async (event: PageServerLoadEvent) => {
 	if (hasValidPayment && !hasMeasurements) {
 		onboardingStep = 'measurement'; // Paiement fait, formulaire en attente
 	} else if (hasValidPayment && hasMeasurements) {
-		onboardingStep = 'complete'; // Les deux étapes complétées
+		onboardingStep = 'app_ready'; // Tout complété, app prête à l'emploi
 	}
 
 	return {

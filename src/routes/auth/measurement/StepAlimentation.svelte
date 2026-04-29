@@ -232,6 +232,12 @@
 		gap: 0.5rem;
 	}
 
+	@media (max-width: 480px) {
+		.equipment-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
 	.equipment-chip {
 		display: flex;
 		align-items: center;
@@ -268,6 +274,12 @@
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
 		gap: 0.5rem;
+	}
+
+	@media (max-width: 480px) {
+		.allergen-grid {
+			grid-template-columns: 1fr;
+		}
 	}
 
 	.allergen-chip {

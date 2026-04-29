@@ -7,6 +7,7 @@
 	import type { PageProps } from './$types';
 	import { wizardStepIn, wizardStepOut } from '$lib/animation/wizardStepTransition';
 	import { ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-svelte';
+	import { page } from '$app/stores';
 
 	import WizardProgressHeader from './WizardProgressHeader.svelte';
 	import StepBienvenue from './StepBienvenue.svelte';
@@ -19,6 +20,9 @@
 	import MeasurementHistoryView from './MeasurementHistoryView.svelte';
 
 	let { data }: PageProps = $props();
+
+	// Detect if this is a new wizard flow from onboarding (not returning user)
+	const isNewWizardFlow = $derived($page.url.searchParams.get('new') === '1');
 
 	const formOptions = {
 		validators: zodClient(measurementSchema),
@@ -45,7 +49,7 @@
 	function next() {
 		if (currentStep === 2) {
 			const d = $measurementData;
-			if (!d.age || !d.heightCm || !d.weightKg || !d.waistCm || !d.chestCm || !d.armCm) {
+			if (!d.age || !d.heightCm || !d.weightKg || !d.waistCm || !d.chestCm || !d.armCm || !d.bodyFatPercent) {
 				toast.error('Merci de remplir toutes les mensurations obligatoires avant de continuer.');
 				return;
 			}
@@ -89,33 +93,35 @@
 	{/if}
 
 	<div class="flex gap-2 sm:gap-3 mb-4 sm:mb-6 lg:mb-8">
-		<button
-			type="button"
-			onclick={() => (activeTab = 'wizard')}
-			class={`flex-1 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-['DM_Sans'] text-xs sm:text-sm font-medium tracking-widest uppercase transition-all duration-200 border ${
-				activeTab === 'wizard'
-					? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
-					: 'bg-white/5 text-white/50 border-white/10'
-			}`}
-		>
-			Création
-		</button>
-		<button
-			type="button"
-			onclick={() => (activeTab = 'history')}
-			class={`flex-1 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-['DM_Sans'] text-xs sm:text-sm font-medium tracking-widest uppercase transition-all duration-200 relative border ${
-				activeTab === 'history'
-					? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
-					: 'bg-white/5 text-white/50 border-white/10'
-			}`}
-		>
-			<span>Historique</span>
-			{#if data.bodyMeasurements.length > 0}
-				<span class="absolute -top-2 -right-2 w-5 h-5 bg-cyan-400 text-black text-xs font-bold rounded-full flex items-center justify-center">
-					{data.bodyMeasurements.length}
-				</span>
-			{/if}
-		</button>
+		{#if !isNewWizardFlow}
+			<button
+				type="button"
+				onclick={() => (activeTab = 'wizard')}
+				class={`flex-1 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-['DM_Sans'] text-xs sm:text-sm font-medium tracking-widest uppercase transition-all duration-200 border ${
+					activeTab === 'wizard'
+						? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
+						: 'bg-white/5 text-white/50 border-white/10'
+				}`}
+			>
+				Création
+			</button>
+			<button
+				type="button"
+				onclick={() => (activeTab = 'history')}
+				class={`flex-1 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-['DM_Sans'] text-xs sm:text-sm font-medium tracking-widest uppercase transition-all duration-200 relative border ${
+					activeTab === 'history'
+						? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
+						: 'bg-white/5 text-white/50 border-white/10'
+				}`}
+			>
+				<span>Historique</span>
+				{#if data.bodyMeasurements.length > 0}
+					<span class="absolute -top-2 -right-2 w-5 h-5 bg-cyan-400 text-black text-xs font-bold rounded-full flex items-center justify-center">
+						{data.bodyMeasurements.length}
+					</span>
+				{/if}
+			</button>
+		{/if}
 	</div>
 
 	{#if activeTab === 'wizard' && currentStep === TOTAL_STEPS}

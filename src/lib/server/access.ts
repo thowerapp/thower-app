@@ -49,3 +49,21 @@ export function checkUserAppAccess(
 		throw redirect(302, '/auth/measurement');
 	}
 }
+
+/**
+ * Guard pour vérifier que le bien-être a été complété.
+ * Utilisé après paiement pour enforcer l'ordre onboarding:
+ * Paiement → Photos (optionnel) → Bien-être (requis) → Measurements
+ * 
+ * Si bien-être pas complété → redirection vers /auth/well-being
+ */
+export function checkWellBeingCompleted(
+	locals: App.Locals,
+	profile: { stressLevel?: number | null } | null
+): asserts locals is App.Locals & { user: NonNullable<App.Locals['user']> } {
+	checkAccess(locals);
+
+	if (!profile?.stressLevel) {
+		throw redirect(302, '/auth/well-being');
+	}
+}

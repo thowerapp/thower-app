@@ -21,6 +21,12 @@ export const load = async (event: RequestEvent) => {
 		return redirect(302, '/auth/verify-email');
 	}
 
+	// Si paiement réussi, rediriger vers photos
+	const success = event.url.searchParams.get('success') === '1';
+	if (success) {
+		return redirect(302, '/auth/photos');
+	}
+
 	const bodyMeasurements = await getBodyMeasurementsByUserId(event.locals.user.id, 1);
 	const hasMeasurements = bodyMeasurements.length > 0;
 	const offers = await getActiveOffers();

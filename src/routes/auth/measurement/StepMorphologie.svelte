@@ -59,8 +59,7 @@
 					<Form.Control>
 						<Form.Label class="meas-label">Masse grasse (%)</Form.Label>
 						<p class="text-xs text-muted-foreground mb-2">
-							Ce chiffre est important pour personnaliser le programme nutrition. Si tu ne le connais pas,
-							laisse vide pour l'instant et envoie tes photos de progression pour une estimation plus précise.
+							Ce chiffre est important pour personnaliser le programme nutrition. Il est obligatoire pour continuer.
 						</p>
 						<div class="input-unit-wrap">
 							<Input
@@ -122,8 +121,14 @@
 
 	.measures-grid {
 		display: grid;
-		grid-template-columns: repeat(2, 1fr);
+		grid-template-columns: 1fr;
 		gap: 1.25rem;
+	}
+
+	@media (min-width: 480px) {
+		.measures-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
 	}
 
 	@media (min-width: 640px) {

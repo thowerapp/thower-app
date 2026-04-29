@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { z } from 'zod';
 import { createProgressPhoto } from '$lib/prisma/progressPhoto/createProgressPhoto';
+import { prisma } from '$lib/server';
 
 const submitPhotosSchema = z.object({
 	frontUrl: z.string().url('URL de photo avant invalide'),
@@ -63,10 +64,22 @@ export const actions: Actions = {
 					angle: 'BACK',
 					url: backUrl,
 					month: 0
+				}),
+				// Ajouter +50 points pour photos soumises
+				prisma.pointEvent.create({
+					data: {
+						userId: locals.user.id,
+						type: 'PHOTO_UPLOAD',
+						amount: 50,
+						metadata: {
+							source: 'auth-photos-submission',
+							timestamp: new Date().toISOString()
+						}
+					}
 				})
 			]);
 
-			throw redirect(302, '/auth/measurement');
+			throw redirect(302, '/auth/well-being');
 		} catch (error) {
 			if (error instanceof Response) throw error;
 			console.error('[photos action]', error);
@@ -74,3 +87,4 @@ export const actions: Actions = {
 		}
 	}
 };
+

@@ -90,7 +90,7 @@ const profileFieldsSchema = z.object({
 
 	bodyFatPercent: z.preprocess(
 		(val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
-		z.number().min(3).max(70).optional()
+		z.number().min(3).max(70)
 	),
 	weightLossGoalKg: z.preprocess(
 		(val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),

@@ -270,6 +270,29 @@
 				Accès à l'application
 			</h2>
 
+			<!-- ✅ Application prête d'emploi -->
+			{#if onboardingStep === 'app_ready'}
+				<div class="card" style="border-color: #4ade80; background: rgba(74, 222, 128, 0.05);">
+					<div class="card-head">
+						<span class="card-icon" style="color: #4ade80;">
+							<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+							</svg>
+						</span>
+						<div>
+							<div class="card-title" style="color: #4ade80;">Accès à l'application déverrouillé</div>
+							<div class="card-desc">Tu as complété tous les étapes. Tu peux maintenant commencer ton accompagnement.</div>
+						</div>
+					</div>
+					<div class="card-foot">
+						<a href="/user/" class="btn" style="background: #4ade80; color: black; hover: #22c55e; font-weight: bold;">
+							<LayoutDashboard size={14} />
+							Accéder à l'application
+						</a>
+					</div>
+				</div>
+			{/if}
+
 			<!-- Stepper -->
 			<div class="stepper">
 				<a href="/auth/subscription" class="step {hasValidPayment ? 'step-done' : 'step-active'}">

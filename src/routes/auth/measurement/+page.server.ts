@@ -15,6 +15,7 @@ import {
 } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 import { prisma } from '$lib/server';
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
+import { checkWellBeingCompleted } from '$lib/server/access';
 
 import type { Actions, RequestEvent } from './$types';
 
@@ -31,6 +32,9 @@ export const load = async (event: RequestEvent) => {
 		getProfileByUserId(event.locals.user.id),
 		getBodyMeasurementsByUserId(event.locals.user.id)
 	]);
+
+	// Check bien-être complété (redirige vers /auth/well-being si manquant)
+	checkWellBeingCompleted(event.locals, profile);
 
 	const lastBody: BodyMeasurementSnapshot | null = bodyMeasurements[0] ?? null;
 
@@ -157,6 +161,7 @@ export const actions: Actions = {
 			console.log('[measurement] Formulaire complété mais paiement non validé → attente paiement');
 		}
 
-		return message(form, 'Mesures enregistrées');
+		// Rediriger vers /auth hub où l'app sera disponible
+		throw redirect(302, '/auth');
 	}
 };

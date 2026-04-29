@@ -106,32 +106,7 @@
 		</Card.Root>
 	{/if}
 
-	{#if !success && !data.hasMeasurements}
-		<Card.Root class="border-amber-500/50 bg-amber-500/5">
-			<Card.Header>
-				<Card.Title class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-					<AlertCircle class="w-6 h-6" />
-					<span>Profil physique requis</span>
-				</Card.Title>
-				<Card.Description class="text-base">
-					Pour continuer vers le paiement et souscrire à l'accompagnement Thower, nous avons besoin de
-					vos mesures et de votre profil physique. Cela permet à votre coach d'adapter votre programme
-					dès le premier jour.
-				</Card.Description>
-			</Card.Header>
-			<Card.Content class="space-y-4">
-				<p class="text-muted-foreground">
-					Rendez-vous sur la page <strong>Mon profil physique</strong> pour enregistrer au moins une
-					fiche (âge, taille, poids, objectifs, etc.). Une fois vos données enregistrées, vous
-					pourrez revenir ici et procéder au paiement.
-				</p>
-				<Button href="/auth/measurement" class="w-full gap-2">
-					<Ruler class="w-4 h-4" />
-					Remplir mon profil physique
-				</Button>
-			</Card.Content>
-		</Card.Root>
-	{:else if !success}
+	{#if !success}
 		{#if hasValidPayment && subscriptionLabel}
 			<Card.Root class="border-green-500/50 bg-green-500/5">
 				<Card.Header>

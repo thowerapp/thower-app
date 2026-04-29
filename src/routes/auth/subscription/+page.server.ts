@@ -53,11 +53,6 @@ export const actions: Actions = {
 			return fail(401, { message: 'Non authentifié' });
 		}
 
-		const bodyMeasurements = await getBodyMeasurementsByUserId(event.locals.user.id, 1);
-		if (bodyMeasurements.length === 0) {
-			return fail(400, { message: 'Profil physique requis avant le paiement' });
-		}
-
 		const formData = await event.request.formData();
 		const planId = (formData.get('plan') as string | null) ?? 'annual';
 		if (!VALID_PLANS.includes(planId as PlanId)) {

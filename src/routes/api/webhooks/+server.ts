@@ -7,6 +7,7 @@ import { getSubscriptionEndDateFromPlan, type PlanId } from '$lib/server/subscri
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
 import { claimNutritionSegmentCreditOnTransaction } from '$lib/server/mongo/claimNutritionSegmentCredit';
 import { incUserNutritionDaysAllocatedMongo } from '$lib/server/mongo/incUserNutritionDaysAllocated';
+import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import dotenv from 'dotenv';
 
@@ -140,9 +141,23 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 
 			// On ne génère le programme que lorsqu'un nouveau crédit a réellement été appliqué.
 			// Cela évite les régénérations déclenchées par des webhooks dupliqués/non-opérants.
+		// LE NOUVEAU FLUX : on génère seulement si les measurements (formulaire) existent déjà.
+		// Sinon on attend que l'utilisateur remplisse le formulaire et déclenche la génération depuis là.
+		const bodyMeasurements = await getBodyMeasurementsByUserId(transaction.userId, 1);
+		if (bodyMeasurements.length > 0) {
 			void scheduleProgramGenerationAfterPayment(transaction.userId).catch((err) => {
 				console.error('scheduleProgramGenerationAfterPayment failed', transaction.userId, err);
 			});
+			console.log(
+				'[webhook] Paiement validé avec profil complet → génération programme déclenchée pour',
+				transaction.userId
+			);
+		} else {
+			console.log(
+				'[webhook] Paiement validé MAIS profil physique incomplet → attente formulaire pour user',
+				transaction.userId
+			);
+		}
 		} else {
 			console.log(
 				'Checkout session already credited (nutrition segment) — skip user update + skip program generation:',

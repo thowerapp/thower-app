@@ -13,6 +13,8 @@ import {
 	getBodyMeasurementsByUserId,
 	type BodyMeasurementSnapshot
 } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
+import { prisma } from '$lib/server';
+import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
 
 import type { Actions, RequestEvent } from './$types';
 
@@ -138,6 +140,22 @@ export const actions: Actions = {
 			chestCm: data.chestCm,
 			armCm: data.armCm
 		});
+
+		// Nouvelle logique onboarding: après complétion du formulaire, déclencher la génération
+		// programme SI un paiement valide existe déjà (abonnement actif).
+		const user = await prisma.user.findUnique({
+			where: { id: event.locals.user.id },
+			select: { subscriptionEndsAt: true }
+		});
+		if (user?.subscriptionEndsAt && user.subscriptionEndsAt > new Date()) {
+			// Paiement valide : déclencher génération asynchrone
+			void scheduleProgramGenerationAfterPayment(event.locals.user.id).catch((err) => {
+				console.error('[measurement] scheduleProgramGenerationAfterPayment failed', event.locals.user.id, err);
+			});
+			console.log('[measurement] Formulaire complété + paiement valide → génération programme déclenchée');
+		} else {
+			console.log('[measurement] Formulaire complété mais paiement non validé → attente paiement');
+		}
 
 		return message(form, 'Mesures enregistrées');
 	}

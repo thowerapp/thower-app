@@ -130,6 +130,15 @@ export const load = async (event: PageServerLoadEvent) => {
 		hasAnyTransaction,
 		subscriptionEndsAt: userRow?.subscriptionEndsAt ?? null
 	});
+
+	// Calcul de l'étape d'onboarding client
+	let onboardingStep = 'payment'; // Par défaut: paiement en premier
+	if (hasValidPayment && !hasMeasurements) {
+		onboardingStep = 'measurement'; // Paiement fait, formulaire en attente
+	} else if (hasValidPayment && hasMeasurements) {
+		onboardingStep = 'complete'; // Les deux étapes complétées
+	}
+
 	return {
 		user: event.locals.user,
 		recoveryCode,
@@ -137,6 +146,7 @@ export const load = async (event: PageServerLoadEvent) => {
 		hasValidPayment,
 		hasAnyTransaction,
 		subscriptionEndsAt: userRow?.subscriptionEndsAt ?? null,
+		onboardingStep,
 		passwordForm,
 		emailForm,
 		isMfaEnabledForm

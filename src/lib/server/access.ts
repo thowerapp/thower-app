@@ -30,3 +30,22 @@ export function checkAccess(
 		throw redirect(302, '/acces-expire');
 	}
 }
+
+/**
+ * Guard spécifique pour les routes /user/* qui requièrent aussi le profil complet.
+ * Vérifie:
+ *   1. Authentification + abonnement valide (via checkAccess)
+ *   2. Profil physique complet (au moins une BodyMeasurement enregistrée)
+ * 
+ * Si paiement OK mais profil incomplet → redirection vers /auth/measurement pour compléter le formulaire
+ */
+export function checkUserAppAccess(
+	locals: App.Locals,
+	hasMeasurements: boolean
+): asserts locals is App.Locals & { user: NonNullable<App.Locals['user']> } {
+	checkAccess(locals);
+
+	if (!hasMeasurements) {
+		throw redirect(302, '/auth/measurement');
+	}
+}

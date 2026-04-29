@@ -6,6 +6,8 @@ import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { prisma } from '$lib/server';
 import { getProgramOfferEntitlements } from '$lib/prisma';
+import { checkUserAppAccess } from '$lib/server/access';
+import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 
 function startOfUtcDay(d: Date = new Date()): Date {
 	const r = new Date(d);
@@ -18,6 +20,11 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 	const todayStart = startOfUtcDay();
+
+	const bodyMeasurements = await getBodyMeasurementsByUserId(userId, 1);
+	const hasMeasurements = bodyMeasurements.length > 0;
+
+	checkUserAppAccess(locals, hasMeasurements);
 
 	let programAccess = await getProgramOfferEntitlements(userId);
 	if (locals.user.role === 'ADMIN') {

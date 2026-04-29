@@ -67,6 +67,7 @@
 	const hasMeasurements   = $derived(data?.hasMeasurements ?? false);
 	const hasValidPayment   = $derived(data?.hasValidPayment ?? false);
 	const hasAnyTransaction = $derived((data as { hasAnyTransaction?: boolean } | null)?.hasAnyTransaction ?? false);
+	const onboardingStep    = $derived((data as { onboardingStep?: string } | null)?.onboardingStep ?? 'payment');
 	const subscriptionEndsAt = $derived(data?.subscriptionEndsAt ?? null);
 	const subscriptionLabel  = $derived(
 		subscriptionEndsAt
@@ -271,77 +272,77 @@
 
 			<!-- Stepper -->
 			<div class="stepper">
-				<a href="/auth/measurement" class="step {hasMeasurements ? 'step-done' : 'step-active'}">
-					<span class="step-dot">
-						{#if hasMeasurements}
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-						{:else}1{/if}
-					</span>
-					<span class="step-label">Profil physique</span>
-				</a>
-				<div class="step-line {hasMeasurements ? 'step-line-done' : ''}"></div>
-				<a href="/auth/subscription" class="step {hasValidPayment ? 'step-done' : hasMeasurements ? 'step-active' : 'step-pending'}">
+				<a href="/auth/subscription" class="step {hasValidPayment ? 'step-done' : 'step-active'}">
 					<span class="step-dot">
 						{#if hasValidPayment}
 							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-						{:else}2{/if}
+						{:else}1{/if}
 					</span>
 					<span class="step-label">Paiement</span>
 				</a>
 				<div class="step-line {hasValidPayment ? 'step-line-done' : ''}"></div>
-				<span class="step {hasValidPayment ? 'step-active' : 'step-pending'}">
+				<a href="/auth/measurement" class="step {hasMeasurements ? 'step-done' : hasValidPayment ? 'step-active' : 'step-pending'}">
+					<span class="step-dot">
+						{#if hasMeasurements}
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+						{:else}2{/if}
+					</span>
+					<span class="step-label">Profil physique</span>
+				</a>
+				<div class="step-line {hasMeasurements ? 'step-line-done' : ''}"></div>
+				<span class="step {hasMeasurements ? 'step-active' : 'step-pending'}">
 					<span class="step-dot">3</span>
-					<span class="step-label">Téléchargement</span>
+					<span class="step-label">Application</span>
 				</span>
 			</div>
 
 			<div class="cards-col">
 
-				<!-- Mesures -->
-				<div class="card {!hasMeasurements ? 'card-alert' : ''}">
+				<!-- Souscription (Paiement) — Étape 1 -->
+				<div class="card">
 					<div class="card-head">
-						<span class="card-icon"><Ruler size={15} /></span>
+						<span class="card-icon"><CreditCard size={15} /></span>
 						<div>
-							<div class="card-title">
-								Profil physique
-								{#if !hasMeasurements}<span class="badge-alert">À remplir</span>{/if}
+							<div class="card-title">Souscription</div>
+							<div class="card-desc">
+								{#if hasValidPayment}
+									{subscriptionLabel ? `Valide jusqu'au ${subscriptionLabel}` : 'Accès à vie'}
+								{:else}
+									Paiement sécurisé Stripe
+								{/if}
 							</div>
-							<div class="card-desc">Mensurations et objectifs corporels</div>
 						</div>
 					</div>
 					<div class="card-foot">
-						<a href="/auth/measurement" class="btn {!hasMeasurements ? 'btn-gold' : 'btn-outline'} w-full">
-							{!hasMeasurements ? 'Remplir mon profil' : 'Modifier'}
+						<a href="/auth/subscription" class="btn btn-gold w-full">
+							{hasValidPayment ? 'Voir / Renouveler' : 'Procéder au paiement'}
 						</a>
 					</div>
 				</div>
 
-				<!-- Souscription -->
-				{#if hasMeasurements}
-					<div class="card">
+				<!-- Mesures (Profil) — Étape 2, visible si paiement OK -->
+				{#if hasValidPayment}
+					<div class="card {!hasMeasurements ? 'card-alert' : ''}">
 						<div class="card-head">
-							<span class="card-icon"><CreditCard size={15} /></span>
+							<span class="card-icon"><Ruler size={15} /></span>
 							<div>
-								<div class="card-title">Souscription</div>
-								<div class="card-desc">
-									{#if hasValidPayment}
-										{subscriptionLabel ? `Valide jusqu'au ${subscriptionLabel}` : 'Accès à vie'}
-									{:else}
-										Paiement sécurisé Stripe
-									{/if}
+								<div class="card-title">
+									Profil physique
+									{#if !hasMeasurements}<span class="badge-alert">À remplir</span>{/if}
 								</div>
+								<div class="card-desc">Mensurations et objectifs corporels</div>
 							</div>
 						</div>
 						<div class="card-foot">
-							<a href="/auth/subscription" class="btn btn-gold w-full">
-								{hasValidPayment ? 'Voir / Renouveler' : 'Accéder au paiement'}
+							<a href="/auth/measurement" class="btn {!hasMeasurements ? 'btn-gold' : 'btn-outline'} w-full">
+								{!hasMeasurements ? 'Remplir mon profil' : 'Modifier'}
 							</a>
 						</div>
 					</div>
 				{/if}
 
-				<!-- PWA Install -->
-				{#if hasValidPayment}
+				<!-- PWA Install — Étape 3, visible si paiement ET profil OK -->
+				{#if hasValidPayment && hasMeasurements}
 					<div class="card">
 						<div class="card-head">
 							<span class="card-icon"><Download size={15} /></span>
@@ -373,7 +374,7 @@
 						</div>
 					</div>
 
-					<!-- Notifications -->
+					<!-- Notifications — visible si app complète -->
 					{#if isNotificationSupported()}
 						<div class="card">
 							<div class="card-head">

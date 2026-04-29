@@ -59,7 +59,8 @@
 					<Form.Control>
 						<Form.Label class="meas-label">Masse grasse (%)</Form.Label>
 						<p class="text-xs text-muted-foreground mb-2">
-							Optionnel si tu ne la connais pas : une estimation pourra être proposée plus tard (photos / IA).
+							Ce chiffre est important pour personnaliser le programme nutrition. Si tu ne le connais pas,
+							laisse vide pour l'instant et envoie tes photos de progression pour une estimation plus précise.
 						</p>
 						<div class="input-unit-wrap">
 							<Input

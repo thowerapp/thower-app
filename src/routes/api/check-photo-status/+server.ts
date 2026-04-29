@@ -11,7 +11,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 	try {
 		const user = await prisma.user.findUnique({
 			where: { id: locals.user.id },
-			select: { photoValidationStatus: true }
+			select: {
+				progressPhotos: {
+					where: { month: 0 },
+					select: { id: true }
+				}
+			}
 		});
 
 		if (!user) {
@@ -19,7 +24,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 		}
 
 		return json({
-			validated: user.photoValidationStatus === 'VALIDATED'
+			validated: true,
+			hasSignupPhotos: (user.progressPhotos?.length ?? 0) > 0
 		});
 	} catch (error) {
 		console.error('[check-photo-status]', error);

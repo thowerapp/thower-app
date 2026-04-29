@@ -69,9 +69,11 @@
 	<div class="auth-card">
 		<h1>Photos de référence</h1>
 		<p class="subtitle">
-			Ces 3 photos permettront de calculer votre pourcentage de masse graisseuse. Un expert Thower
-			analysera vos photos sous peu.
+			Ces 3 photos aident à estimer votre pourcentage de masse grasse pour mieux personnaliser la
+			nutrition. Vous pouvez aussi passer cette étape et continuer.
 		</p>
+
+		<a href="/auth/measurement" class="skip-link">Passer cette étape pour le moment</a>
 
 		{#if uploadError}
 			<div class="error-banner">
@@ -92,7 +94,7 @@
 					<div class="photo-label">Face</div>
 					<div class="upload-area">
 						{#if frontUrl}
-							<img src={frontUrl} alt="Photo face" />
+							<img src={frontUrl} alt="Vue avant" />
 							<div class="uploaded-badge">✓ Uploadée</div>
 						{:else}
 							<label for="front-input" class="upload-label">
@@ -122,7 +124,7 @@
 					<div class="photo-label">Profil</div>
 					<div class="upload-area">
 						{#if sideUrl}
-							<img src={sideUrl} alt="Photo profil" />
+							<img src={sideUrl} alt="Vue profil" />
 							<div class="uploaded-badge">✓ Uploadée</div>
 						{:else}
 							<label for="side-input" class="upload-label">
@@ -152,7 +154,7 @@
 					<div class="photo-label">Dos</div>
 					<div class="upload-area">
 						{#if backUrl}
-							<img src={backUrl} alt="Photo dos" />
+							<img src={backUrl} alt="Vue arriere" />
 							<div class="uploaded-badge">✓ Uploadée</div>
 						{:else}
 							<label for="back-input" class="upload-label">
@@ -188,8 +190,8 @@
 		</form>
 
 		<p class="help-text">
-			Les 3 photos sont obligatoires pour continuer. Aucune donnée personnelle n'est stockée en
-			dehors de votre profil utilisateur.
+			Les photos sont recommandées mais non bloquantes. Vous pourrez les mettre à jour pendant le
+			suivi mensuel depuis votre profil.
 		</p>
 	</div>
 </div>
@@ -226,6 +228,19 @@
 		color: var(--txd);
 		margin: 0 0 24px 0;
 		line-height: 1.5;
+	}
+
+	.skip-link {
+		display: inline-block;
+		font-size: 0.75rem;
+		font-family: var(--fb);
+		color: var(--cy);
+		text-decoration: none;
+		margin: -8px 0 8px;
+	}
+
+	.skip-link:hover {
+		opacity: 0.85;
 	}
 
 	.error-banner {

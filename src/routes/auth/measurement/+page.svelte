@@ -16,7 +16,6 @@
 	import StepObjectifs from './StepObjectifs.svelte';
 	import StepAlimentation from './StepAlimentation.svelte';
 	import StepSportContexte from './StepSportContexte.svelte';
-	import StepBienEtre from './StepBienEtre.svelte';
 	import MeasurementHistoryView from './MeasurementHistoryView.svelte';
 
 	let { data }: PageProps = $props();
@@ -38,7 +37,7 @@
 		if ($measurementMessage) toast.success($measurementMessage);
 	});
 
-	const TOTAL_STEPS = 8;
+	const TOTAL_STEPS = 7;
 	let currentStep = $state(1);
 	let stepDir = $state<1 | -1>(1);
 	const progress = $derived(((currentStep - 1) / (TOTAL_STEPS - 1)) * 100);
@@ -71,8 +70,7 @@
 		'Santé',
 		'Objectifs',
 		'Alimentation',
-		'Sport',
-		'Bien-être'
+		'Sport'
 	];
 
 	let activeTab = $state<'wizard' | 'history'>('wizard');
@@ -160,12 +158,6 @@
 							<StepAlimentation form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 7}
 							<StepSportContexte form={measurementForm} formData={measurementData} />
-						{:else if currentStep === 8}
-							<StepBienEtre
-								form={measurementForm}
-								formData={measurementData}
-								initialData={data.measurementForm.data as Record<string, unknown>}
-							/>
 						{/if}
 					</div>
 				{/key}

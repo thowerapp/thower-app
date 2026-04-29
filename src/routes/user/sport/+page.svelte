@@ -3,7 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { fireElement } from '$lib/utils/particles';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	let { data } = $props<{ data: PageData }>();
 
@@ -89,10 +89,11 @@
 		activePointerElement = null;
 	}
 
-	function requestMoveSession(sourceDayIndex: number, targetDayIndex: number) {
+	async function requestMoveSession(sourceDayIndex: number, targetDayIndex: number) {
 		if (movingSession) return;
 		pendingSourceDayIndex = sourceDayIndex;
 		pendingTargetDayIndex = targetDayIndex;
+		await tick();
 		const form = document.getElementById('sport-move-form');
 		if (form instanceof HTMLFormElement) {
 			form.requestSubmit();

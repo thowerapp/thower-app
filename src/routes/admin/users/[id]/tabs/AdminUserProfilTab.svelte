@@ -1,25 +1,11 @@
 <script lang="ts">
 	import * as Card from '$shadcn/card';
 	import * as Table from '$shadcn/table';
-	import { Button } from '$shadcn/button';
-	import { Input } from '$shadcn/input';
 	import type { UserSelected } from '../types';
 	import { fmtDate } from '../types';
 	import { BREAD_TYPE_LABELS, type BreadTypeValue } from '$lib/schema/profile/breadType';
-	import { enhance } from '$app/forms';
-	import { toast } from 'svelte-sonner';
 
 	let { userSelected }: { userSelected: UserSelected } = $props();
-
-	let validatingPhotos = $state(false);
-	let bodyFatInput = $state<string>('');
-
-	$effect(() => {
-		// Pré-remplir avec la valeur actuelle si elle existe
-		if (userSelected.profile?.bodyFatPercent) {
-			bodyFatInput = String(userSelected.profile.bodyFatPercent);
-		}
-	});
 
 	function breadTypeLabel(code: string | null | undefined): string {
 		if (!code) return '—';
@@ -40,97 +26,35 @@
 		return map;
 	});
 
-	const photoValidationStatus = $derived(
-		(userSelected as unknown as { photoValidationStatus?: string })?.photoValidationStatus ?? 'PENDING'
-	);
-
 </script>
 
 <div class="space-y-6">
-	<!-- Photos de validation (inscription) -->
-	{#if validationPhotos.length > 0 || photoValidationStatus === 'PENDING'}
+	<!-- Photos d'inscription (month = 0) -->
+	{#if validationPhotos.length > 0}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title>Photos de validation (inscription)</Card.Title>
-				<Card.Description>
-					{#if photoValidationStatus === 'PENDING'}
-						<span class="text-yellow-600 font-semibold">En attente de validation</span>
-					{:else if photoValidationStatus === 'VALIDATED'}
-						<span class="text-green-600 font-semibold">✓ Validées ({fmtDate(
-							(userSelected as unknown as { photoValidatedAt?: string })?.photoValidatedAt
-						)})</span>
-					{/if}
-				</Card.Description>
+				<Card.Title>Photos d'inscription</Card.Title>
+				<Card.Description>Consultation uniquement (suivi visuel utilisateur).</Card.Description>
 			</Card.Header>
 			<Card.Content class="space-y-6">
-				<!-- Affichage des photos uploadées -->
-				{#if validationPhotos.length > 0}
-					<div class="grid grid-cols-3 gap-4">
-						{#each ['FRONT', 'SIDE', 'BACK'] as angle}
-							<div class="space-y-2">
-								<p class="text-sm font-semibold">{angle === 'FRONT' ? 'Face' : angle === 'SIDE' ? 'Profil' : 'Dos'}</p>
-								{#if photoByAngle.get(angle)}
-									<img
-										src={photoByAngle.get(angle)}
-										alt={angle}
-										class="w-full aspect-[3/4] object-cover rounded-md border"
-									/>
-								{:else}
-									<div class="w-full aspect-[3/4] bg-muted rounded-md border flex items-center justify-center text-muted-foreground">
-										—
-									</div>
-								{/if}
-							</div>
-						{/each}
-					</div>
-				{/if}
-
-				<!-- Formulaire de validation (seulement si PENDING) -->
-				{#if photoValidationStatus === 'PENDING'}
-					<form
-						method="POST"
-						action="?/validatePhotos"
-						use:enhance={() => {
-							validatingPhotos = true;
-							return async ({ result, update }) => {
-								validatingPhotos = false;
-								if (result.type === 'success') {
-									toast.success('Photos validées et email envoyé.');
-									await update();
-								} else if (result.type === 'failure') {
-									toast.error(
-										(result.data as { message?: string })?.message || 'Erreur lors de la validation.'
-									);
-								}
-							};
-						}}
-						class="space-y-4"
-					>
+				<div class="grid grid-cols-3 gap-4">
+					{#each ['FRONT', 'SIDE', 'BACK'] as angle}
 						<div class="space-y-2">
-							<label for="bodyFatPercent" class="text-sm font-medium">% de masse graisseuse (obligatoire)</label>
-							<div class="flex gap-2">
-								<Input
-									id="bodyFatPercent"
-									type="number"
-									name="bodyFatPercent"
-									min="0"
-									max="60"
-									step="0.1"
-									bind:value={bodyFatInput}
-									placeholder="Ex: 25.5"
-									required
-									disabled={validatingPhotos}
+							<p class="text-sm font-semibold">{angle === 'FRONT' ? 'Face' : angle === 'SIDE' ? 'Profil' : 'Dos'}</p>
+							{#if photoByAngle.get(angle)}
+								<img
+									src={photoByAngle.get(angle)}
+									alt={angle}
+									class="w-full aspect-[3/4] object-cover rounded-md border"
 								/>
-								<span class="flex items-center text-muted-foreground">%</span>
-							</div>
-							<p class="text-xs text-muted-foreground">Saisir la valeur calculée à partir des photos.</p>
+							{:else}
+								<div class="w-full aspect-[3/4] bg-muted rounded-md border flex items-center justify-center text-muted-foreground">
+									—
+								</div>
+							{/if}
 						</div>
-
-						<Button type="submit" disabled={validatingPhotos || !bodyFatInput}>
-							{validatingPhotos ? 'Validation en cours...' : 'Valider et notifier'}
-						</Button>
-					</form>
-				{/if}
+					{/each}
+				</div>
 			</Card.Content>
 		</Card.Root>
 	{/if}

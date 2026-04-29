@@ -593,17 +593,20 @@ onMount(() => {
 /* ── Grille sport semaine ── */
 :global(.u-sport-week) {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 3px;
-  padding: 8px 18px;
+  padding: 8px 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 :global(.u-sd) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 2px;
+  padding: 6px 1px;
   border: 1px solid var(--br2);
   gap: 2px;
+  min-width: 0;
   -webkit-tap-highlight-color: transparent;
   position: relative;
   overflow: hidden;

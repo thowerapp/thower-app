@@ -1,6 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { prisma } from '$lib/server';
 import { z } from 'zod';
 import { createProgressPhoto } from '$lib/prisma/progressPhoto/createProgressPhoto';
 
@@ -14,16 +13,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Guard : utilisateur doit être connecté
 	if (!locals.user) {
 		throw redirect(302, '/auth/login');
-	}
-
-	// Si les photos sont déjà validées, rediriger vers le formulaire de mesures
-	const user = await prisma.user.findUnique({
-		where: { id: locals.user.id },
-		select: { photoValidationStatus: true }
-	});
-
-	if (user?.photoValidationStatus === 'VALIDATED') {
-		throw redirect(302, '/auth/measurement');
 	}
 
 	return {
@@ -77,9 +66,7 @@ export const actions: Actions = {
 				})
 			]);
 
-			// Statut reste PENDING (l'admin doit valider et saisir bodyFat%)
-			// Redirect vers la page d'attente
-			throw redirect(302, '/auth/photos/pending');
+			throw redirect(302, '/auth/measurement');
 		} catch (error) {
 			if (error instanceof Response) throw error;
 			console.error('[photos action]', error);

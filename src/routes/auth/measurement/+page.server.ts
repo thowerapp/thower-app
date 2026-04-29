@@ -13,7 +13,6 @@ import {
 	getBodyMeasurementsByUserId,
 	type BodyMeasurementSnapshot
 } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
-import { prisma } from '$lib/server';
 
 import type { Actions, RequestEvent } from './$types';
 
@@ -24,16 +23,6 @@ export const load = async (event: RequestEvent) => {
 
 	if (!event.locals.user.emailVerified) {
 		return redirect(302, '/auth/verify-email');
-	}
-
-	// Vérifier que les photos ont été validées par l'admin
-	const user = await prisma.user.findUnique({
-		where: { id: event.locals.user.id },
-		select: { photoValidationStatus: true }
-	});
-
-	if (user?.photoValidationStatus !== 'VALIDATED') {
-		return redirect(302, '/auth/photos/pending');
 	}
 
 	const [profile, bodyMeasurements] = await Promise.all([
@@ -130,13 +119,6 @@ export const actions: Actions = {
 			breadType: data.breadType,
 			breadManagement: data.breadManagement,
 			sportActivity: data.sportActivity,
-			// Bien-être
-			stressLevel: data.stressLevel,
-			sleepQuality: data.sleepQuality,
-			bodyConfidence: data.bodyConfidence,
-			digestionQuality: data.digestionQuality,
-			happinessLevel: data.happinessLevel,
-			readinessToChange: data.readinessToChange,
 			// Alimentation & équipement
 			kitchenEquipment,
 			disgustingFoods: data.disgustingFoods,

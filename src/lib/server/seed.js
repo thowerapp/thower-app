@@ -39,15 +39,6 @@ const nutritionAnnual = Number(process.env.STRIPE_PLAN_ANNUAL_NUTRITION_CENTS ??
 const sportMonthly = Number(process.env.STRIPE_PLAN_MONTHLY_SPORT_CENTS ?? defaultMonthly);
 const sportAnnual = Number(process.env.STRIPE_PLAN_ANNUAL_SPORT_CENTS ?? defaultAnnual);
 
-// ─── UIDs Cloudflare Stream (catalogue sport seed) : 4 vraies vidéos, rotation 3×3 séances
-const SEED_SPORT_STREAM_UIDS = [
-	'07188608eec7f3490a3115cdb06767b2',
-	'4b06a38364e54bb1b4da7eb189c09c7f',
-	'cdc4f8d1d3b47abfe186fd113387c908',
-	'0c9e4177ad86dee26e0c1e2b7674666b'
-];
-/** @param {number} slot index global 0=PRE A … 8=VID2 C (rotation % 4) */
-const sportStreamUidAtSlot = (slot) => SEED_SPORT_STREAM_UIDS[slot % SEED_SPORT_STREAM_UIDS.length];
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 /** @param {number} n */
@@ -192,70 +183,13 @@ async function main() {
 
 	// ── 3. CONTENU DÉCOUVERTE ─────────────────────────────────────────────────
 	console.log('3/10 — DiscoveryContent…');
-	// UIDs Cloudflare Stream — placeholders pour seed (status pending tant que vraie vidéo pas uploadée)
-	const discoverDefs = [
-		{ category: 'MEDITATION', title: 'Cohérence cardiaque 5 min', cloudflareUid: 'cf_seed_med_001', order: 0, unlockThreshold: 0, breathworkIntent: 'cohérence cardiaque', tags: ['calme', 'respiration'] },
-		{ category: 'MINDSET', title: 'Construire la discipline au quotidien', cloudflareUid: 'cf_seed_mnd_001', order: 0, unlockThreshold: 0, tags: ['discipline', 'motivation'] },
-		{ category: 'BREATHWORK', title: 'Respiration anti-stress 4-6', cloudflareUid: 'cf_seed_bw_001', order: 0, unlockThreshold: 0, breathworkIntent: 'anti-stress', tags: ['stress', 'respiration'] },
-		{ category: 'MOTIVATION', title: 'Thower Boost — Semaine 1', cloudflareUid: 'cf_seed_mot_001', order: 0, unlockThreshold: 0, tags: ['boost', 'semaine1'] },
-		{ category: 'EXPLICATION', title: 'Pourquoi le jeûne intermittent ?', cloudflareUid: 'cf_seed_exp_001', order: 0, unlockThreshold: 100, tags: ['jeune', 'nutrition'] }
-	];
+	// Gere via /admin/videos/sync (import depuis Cloudflare Stream).
 	const discoveries = [];
-	for (const def of discoverDefs) {
-		let dc = await db.discoveryContent.findFirst({ where: { cloudflareUid: def.cloudflareUid } });
-		if (!dc) dc = await db.discoveryContent.create({ data: { ...def, active: true, status: 'pending' } });
-		discoveries.push(dc);
-	}
 
 	// ── 4. SÉANCES SPORT + VIDÉOS ─────────────────────────────────────────────
 	console.log('4/10 — WorkoutSessions + Videos…');
-	const sessionDefs = [
-		{ type: 'MAIN_A', name: 'Séance A — Renforcement haut du corps', description: 'Circuit complet épaules, dos, bras', weekNumber: 1, order: 0 },
-		{ type: 'MAIN_B', name: 'Séance B — Cardio & mobilité', description: 'HIIT + étirements dynamiques', weekNumber: 1, order: 1 },
-		{ type: 'MAIN_C', name: 'Séance C — Abdos & gainage', description: 'Core training intensif 30 min', weekNumber: 1, order: 2 }
-	];
-	let sportStreamSlot = 0;
+	// Gere via /admin/videos (creation manuelle ou sync Cloudflare).
 	const sessions = [];
-	for (const def of sessionDefs) {
-		let session = await db.workoutSession.findFirst({ where: { name: def.name } });
-		if (!session) {
-			session = await db.workoutSession.create({
-				data: {
-					...def,
-					active: true,
-					videos: {
-						create: [
-							{ cloudflareUid: sportStreamUidAtSlot(sportStreamSlot++), title: `Pré-séance — ${def.name}`, position: 'PRE', isOptional: true, order: 0, status: 'ready' },
-							{ cloudflareUid: sportStreamUidAtSlot(sportStreamSlot++), title: `Vidéo 1 — ${def.name}`, position: 'VID1', isOptional: false, order: 1, status: 'ready' },
-							{ cloudflareUid: sportStreamUidAtSlot(sportStreamSlot++), title: `Vidéo 2 — ${def.name}`, position: 'VID2', isOptional: false, order: 2, status: 'ready' }
-						]
-					}
-				},
-				include: { videos: { orderBy: { order: 'asc' } } }
-			});
-		} else {
-			session = await db.workoutSession.findUnique({ where: { id: session.id }, include: { videos: { orderBy: { order: 'asc' } } } });
-		}
-		sessions.push(session);
-	}
-	// Idempotent : ré-applique la rotation (remplace d’éventuels cf_seed_* après ancien seed)
-	let syncStreamSlot = 0;
-	for (const def of sessionDefs) {
-		const s = await db.workoutSession.findFirst({ where: { name: def.name }, include: { videos: { orderBy: { order: 'asc' } } } });
-		if (!s) continue;
-		for (const v of s.videos) {
-			await db.workoutVideo.update({
-				where: { id: v.id },
-				data: { cloudflareUid: sportStreamUidAtSlot(syncStreamSlot++), status: 'ready' }
-			});
-		}
-	}
-	// Recharge pour user démo (références .videos / .id à jour)
-	sessions.length = 0;
-	for (const def of sessionDefs) {
-		const s = await db.workoutSession.findFirst({ where: { name: def.name }, include: { videos: { orderBy: { order: 'asc' } } } });
-		if (s) sessions.push(s);
-	}
 
 	// ── 5. RECETTES ───────────────────────────────────────────────────────────
 	console.log('5/10 — Recettes…');

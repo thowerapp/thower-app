@@ -1,5 +1,12 @@
 ﻿<script lang="ts">
+	import type { PageData } from './$types';
+	let { data } = $props<{ data: PageData }>();
 
+	type Video = { id: string; title: string; unlocked: boolean; completed: boolean; unlockThreshold: number };
+	const videos = $derived((data.videos ?? []) as Video[]);
+	const unlockedCount = $derived(data.unlockedCount ?? 0);
+	const totalCount = $derived(videos.length);
+	const lockedCount = $derived(totalCount - unlockedCount);
 </script>
 
 <div class="back-row">
@@ -9,15 +16,34 @@
 </a>
 <div class="back-head">Méditation</div>
 </div>
-<div class="sh"><div class="sh-t">Pleine conscience · Guidée</div><div class="sh-s">3 débloquées · 3 à venir</div></div>
-<div class="media-grid">
-<div class="mcell"><div style="width:9px;height:9px;background:var(--g)"></div><div class="mc-t">Intro</div></div>
-<div class="mcell"><div style="width:9px;height:9px;border-radius:50%;background:var(--gd)"></div><div class="mc-t">Séance 2</div></div>
-<div class="mcell"><div style="width:9px;height:9px;background:var(--cyd)"></div><div class="mc-t">Pleine conscience</div></div>
-<div class="mcell locked"><div class="lock-sq"></div><div class="mc-t">Avancé 1</div></div>
-<div class="mcell locked"><div class="lock-sq"></div><div class="mc-t">Avancé 2</div></div>
-<div class="mcell locked"><div class="lock-sq"></div><div class="mc-t">Soir</div></div>
+<div class="sh">
+	<div class="sh-t">Pleine conscience · Guidée</div>
+	<div class="sh-s">{unlockedCount} débloquée{unlockedCount > 1 ? 's' : ''}{lockedCount > 0 ? ` · ${lockedCount} à venir` : ''}</div>
 </div>
+
+{#if videos.length === 0}
+	<div class="empty-state">Aucune vidéo disponible pour le moment.</div>
+{:else}
+<div class="media-grid">
+	{#each videos as video (video.id)}
+		{#if video.unlocked}
+			<a href="/user/decouverte/meditation/{video.id}" class="mcell" class:done={video.completed}>
+				{#if video.completed}
+					<div style="width:9px;height:9px;border-radius:50%;background:var(--g)"></div>
+				{:else}
+					<div style="width:9px;height:9px;background:var(--gd)"></div>
+				{/if}
+				<div class="mc-t">{video.title}</div>
+			</a>
+		{:else}
+			<div class="mcell locked">
+				<div class="lock-sq"></div>
+				<div class="mc-t">{video.title}</div>
+			</div>
+		{/if}
+	{/each}
+</div>
+{/if}
 
 <style>
 .back-row { display:flex; align-items:center; justify-content:space-between; padding:11px 18px; background:var(--s1); border-bottom:1px solid var(--br); position:sticky; top:0; z-index:10; }

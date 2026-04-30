@@ -1,6 +1,15 @@
 ﻿<script lang="ts">
 import type { PageData } from './$types';
 let { data } = $props<{ data: PageData }>();
+
+type Counts = { unlocked: number; total: number };
+const counts = $derived(data.counts as { meditation: Counts; mindset: Counts; breathwork: Counts } | undefined);
+
+function countLabel(c: Counts | undefined): string {
+	if (!c) return '';
+	const locked = c.total - c.unlocked;
+	return locked > 0 ? `${c.unlocked} débloquée${c.unlocked > 1 ? 's' : ''}` : `${c.total} disponible${c.total > 1 ? 's' : ''}`;
+}
 </script>
 
 <div class="u-back-row">
@@ -29,7 +38,7 @@ let { data } = $props<{ data: PageData }>();
 <div class="dec-body">
 <div class="dec-t">Méditation</div>
 <div class="dec-s">Pleine conscience · Guidée</div>
-<div class="dec-c">3 débloquées</div>
+<div class="dec-c">{countLabel(counts?.meditation)}</div>
 </div>
 <div class="arr-wrap"><div class="arr"></div></div>
 </a>
@@ -38,7 +47,7 @@ let { data } = $props<{ data: PageData }>();
 <div class="dec-body">
 <div class="dec-t">Mindset</div>
 <div class="dec-s">Motivation · Discipline</div>
-<div class="dec-c">2 débloquées</div>
+<div class="dec-c">{countLabel(counts?.mindset)}</div>
 </div>
 <div class="arr-wrap"><div class="arr"></div></div>
 </a>
@@ -47,7 +56,7 @@ let { data } = $props<{ data: PageData }>();
 <div class="dec-body">
 <div class="dec-t">Breathwork</div>
 <div class="dec-s">Cohérence · Anti-stress</div>
-<div class="dec-c">2 débloquées</div>
+<div class="dec-c">{countLabel(counts?.breathwork)}</div>
 </div>
 <div class="arr-wrap"><div class="arr"></div></div>
 </a>

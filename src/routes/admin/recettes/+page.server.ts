@@ -1,6 +1,7 @@
 import { zod } from '$lib/superforms-zod';
 import type { PageServerLoad, Actions } from './$types';
-import { message, superValidate, fail, redirect } from 'sveltekit-superforms';
+import { message, superValidate, fail } from 'sveltekit-superforms';
+import { redirect } from '@sveltejs/kit';
 import { deleteRecipeSchema } from '$lib/schema/recipe/recipeSchema';
 import { prisma } from '$lib/server';
 import { serializeData } from '$lib/utils/serializeData';

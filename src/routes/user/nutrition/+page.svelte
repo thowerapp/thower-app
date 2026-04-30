@@ -26,7 +26,7 @@ function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
 
 <a href="/user/nutrition/cadencier" class="u-li" onclick={fire}>
 	<div class="u-li-th"><div style="width:10px;height:10px;background:var(--g)"></div></div>
-	<div class="u-li-b"><div class="u-li-t">Cadencier libre</div><div class="u-li-s">91 jours · 2 repas/jour · Génération automatique</div></div>
+	<div class="u-li-b"><div class="u-li-t">Cadencier libre</div><div class="u-li-s">91 jours · 3 repas/jour · Génération automatique</div></div>
 	<div class="u-li-r"><div class="u-arr"></div></div>
 </a>
 

@@ -157,8 +157,8 @@ export const actions: Actions = {
 				console.error('[measurement] scheduleProgramGenerationAfterPayment failed', event.locals.user.id, err);
 			});
 			console.log('[measurement] Formulaire complété + paiement valide → génération programme déclenchée');
-			// Accès immédiat à l'application après complétion du formulaire.
-			throw redirect(302, '/user');
+			// Flux onboarding attendu: retour hub auth, puis CTA "Accéder à l'application".
+			throw redirect(302, '/auth');
 		} else {
 			console.log('[measurement] Formulaire complété mais paiement non validé → attente paiement');
 			throw redirect(302, '/auth/subscription');

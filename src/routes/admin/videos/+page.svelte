@@ -8,6 +8,7 @@
 	import Pencil from 'lucide-svelte/icons/pencil';
 	import Plus from 'lucide-svelte/icons/plus';
 	import Trash from 'lucide-svelte/icons/trash';
+	import RefreshCw from 'lucide-svelte/icons/refresh-cw';
 
 	let { data } = $props();
 
@@ -144,10 +145,16 @@
 			<code class="rounded bg-muted px-1 text-xs">PUT …/stream/webhook</code> ; URL de notification
 			publique <code class="rounded bg-muted px-1 text-xs">…/api/cloudflare/stream/webhook</code>).
 		</p>
-		<Button href="/admin/videos/create">
-			<Plus class="size-4" />
-			Nouvelle vidéo
-		</Button>
+		<div class="flex gap-2">
+			<Button variant="outline" href="/admin/videos/sync">
+				<RefreshCw class="size-4" />
+				Sync Cloudflare
+			</Button>
+			<Button href="/admin/videos/create">
+				<Plus class="size-4" />
+				Nouvelle vidéo
+			</Button>
+		</div>
 	</div>
 	<Table
 		name="Vidéos Cloudflare Stream"

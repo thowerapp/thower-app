@@ -92,8 +92,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			select: { meals: { select: { id: true } } }
 		});
 		const mealCount = todayNutrition?.meals?.length ?? 0;
-		// On attend 2 repas par jour minimum
-		const repasNonPlanifie = mealCount < 2;
+		// On attend 3 repas par jour sur le planning (le jeûne masque le petit-déj à l'affichage uniquement).
+		const repasNonPlanifie = mealCount < 3;
 
 		// ── 4. Photos de progression manquantes ce mois ───────────────────
 		const currentMonth = Math.ceil(currentDayIndex / 30);

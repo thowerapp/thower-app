@@ -269,3 +269,67 @@ function timingSafeEqualHex(a: string, b: string): boolean {
 	}
 	return diff === 0;
 }
+
+/* ─── 7. Liste de toutes les vidéos du compte (sync admin) ─────────────── */
+
+export type CloudflareVideoListItem = {
+	uid: string;
+	title: string;
+	status: string;
+	duration: number | null;
+	thumbnail: string | null;
+	created: string | null;
+};
+
+/**
+ * Récupère toutes les vidéos Cloudflare Stream du compte avec pagination curseur.
+ * Utilisé par la page /admin/videos/sync pour importer les nouvelles vidéos en DB.
+ */
+export async function listCloudflareVideos(): Promise<CloudflareVideoListItem[]> {
+	const base = getStreamBaseUrl();
+	const results: CloudflareVideoListItem[] = [];
+	let after: string | undefined;
+
+	do {
+		const url = new URL(base);
+		url.searchParams.set('limit', '100');
+		if (after) url.searchParams.set('after', after);
+
+		const res = await fetch(url.toString(), {
+			headers: { Authorization: streamAuthHeaders().Authorization }
+		});
+
+		if (!res.ok) {
+			const err = await res.text();
+			throw new Error(`Cloudflare Stream list error ${res.status}: ${err}`);
+		}
+
+		const data = (await res.json()) as {
+			result: Array<{
+				uid: string;
+				meta?: { name?: string };
+				status?: { state?: string };
+				duration?: number;
+				thumbnail?: string;
+				created?: string;
+			}>;
+		};
+
+		const batch = data.result ?? [];
+		for (const v of batch) {
+			results.push({
+				uid: v.uid,
+				title: v.meta?.name ?? v.uid,
+				status: v.status?.state ?? 'unknown',
+				duration: typeof v.duration === 'number' && v.duration > 0 ? v.duration : null,
+				thumbnail: v.thumbnail ?? null,
+				created: v.created ?? null
+			});
+		}
+
+		// Cloudflare pagination : si le batch est plein (100), on continue avec le dernier UID
+		after = batch.length === 100 ? batch[batch.length - 1]?.uid : undefined;
+	} while (after);
+
+	return results;
+}

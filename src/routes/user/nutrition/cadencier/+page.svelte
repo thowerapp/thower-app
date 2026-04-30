@@ -36,7 +36,7 @@
 				? selectedDayData.meals
 				: (() => {
 						const meals = selectedDayData.meals;
-						const noBreakfast = meals.filter((m) => m.position !== 'BREAKFAST');
+						const noBreakfast = meals.filter((m) => m.recipe?.category !== 'BREAKFAST');
 						if (noBreakfast.length === 0) return [];
 						const total = meals.reduce(
 							(acc, m) => ({

@@ -204,12 +204,17 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const weekNum = Math.min(13, Math.max(1, Math.ceil(dayIndex / 7)));
 
 	if (!nutritionDay) {
+		const userProfile = await prisma.userProfile.findUnique({
+			where: { userId },
+			select: { intermittentFastingMorning: true }
+		});
 		return {
 			dayIndex,
 			weekNum,
 			dayName: dayNames[dow] ?? '—',
 			dayNumInWeek: dow + 1,
 			hasPlan: false,
+			intermittentFasting: userProfile?.intermittentFastingMorning ?? false,
 			meals: [] as DayMealDTO[],
 			dayTotals: { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 },
 			targetKcal,
@@ -226,6 +231,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const sorted = [...nutritionDay.meals].sort(
 		(a, b) => positionOrder(a.position) - positionOrder(b.position)
 	);
+
+	const userProfile = await prisma.userProfile.findUnique({
+		where: { userId },
+		select: { intermittentFastingMorning: true }
+	});
 
 	let totC = 0;
 	let totP = 0;
@@ -285,6 +295,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		dayName: dayNames[dow] ?? '—',
 		dayNumInWeek: dow + 1,
 		hasPlan: true,
+		intermittentFasting: userProfile?.intermittentFastingMorning ?? false,
 		meals,
 		dayTotals: {
 			calories: Math.round(totC),

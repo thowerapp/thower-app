@@ -15,20 +15,26 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	try {
 		const rawRecipes = await prisma.recipe.findMany({
-			where: { isCustom: false },
 			include: { ingredients: true },
 			orderBy: { createdAt: 'desc' }
 		});
+		const recipes = serializeData(rawRecipes);
+		const catalogRecipes = recipes.filter((r: { isCustom?: boolean }) => r.isCustom !== true);
+		const customRecipes = recipes.filter((r: { isCustom?: boolean }) => r.isCustom === true);
 
 		return {
 			IdeleteRecipeSchema,
-			recipes: serializeData(rawRecipes)
+			recipes,
+			catalogRecipes,
+			customRecipes
 		};
 	} catch (error) {
 		console.error('[admin/recettes] load error:', error);
 		return {
 			IdeleteRecipeSchema,
-			recipes: []
+			recipes: [],
+			catalogRecipes: [],
+			customRecipes: []
 		};
 	}
 };

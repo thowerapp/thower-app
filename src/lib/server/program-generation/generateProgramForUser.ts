@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server';
 import { generateNutritionDaysForUser } from './nutrition/generateNutrition91Days';
+import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/generateFromPlanning';
 import { programGenLog, programGenWarn } from './programGenerationLog';
 
@@ -11,9 +12,9 @@ const selectNutritionDaysAllocated = {
 	nutritionDaysAllocated: true
 } as unknown as Prisma.UserSelect;
 
-/** Aligné sur generateNutritionDaysForUser : jeûne intermittent matin → 3 repas (30/35/35), sinon 2 (50/50). */
-function expectedMealCount(intermittentFastingMorning: boolean): number {
-	return intermittentFastingMorning ? 3 : 2;
+/** Le planning est toujours généré en 3 repas/jour (J1..J91). */
+function expectedMealCount(): number {
+	return 3;
 }
 
 async function resolveTargetNutritionDays(userId: string): Promise<number> {
@@ -24,7 +25,7 @@ async function resolveTargetNutritionDays(userId: string): Promise<number> {
 	const allocated = user?.nutritionDaysAllocated ?? 0;
 	programGenLog('3a/ User.nutritionDaysAllocated', { userId, allocated });
 
-	if (allocated > 0) {
+	if (allocated > 0 && allocated >= NUTRITION_SEGMENT_DAYS) {
 		programGenLog('3b/ Cible = allocation (paiements)', { userId, targetDays: allocated });
 		return allocated;
 	}
@@ -38,7 +39,7 @@ async function resolveTargetNutritionDays(userId: string): Promise<number> {
 		userId,
 		legacyMax
 	});
-	const target = legacyMax;
+	const target = Math.max(NUTRITION_SEGMENT_DAYS, allocated, legacyMax);
 	programGenLog('3c/ targetDays retenu', { userId, target });
 	return target;
 }
@@ -49,16 +50,11 @@ async function resolveTargetNutritionDays(userId: string): Promise<number> {
 async function isNutritionPlanComplete(userId: string, targetDays: number): Promise<boolean> {
 	if (targetDays < 1) return true;
 
-	const profile = await prisma.userProfile.findUnique({
-		where: { userId },
-		select: { intermittentFastingMorning: true }
-	});
-	const ifMorning = profile?.intermittentFastingMorning === true;
-	const expected = expectedMealCount(ifMorning);
+	const expected = expectedMealCount();
 	programGenLog('4a/ Complétude — repas attendus par jour', {
 		userId,
 		targetDays,
-		intermittentFastingMorning: ifMorning,
+		intermittentFastingMorning: null,
 		expectedMealsPerDay: expected
 	});
 

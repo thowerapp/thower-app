@@ -15,28 +15,18 @@ const SCALE_MAX = 2.5;
 /**
  * Répartition équilibrée du budget alimentaire pour chaque créneau repas.
  * Applique les mêmes fractions aux calories, protéines ET fibres.
- * - Jeûne intermittent matin : petit-déj 30%, déj. 35%, dîner 35%
- * - Sinon (2 repas) : déj. et dîner 50% chacun
+ * - Distribution planning: petit-déj 30%, déj. 35%, dîner 35%
  */
-function mealBudgetFractionForPosition(position: MealPosition, intermittentFastingMorning: boolean): number {
-	if (intermittentFastingMorning) {
-		switch (position) {
-			case 'BREAKFAST':
-				return 0.3;
-			case 'LUNCH':
-				return 0.35;
-			case 'DINNER':
-				return 0.35;
-			default:
-				return 1 / 3;
-		}
-	}
+function mealBudgetFractionForPosition(position: MealPosition): number {
 	switch (position) {
+		case 'BREAKFAST':
+			return 0.3;
 		case 'LUNCH':
+			return 0.35;
 		case 'DINNER':
-			return 0.5;
+			return 0.35;
 		default:
-			return 0.5;
+			return 1 / 3;
 	}
 }
 
@@ -205,8 +195,8 @@ function pickRandomFromPool<T>(items: T[], seed: number): T | null {
  * Génère les journées nutrition 1..targetDays (NutritionDay + Meal) depuis le catalogue admin.
  * Exclut les recettes contenant un allergène déclaré par l’utilisateur.
  * Ajuste les quantités pour viser les calories cibles (TDEE − déficit) lorsque le profil le permet.
- * Répartition kcal sur le budget repas : si jeûne intermittent matin → petit-déj 30 %, déj. 35 %, dîner 35 % ;
- * sinon déj. 50 %, dîner 50 % (pas de petit-déj généré).
+ * Répartition kcal sur le budget repas : petit-déj 30 %, déj. 35 %, dîner 35 %.
+ * Le jeûne intermittent est un comportement d'affichage utilisateur (cacher le petit-déj), pas de suppression des repas en BDD.
  */
 export async function generateNutritionDaysForUser(userId: string, targetDays: number): Promise<void> {
 	programGenLog('N1/ generateNutritionDaysForUser — entrée', { userId, targetDays });
@@ -317,14 +307,12 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		fallbackPool: fallbackPool.length
 	});
 
-	const positions: MealPosition[] = intermittentFastingDefault
-		? ['BREAKFAST', 'LUNCH', 'DINNER']
-		: ['LUNCH', 'DINNER'];
+	const positions: MealPosition[] = ['BREAKFAST', 'LUNCH', 'DINNER'];
 
 	programGenLog('N7/ Boucle jours — positions repas', {
 		userId,
 		positions,
-		budgetFractions: intermittentFastingDefault ? '30% / 35% / 35% (PD / déj. / dîner)' : '50% / 50% (déj. / dîner)',
+		budgetFractions: '30% / 35% / 35% (PD / déj. / dîner)',
 		macrosDistributed: 'Calories, Protéines, Fibres répartis proportionnellement',
 		recipeSelection: 'pseudo-aléatoire (graine userId+jour+créneau, Mulberry32)'
 	});
@@ -381,7 +369,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 			const baseKcal = kcalAtBaseQuantity(recipe);
 			let scale = 1;
 			if (targetKcal != null && mealBudget > 0 && baseKcal > 0) {
-				const frac = mealBudgetFractionForPosition(position, intermittentFastingDefault);
+				const frac = mealBudgetFractionForPosition(position);
 				const targetSlotKcal = mealBudget * frac;
 				scale = clampScale(targetSlotKcal / baseKcal);
 			}
@@ -412,7 +400,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 				scales: scalesForLog,
 				mealBudget: Math.round(mealBudget * 10) / 10,
 				targetKcal,
-				split: intermittentFastingDefault ? '30/35/35' : '50/50'
+				split: '30/35/35'
 			});
 		}
 	}

@@ -31,6 +31,31 @@
 		DESSERT: 'Dessert'
 	};
 
+	type RecipeTab = 'all' | 'catalog' | 'custom';
+	let activeTab = $state<RecipeTab>('catalog');
+
+	const tableData = $derived.by(() => {
+		switch (activeTab) {
+			case 'custom':
+				return data.customRecipes ?? [];
+			case 'all':
+				return data.recipes ?? [];
+			default:
+				return data.catalogRecipes ?? [];
+		}
+	});
+
+	const tableName = $derived.by(() => {
+		switch (activeTab) {
+			case 'custom':
+				return 'Recettes custom';
+			case 'all':
+				return 'Toutes les recettes';
+			default:
+				return 'Recettes catalogue';
+		}
+	});
+
 	const recipeColumns = $state([
 		{ key: 'name', label: 'Nom' },
 		{
@@ -97,11 +122,61 @@
 </script>
 
 <div class="ccc w-full">
+	<div class="recipe-tabs">
+		<button
+			type="button"
+			class="recipe-tab"
+			class:active={activeTab === 'catalog'}
+			onclick={() => (activeTab = 'catalog')}
+		>
+			Catalogue ({data.catalogRecipes?.length ?? 0})
+		</button>
+		<button
+			type="button"
+			class="recipe-tab"
+			class:active={activeTab === 'custom'}
+			onclick={() => (activeTab = 'custom')}
+		>
+			Custom ({data.customRecipes?.length ?? 0})
+		</button>
+		<button
+			type="button"
+			class="recipe-tab"
+			class:active={activeTab === 'all'}
+			onclick={() => (activeTab = 'all')}
+		>
+			Toutes ({data.recipes?.length ?? 0})
+		</button>
+	</div>
 	<Table
-		name="Recettes catalogue"
+		name={tableName}
 		columns={recipeColumns}
-		data={data.recipes ?? []}
+		data={tableData}
 		actions={recipeActions}
 		addLink="/admin/recettes/create"
 	/>
 </div>
+
+<style>
+	.recipe-tabs {
+		display: flex;
+		gap: 8px;
+		margin-bottom: 12px;
+		flex-wrap: wrap;
+	}
+
+	.recipe-tab {
+		border: 1px solid var(--br2);
+		background: transparent;
+		color: var(--txd);
+		padding: 6px 10px;
+		font-size: 0.625rem;
+		cursor: pointer;
+		font-family: var(--fb);
+	}
+
+	.recipe-tab.active {
+		border-color: var(--cy);
+		color: var(--cy);
+	}
+</style>

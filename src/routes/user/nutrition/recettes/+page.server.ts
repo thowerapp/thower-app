@@ -1,19 +1,42 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server';
+import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
 		throw redirect(302, '/auth/login');
 	}
+	const userId = locals.user.id;
 
-	// Get all recipe categories with counts
-	const allRecipes = await prisma.recipe.findMany({
+	const user = await prisma.user.findUnique({
+		where: { id: userId },
+		select: { nutritionDaysAllocated: true }
+	});
+	const programDays = Math.max(user?.nutritionDaysAllocated ?? 0, NUTRITION_SEGMENT_DAYS);
+
+	const plannedMeals = await prisma.meal.findMany({
 		where: {
+			nutritionDay: {
+				userId,
+				dayIndex: { gte: 1, lte: programDays }
+			}
+		},
+		select: { recipeId: true },
+		distinct: ['recipeId']
+	});
+
+	const plannedRecipeIds = plannedMeals
+		.map((m) => m.recipeId)
+		.filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+	const plannedRecipes = await prisma.recipe.findMany({
+		where: {
+			id: { in: plannedRecipeIds },
 			active: true,
 			OR: [
 				{ isCustom: false },
-				{ userId: locals.user.id }
+				{ userId }
 			]
 		},
 		include: {
@@ -21,13 +44,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 	});
 
-	const breakfastRecipes = allRecipes.filter(r => r.category === 'BREAKFAST' && !r.isCustom);
-	const mealRecipes = allRecipes.filter(r => r.category === 'MEAL' && !r.isCustom);
-	const dessertRecipes = allRecipes.filter(r => r.category === 'DESSERT' && !r.isCustom);
-	const customRecipes = allRecipes.filter(r => r.isCustom && r.userId === locals.user.id);
+	const breakfastRecipes = plannedRecipes.filter((r) => r.category === 'BREAKFAST' && !r.isCustom);
+	const mealRecipes = plannedRecipes.filter((r) => r.category === 'MEAL' && !r.isCustom);
+	const dessertRecipes = plannedRecipes.filter((r) => r.category === 'DESSERT' && !r.isCustom);
+	const customRecipes = plannedRecipes.filter((r) => r.isCustom && r.userId === userId);
 
 	const favoriteRecipes = await prisma.userFavoriteRecipe.findMany({
-		where: { userId: locals.user.id },
+		where: { userId },
 		include: {
 			recipe: {
 				include: {
@@ -42,7 +65,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		mealRecipes,
 		dessertRecipes,
 		customRecipes,
-		favoriteRecipes: favoriteRecipes.map(f => f.recipe),
+		programRecipes: plannedRecipes,
+		favoriteRecipes: favoriteRecipes
+			.map((f) => f.recipe)
+			.filter((r) => plannedRecipeIds.includes(r.id)),
+		canCreateRecipe: false,
+		programDays,
 		user: locals.user
 	};
 };

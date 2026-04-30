@@ -32,7 +32,6 @@
 	];
 
 	let sortOrder = $state<'category' | 'alpha'>('category');
-	let regenerating = $state(false);
 
 	const d = $derived(data as unknown as {
 		list: ShoppingList | null;
@@ -121,19 +120,7 @@
 {#if !list}
 	<div class="empty-state">
 		<p>Aucun repas planifié sur cette période.</p>
-		<form
-			method="POST"
-			action="?/regenerate"
-			use:enhance={() => {
-				regenerating = true;
-				return async ({ update }) => { await update({ invalidateAll: true }); regenerating = false; };
-			}}
-		>
-			<input type="hidden" name="periode" value={periode} />
-			<button type="submit" class="regen-btn" disabled={regenerating}>
-				{regenerating ? 'Génération…' : 'Générer la liste maintenant'}
-			</button>
-		</form>
+		<p class="empty-hint">Change la période (jour, 3 jours, semaine) pour regénérer automatiquement.</p>
 	</div>
 {:else}
 	<div class="sort-row">
@@ -143,19 +130,6 @@
 		<button class="sort-btn" class:active={sortOrder === 'alpha'} onclick={() => (sortOrder = 'alpha')}>
 			Alphabétique
 		</button>
-		<form
-			method="POST"
-			action="?/regenerate"
-			use:enhance={() => {
-				regenerating = true;
-				return async ({ update }) => { await update({ invalidateAll: true }); regenerating = false; };
-			}}
-		>
-			<input type="hidden" name="periode" value={periode} />
-			<button type="submit" class="sort-btn regen-small" disabled={regenerating} title="Régénérer la liste">
-				{regenerating ? '…' : '↺'}
-			</button>
-		</form>
 	</div>
 
 	{#if sortOrder === 'category'}
@@ -267,29 +241,11 @@
 	line-height: 1.6;
 	font-family: var(--fb);
 }
-.regen-btn {
-	margin-top: 16px;
-	padding: 10px 20px;
+.empty-hint {
+	margin-top: 8px;
 	font-size: .5625rem;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: .06em;
-	border: 1px solid var(--cy);
-	color: var(--cy);
-	background: transparent;
-	cursor: pointer;
-	font-family: var(--fb);
-	transition: background .15s, color .15s;
+	color: var(--g);
 }
-.regen-btn:hover { background: rgba(0,229,255,.08); }
-.regen-btn:disabled { opacity: .5; cursor: wait; }
-.regen-small {
-	flex: 0 0 auto;
-	min-width: 32px;
-	padding: 7px 10px;
-	font-size: .875rem;
-}
-.regen-small:disabled { opacity: .5; cursor: wait; }
 
 .sort-row {
 	display: flex;

@@ -78,6 +78,13 @@
 			' · Jour ' +
 			data.dayIndex
 	);
+
+	const fastingActive = $derived((data as { intermittentFasting?: boolean }).intermittentFasting === true);
+
+	const displayMeals = $derived.by(() => {
+		if (!fastingActive) return data.meals;
+		return data.meals.filter((m) => m.position !== 'BREAKFAST');
+	});
 </script>
 
 <div class="back-row">
@@ -146,7 +153,7 @@
 		<p class="muted">Elle apparaîtra après génération du planning nutrition.</p>
 	</div>
 {:else}
-	{#each data.meals as meal (meal.id)}
+	{#each displayMeals as meal (meal.id)}
 		{@const u = multOf(meal.id)}
 		{@const ms = macrosScaled(meal, u)}
 		<section class="meal-section">

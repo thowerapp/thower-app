@@ -42,8 +42,16 @@ function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
 	<div class="u-li-r"><div class="u-arr"></div></div>
 </a>
 
-<a href="/user/nutrition/recettes" class="u-li" onclick={fire}>
-	<div class="u-li-th"><div style="width:10px;height:10px;background:var(--g)"></div></div>
-	<div class="u-li-b"><div class="u-li-t">Créer une recette</div><div class="u-li-s">Recettes personnalisées</div></div>
-	<div class="u-li-r"><div class="u-arr"></div></div>
-</a>
+<div class="u-li create-locked" aria-disabled="true">
+	<div class="u-li-th"><div style="width:10px;height:10px;background:var(--txd)"></div></div>
+	<div class="u-li-b"><div class="u-li-t">🔒 Créer une recette</div><div class="u-li-s">Fonction verrouillée</div></div>
+	<div class="u-li-r" style="opacity:.4"><div class="u-arr"></div></div>
+</div>
+
+<style>
+	.create-locked {
+		opacity: .6;
+		pointer-events: none;
+		filter: grayscale(0.3);
+	}
+</style>

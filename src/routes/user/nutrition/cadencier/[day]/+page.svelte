@@ -43,13 +43,50 @@
 		};
 	}
 
+	function mealLabelForFasting(position: string, slotIndex: number, fallback: string): string {
+		if (position === 'LUNCH') return `Repas ${slotIndex} — Déjeuner`;
+		if (position === 'DINNER') return `Repas ${slotIndex} — Dîner`;
+		return fallback;
+	}
+
+	const fastingActive = $derived((data as { intermittentFasting?: boolean }).intermittentFasting === true);
+
+	const displayMeals = $derived.by(() => {
+		if (!fastingActive) return data.meals;
+		const noBreakfast = data.meals.filter((m) => m.position !== 'BREAKFAST');
+		if (noBreakfast.length === 0) return [];
+
+		const total = data.meals.reduce(
+			(acc, m) => ({
+				calories: acc.calories + m.calories,
+				proteinG: acc.proteinG + m.proteinG,
+				carbsG: acc.carbsG + m.carbsG,
+				fatG: acc.fatG + m.fatG,
+				fiberG: acc.fiberG + m.fiberG
+			}),
+			{ calories: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 }
+		);
+
+		const count = noBreakfast.length;
+		return noBreakfast.map((m, i) => ({
+			...m,
+			slotIndex: i + 1,
+			label: mealLabelForFasting(m.position, i + 1, m.label),
+			calories: Math.round(total.calories / count),
+			proteinG: Math.round((total.proteinG / count) * 10) / 10,
+			carbsG: Math.round((total.carbsG / count) * 10) / 10,
+			fatG: Math.round((total.fatG / count) * 10) / 10,
+			fiberG: Math.round((total.fiberG / count) * 10) / 10
+		}));
+	});
+
 	const dayTotalsLive = $derived.by(() => {
 		let kcal = 0;
 		let p = 0;
 		let c = 0;
 		let f = 0;
 		let fib = 0;
-		for (const m of data.meals) {
+		for (const m of displayMeals) {
 			const u = multOf(m.id);
 			kcal += m.calories * u;
 			p += m.proteinG * u;
@@ -78,13 +115,6 @@
 			' · Jour ' +
 			data.dayIndex
 	);
-
-	const fastingActive = $derived((data as { intermittentFasting?: boolean }).intermittentFasting === true);
-
-	const displayMeals = $derived.by(() => {
-		if (!fastingActive) return data.meals;
-		return data.meals.filter((m) => m.position !== 'BREAKFAST');
-	});
 </script>
 
 <div class="back-row">

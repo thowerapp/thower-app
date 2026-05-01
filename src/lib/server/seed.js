@@ -183,13 +183,67 @@ async function main() {
 
 	// ── 3. CONTENU DÉCOUVERTE ─────────────────────────────────────────────────
 	console.log('3/10 — DiscoveryContent…');
-	// Gere via /admin/videos/sync (import depuis Cloudflare Stream).
+	// Ordre du tableau = discoveryIdx utilisé dans `dayConfigs` (0–4). UIDs placeholders cf_seed_prog_*.
+	const discoveryDefs = [
+		{ category: 'BREATHWORK', title: 'Respiration anti-stress (seed prog.)', cloudflareUid: 'cf_seed_prog_bw_0', order: 0, unlockThreshold: 0, breathworkIntent: 'anti-stress', tags: ['seed'], active: true },
+		{ category: 'MINDSET', title: 'Mindset — discipline quotidienne (seed)', cloudflareUid: 'cf_seed_prog_ms_1', order: 0, unlockThreshold: 0, tags: ['seed'], active: true },
+		{ category: 'BREATHWORK', title: 'Cohérence cardiaque 5 min (seed)', cloudflareUid: 'cf_seed_prog_bw_2', order: 1, unlockThreshold: 0, breathworkIntent: 'cohérence cardiaque', tags: ['seed'], active: true },
+		{ category: 'MOTIVATION', title: 'Vidéo de bienvenue (seed prog.)', cloudflareUid: 'cf_seed_prog_mot_3', order: 0, unlockThreshold: 0, tags: ['seed', 'jour1'], active: true },
+		{ category: 'EXPLICATION', title: 'Pourquoi la méthode (seed prog.)', cloudflareUid: 'cf_seed_prog_exp_4', order: 0, unlockThreshold: 0, tags: ['seed'], active: true }
+	];
 	const discoveries = [];
+	for (const def of discoveryDefs) {
+		let row = await db.discoveryContent.findUnique({ where: { cloudflareUid: def.cloudflareUid } });
+		if (!row) {
+			row = await db.discoveryContent.create({ data: /** @type {any} */ (def) });
+		}
+		discoveries.push(row);
+	}
+	console.log(`  → ${discoveries.length} contenus découverte (indices programme 0–4).`);
 
 	// ── 4. SÉANCES SPORT + VIDÉOS ─────────────────────────────────────────────
 	console.log('4/10 — WorkoutSessions + Videos…');
-	// Gere via /admin/videos (creation manuelle ou sync Cloudflare).
+	// 3 séances A/B/C + vidéos placeholder (remplaçables via admin / Cloudflare). Ordre = sessionIdx 0,1,2.
+	const sessionDefs = [
+		{ type: 'MAIN_A', name: 'Séance A — Haut du corps', weekNumber: 1, order: 0 },
+		{ type: 'MAIN_B', name: 'Séance B — Bas du corps', weekNumber: 1, order: 1 },
+		{ type: 'MAIN_C', name: 'Séance C — Full body', weekNumber: 1, order: 2 }
+	];
+	const videoSlots = [
+		{ position: 'PRE', title: 'Pré-séance', isOptional: true, order: 0, uidKey: 'pre' },
+		{ position: 'VID1', title: 'Vidéo 1', isOptional: false, order: 1, uidKey: 'v1' },
+		{ position: 'VID2', title: 'Vidéo 2', isOptional: false, order: 2, uidKey: 'v2' }
+	];
 	const sessions = [];
+	for (const sdef of sessionDefs) {
+		let sess = await db.workoutSession.findFirst({
+			where: { type: sdef.type, weekNumber: sdef.weekNumber, order: sdef.order }
+		});
+		if (!sess) {
+			sess = await db.workoutSession.create({
+				data: /** @type {any} */ ({ ...sdef, active: true, description: 'Seed Méthode Thower' })
+			});
+		}
+		for (const slot of videoSlots) {
+			const cloudflareUid = `cf_seed_${slot.uidKey}_${sdef.type}`;
+			const existingVid = await db.workoutVideo.findFirst({ where: { cloudflareUid } });
+			if (!existingVid) {
+				await db.workoutVideo.create({
+					data: /** @type {any} */ ({
+						sessionId: sess.id,
+						cloudflareUid,
+						title: `${sdef.name} — ${slot.title}`,
+						position: slot.position,
+						isOptional: slot.isOptional,
+						order: slot.order,
+						status: 'pending'
+					})
+				});
+			}
+		}
+		sessions.push(sess);
+	}
+	console.log(`  → ${sessions.length} séances sport (A/B/C) + vidéos placeholder cf_seed_*`);
 
 	// ── 5. RECETTES ───────────────────────────────────────────────────────────
 	console.log('5/10 — Recettes…');

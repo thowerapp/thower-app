@@ -25,18 +25,14 @@ export default defineConfig({
 	],
 
 	optimizeDeps: {
-		exclude: ['@node-rs/argon2', '@node-rs/bcrypt', 'tus-js-client']
+		exclude: ['@node-rs/argon2', '@node-rs/bcrypt'],
+		/** Pré-bundle pour CJS (url-parse sans export default si servi brut). */
+		include: ['tus-js-client']
 	},
 
 	/** Évite un client Prisma « figé » dans le bundle SSR après `prisma generate`. */
 	ssr: {
 		external: ['@prisma/client']
-	},
-
-	build: {
-		rollupOptions: {
-			external: ['tus-js-client']
-		}
 	},
 
 	test: {

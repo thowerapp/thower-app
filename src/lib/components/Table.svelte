@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Action } from 'svelte/action';
 	import { Button } from '$shadcn/button';
 	import * as Table from '$shadcn/table';
 	import TableRow from '$shadcn/table/table-row.svelte';
@@ -11,6 +12,33 @@
 	import { Label } from '$shadcn/label';
 	import * as Tooltip from '$shadcn/tooltip/index.js';
 	import type { SuperFormEvents } from 'sveltekit-superforms';
+
+	type SuperformEnhanceFn = (
+		form: HTMLFormElement,
+		events?: SuperFormEvents<Record<string, unknown>, string>
+	) => void | { destroy(): void };
+
+	/**
+	 * Délègue au `enhance` de superforms sans `use:obj.prop` — le compilateur
+	 * peut ne pas l’associer au formulaire, donc aucune suppression effective.
+	 */
+	const delegateSuperEnhance: Action<
+		HTMLFormElement,
+		() => SuperformEnhanceFn | undefined
+	> = (form, getter) => {
+		const sf = getter?.();
+		if (!sf) return {};
+		const ret = sf(form);
+		const inner =
+			ret && typeof ret === 'object' && typeof (ret as { destroy?: unknown }).destroy === 'function'
+				? (ret as { destroy(): void }).destroy.bind(ret)
+				: undefined;
+		return {
+			destroy() {
+				inner?.();
+			}
+		};
+	};
 
 	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 	import { Plus } from 'lucide-svelte';
@@ -34,7 +62,6 @@
 		addLink?: string | null;
 	}>();
 
-	let dialogOpen = $state(false);
 	let searchQuery = $state('');
 	let currentPage = $state(1);
 	let itemsPerPage = $state(5);
@@ -51,6 +78,27 @@
 	let sortDirection = $state('asc');
 	let filteredItems = $state<TableItem[]>([]);
 	let paginatedItems = $state<TableItem[]>([]);
+
+	type FormTableAction = {
+		type: 'form';
+		name: string;
+		url: string | ((item: TableItem) => string);
+		icon?: unknown;
+		enhanceAction?: (el: HTMLFormElement, events?: SuperFormEvents<any, any>) => void | { destroy(): void };
+	};
+	let pendingFormDialog = $state<{ item: TableItem; action: FormTableAction } | null>(null);
+	let formConfirmOpen = $state(false);
+
+	function closeFormConfirm() {
+		formConfirmOpen = false;
+		pendingFormDialog = null;
+	}
+
+	function openFormConfirm(item: TableItem, action: FormTableAction) {
+		pendingFormDialog = { item, action };
+		formConfirmOpen = true;
+	}
+
 	const initialColumnsVisibility = $derived.by(() =>
 		columns.reduce((acc: Record<string, boolean>, col: TableColumn) => {
 			acc[col.key] = true;
@@ -95,8 +143,21 @@
 		paginatedItems = filteredItems.slice(start, end);
 	};
 
-	// Initialisation
+	// Initialisation + resynchronisation lorsque les données parent changent (ex. après suppression)
 	updateFilteredAndPaginatedItems();
+
+	$effect(() => {
+		void data;
+		updateFilteredAndPaginatedItems();
+	});
+
+	$effect(() => {
+		if (!pendingFormDialog) return;
+		const stillHere = data.some((d: TableItem) => d.id === pendingFormDialog!.item.id);
+		if (!stillHere) {
+			closeFormConfirm();
+		}
+	});
 
 	const changePage = (page: number) => {
 		currentPage = page;
@@ -107,14 +168,6 @@
 		itemsPerPage = items;
 		currentPage = 1;
 		updateFilteredAndPaginatedItems();
-	};
-
-	const deleteItem = (id: string) => {
-		setTimeout(() => {
-			data = data.filter((item: TableItem) => item.id !== id);
-			updateFilteredAndPaginatedItems();
-			dialogOpen = false;
-		}, 10);
 	};
 
 	$effect(() => {
@@ -208,7 +261,7 @@
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each paginatedItems as item, i (i)}
+						{#each paginatedItems as item (item.id)}
 							<TableRow>
 								{#each columns.filter((col: TableColumn) => columnsVisibility[col.key]) as column}
 									<td class="border border-gray-300 p-2">
@@ -243,39 +296,25 @@
 													</Tooltip.Root>
 												</Tooltip.Provider>
 											{:else if action.type === 'form'}
-												<AlertDialog.Root bind:open={dialogOpen}>
-													<AlertDialog.Trigger>
-														<Button variant="outline" class="m-1 p-1 text-xs">
-															{#if action.icon}
-																<action.icon class="h-4 w-4 inline" />
-															{/if}
-														</Button>
-													</AlertDialog.Trigger>
-
-													<AlertDialog.Content>
-														<AlertDialog.Header>
-															<AlertDialog.Title>Are you absolutely sure?</AlertDialog.Title>
-															<AlertDialog.Description>
-																This action cannot be undone. This will permanently delete the item.
-															</AlertDialog.Description>
-														</AlertDialog.Header>
-														<AlertDialog.Footer>
-															<AlertDialog.Cancel onclick={() => (dialogOpen = false)}
-																>Cancel</AlertDialog.Cancel
+												<Tooltip.Provider>
+													<Tooltip.Root>
+														<Tooltip.Trigger>
+															<Button
+																type="button"
+																variant="outline"
+																class="m-1 p-1 text-xs"
+																onclick={() => openFormConfirm(item, action)}
 															>
-
-															<form method="POST" action={action.url} use:action.enhanceAction>
-																<input type="hidden" name="id" value={item.id} />
-																<AlertDialog.Action
-																	type="submit"
-																	onclick={() => deleteItem(item.id)}
-																>
-																	Continue
-																</AlertDialog.Action>
-															</form>
-														</AlertDialog.Footer>
-													</AlertDialog.Content>
-												</AlertDialog.Root>
+																{#if action.icon}
+																	<action.icon class="h-4 w-4 inline" />
+																{/if}
+															</Button>
+														</Tooltip.Trigger>
+														<Tooltip.Content>
+															<p>{action.name}</p>
+														</Tooltip.Content>
+													</Tooltip.Root>
+												</Tooltip.Provider>
 											{/if}
 										</TableCell>
 									{/each}
@@ -284,6 +323,41 @@
 						{/each}
 					</Table.Body>
 				</Table.Root>
+
+				{#if actions?.some((a: { type: string }) => a.type === 'form')}
+					<AlertDialog.Root bind:open={formConfirmOpen} onOpenChange={(open) => !open && closeFormConfirm()}>
+						<AlertDialog.Content>
+							<AlertDialog.Header>
+								<AlertDialog.Title>Confirmer la suppression</AlertDialog.Title>
+								<AlertDialog.Description>
+									Cette action est définitive&nbsp;: la ligne en base et le média correspondant sur
+									Cloudflare Stream seront supprimés.
+									{#if pendingFormDialog?.item?.title != null && String(pendingFormDialog.item.title) !== ''}
+										<span class="mt-3 block font-medium text-foreground">
+											{String(pendingFormDialog.item.title)}
+										</span>
+									{/if}
+								</AlertDialog.Description>
+							</AlertDialog.Header>
+							<AlertDialog.Footer>
+								<AlertDialog.Cancel type="button">Annuler</AlertDialog.Cancel>
+								{#if pendingFormDialog?.action?.enhanceAction}
+									<form
+										method="POST"
+										action={typeof pendingFormDialog.action.url === 'function'
+											? pendingFormDialog.action.url(pendingFormDialog.item)
+											: pendingFormDialog.action.url}
+										use:delegateSuperEnhance={() => pendingFormDialog.action.enhanceAction}
+										class="contents"
+									>
+										<input type="hidden" name="id" value={pendingFormDialog.item.id} />
+										<Button type="submit" variant="destructive" size="sm">Supprimer</Button>
+									</form>
+								{/if}
+							</AlertDialog.Footer>
+						</AlertDialog.Content>
+					</AlertDialog.Root>
+				{/if}
 			</div>
 
 			<div class="pagination-controls mt-4 rce">

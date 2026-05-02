@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { workoutVideoPositionEnum } from '$lib/schema/workout/workoutVideoSchema';
 import { discoveryCategoryEnum } from '$lib/schema/discovery/discoveryContentSchema';
+import { attachDaySchema } from '$lib/schema/video/attachDaySchema';
 
 /** Type discriminé : une vidéo gérée dans /admin/videos est soit "workout" soit "discovery". */
 export const videoKindEnum = z.enum(['workout', 'discovery']);
@@ -13,10 +14,10 @@ const baseVideoFields = {
 };
 
 /**
- * Création d'une vidéo (sport ou découverte) — formulaire admin unifié.
- * Le champ `kind` discrimine ; les autres champs sont validés conditionnellement.
+ * Champs métier communs création / édition (titre, séance, catégorie, etc.).
+ * Le rattachement programme optionnel est ajouté dans create / update schemas.
  */
-export const createVideoSchema = z
+export const videoFormCoreSchema = z
 	.object({
 		kind: videoKindEnum,
 		...baseVideoFields,
@@ -58,11 +59,42 @@ export const createVideoSchema = z
 		}
 	});
 
+export type VideoFormCoreInput = z.infer<typeof videoFormCoreSchema>;
+
+const optionalProgramDayAttachFields = z.object({
+	attachToProgramDay: z.boolean().default(false),
+	programDayAttach: attachDaySchema.optional()
+});
+
+const refineProgramDayAttachIfEnabled = (
+	d: VideoFormCoreInput & z.infer<typeof optionalProgramDayAttachFields>,
+	ctx: z.RefinementCtx
+) => {
+	if (!d.attachToProgramDay) return;
+	if (!d.programDayAttach) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Complète jour, type et points pour rattacher cette vidéo au programme.',
+			path: ['programDayAttach']
+		});
+	}
+};
+
+/**
+ * Création : même cœur + rattachement optionnel au programme 91 jours.
+ */
+export const createVideoSchema = videoFormCoreSchema
+	.and(optionalProgramDayAttachFields)
+	.superRefine(refineProgramDayAttachIfEnabled);
+
 export type CreateVideoSchema = z.infer<typeof createVideoSchema>;
 
-/** Édition (id implicite via paramètre de route) — mêmes contraintes que create. */
-export const updateVideoSchema = createVideoSchema;
-export type UpdateVideoSchema = CreateVideoSchema;
+/** Édition : mêmes champs + rattachement optionnel (comme à la création). */
+export const updateVideoSchema = videoFormCoreSchema
+	.and(optionalProgramDayAttachFields)
+	.superRefine(refineProgramDayAttachIfEnabled);
+
+export type UpdateVideoSchema = z.infer<typeof updateVideoSchema>;
 
 /**
  * Suppression : `id` est composite `kind:realId` (ex. "workout:65a…")

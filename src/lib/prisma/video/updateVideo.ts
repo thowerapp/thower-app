@@ -1,8 +1,8 @@
 import { prisma } from '$lib/server';
-import type { UpdateVideoSchema } from '$lib/schema/video/videoAdminSchema';
+import type { VideoFormCoreInput } from '$lib/schema/video/videoAdminSchema';
 
 /** Mise à jour des métadonnées d'une vidéo (sans toucher à l'UID Cloudflare). */
-export async function updateVideo(id: string, data: UpdateVideoSchema) {
+export async function updateVideo(id: string, data: VideoFormCoreInput) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const db = prisma as any;
 

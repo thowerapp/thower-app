@@ -15,20 +15,17 @@ import {
 } from '$lib/server/cloudflare-stream';
 import { prisma } from '$lib/server';
 import { serializeData } from '$lib/utils/serializeData';
-import {
-	attachDaySchema,
-	detachDaySchema,
-	type AttachDaySchema,
-	type DetachDaySchema
-} from '$lib/schema/video/attachDaySchema';
+import { detachDaySchema, type DetachDaySchema } from '$lib/schema/video/attachDaySchema';
 import { listProgramDayItemsForVideo } from '$lib/prisma/programDayItem/listForVideo';
 import { attachVideoToDay } from '$lib/prisma/programDayItem/attachVideo';
 import { detachProgramDayItem } from '$lib/prisma/programDayItem/detach';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, depends }) => {
 	if (!locals.user || locals.role !== 'ADMIN') {
 		throw redirect(302, '/admin');
 	}
+
+	depends('app:admin-video-program-items');
 
 	const kind = videoKindEnum.parse(params.kind);
 	const row = await getVideoById(kind, params.id);
@@ -71,7 +68,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 					category: null,
 					unlockThreshold: 0,
 					breathworkIntent: null,
-					tags: []
+					tags: [],
+					attachToProgramDay: false,
+					programDayAttach: undefined
 				}
 			: {
 					kind: 'discovery',
@@ -84,26 +83,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 					category: row.category,
 					unlockThreshold: row.unlockThreshold ?? 0,
 					breathworkIntent: row.breathworkIntent ?? null,
-					tags: row.tags ?? []
+					tags: row.tags ?? [],
+					attachToProgramDay: false,
+					programDayAttach: undefined
 				};
 
 	const form = await superValidate(initial, zod(updateVideoSchema));
-
-	// Type d'item ProgramDay par défaut selon le kind / la category
-	const defaultAttachType: AttachDaySchema['type'] =
-		kind === 'workout'
-			? 'SPORT_SESSION'
-			: row.category === 'BREATHWORK'
-				? 'BREATHWORK'
-				: row.category === 'MINDSET'
-					? 'MINDSET_VIDEO'
-					: 'VIDEO_OF_DAY';
-
-	const attachForm = await superValidate(
-		{ dayIndex: 1, type: defaultAttachType, points: 10, label: null },
-		zod(attachDaySchema)
-	);
-	const detachForm = await superValidate(zod(detachDaySchema));
 
 	const programDayItems = await listProgramDayItemsForVideo(kind, params.id);
 
@@ -119,8 +104,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	return {
 		form,
-		attachForm,
-		detachForm,
 		kind,
 		video: serializeData(row),
 		cloudflareDetails,
@@ -143,11 +126,33 @@ export const actions: Actions = {
 		}
 
 		try {
-			await updateVideo(params.id, { ...(form.data as UpdateVideoSchema), kind });
-			return message(form, 'Vidéo mise à jour.');
+			const d = form.data as UpdateVideoSchema;
+			const { attachToProgramDay, programDayAttach, ...core } = d;
+			await updateVideo(params.id, { ...core, kind });
+
+			let attachTail = '';
+			if (attachToProgramDay && programDayAttach) {
+				const r = await attachVideoToDay({
+					kind: d.kind,
+					videoId: params.id,
+					dayIndex: programDayAttach.dayIndex,
+					type: programDayAttach.type,
+					points: programDayAttach.points,
+					label: programDayAttach.label ?? null
+				});
+				attachTail = r.created
+					? ` Rattachement ajouté (jour ${r.dayIndex}).`
+					: ` Déjà présente sur ce jour (${r.dayIndex}).`;
+			}
+
+			return message(form, ('Vidéo mise à jour.' + attachTail).trim());
 		} catch (err) {
 			console.error('[admin/videos/[kind]/[id]] updateVideo error', err);
-			return fail(500, { form, message: 'Erreur lors de la mise à jour.' });
+			return fail(500, {
+				form,
+				message:
+					err instanceof Error ? err.message : 'Erreur lors de la mise à jour.'
+			});
 		}
 	},
 
@@ -180,41 +185,6 @@ export const actions: Actions = {
 		} catch (err) {
 			console.error('[admin/videos/[kind]/[id]] sync error', err);
 			return fail(500, { message: 'Erreur de synchronisation Cloudflare.' });
-		}
-	},
-
-	/** Rattache la vidéo à un jour 1..91 du programme actif (multi-jours autorisé). */
-	attachToDay: async ({ request, params, locals }) => {
-		if (!locals.user || locals.role !== 'ADMIN') {
-			return fail(403, { message: 'Accès refusé.' });
-		}
-		const kind = videoKindEnum.parse(params.kind);
-		const attachForm = await superValidate(request, zod(attachDaySchema));
-		if (!attachForm.valid) {
-			return fail(400, { attachForm });
-		}
-		const data = attachForm.data as AttachDaySchema;
-		try {
-			const result = await attachVideoToDay({
-				kind,
-				videoId: params.id,
-				dayIndex: data.dayIndex,
-				type: data.type,
-				points: data.points,
-				label: data.label ?? null
-			});
-			return message(
-				attachForm,
-				result.created
-					? `Vidéo rattachée au jour ${result.dayIndex}.`
-					: `Vidéo déjà rattachée au jour ${result.dayIndex}.`
-			);
-		} catch (err) {
-			console.error('[admin/videos/[kind]/[id]] attachToDay error', err);
-			return fail(500, {
-				attachForm,
-				message: err instanceof Error ? err.message : 'Erreur de rattachement.'
-			});
 		}
 	},
 

@@ -7,7 +7,7 @@ import { deleteVideo } from '$lib/prisma/video/deleteVideo';
 import { serializeData } from '$lib/utils/serializeData';
 
 export const load: PageServerLoad = async () => {
-	const IdeleteVideoSchema = await superValidate(zod(deleteVideoSchema));
+	const deleteVideoForm = await superValidate(zod(deleteVideoSchema));
 	const rawVideos = await getAllAdminVideos();
 	// id composite `${kind}:${id}` pour permettre au Table partagé (qui ne passe que `id` au form)
 	// de transporter le type vers l'action delete.
@@ -15,7 +15,7 @@ export const load: PageServerLoad = async () => {
 		rawVideos.map((v) => ({ ...v, realId: v.id, id: `${v.kind}:${v.id}` }))
 	);
 	return {
-		IdeleteVideoSchema,
+		deleteVideoForm,
 		videos
 	};
 };
@@ -39,7 +39,9 @@ export const actions: Actions = {
 			return message(form, 'Vidéo supprimée.');
 		} catch (err) {
 			console.error('[admin/videos] deleteVideo error', err);
-			return fail(500, { form, message: 'Erreur lors de la suppression.' });
+			const msg =
+				err instanceof Error ? err.message : 'Erreur lors de la suppression.';
+			return fail(500, { form, message: msg });
 		}
 	}
 };

@@ -18,9 +18,12 @@
 	import {
 		discoveryCategoryEnum
 	} from '$lib/schema/discovery/discoveryContentSchema';
+	import { attachDayTypeEnum, type AttachDaySchema } from '$lib/schema/video/attachDaySchema';
+	import { defaultProgramDayAttach } from '$lib/schema/video/defaultProgramDayAttach';
 	import { workoutVideoPositionEnum } from '$lib/schema/workout/workoutVideoSchema';
 	import ArrowLeft from 'lucide-svelte/icons/arrow-left';
 	import Video from 'lucide-svelte/icons/video';
+	import CalendarPlus from 'lucide-svelte/icons/calendar-plus';
 	import UploadCloud from 'lucide-svelte/icons/upload-cloud';
 	import CheckCircle2 from 'lucide-svelte/icons/check-circle-2';
 	import AlertCircle from 'lucide-svelte/icons/alert-circle';
@@ -63,7 +66,39 @@
 
 	const sessions = (data.sessions ?? []) as Array<{ id: string; name: string; type: string }>;
 
+	const dayTypeOptions = attachDayTypeEnum.options.map((v) => ({
+		value: v,
+		label: ({
+			VIDEO_OF_DAY: 'Vidéo du jour',
+			BREATHWORK: 'Breathwork',
+			SPORT_SESSION: 'Séance sport',
+			MINDSET_VIDEO: 'Vidéo mindset',
+			CUSTOM: 'Personnalisé'
+		})[v]
+	}));
+
+	const allowedDayTypes = $derived(
+		$form.kind === 'workout'
+			? dayTypeOptions.filter((o) => o.value === 'SPORT_SESSION' || o.value === 'CUSTOM')
+			: $form.kind === 'discovery'
+				? dayTypeOptions.filter((o) => o.value !== 'SPORT_SESSION')
+				: []
+	);
+
+	$effect(() => {
+		const k = $form.kind as 'workout' | 'discovery' | '';
+		if (!$form.attachToProgramDay || (k !== 'workout' && k !== 'discovery')) return;
+		if (lastAttachKind !== k) {
+			lastAttachKind = k;
+			$form.programDayAttach = defaultProgramDayAttach(
+				k,
+				$form.category as string | null | undefined
+			);
+		}
+	});
+
 	let selectedFile = $state<File | null>(null);
+	let lastAttachKind = $state<'workout' | 'discovery' | ''>('');
 	let uploadProgress = $state(0);
 	let uploadStatus = $state<'idle' | 'uploading' | 'success' | 'error'>('idle');
 	let uploadError = $state<string | null>(null);
@@ -318,7 +353,113 @@
 					</Form.Control>
 					<Form.FieldErrors />
 				</Form.Field>
+
+				<Form.Field name="tags" form={videoForm}>
+					<Form.Control>
+						<Form.Label>Tags</Form.Label>
+						<Input
+							name="tags"
+							value={(($form.tags as string[]) ?? []).join(', ')}
+							placeholder="méditation, focus (séparer par virgules)"
+							oninput={(e) => {
+								$form.tags = e.currentTarget.value
+									.split(',')
+									.map((s) => s.trim())
+									.filter(Boolean);
+							}}
+						/>
+					</Form.Control>
+					<Form.FieldErrors />
+				</Form.Field>
 			</fieldset>
+		{/if}
+
+		{#if $form.kind === 'workout' || $form.kind === 'discovery'}
+			<section class="rounded-lg border p-4 space-y-4">
+				<header class="flex items-center gap-2">
+					<CalendarPlus class="size-5 text-primary" />
+					<h2 class="text-base font-semibold">Programme 91 jours (optionnel)</h2>
+				</header>
+
+				<label class="flex cursor-pointer items-center gap-2 text-sm">
+					<input
+						type="checkbox"
+						class="size-4 rounded border"
+						checked={$form.attachToProgramDay === true}
+						onchange={(e) => {
+							const on = e.currentTarget.checked;
+							$form.attachToProgramDay = on;
+							if (!on) {
+								$form.programDayAttach = undefined;
+								lastAttachKind = '';
+								return;
+							}
+							const k = $form.kind as 'workout' | 'discovery' | '';
+							if (k === 'workout' || k === 'discovery') {
+								lastAttachKind = k;
+								$form.programDayAttach = defaultProgramDayAttach(
+									k,
+									$form.category as string | null | undefined
+								);
+							}
+						}}
+					/>
+					Rattacher cette vidéo à un jour du programme lors de la création
+				</label>
+
+				{#if $form.attachToProgramDay === true && $form.programDayAttach}
+					{@const pa = $form.programDayAttach as AttachDaySchema}
+					<div class="grid grid-cols-1 gap-3 sm:grid-cols-5 rounded-md border bg-muted/30 p-3">
+						<div>
+							<label for="create-dayIndex" class="mb-1 block text-xs font-medium text-muted-foreground">Jour</label>
+							<Input
+								id="create-dayIndex"
+								type="number"
+								min={1}
+								max={91}
+								bind:value={pa.dayIndex}
+							/>
+						</div>
+						<div class="sm:col-span-2">
+							<label for="create-dayType" class="mb-1 block text-xs font-medium text-muted-foreground">Type</label>
+							<select
+								id="create-dayType"
+								bind:value={pa.type}
+								class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+							>
+								{#each allowedDayTypes as opt}
+									<option value={opt.value}>{opt.label}</option>
+								{/each}
+							</select>
+						</div>
+						<div>
+							<label for="create-points" class="mb-1 block text-xs font-medium text-muted-foreground">
+								Points
+							</label>
+							<Input
+								id="create-points"
+								type="number"
+								min={0}
+								max={1000}
+								bind:value={pa.points}
+							/>
+						</div>
+						<div class="sm:col-span-5">
+							<label for="create-att-label" class="mb-1 block text-xs font-medium text-muted-foreground">
+								Libellé affiché (optionnel)
+							</label>
+							<Input
+								id="create-att-label"
+								placeholder="Ex. : Vidéo intro mindset"
+								bind:value={pa.label as string}
+							/>
+						</div>
+					</div>
+					<Form.Field name="programDayAttach" form={videoForm}>
+						<Form.FieldErrors />
+					</Form.Field>
+				{/if}
+			</section>
 		{/if}
 
 		<!-- Upload tus -->

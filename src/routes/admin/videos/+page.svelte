@@ -12,9 +12,12 @@
 
 	let { data } = $props();
 
-	const formOptions = { validators: zodClient(deleteVideoSchema) };
-	const deleteForm = $derived.by(() => superForm(data?.IdeleteVideoSchema ?? {}, formOptions));
-	const { enhance: deleteEnhance, message: deleteMessage } = $derived(deleteForm);
+	/** Une seule instance superforms (éviter un `enhance` recréé sans cesse). */
+	const { enhance: deleteEnhance, message: deleteMessage } = superForm(data.deleteVideoForm, {
+		validators: zodClient(deleteVideoSchema),
+		invalidateAll: true,
+		resetForm: false
+	});
 
 	const kindLabels: Record<string, string> = {
 		workout: 'Sport',
@@ -120,7 +123,7 @@
 		},
 		{
 			type: 'form',
-			name: 'delete',
+			name: 'Supprimer',
 			url: '?/deleteVideo',
 			enhanceAction: deleteEnhance,
 			icon: Trash

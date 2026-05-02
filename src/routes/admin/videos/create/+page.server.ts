@@ -4,6 +4,7 @@ import { fail, superValidate } from 'sveltekit-superforms';
 import { redirect } from '@sveltejs/kit';
 import { createVideoSchema, type CreateVideoSchema } from '$lib/schema/video/videoAdminSchema';
 import { createVideo } from '$lib/prisma/video/createVideo';
+import { attachVideoToDay } from '$lib/prisma/programDayItem/attachVideo';
 import { prisma } from '$lib/server';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -45,12 +46,29 @@ export const actions: Actions = {
 		const d = form.data as CreateVideoSchema;
 
 		try {
-			await createVideo(d);
+			const { attachToProgramDay, programDayAttach, ...videoPayload } = d;
+			const row = await createVideo(videoPayload);
+
+			if (attachToProgramDay && programDayAttach) {
+				await attachVideoToDay({
+					kind: d.kind,
+					videoId: row.id,
+					dayIndex: programDayAttach.dayIndex,
+					type: programDayAttach.type,
+					points: programDayAttach.points,
+					label: programDayAttach.label ?? null
+				});
+			}
+
 			throw redirect(302, '/admin/videos');
 		} catch (err) {
 			if ((err as { status?: number }).status === 302) throw err;
 			console.error('[admin/videos/create] createVideo error', err);
-			return fail(500, { form, message: 'Erreur lors de la création de la vidéo.' });
+			return fail(500, {
+				form,
+				message:
+					err instanceof Error ? err.message : 'Erreur lors de la création de la vidéo.'
+			});
 		}
 	}
 };

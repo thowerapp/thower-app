@@ -5,19 +5,15 @@
 	import { Input } from '$shadcn/input';
 	import { Button } from '$shadcn/button';
 	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation';
-	import {
-		updateVideoSchema,
-		type UpdateVideoSchema
-	} from '$lib/schema/video/videoAdminSchema';
+	import { goto, invalidate } from '$app/navigation';
+	import { enhance as kitFormEnhance } from '$app/forms';
+	import { updateVideoSchema, type VideoKind } from '$lib/schema/video/videoAdminSchema';
 	import {
 		discoveryCategoryEnum
 	} from '$lib/schema/discovery/discoveryContentSchema';
 	import { workoutVideoPositionEnum } from '$lib/schema/workout/workoutVideoSchema';
-	import {
-		attachDaySchema,
-		attachDayTypeEnum
-	} from '$lib/schema/video/attachDaySchema';
+	import { attachDayTypeEnum, type AttachDaySchema } from '$lib/schema/video/attachDaySchema';
+	import { defaultProgramDayAttach } from '$lib/schema/video/defaultProgramDayAttach';
 	import ArrowLeft from 'lucide-svelte/icons/arrow-left';
 	import Video from 'lucide-svelte/icons/video';
 	import RefreshCw from 'lucide-svelte/icons/refresh-cw';
@@ -26,28 +22,18 @@
 
 	let { data } = $props();
 
-	const formOptions = {
-		validators: zodClient(updateVideoSchema),
-		dataType: 'json' as const,
-		id: 'adminVideoEdit'
-	};
-
-	const videoForm = $derived.by(() => superForm(data.form, formOptions));
-	const { form, enhance, message: formMessage } = $derived(videoForm);
-
-	const attachForm = $derived.by(() =>
-		superForm(data.attachForm, {
-			validators: zodClient(attachDaySchema),
+	const videoForm = $derived.by(() =>
+		superForm(data.form, {
+			validators: zodClient(updateVideoSchema),
 			dataType: 'json' as const,
-			id: 'adminVideoAttachDay',
-			invalidateAll: true,
-			resetForm: false,
-			onUpdated({ form: f }) {
-				if (f.message) toast.success(f.message as string);
+			id: 'adminVideoEdit',
+			invalidateAll: false,
+			async onUpdated() {
+				await invalidate('app:admin-video-program-items');
 			}
 		})
 	);
-	const { form: attach, enhance: attachEnhance } = $derived(attachForm);
+	const { form, enhance, message: formMessage } = $derived(videoForm);
 
 	$effect(() => {
 		if ($formMessage) toast.success($formMessage as string);
@@ -64,9 +50,8 @@
 		})[v]
 	}));
 
-	// Filtre les types proposés selon le kind (sport vs decouverte)
 	const allowedDayTypes = $derived(
-		data.kind === 'workout'
+		$form.kind === 'workout'
 			? dayTypeOptions.filter((o) => o.value === 'SPORT_SESSION' || o.value === 'CUSTOM')
 			: dayTypeOptions.filter((o) => o.value !== 'SPORT_SESSION')
 	);
@@ -84,7 +69,7 @@
 
 	const positionOptions = workoutVideoPositionEnum.options.map((v) => ({
 		value: v,
-		label: ({ PRE: 'Pré-séance', VID1: 'Vidéo 1', VID2: 'Vidéo 2' })[v]
+		label: ({ PRE: 'Pré-séance (facultative)', VID1: 'Vidéo 1', VID2: 'Vidéo 2' })[v]
 	}));
 
 	const sessions = (data.sessions ?? []) as Array<{ id: string; name: string; type: string }>;
@@ -98,6 +83,16 @@
 		const s = total % 60;
 		return `${m}:${s.toString().padStart(2, '0')}`;
 	}
+
+	/** Progressive enhancement + invalidation ciblée (sans rechargement complet de la page). */
+	const detachProgramItemSubmit: import('@sveltejs/kit').SubmitFunction = () => {
+		return async ({ result, update }) => {
+			await update({ reset: false });
+			if (result.type === 'success') {
+				await invalidate('app:admin-video-program-items');
+			}
+		};
+	};
 </script>
 
 <div class="mx-auto max-w-3xl px-4 py-8">
@@ -237,7 +232,7 @@
 						checked={$form.isOptional === true}
 						onchange={(e) => ($form.isOptional = e.currentTarget.checked)}
 					/>
-					Vidéo facultative
+					Vidéo facultative (pré-séance par exemple)
 				</label>
 			</fieldset>
 		{/if}
@@ -287,10 +282,29 @@
 
 				<Form.Field name="breathworkIntent" form={videoForm}>
 					<Form.Control>
-						<Form.Label>Intention breathwork</Form.Label>
+						<Form.Label>Intention breathwork (optionnel)</Form.Label>
 						<Input
 							name="breathworkIntent"
 							bind:value={$form.breathworkIntent as string}
+							placeholder="cohérence cardiaque, anti-stress…"
+						/>
+					</Form.Control>
+					<Form.FieldErrors />
+				</Form.Field>
+
+				<Form.Field name="tags" form={videoForm}>
+					<Form.Control>
+						<Form.Label>Tags</Form.Label>
+						<Input
+							name="tags"
+							value={(($form.tags as string[]) ?? []).join(', ')}
+							placeholder="méditation, focus (séparer par virgules)"
+							oninput={(e) => {
+								$form.tags = e.currentTarget.value
+									.split(',')
+									.map((s) => s.trim())
+									.filter(Boolean);
+							}}
 						/>
 					</Form.Control>
 					<Form.FieldErrors />
@@ -298,18 +312,92 @@
 			</fieldset>
 		{/if}
 
+		<section class="rounded-lg border p-4 space-y-4">
+			<header class="flex items-center gap-2">
+				<CalendarPlus class="size-5 text-primary" />
+				<h2 class="text-base font-semibold">Programme 91 jours (à l’enregistrement)</h2>
+			</header>
+
+			<label class="flex cursor-pointer items-center gap-2 text-sm">
+				<input
+					type="checkbox"
+					class="size-4 rounded border"
+					checked={$form.attachToProgramDay === true}
+					onchange={(e) => {
+						const on = e.currentTarget.checked;
+						$form.attachToProgramDay = on;
+						if (!on) {
+							$form.programDayAttach = undefined;
+							return;
+						}
+						$form.programDayAttach = defaultProgramDayAttach(
+							$form.kind as VideoKind,
+							$form.category as string | null | undefined
+						);
+					}}
+				/>
+				Ajouter un rattachement au programme lors de l’enregistrement du formulaire
+			</label>
+
+			{#if $form.attachToProgramDay === true && $form.programDayAttach}
+				{@const pa = $form.programDayAttach as AttachDaySchema}
+				<div class="grid grid-cols-1 gap-3 sm:grid-cols-5 rounded-md border bg-muted/30 p-3">
+					<div>
+						<label for="edit-att-dayIndex" class="mb-1 block text-xs font-medium text-muted-foreground">
+							Jour
+						</label>
+						<Input id="edit-att-dayIndex" type="number" min={1} max={91} bind:value={pa.dayIndex} />
+					</div>
+					<div class="sm:col-span-2">
+						<label for="edit-att-type" class="mb-1 block text-xs font-medium text-muted-foreground">Type</label>
+						<select
+							id="edit-att-type"
+							bind:value={pa.type}
+							class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+						>
+							{#each allowedDayTypes as opt}
+								<option value={opt.value}>{opt.label}</option>
+							{/each}
+						</select>
+					</div>
+					<div>
+						<label for="edit-att-points" class="mb-1 block text-xs font-medium text-muted-foreground">
+							Points
+						</label>
+						<Input id="edit-att-points" type="number" min={0} max={1000} bind:value={pa.points} />
+					</div>
+					<div class="sm:col-span-5">
+						<label for="edit-att-label" class="mb-1 block text-xs font-medium text-muted-foreground">
+							Libellé affiché (optionnel)
+						</label>
+						<Input
+							id="edit-att-label"
+							placeholder="Ex. : Vidéo intro mindset"
+							bind:value={pa.label as string}
+						/>
+					</div>
+				</div>
+				<Form.Field name="programDayAttach" form={videoForm}>
+					<Form.FieldErrors />
+				</Form.Field>
+			{/if}
+			<p class="text-xs text-muted-foreground">
+				Les rattachements existants sont listés ci‑dessous ; la case permet d’en ajouter un en une fois avec le reste du formulaire.
+			</p>
+		</section>
+
 		<div class="flex justify-end gap-3">
 			<Button variant="outline" onclick={() => goto('/admin/videos')}>Retour</Button>
 			<Button type="submit">Enregistrer</Button>
 		</div>
 	</form>
 
-	<!-- Rattachement aux jours du programme 91 jours -->
+	<!-- Rattachements existants au programme 91 jours -->
 	<section class="mt-8 rounded-lg border p-4 space-y-4">
 		<header class="flex items-center justify-between">
 			<div class="flex items-center gap-2">
 				<CalendarPlus class="size-5 text-primary" />
-				<h2 class="text-base font-semibold">Programme 91 jours</h2>
+				<h2 class="text-base font-semibold">Programme 91 jours — rattachements actuels</h2>
 			</div>
 			<span class="text-xs text-muted-foreground">
 				{data.programDayItems.length} rattachement{data.programDayItems.length > 1 ? 's' : ''}
@@ -332,7 +420,7 @@
 							<span class="text-xs text-muted-foreground">{item.type}</span>
 							<span class="text-xs text-muted-foreground">{item.points} pts</span>
 						</div>
-						<form method="POST" action="?/detachFromDay">
+						<form method="POST" action="?/detachFromDay" use:kitFormEnhance={detachProgramItemSubmit}>
 							<input type="hidden" name="programDayItemId" value={item.programDayItemId} />
 							<Button type="submit" size="sm" variant="ghost">
 								<Trash2 class="size-4" />
@@ -342,57 +430,5 @@
 				{/each}
 			</ul>
 		{/if}
-
-		<form method="POST" action="?/attachToDay" use:attachEnhance class="grid grid-cols-1 gap-3 sm:grid-cols-5">
-			<div>
-				<label for="dayIndex" class="mb-1 block text-xs font-medium text-muted-foreground">Jour</label>
-				<Input
-					id="dayIndex"
-					name="dayIndex"
-					type="number"
-					min="1"
-					max="91"
-					bind:value={$attach.dayIndex}
-				/>
-			</div>
-			<div class="sm:col-span-2">
-				<label for="dayType" class="mb-1 block text-xs font-medium text-muted-foreground">Type</label>
-				<select
-					id="dayType"
-					name="type"
-					bind:value={$attach.type}
-					class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
-				>
-					{#each allowedDayTypes as opt}
-						<option value={opt.value}>{opt.label}</option>
-					{/each}
-				</select>
-			</div>
-			<div>
-				<label for="points" class="mb-1 block text-xs font-medium text-muted-foreground">Points</label>
-				<Input
-					id="points"
-					name="points"
-					type="number"
-					min="0"
-					max="1000"
-					bind:value={$attach.points}
-				/>
-			</div>
-			<div class="flex items-end">
-				<Button type="submit" class="w-full">Rattacher</Button>
-			</div>
-			<div class="sm:col-span-5">
-				<label for="label" class="mb-1 block text-xs font-medium text-muted-foreground">
-					Libellé affiché (optionnel)
-				</label>
-				<Input
-					id="label"
-					name="label"
-					placeholder="Ex. : Vidéo intro mindset"
-					bind:value={$attach.label as string}
-				/>
-			</div>
-		</form>
 	</section>
 </div>

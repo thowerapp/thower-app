@@ -49,6 +49,42 @@ export const load: PageServerLoad = async ({ locals }) => {
 		? items.filter((item) => item.done).reduce((sum, item) => sum + item.pts, 0)
 		: 0;
 
+	// ── Jour courant du programme ──────────────────────────────────────────
+	const user = await prisma.user.findUnique({
+		where: { id: userId },
+		select: { programStartDate: true }
+	});
+	let currentDayIndex = 1;
+	if (user?.programStartDate) {
+		const diff = Math.floor(
+			(todayStart.getTime() - startOfUtcDay(user.programStartDate).getTime()) / 86_400_000
+		);
+		currentDayIndex = Math.min(Math.max(diff + 1, 1), 91);
+	}
+
+	// ── Vidéo de bienvenue : visible tant qu'elle n'a pas été regardée ────
+	let dayVideo = null;
+	{
+		const db = prisma as unknown as any;
+		const content = await db.discoveryContent?.findFirst({
+			where: { category: 'MOTIVATION', tags: { has: 'jour1' }, active: true },
+			select: { id: true, title: true, cloudflareUid: true, thumbnailUrl: true }
+		});
+		if (content) {
+			const progress = await db.userVideoProgress?.findFirst({
+				where: { userId, discoveryContentId: content.id, completedAt: { not: null } }
+			});
+			if (!progress) {
+				dayVideo = {
+					id: content.id as string,
+					title: content.title as string,
+					thumbnailUrl: content.thumbnailUrl ? encodeURI(content.thumbnailUrl as string) : null,
+					pts: 10
+				};
+			}
+		}
+	}
+
 	// Fallback si aucune tâche en base (setup pas encore fait)
 	const fallback = [
 		{ id: '__water',      label: "Boire 2L d'eau",       pts: 5,  done: false },
@@ -63,6 +99,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		items: items.length > 0 ? items : fallback,
 		validated,
 		pointsEarned,
+		dayVideo,
 		todayLabel: new Intl.DateTimeFormat('fr-FR', {
 			weekday: 'long',
 			day: 'numeric',

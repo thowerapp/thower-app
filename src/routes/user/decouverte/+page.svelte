@@ -3,7 +3,7 @@ import type { PageData } from './$types';
 let { data } = $props<{ data: PageData }>();
 
 type Counts = { unlocked: number; total: number };
-const counts = $derived(data.counts as { meditation: Counts; mindset: Counts; breathwork: Counts } | undefined);
+const counts = $derived(data.counts as { meditation: Counts; mindset: Counts; breathwork: Counts; motivation: Counts } | undefined);
 
 function countLabel(c: Counts | undefined): string {
 	if (!c) return '';
@@ -33,6 +33,15 @@ function countLabel(c: Counts | undefined): string {
 </div>
 </div>
 
+<a href="/user/decouverte/motivation" class="dec-card">
+<div class="dec-icon"><div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid var(--g);margin-left:2px"></div></div>
+<div class="dec-body">
+<div class="dec-t">Motivation</div>
+<div class="dec-s">Bienvenue · Programme</div>
+<div class="dec-c">{countLabel(counts?.motivation)}</div>
+</div>
+<div class="arr-wrap"><div class="arr"></div></div>
+</a>
 <a href="/user/decouverte/meditation" class="dec-card">
 <div class="dec-icon"><div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--g)"></div></div>
 <div class="dec-body">

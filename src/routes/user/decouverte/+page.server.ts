@@ -8,10 +8,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
 	const userId = locals.user.id;
 
-	const [meditation, mindset, breathwork, completedIds, pointEvents] = await Promise.all([
+	const [meditation, mindset, breathwork, motivation, completedIds, pointEvents] = await Promise.all([
 		getDiscoveryContentByCategory('MEDITATION'),
 		getDiscoveryContentByCategory('MINDSET'),
 		getDiscoveryContentByCategory('BREATHWORK'),
+		getDiscoveryContentByCategory('MOTIVATION'),
 		getCompletedDiscoveryContentIds(userId),
 		prisma.pointEvent.findMany({ where: { userId }, select: { amount: true } })
 	]);
@@ -28,7 +29,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		counts: {
 			meditation: { unlocked: countUnlocked(meditation), total: meditation.length },
 			mindset:    { unlocked: countUnlocked(mindset),    total: mindset.length    },
-			breathwork: { unlocked: countUnlocked(breathwork), total: breathwork.length }
+			breathwork: { unlocked: countUnlocked(breathwork), total: breathwork.length },
+			motivation: { unlocked: countUnlocked(motivation), total: motivation.length }
 		}
 	};
 };

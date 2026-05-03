@@ -20,6 +20,24 @@ const currentDayIndex = $derived(
 );
 const currentWeekNum = $derived(Math.min(13, Math.max(1, Math.ceil(currentDayIndex / 7))));
 
+// ── Progression logo (0 = jour 1, 1 = jour 91) ────────────────────────────
+const logoProgress = $derived(Math.max(0, Math.min(1, (currentDayIndex - 1) / 90)));
+
+const logoStyle = $derived((() => {
+  const t = logoProgress;
+  const opacity   = 0.13 + t * 0.42;                        // 0.13 → 0.55
+  const scale     = 1    + t * 0.7;                          // 1.0  → 1.7
+  const saturate  = t;                                       // 0    → 1
+  const sepia     = t;                                       // 0    → 1
+  const hueRot    = t * 145;                                 // 0°   → 145° (cyan)
+  const brightness = 2 - t * 1.1;                           // 2    → 0.9
+  return [
+    `opacity:${opacity.toFixed(3)}`,
+    `transform:translate(-50%,-50%) scale(${scale.toFixed(3)})`,
+    `filter:saturate(${saturate.toFixed(2)}) sepia(${sepia.toFixed(2)}) hue-rotate(${hueRot.toFixed(1)}deg) brightness(${brightness.toFixed(2)})`,
+  ].join(';');
+})());
+
 function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
 
 // ── Checklist ─────────────────────────────────────────────────────────────
@@ -104,14 +122,14 @@ $effect(() => {
   <EmberCanvas active={dailyCtaActive} />
   <!-- Logo centré en background avec glow doré -->
   <div class="hh-depth" aria-hidden="true">
-    <img class="hh-logo" src="/logo-app.png" alt="" />
+    <img class="hh-logo" src="/logo-app.png" alt="" style={logoStyle} />
     <div class="hh-logo-glow"></div>
   </div>
   <div class="hh-inner">
     <div class="hh-top">
       <div>
         <div class="hh-eyebrow">Jour {currentDayIndex} / 91</div>
-        <div class="hh-title">Thower</div>
+        <div class="hh-title">Tho<span class="hh-title-white">wer</span></div>
         <div class="hh-sub">Semaine {currentWeekNum} · Programme Méthode</div>
       </div>
       <a href="/user/parametres/profil" class="pbtn" aria-label="Ouvrir le profil">
@@ -357,19 +375,18 @@ $effect(() => {
   position: absolute;
   width: 120px; height: auto;
   object-fit: contain;
-  opacity: .13;
-  filter: saturate(0) brightness(2);
   left: 50%; top: 50%;
-  transform: translate(-50%, -50%);
+  transform-origin: center;
+  will-change: transform, opacity, filter;
 }
 .hh-logo-glow {
   position: absolute;
-  width: 160px; height: 160px;
+  width: 200px; height: 200px;
   left: 50%; top: 50%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(201,168,78,.18) 0%, rgba(201,168,78,.06) 45%, transparent 70%);
-  filter: blur(18px);
+  background: radial-gradient(circle, var(--gg) 0%, transparent 70%);
+  filter: blur(20px);
 }
 .hh-inner { position: relative; z-index: 4; }
 .hh-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
@@ -382,7 +399,11 @@ $effect(() => {
   line-height: .88;
   text-transform: uppercase;
   font-weight: 800;
-  text-shadow: 0 0 28px rgba(201,168,78,.3), 0 0 60px rgba(201,168,78,.1);
+  text-shadow: 0 0 28px var(--gg), 0 0 60px var(--gg);
+}
+.hh-title-white {
+  color: #f0ede8;
+  text-shadow: 0 0 28px var(--gg), 0 0 60px var(--gg);
 }
 .hh-sub { font-size: .5rem; color: var(--txd); letter-spacing: .08em; text-transform: uppercase; margin-top: 5px; font-family: var(--fb); }
 .hh-pills { display: flex; gap: 5px; flex-wrap: wrap; }

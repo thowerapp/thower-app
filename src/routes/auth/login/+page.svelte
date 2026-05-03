@@ -578,6 +578,7 @@
 		color: rgba(240, 237, 232, 0.7);
 		font-family: 'DM Sans', sans-serif;
 		transition: all 0.2s;
+		background: transparent !important;
 	}
 
 	:global(.google-btn:hover) {

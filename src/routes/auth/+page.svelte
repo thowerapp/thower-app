@@ -24,7 +24,7 @@
 		getNotificationPermission,
 		NOTIFICATION_DENIED_HELP
 	} from '$lib/pwa/notifications';
-
+	
 	let { data } = $props();
 
 	let pwaStepsExpanded = $state(false);
@@ -185,83 +185,6 @@
 	<!-- Contenu principal -->
 	<main class="page-main">
 
-		<!-- ── MON COMPTE ── -->
-		<section class="section">
-			<h2 class="section-title">
-				<UserCircle size={16} />
-				Mon compte
-			</h2>
-
-			<div class="cards-col">
-
-				                <!-- Profil -->
-                <div class="card">
-                    <div class="card-head">
-                        <span class="card-icon"><UserCircle size={15} /></span>
-                        <div>
-                            <div class="card-title">Profil</div>
-                            <div class="card-desc">Vos informations de base</div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        {#if data.user.name}
-                            <div class="info-row"><span class="info-label">Nom</span><span class="info-val">{data.user.name}</span></div>
-                        {/if}
-                        <div class="info-row"><span class="info-label">Email</span><span class="info-val">{data.user.email}</span></div>
-                    </div>
-                    <div class="card-foot space-y-2">
-                        {#if !isGoogleUser}
-                            <a href="/auth/account" class="profile-link">
-                                Paramètres de sécurité
-                            </a>
-                        {/if}
-                        <form method="POST" action="?/signout" class="w-full">
-                            <Button 
-                                type="submit"
-                                variant="destructive"
-                                class="w-full"
-                            >
-                                Se déconnecter
-                            </Button>
-                        </form>
-                    </div>
-                </div>
-
-				<!-- Facturation -->
-				{#if data.user.role === 'CLIENT' && hasAnyTransaction}
-					<div class="card">
-						<div class="card-head">
-							<span class="card-icon"><ReceiptText size={15} /></span>
-							<div>
-								<div class="card-title">Facturation</div>
-								<div class="card-desc">Historique de vos factures</div>
-							</div>
-						</div>
-						<div class="card-foot">
-							<a href="/auth/factures" class="btn btn-outline w-full">Mes factures</a>
-						</div>
-					</div>
-				{/if}
-
-				<!-- Admin -->
-				{#if data.user.role === 'ADMIN'}
-					<div class="card">
-						<div class="card-head">
-							<span class="card-icon"><LayoutDashboard size={15} /></span>
-							<div>
-								<div class="card-title">Administration</div>
-								<div class="card-desc">Tableau de bord admin</div>
-							</div>
-						</div>
-						<div class="card-foot">
-							<a href="/admin" class="btn btn-outline w-full">Dashboard Admin</a>
-						</div>
-					</div>
-				{/if}
-
-			</div>
-		</section>
-
 		<!-- ── PROCÉDURE (clients, y compris OAuth, hors admin) ── -->
 		{#if data.user.role !== 'ADMIN'}
 		<section class="section">
@@ -271,7 +194,7 @@
 			</h2>
 
 			<!-- ✅ Application prête d'emploi -->
-			{#if onboardingStep === 'app_ready'}
+			{#if false}
 				<div class="card" style="border-color: #4ade80; background: rgba(74, 222, 128, 0.05);">
 					<div class="card-head">
 						<span class="card-icon" style="color: #4ade80;">
@@ -375,7 +298,7 @@
 							</div>
 						</div>
 						<div class="card-body">
-							<button type="button" class="btn btn-gold w-full" onclick={handlePwaInstall}>
+							<button type="button" class="btn btn-teal w-full" onclick={handlePwaInstall}>
 								<Download size={14} />
 								{$pwaInstallPrompt ? "Installer l'app" : "Ouvrir l'app"}
 							</button>
@@ -398,7 +321,7 @@
 					</div>
 
 					<!-- Notifications — visible si app complète -->
-					{#if isNotificationSupported()}
+					{#if false}
 						<div class="card">
 							<div class="card-head">
 								<span class="card-icon"><Bell size={15} /></span>
@@ -435,6 +358,83 @@
 		{/if}
 
 		{/if}
+
+		<!-- ── MON COMPTE ── -->
+		<section class="section">
+			<h2 class="section-title">
+				<UserCircle size={16} />
+				Mon compte
+			</h2>
+
+			<div class="cards-col">
+
+				                <!-- Profil -->
+                <div class="card">
+                    <div class="card-head">
+                        <span class="card-icon"><UserCircle size={15} /></span>
+                        <div>
+                            <div class="card-title">Profil</div>
+                            <div class="card-desc">Vos informations de base</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {#if data.user.name}
+                            <div class="info-row"><span class="info-label">Nom</span><span class="info-val">{data.user.name}</span></div>
+                        {/if}
+                        <div class="info-row"><span class="info-label">Email</span><span class="info-val">{data.user.email}</span></div>
+                    </div>
+                    <div class="card-foot space-y-2">
+                        {#if !isGoogleUser}
+                            <a href="/auth/account" class="profile-link">
+                                Paramètres de sécurité
+                            </a>
+                        {/if}
+                        <form method="POST" action="?/signout" class="w-full">
+                            <Button 
+                                type="submit"
+                                variant="destructive"
+                                class="w-full"
+                            >
+                                Se déconnecter
+                            </Button>
+                        </form>
+                    </div>
+                </div>
+
+				<!-- Facturation -->
+				{#if data.user.role === 'CLIENT' && hasAnyTransaction}
+					<div class="card">
+						<div class="card-head">
+							<span class="card-icon"><ReceiptText size={15} /></span>
+							<div>
+								<div class="card-title">Facturation</div>
+								<div class="card-desc">Historique de vos factures</div>
+							</div>
+						</div>
+						<div class="card-foot">
+							<a href="/auth/factures" class="btn btn-outline w-full">Mes factures</a>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Admin -->
+				{#if data.user.role === 'ADMIN'}
+					<div class="card">
+						<div class="card-head">
+							<span class="card-icon"><LayoutDashboard size={15} /></span>
+							<div>
+								<div class="card-title">Administration</div>
+								<div class="card-desc">Tableau de bord admin</div>
+							</div>
+						</div>
+						<div class="card-foot">
+							<a href="/admin" class="btn btn-outline w-full">Dashboard Admin</a>
+						</div>
+					</div>
+				{/if}
+
+			</div>
+		</section>
 
 	</main>
 </div>
@@ -533,7 +533,7 @@
 	}
 
 	/* ─── CARDS ─── */
-	.cards-col { display: flex; flex-direction: column; gap: 2px; }
+	.cards-col { display: flex; flex-direction: column; gap: 8px; }
 
 	.card {
 		background: rgba(255,255,255,.03);
@@ -631,6 +631,12 @@
 		font-weight: 600;
 	}
 	.btn-gold:hover { background: #d4b356; }
+	.btn-teal {
+		background: var(--teal);
+		color: var(--black);
+		font-weight: 600;
+	}
+	.btn-teal:hover { background: #4ecece; }
 	.w-full { width: 100%; }
 
 	.btn-ghost {

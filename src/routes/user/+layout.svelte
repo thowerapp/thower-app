@@ -3,6 +3,7 @@ import { page } from '$app/stores';
 import type { LayoutData } from './$types';
 import { fireElement, registerSources } from '$lib/utils/particles';
 import { onMount } from 'svelte';
+import { computeThemeVars } from '$lib/utils/theme';
 
 let { data, children } = $props<{ data: LayoutData; children: import('svelte').Snippet }>();
 
@@ -30,6 +31,9 @@ function handleNavClick(_e: MouseEvent) {
 
 // Les données de pending viennent du layout server
 const pending = $derived(data?.pending ?? { seance: false, tasks: 0, repas: false, photos: false, journee: false });
+
+const currentDayIndex = $derived(($page.data as { currentDayIndex?: number })?.currentDayIndex ?? 1);
+const themeStyle = $derived(computeThemeVars(currentDayIndex));
 
 // ── Bouton retour bas de page, calculé depuis l'URL ──
 const sectionLabels: Record<string, string> = {
@@ -137,7 +141,7 @@ onMount(() => {
   <meta name="theme-color" content="#0d0d0d" />
 </svelte:head>
 
-<div class="screen">
+<div class="screen" style={themeStyle}>
   <div class="sbar"></div>
   <div class="screen-body">
     {@render children()}

@@ -397,7 +397,7 @@
               required
               class="field-input-custom"
             />
-            <Form.Description class="form-note">Au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.</Form.Description>
+            <Form.Description class="form-note">Au moins 8 caractères, une majuscule et un chiffre.</Form.Description>
           </Form.Control>
           <Form.FieldErrors class="field-error" />
         </Form.Field>
@@ -418,7 +418,6 @@
         </Form.Field>
 
         <Button type="submit" class="form-submit-custom">Créer mon compte</Button>
-        <p class="form-note">Tes informations sont confidentielles. Tu seras redirigé vers la configuration 2FA après l'inscription.</p>
       </form>
     </div>
   </section>

@@ -81,4 +81,8 @@
 		overflow: hidden;
 		position: relative;
 	}
+
+	:global(.scroll-content) {
+		background: transparent !important;
+	}
 </style>

@@ -47,7 +47,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const breakfastRecipes = plannedRecipes.filter((r) => r.category === 'BREAKFAST' && !r.isCustom);
 	const mealRecipes = plannedRecipes.filter((r) => r.category === 'MEAL' && !r.isCustom);
 	const dessertRecipes = plannedRecipes.filter((r) => r.category === 'DESSERT' && !r.isCustom);
-	const customRecipes = plannedRecipes.filter((r) => r.isCustom && r.userId === userId);
+	const customRecipes = await prisma.recipe.findMany({
+		where: {
+			userId,
+			isCustom: true,
+			active: true
+		},
+		orderBy: { updatedAt: 'desc' },
+		select: {
+			id: true,
+			name: true,
+			category: true,
+			totalTimeMin: true
+		}
+	});
 
 	const favoriteRecipes = await prisma.userFavoriteRecipe.findMany({
 		where: { userId },
@@ -69,7 +82,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		favoriteRecipes: favoriteRecipes
 			.map((f) => f.recipe)
 			.filter((r) => plannedRecipeIds.includes(r.id)),
-		canCreateRecipe: false,
+		canCreateRecipe: true,
 		programDays,
 		user: locals.user
 	};

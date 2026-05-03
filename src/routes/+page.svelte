@@ -19,7 +19,7 @@
   let camTargetZ = 0;
   const CAM_SEC1_Z = 0;
   const CAM_SEC2_Z = -12;
-  const CAM_SEC3_Z = -22;
+  const CAM_SEC3_Z = -30;
 
   let { data } = $props();
 
@@ -104,26 +104,27 @@
       }
     });
 
-    // ── THREE.JS CANVAS — attaché directement au body ──
+    // ── THREE.JS CANVAS — monté dans le slot du layout ──
     const canvas = document.createElement('canvas');
     canvas.id = 'three-canvas';
-    canvas.style.cssText = 'position:fixed;inset:0;z-index:0;width:100%;height:100%;display:block;pointer-events:none;';
-    document.body.appendChild(canvas);
+    canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
+    const slot = document.getElementById('three-canvas-slot');
+    (slot ?? document.body).appendChild(canvas);
 
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(0x0a0a0a);
+    renderer.setClearColor(0x0a0a0a, 0);
     renderer.shadowMap.enabled = false;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0a0a0a, 0.038);
+    scene.fog = new THREE.FogExp2(0x0a0a0a, 0.08);
 
     const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 120);
-    camera.position.set(0, 0, 0);
-    camera.lookAt(0, 0, -1);
+    camera.position.set(0, -0.4, 0);
+    camera.lookAt(0, -0.4, -1);
 
     const CORRIDOR_LENGTH = 40, CORRIDOR_W = 5, CORRIDOR_H = 4;
 
@@ -132,27 +133,37 @@
     corridor.position.set(0, 0, -CORRIDOR_LENGTH / 2);
     scene.add(corridor);
 
-    const gridMat = new THREE.LineBasicMaterial({ color: 0x3a2e18, transparent: true, opacity: 0.85 });
+    const gridMat = new THREE.LineBasicMaterial({ color: 0x8a6030, transparent: true, opacity: 0.9 });
     function makeLine(p1: [number,number,number], p2: [number,number,number]) {
       const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...p1), new THREE.Vector3(...p2)]);
       return new THREE.Line(geo, gridMat);
     }
+    // Floor grid
     for (let x = -2; x <= 2; x += 0.5) scene.add(makeLine([x, -CORRIDOR_H/2, 2], [x, -CORRIDOR_H/2, -CORRIDOR_LENGTH - 2]));
     for (let z = 0; z >= -CORRIDOR_LENGTH; z -= 2) scene.add(makeLine([-CORRIDOR_W/2, -CORRIDOR_H/2, z], [CORRIDOR_W/2, -CORRIDOR_H/2, z]));
+    // Ceiling grid (mirrored)
+    for (let x = -2; x <= 2; x += 0.5) scene.add(makeLine([x, CORRIDOR_H/2, 2], [x, CORRIDOR_H/2, -CORRIDOR_LENGTH - 2]));
+    for (let z = 0; z >= -CORRIDOR_LENGTH; z -= 2) scene.add(makeLine([-CORRIDOR_W/2, CORRIDOR_H/2, z], [CORRIDOR_W/2, CORRIDOR_H/2, z]));
 
-    const trimMat = new THREE.LineBasicMaterial({ color: 0x5a4020, transparent: true, opacity: 0.7 });
+    const trimMat = new THREE.LineBasicMaterial({ color: 0xb08040, transparent: true, opacity: 0.85 });
     for (let z = 0; z >= -CORRIDOR_LENGTH; z -= 4) {
       scene.add((() => { const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-CORRIDOR_W/2, -CORRIDOR_H/2, z), new THREE.Vector3(-CORRIDOR_W/2, CORRIDOR_H/2, z)]); return new THREE.Line(g, trimMat); })());
       scene.add((() => { const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(CORRIDOR_W/2, -CORRIDOR_H/2, z), new THREE.Vector3(CORRIDOR_W/2, CORRIDOR_H/2, z)]); return new THREE.Line(g, trimMat); })());
     }
+    // Horizontal wall lines (left & right)
+    for (let y = -CORRIDOR_H/2 + 1; y < CORRIDOR_H/2; y += 1) {
+      scene.add(makeLine([-CORRIDOR_W/2, y, 0], [-CORRIDOR_W/2, y, -CORRIDOR_LENGTH]));
+      scene.add(makeLine([CORRIDOR_W/2, y, 0], [CORRIDOR_W/2, y, -CORRIDOR_LENGTH]));
+    }
+    // Central ceiling ridge
     scene.add(makeLine([0, CORRIDOR_H/2, 2], [0, CORRIDOR_H/2, -CORRIDOR_LENGTH - 2]));
 
-    const glowMat = new THREE.MeshBasicMaterial({ color: 0xc9a84c, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xc9a84c, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
     const glowPlane = new THREE.Mesh(new THREE.PlaneGeometry(CORRIDOR_W * 0.9, CORRIDOR_H * 0.9), glowMat);
     glowPlane.position.set(0, 0, -CORRIDOR_LENGTH + 0.5);
     scene.add(glowPlane);
 
-    const glow2Mat = new THREE.MeshBasicMaterial({ color: 0xfff8e0, transparent: true, opacity: 0.82, side: THREE.DoubleSide, depthWrite: false });
+    const glow2Mat = new THREE.MeshBasicMaterial({ color: 0xfff8e0, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false });
     const glowPlane2 = new THREE.Mesh(new THREE.PlaneGeometry(CORRIDOR_W * 0.4, CORRIDOR_H * 0.6), glow2Mat);
     glowPlane2.position.set(0, 0, -CORRIDOR_LENGTH + 0.3);
     scene.add(glowPlane2);
@@ -163,10 +174,29 @@
       return mat;
     };
     const midGlows = [
-      makeGlow(-CORRIDOR_LENGTH * 0.75, 0.28, CORRIDOR_W * 0.85, CORRIDOR_H * 0.85, 0xc9a84c),
-      makeGlow(-CORRIDOR_LENGTH * 0.5,  0.14, CORRIDOR_W * 0.8,  CORRIDOR_H * 0.8,  0xc9a84c),
-      makeGlow(-CORRIDOR_LENGTH * 0.25, 0.06, CORRIDOR_W * 0.75, CORRIDOR_H * 0.75, 0xc9a84c),
+      makeGlow(-CORRIDOR_LENGTH * 0.5,  0.30, CORRIDOR_W * 0.8,  CORRIDOR_H * 0.8,  0xc9a84c),
+      makeGlow(-CORRIDOR_LENGTH * 0.25, 0.14, CORRIDOR_W * 0.75, CORRIDOR_H * 0.75, 0xc9a84c),
     ];
+
+    // ── LOGO au fond du corridor ──
+    const logoMat = new THREE.MeshBasicMaterial({
+      transparent: true,
+      alphaTest: 0.05,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    const logoPlane = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), logoMat);
+    logoPlane.position.set(0, 0, -CORRIDOR_LENGTH + 7);
+    scene.add(logoPlane);
+    new THREE.TextureLoader().load('/logo-app.png', (tex) => {
+      const aspect = tex.image.width / tex.image.height;
+      const h = aspect > CORRIDOR_W / CORRIDOR_H ? CORRIDOR_W / aspect : CORRIDOR_H;
+      const w = h * aspect;
+      logoPlane.geometry.dispose();
+      logoPlane.geometry = new THREE.PlaneGeometry(w, h);
+      logoMat.map = tex;
+      logoMat.needsUpdate = true;
+    });
 
     const PARTICLE_COUNT = 180;
     const pPos = new Float32Array(PARTICLE_COUNT * 3);
@@ -210,14 +240,13 @@
       camCurrentZ += (camTargetZ - camCurrentZ) * 0.055;
       camera.position.z = camCurrentZ;
       camera.position.x = Math.sin(t * 0.18) * 0.04;
-      camera.position.y = Math.sin(t * 0.12) * 0.025;
-      camera.lookAt(camera.position.x * 0.2, camera.position.y * 0.2, camCurrentZ - 10);
+      camera.position.y = -0.4 + Math.sin(t * 0.12) * 0.025;
+      camera.lookAt(camera.position.x * 0.2, camera.position.y * 0.2 - 0.4, camCurrentZ - 10);
       const proximity = Math.max(0, 1 - Math.abs(camCurrentZ + 38) / 38);
-      glowMat.opacity  = (0.45 + proximity * 0.18) + Math.sin(t * 0.7) * 0.03;
-      glow2Mat.opacity = (0.70 + proximity * 0.15) + Math.sin(t * 1.1) * 0.04;
-      midGlows[0].opacity = 0.22 + proximity * 0.12;
-      midGlows[1].opacity = 0.10 + proximity * 0.08;
-      midGlows[2].opacity = 0.04 + proximity * 0.04;
+      glowMat.opacity  = (0.75 + proximity * 0.20) + Math.sin(t * 0.7) * 0.03;
+      glow2Mat.opacity = (0.88 + proximity * 0.10) + Math.sin(t * 1.1) * 0.04;
+      midGlows[0].opacity = 0.24 + proximity * 0.12;
+      midGlows[1].opacity = 0.10 + proximity * 0.06;
       const pos = particles.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < PARTICLE_COUNT; i++) {
         pos[i*3+1] += 0.0008;
@@ -395,8 +424,32 @@
   </section>
 </div>
 
+<section id="social">
+  <div class="social-band">
+    <a href="#" class="social-link" aria-label="Instagram">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+        <rect x="2" y="2" width="20" height="20" rx="5"/>
+        <circle cx="12" cy="12" r="5"/>
+        <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+      </svg>
+    </a>
+    <a href="#" class="social-link" aria-label="YouTube">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+        <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/>
+        <polygon points="9.75,15.02 15.5,12 9.75,8.98" fill="currentColor" stroke="none"/>
+      </svg>
+    </a>
+    <a href="#" class="social-link" aria-label="TikTok">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.69a8.18 8.18 0 0 0 4.77 1.52V6.76a4.85 4.85 0 0 1-1-.07z"/>
+      </svg>
+    </a>
+  </div>
+</section>
+
 <footer>
   <div class="footer-logo">T<span>H</span>OWER</div>
+  <a href="/mentions-legales" class="footer-legal">Mentions légales</a>
   <div class="footer-copy">© 2026 Thower · Tous droits réservés</div>
 </footer>
 
@@ -468,18 +521,18 @@
   .method-h2 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3rem, 7vw, 6rem); line-height: 0.92; letter-spacing: 0.04em; color: var(--white); margin-bottom: 20px; }
   .method-h2 .gold { color: var(--gold); }
   .method-intro { font-size: 0.88rem; font-weight: 300; color: rgba(240,237,232,0.45); line-height: 1.8; }
-  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; width: 100%; max-width: 960px; }
-  .pillar { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 36px 28px; transition: background 0.3s, border-color 0.3s; }
-  .pillar-center { border-color: rgba(58,184,184,0.2); }
-  .pillar:hover { background: rgba(201,168,76,0.05); border-color: rgba(201,168,76,0.25); }
-  .pillar-center:hover { border-color: rgba(58,184,184,0.4); }
-  .pillar-symbol { margin-bottom: 20px; opacity: 0.8; }
-  .pillar-num { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; color: var(--gold); opacity: 0.2; line-height: 1; margin-bottom: 10px; }
+  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; max-width: 960px; }
+  .pillar { background: rgba(10,10,10,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); padding: 36px 28px; transition: background 0.3s, border-color 0.3s; }
+  .pillar-center { border-color: rgba(58,184,184,0.3); }
+  .pillar:hover { background: rgba(6,6,6,0.95); border-color: rgba(201,168,76,0.35); }
+  .pillar-center:hover { border-color: rgba(58,184,184,0.5); }
+  .pillar-symbol { margin-bottom: 20px; opacity: 1; }
+  .pillar-num { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; color: var(--gold); opacity: 0.45; line-height: 1; margin-bottom: 10px; }
   .pillar-center .pillar-num { color: var(--teal); }
   .pillar-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.06em; color: var(--white); margin-bottom: 12px; }
-  .pillar-text { font-size: 0.8rem; font-weight: 300; color: rgba(240,237,232,0.45); line-height: 1.85; margin-bottom: 20px; }
+  .pillar-text { font-size: 0.8rem; font-weight: 300; color: rgba(240,237,232,0.78); line-height: 1.85; margin-bottom: 20px; }
   .pillar-tags { display: flex; flex-direction: column; gap: 5px; }
-  .ptag { font-size: 0.65rem; color: rgba(240,237,232,0.3); letter-spacing: 0.06em; }
+  .ptag { font-size: 0.65rem; color: rgba(240,237,232,0.55); letter-spacing: 0.06em; }
   .stats-strip { display: flex; align-items: center; gap: 32px; padding: 28px 48px; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.02); width: 100%; max-width: 900px; justify-content: center; }
   .stat-item { text-align: center; }
   .stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem; color: var(--gold); letter-spacing: 0.06em; line-height: 1; }
@@ -488,7 +541,7 @@
   .sec2-cta { text-align: center; }
 
   /* ── SEC 3 ── */
-  #sec3 { min-height: 100vh; justify-content: center; padding: 100px 48px; }
+  #sec3 { min-height: 100vh; justify-content: center; padding: 100px 48px 180px; }
   .form-wrap { width: 100%; max-width: 520px; text-align: center; background: rgba(10,10,10,0.7); backdrop-filter: blur(10px); padding: 48px; border-radius: 8px; border: 1px solid rgba(201,168,76,0.15); }
   .form-h2 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.4rem, 5vw, 4rem); letter-spacing: 0.06em; line-height: 1; margin-bottom: 8px; }
   .form-sub { font-size: 0.82rem; font-weight: 300; color: rgba(240,237,232,0.45); margin-bottom: 36px; line-height: 1.7; }
@@ -506,10 +559,18 @@
   .form-note { margin-top: 14px; font-size: 0.68rem; color: rgba(240,237,232,0.25); line-height: 1.6; }
   .highlight-word { color: var(--teal); }
 
+  /* ── Social ── */
+  #social { position: relative; z-index: 10; display: flex; justify-content: center; padding: 0 48px 80px; pointer-events: all; }
+  .social-band { display: flex; gap: 52px; align-items: center; padding: 36px 80px; border-top: 1px solid rgba(255,255,255,0.07); border-bottom: 1px solid rgba(255,255,255,0.07); }
+  .social-link { color: rgba(240,237,232,0.3); transition: color 0.25s; display: flex; align-items: center; }
+  .social-link:hover { color: var(--gold); }
+
   /* ── Footer ── */
   footer { position: relative; z-index: 10; padding: 40px 48px; border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: space-between; pointer-events: all; }
   .footer-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 0.1em; color: rgba(240,237,232,0.25); }
   .footer-logo span { color: var(--gold); opacity: 0.5; }
+  .footer-legal { font-size: 0.65rem; color: rgba(240,237,232,0.2); letter-spacing: 0.06em; text-decoration: none; transition: color 0.2s; }
+  .footer-legal:hover { color: rgba(240,237,232,0.5); }
   .footer-copy { font-size: 0.65rem; color: rgba(240,237,232,0.2); letter-spacing: 0.06em; }
 
   @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }

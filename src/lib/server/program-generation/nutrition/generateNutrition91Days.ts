@@ -1,7 +1,7 @@
 import { prisma } from '$lib/server';
 import type { ActivityLevel, MealPosition, Prisma, RecipeCategory } from '@prisma/client';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
-import { targetCaloriesPerDay } from '$lib/nutrition/nutritionTargets';
+import { dailyProteinTargetG, targetCaloriesPerDay } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
 import { programGenLog, programGenWarn } from '../programGenerationLog';
 
@@ -161,6 +161,12 @@ function kcalAtBaseQuantity(recipe: CatalogRecipe): number {
 	return m.calcCalories ?? 0;
 }
 
+function proteinAtBaseQuantity(recipe: CatalogRecipe): number {
+	const q = mealQuantityG(recipe);
+	const m = scaledMacrosForQuantity(recipe, q);
+	return m.calcProteinG ?? 0;
+}
+
 /** Graine déterministe (FNV-1a) pour tirage pseudo-aléatoire stable par user / jour / créneau. */
 function catalogPickSeed(userId: string, dayIndex: number, position: string, slotIndex: number): number {
 	const s = `${userId}\0${dayIndex}\0${position}\0${slotIndex}`;
@@ -253,9 +259,19 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 				})
 			: null;
 
+	const targetProteinG =
+		weightKg != null &&
+		weightKg > 0 &&
+		profile?.bodyFatPercent != null &&
+		profile.bodyFatPercent >= 3 &&
+		profile.bodyFatPercent <= 70
+			? dailyProteinTargetG(weightKg, profile.bodyFatPercent)
+			: null;
+
 	programGenLog('N4/ Calories cibles repas (hors pain)', {
 		userId,
 		targetKcal,
+		targetProteinG: targetProteinG != null ? Math.round(targetProteinG * 10) / 10 : null,
 		unit: 'kcal/j'
 	});
 
@@ -367,12 +383,23 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		for (const { position, recipe } of toCreate) {
 			const baseQ = mealQuantityG(recipe);
 			const baseKcal = kcalAtBaseQuantity(recipe);
-			let scale = 1;
+			const baseProtein = proteinAtBaseQuantity(recipe);
+			let calorieScale = Number.POSITIVE_INFINITY;
+			let proteinScale = Number.POSITIVE_INFINITY;
+
+			const frac = mealBudgetFractionForPosition(position);
 			if (targetKcal != null && mealBudget > 0 && baseKcal > 0) {
-				const frac = mealBudgetFractionForPosition(position);
 				const targetSlotKcal = mealBudget * frac;
-				scale = clampScale(targetSlotKcal / baseKcal);
+				calorieScale = targetSlotKcal / baseKcal;
 			}
+			if (targetProteinG != null && targetProteinG > 0 && baseProtein > 0) {
+				const targetSlotProtein = targetProteinG * frac;
+				proteinScale = targetSlotProtein / baseProtein;
+			}
+
+			const finiteScales = [calorieScale, proteinScale].filter(Number.isFinite);
+			let scale = finiteScales.length > 0 ? Math.min(...finiteScales) : 1;
+			scale = clampScale(scale);
 			scalesForLog.push(Math.round(scale * 1000) / 1000);
 
 			const quantityG = baseQ * scale;

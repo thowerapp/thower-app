@@ -1,6 +1,8 @@
 ﻿<script lang="ts">
+	import { browser } from '$app/environment';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -31,20 +33,30 @@
 		{ value: 'semaine', label: 'Semaine' }
 	];
 
-	let sortOrder = $state<'category' | 'alpha'>('category');
-
 	const d = $derived(data as unknown as {
 		list: ShoppingList | null;
 		periode: Periode;
 		currentDay: number;
 		startDayIndex: number;
 		endDayIndex: number;
+		daysCount: number;
+		sortOrder: 'category' | 'alpha';
 	});
 
 	const list = $derived(d.list);
 	const periode = $derived(d.periode ?? 'semaine');
+	const daysCount = $derived(Math.max(1, d.daysCount ?? 7));
+	let sortOrder = $state<'category' | 'alpha'>(d.sortOrder ?? 'category');
+	let customDaysInput = $state<number>(Math.max(1, d.daysCount ?? 7));
+
+	$effect(() => {
+		sortOrder = d.sortOrder ?? 'category';
+		customDaysInput = Math.max(1, d.daysCount ?? 7);
+	});
 
 	let checkedMap = $state<Record<string, boolean>>({});
+
+	const PREFS_KEY = 'thower:nutrition:courses:prefs';
 
 	$effect(() => {
 		if (list?.items) {
@@ -52,9 +64,82 @@
 		}
 	});
 
-	function switchPeriode(p: Periode) {
-		goto(`?periode=${p}`, { invalidateAll: true, keepFocus: true });
+	function queryFor(next: {
+		periode?: Periode;
+		days?: number;
+		sort?: 'category' | 'alpha';
+	}): string {
+		const params = new URLSearchParams();
+		params.set('periode', next.periode ?? periode);
+		params.set('days', String(Math.max(1, Math.min(91, Math.round(next.days ?? daysCount)))));
+		params.set('sort', next.sort ?? sortOrder);
+		return `?${params.toString()}`;
 	}
+
+	function persistPrefs(next: { periode: Periode; days: number; sort: 'category' | 'alpha' }) {
+		if (!browser) return;
+		localStorage.setItem(PREFS_KEY, JSON.stringify(next));
+	}
+
+	function switchPeriode(p: Periode) {
+		let days = 7;
+		if (p === 'jour') days = 1;
+		if (p === '3jours') days = 3;
+		if (p === 'semaine') days = Math.max(1, d.endDayIndex - d.startDayIndex + 1);
+		persistPrefs({ periode: p, days, sort: sortOrder });
+		goto(queryFor({ periode: p, days }), { invalidateAll: true, keepFocus: true });
+	}
+
+	function applyCustomDays() {
+		const days = Math.max(1, Math.min(91, Math.round(customDaysInput || 1)));
+		customDaysInput = days;
+		persistPrefs({ periode, days, sort: sortOrder });
+		goto(queryFor({ days }), { invalidateAll: true, keepFocus: true });
+	}
+
+	function switchSort(next: 'category' | 'alpha') {
+		sortOrder = next;
+		persistPrefs({ periode, days: daysCount, sort: next });
+		goto(queryFor({ sort: next }), {
+			invalidateAll: false,
+			keepFocus: true,
+			replaceState: true,
+			noScroll: true
+		});
+	}
+
+	onMount(() => {
+		if (!browser) return;
+		const params = new URLSearchParams(window.location.search);
+		const hasPrefsInUrl = params.has('days') || params.has('sort') || params.has('periode');
+		if (hasPrefsInUrl) {
+			persistPrefs({ periode, days: daysCount, sort: sortOrder });
+			return;
+		}
+		const raw = localStorage.getItem(PREFS_KEY);
+		if (!raw) return;
+		try {
+			const saved = JSON.parse(raw) as {
+				periode?: Periode;
+				days?: number;
+				sort?: 'category' | 'alpha';
+			};
+			const nextPeriode: Periode =
+				saved.periode === 'jour' || saved.periode === '3jours' || saved.periode === 'semaine'
+					? saved.periode
+					: 'semaine';
+			const nextDays = Math.max(1, Math.min(91, Math.round(saved.days ?? daysCount)));
+			const nextSort: 'category' | 'alpha' = saved.sort === 'alpha' ? 'alpha' : 'category';
+			goto(queryFor({ periode: nextPeriode, days: nextDays, sort: nextSort }), {
+				invalidateAll: true,
+				replaceState: true,
+				keepFocus: true,
+				noScroll: true
+			});
+		} catch {
+			// ignore invalid saved prefs
+		}
+	});
 
 	function getItems(): ShoppingItem[] {
 		if (!list?.items) return [];
@@ -103,10 +188,30 @@
 		<button
 			type="button"
 			class="periode-btn"
-			class:active={periode === p.value}
+			class:active={
+				(p.value === 'jour' && daysCount === 1) ||
+				(p.value === '3jours' && daysCount === 3) ||
+				(p.value === 'semaine' && daysCount === d.endDayIndex - d.startDayIndex + 1)
+			}
 			onclick={() => switchPeriode(p.value)}
 		>{p.label}</button>
 	{/each}
+</div>
+
+<div class="days-row">
+	<label for="custom-days" class="days-label">Nombre de jours</label>
+	<div class="days-control">
+		<input
+			id="custom-days"
+			type="number"
+			min="1"
+			max="91"
+			step="1"
+			value={customDaysInput}
+			oninput={(e) => (customDaysInput = Number.parseInt(e.currentTarget.value || '1', 10) || 1)}
+		/>
+		<button type="button" class="days-apply" onclick={applyCustomDays}>Appliquer</button>
+	</div>
 </div>
 
 <div class="list-header">
@@ -124,10 +229,10 @@
 	</div>
 {:else}
 	<div class="sort-row">
-		<button class="sort-btn" class:active={sortOrder === 'category'} onclick={() => (sortOrder = 'category')}>
+		<button class="sort-btn" class:active={sortOrder === 'category'} onclick={() => switchSort('category')}>
 			Par catégorie
 		</button>
-		<button class="sort-btn" class:active={sortOrder === 'alpha'} onclick={() => (sortOrder = 'alpha')}>
+		<button class="sort-btn" class:active={sortOrder === 'alpha'} onclick={() => switchSort('alpha')}>
 			Alphabétique
 		</button>
 	</div>
@@ -217,6 +322,59 @@
 	border-color: var(--cy);
 	color: var(--cy);
 	background: rgba(0,229,255,.06);
+}
+
+.days-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 10px 18px;
+	border-bottom: 1px solid var(--br);
+}
+
+.days-label {
+	font-size: .5625rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .05em;
+	color: var(--txd);
+	font-family: var(--fb);
+}
+
+.days-control {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.days-control input {
+	width: 72px;
+	padding: 6px 8px;
+	border: 1px solid var(--br2);
+	background: transparent;
+	color: var(--tx);
+	font-size: .625rem;
+	font-family: var(--fb);
+}
+
+.days-apply {
+	padding: 7px 10px;
+	font-size: .5625rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .05em;
+	border: 1px solid var(--br2);
+	background: transparent;
+	color: var(--txd);
+	cursor: pointer;
+	font-family: var(--fb);
+}
+
+.days-apply:active {
+	background: rgba(0,229,255,.06);
+	border-color: var(--cy);
+	color: var(--cy);
 }
 
 .list-header {

@@ -10,24 +10,37 @@ import {
 } from '$lib/utils/programDay';
 import type { PageServerLoad, Actions } from './$types';
 
+type SortOrder = 'category' | 'alpha';
+
+function parseSortOrder(raw: string | null | undefined): SortOrder {
+	return raw === 'alpha' ? 'alpha' : 'category';
+}
+
 export type Periode = 'jour' | '3jours' | 'semaine';
 const VALID_PERIODES: Periode[] = ['jour', '3jours', 'semaine'];
 
+function parseDaysCount(raw: string | null | undefined): number | null {
+	if (!raw) return null;
+	const parsed = Number.parseInt(raw, 10);
+	if (!Number.isInteger(parsed)) return null;
+	if (parsed < 1) return null;
+	return Math.min(TOTAL_PROGRAM_DAYS, parsed);
+}
+
+function daysCountFromPeriode(currentDay: number, periode: Periode): number {
+	if (periode === 'jour') return 1;
+	if (periode === '3jours') return 3;
+	const { weekEnd } = programWeekBounds(currentDay);
+	return Math.max(1, weekEnd - currentDay + 1);
+}
+
 function computeRange(
 	currentDay: number,
-	periode: Periode
+	daysCount: number
 ): { startDayIndex: number; endDayIndex: number } {
 	const start = currentDay;
-	let end: number;
-	if (periode === 'jour') {
-		end = start;
-	} else if (periode === '3jours') {
-		end = Math.min(TOTAL_PROGRAM_DAYS, start + 2);
-	} else {
-		// semaine : semaine programme courante
-		const { weekEnd } = programWeekBounds(currentDay);
-		end = weekEnd;
-	}
+	const safeDays = Math.max(1, Math.min(TOTAL_PROGRAM_DAYS, daysCount));
+	const end = Math.min(TOTAL_PROGRAM_DAYS, start + safeDays - 1);
 	return { startDayIndex: start, endDayIndex: end };
 }
 
@@ -69,6 +82,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const periode: Periode = VALID_PERIODES.includes(rawPeriode as Periode)
 		? (rawPeriode as Periode)
 		: 'semaine';
+	const rawDays = url.searchParams.get('days');
+	const sortOrder = parseSortOrder(url.searchParams.get('sort'));
 
 	const user = await prisma.user.findUnique({
 		where: { id: userId },
@@ -76,11 +91,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	});
 
 	const currentDay = currentProgramDayIndex(user?.programStartDate ?? null);
-	const { startDayIndex, endDayIndex } = computeRange(currentDay, periode);
+	const daysCount = parseDaysCount(rawDays) ?? daysCountFromPeriode(currentDay, periode);
+	const { startDayIndex, endDayIndex } = computeRange(currentDay, daysCount);
 
 	const list = await getOrGenerateList(userId, startDayIndex, endDayIndex);
 
-	return { list, periode, currentDay, startDayIndex, endDayIndex };
+	return { list, periode, currentDay, startDayIndex, endDayIndex, daysCount, sortOrder };
 };
 
 export const actions: Actions = {
@@ -104,6 +120,7 @@ export const actions: Actions = {
 		const periode: Periode = VALID_PERIODES.includes(rawPeriode as Periode)
 			? (rawPeriode as Periode)
 			: 'semaine';
+		const rawDays = fd.get('days');
 
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
@@ -113,7 +130,11 @@ export const actions: Actions = {
 			return fail(400, { message: 'Aucun jour de programme alloué.' });
 
 		const currentDay = currentProgramDayIndex(user?.programStartDate ?? null);
-		const { startDayIndex, endDayIndex } = computeRange(currentDay, periode);
+		const daysCount =
+			typeof rawDays === 'string'
+				? (parseDaysCount(rawDays) ?? daysCountFromPeriode(currentDay, periode))
+				: daysCountFromPeriode(currentDay, periode);
+		const { startDayIndex, endDayIndex } = computeRange(currentDay, daysCount);
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const db = prisma as any;

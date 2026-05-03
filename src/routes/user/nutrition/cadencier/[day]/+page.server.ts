@@ -177,13 +177,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	const targetFiberG = targetKcal != null ? Math.round(dailyFiberTargetG(targetKcal) * 10) / 10 : null;
 
-	const workoutRow = await prisma.userWorkoutDay.findFirst({
-		where: { userId, dayIndex },
-		select: { id: true }
-	});
-	const workoutDay = workoutRow != null;
-	const dailyWaterL =
-		weightKg != null && weightKg > 0 ? Math.round(dailyWaterLitersMin(weightKg, workoutDay) * 100) / 100 : null;
+	const dailyWaterLRest =
+		weightKg != null && weightKg > 0
+			? Math.round(dailyWaterLitersMin(weightKg, false) * 100) / 100
+			: null;
+	const dailyWaterLWorkout =
+		weightKg != null && weightKg > 0
+			? Math.round(dailyWaterLitersMin(weightKg, true) * 100) / 100
+			: null;
 
 	const nutritionDay = await prisma.nutritionDay.findUnique({
 		where: { userId_dayIndex: { userId, dayIndex } },
@@ -220,8 +221,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			breadKcal: breadKcal > 0 ? Math.round(breadKcal) : null,
 			targetProteinG,
 			targetFiberG,
-			dailyWaterL,
-			workoutDay,
+			dailyWaterLRest,
+			dailyWaterLWorkout,
 			hasProfileForTargets: weightKg != null && weightKg > 0
 		};
 	}
@@ -302,8 +303,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		breadKcal: breadKcal > 0 ? Math.round(breadKcal) : null,
 		targetProteinG,
 		targetFiberG,
-		dailyWaterL,
-		workoutDay,
+		dailyWaterLRest,
+		dailyWaterLWorkout,
 		hasProfileForTargets: weightKg != null && weightKg > 0
 	};
 };

@@ -132,40 +132,35 @@
 
 {#if data.targetKcal != null || data.targetProteinG != null}
 	<div class="targets-card">
-		<div class="targets-title">Objectifs journaliers (formule Thower)</div>
+		<div class="targets-title">Objectifs journaliers</div>
 		<ul class="targets-list">
 			{#if data.targetKcal != null}
 				<li>
 					<strong>{data.targetKcal}</strong> kcal / j
-					<span class="muted">(TDEE − déficit étalé sur 91 j)</span>
 				</li>
 			{/if}
 			{#if data.breadKcal != null && data.breadKcal > 0}
 				<li>
-					Pain estimé : <strong>−{data.breadKcal}</strong> kcal → budget repas
+					Pain estimé : <strong>−{data.breadKcal}</strong> kcal → calories pour vos repas
 					<strong>{data.mealBudgetKcal ?? '—'}</strong> kcal
 				</li>
 			{:else if data.mealBudgetKcal != null}
-				<li>Budget repas (hors pain) : <strong>{data.mealBudgetKcal}</strong> kcal</li>
+				<li>Calories pour vos repas : <strong>{data.mealBudgetKcal}</strong> kcal</li>
 			{/if}
 			{#if data.targetProteinG != null}
 				<li>
 					Protéines cible : <strong>{data.targetProteinG}</strong> g / j
-					<span class="muted">(masse maigre × 1,8)</span>
 				</li>
 			{/if}
 			{#if data.targetFiberG != null}
 				<li>
 					Fibres mini : <strong>{data.targetFiberG}</strong> g
-					<span class="muted">(15 g / 1000 kcal)</span>
 				</li>
 			{/if}
-			{#if data.dailyWaterL != null}
+			{#if data.dailyWaterLRest != null && data.dailyWaterLWorkout != null}
 				<li>
-					Eau mini : <strong>{data.dailyWaterL}</strong> L
-					<span class="muted"
-						>({data.workoutDay ? 'jour avec séance' : 'sans séance'})</span
-					>
+					Eau mini : sans séance <strong>{data.dailyWaterLRest}</strong> L · avec séance
+					<strong>{data.dailyWaterLWorkout}</strong> L
 				</li>
 			{/if}
 		</ul>
@@ -186,7 +181,7 @@
 	{#each displayMeals as meal (meal.id)}
 		{@const u = multOf(meal.id)}
 		{@const ms = macrosScaled(meal, u)}
-		<section class="meal-section">
+		<section id={meal.position.toLowerCase()} class="meal-section">
 			<div class="meal-header">
 				<span class="meal-label">{meal.label}</span>
 				<span class="meal-time">{meal.timeLabel}</span>

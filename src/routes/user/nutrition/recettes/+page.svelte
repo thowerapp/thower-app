@@ -5,9 +5,10 @@
 		customRecipes?: Array<{ id: string; name: string; category: string; totalTimeMin: number | null }>;
 		programRecipes?: Array<{ id: string; name: string; category: string; totalTimeMin: number | null }>;
 		programDays?: number;
+		canCreateRecipe?: boolean;
 	});
 
-	type TabKey = 'programme' | 'favoris' | 'mes';
+	type TabKey = 'programme' | 'favoris' | 'mes' | 'nouvelles';
 	let activeTab = $state<TabKey>('programme');
 	let favorites = $state(new Set<string>());
 
@@ -28,6 +29,8 @@
 				return (pageData.favoriteRecipes ?? []).filter((r) => favorites.has(r.id));
 			case 'mes':
 				return pageData.customRecipes ?? [];
+				case 'nouvelles':
+					return [];
 			default:
 				return pageData.programRecipes ?? [];
 		}
@@ -60,8 +63,13 @@
 	<button class="tab-btn" class:active={activeTab === 'mes'} onclick={() => (activeTab = 'mes')}>
 		Mes recettes ({pageData.customRecipes?.length ?? 0})
 	</button>
-	<button class="tab-btn" disabled>
-		Nouvelles 🔒
+	<button
+		class="tab-btn"
+		class:active={activeTab === 'nouvelles'}
+		disabled={!pageData.canCreateRecipe}
+		onclick={() => (activeTab = 'nouvelles')}
+	>
+		{pageData.canCreateRecipe ? 'Nouvelles' : 'Nouvelles 🔒'}
 	</button>
 </div>
 
@@ -70,7 +78,11 @@
 </div>
 
 <div class="recipes-list">
-	{#if recipesByTab.length === 0}
+	{#if activeTab === 'nouvelles'}
+		<div class="empty-state">
+			Crée ta recette personnalisée en quelques champs.
+		</div>
+	{:else if recipesByTab.length === 0}
 		<div class="empty-state">Aucune recette pour cet onglet.</div>
 	{:else}
 		{#each recipesByTab as recipe (recipe.id)}
@@ -99,9 +111,13 @@
 </div>
 
 <div class="create-link">
-	<button class="create-lock" type="button" disabled>
-		🔒 Création de recette verrouillée
-	</button>
+	{#if pageData.canCreateRecipe}
+		<a class="create-open" href="/user/nutrition/recettes/create">+ Créer une recette</a>
+	{:else}
+		<button class="create-lock" type="button" disabled>
+			🔒 Création de recette verrouillée
+		</button>
+	{/if}
 </div>
 
 <style>
@@ -211,7 +227,7 @@
 	.recipe-name {
 		font-size: 0.66rem;
 		font-weight: 500;
-		color: #222;
+		color: var(--tx);
 	}
 
 	.recipe-meta {
@@ -260,5 +276,16 @@
 		padding: 8px 12px;
 		background: #f7f7f7;
 		cursor: not-allowed;
+	}
+
+	.create-open {
+		text-decoration: none;
+		color: #111;
+		font-size: 0.64rem;
+		font-weight: 600;
+		border: 1px solid #111;
+		padding: 8px 12px;
+		background: #fff;
+		display: inline-block;
 	}
 </style>

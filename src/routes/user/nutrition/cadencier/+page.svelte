@@ -173,7 +173,7 @@
 	{#if displayMeals.length > 0}
 		<div class="meals-list">
 			{#each displayMeals as meal (meal.id)}
-				<a href="/user/nutrition/cadencier/{selectedDay}" class="meal-item">
+				<a href="/user/nutrition/cadencier/{selectedDay}#{meal.position.toLowerCase()}" class="meal-item">
 					<div class="meal-header-top">
 						<div class="meal-time">{meal.label}</div>
 						<div class="meal-time-clock">{meal.timeLabel}</div>
@@ -288,20 +288,21 @@
 		font-family: var(--fb);
 	}
 
-	.meals-list { display: flex; flex-direction: column; gap: 8px; }
+	.meals-list { display: flex; flex-direction: column; gap: 16px; }
 	.meal-item {
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
 		padding: 12px 14px;
-		background: transparent;
-		border: none;
-		border-bottom: 1px solid var(--br);
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid var(--br);
+		border-radius: 10px;
 		text-decoration: none;
 		color: inherit;
 		cursor: pointer;
-		transition: background 0.15s;
+		transition: background 0.15s, border-color 0.15s;
 	}
+	.meal-item:hover { border-color: var(--br2); }
 	.meal-item:active { background: rgba(200, 164, 74, 0.05); }
 	.meal-header-top { display: flex; justify-content: space-between; align-items: center; }
 	.meal-time {

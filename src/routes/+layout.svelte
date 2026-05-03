@@ -127,6 +127,7 @@
 {/if}
 {#if $isClient}
   <div class="wrapper">
+    <div id="three-canvas-slot"></div>
     <PersistentParticleCanvas />
     <ModeWatcher />
     <GlobalCursor />
@@ -214,6 +215,14 @@
   .mainLayout {
     width: 100%;
     overflow: hidden;
+    background: transparent;
+  }
+
+  #three-canvas-slot {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
   }
 
   .wrapperScroll {

@@ -1,163 +1,169 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { page } from '$app/stores';
+	import { enhance } from '$app/forms';
 
-	let { data } = $props<{ data: PageData }>();
+	let { data }: { data: PageData } = $props();
 
-	let dayNum = $derived(parseInt($page.params.day as string) || 21);
-	let mealNum = $derived(parseInt($page.params.mealNum as string) || 1);
-	let dayName = $derived(['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][(dayNum - 1) % 7]);
-	let mealLabel = $derived(mealNum === 1 ? 'Déjeuner' : 'Dîner');
-	let mealTime = $derived(mealNum === 1 ? '12h30' : '19h00');
+	type Recipe = PageData['recipes'][number];
 
-	let quantities = 1;
-	let selectedRecipe: 'salad' | 'chicken' | 'pasta' = 'salad';
+	let search = $state('');
+	let selectedId = $state<string | null>(data.currentRecipeId ?? null);
+	let customQty = $state<number | null>(null);
+	let saving = $state(false);
 
-	// Mock recipes library
-	const recipes = {
-		salad: {
-			name: 'Salade niçoise revisitée',
-			ingredients: ['Endives', 'Thon', 'Tomates cerises', 'Olives'],
-			macros: { calories: 380, protein: 32, carbs: 18, fat: 14 }
-		},
-		chicken: {
-			name: 'Poulet rôti',
-			ingredients: ['Poulet fermier', 'Citron', 'Thym', 'Huile d\'olive'],
-			macros: { calories: 420, protein: 48, carbs: 8, fat: 16 }
-		},
-		pasta: {
-			name: 'Pâtes complet sauce tomate',
-			ingredients: ['Pâtes complètes', 'Tomates', 'Oignon', 'Ail'],
-			macros: { calories: 410, protein: 16, carbs: 65, fat: 8 }
-		}
-	} as const;
+	const filtered = $derived(
+		search.trim().length === 0
+			? data.recipes
+			: data.recipes.filter((r) => r.name.toLowerCase().includes(search.trim().toLowerCase()))
+	);
 
-	let currentRecipe = $derived(recipes[selectedRecipe]);
-	let calculatedMacros = $derived({
-		calories: Math.round(currentRecipe.macros.calories * quantities),
-		protein: Math.round(currentRecipe.macros.protein * quantities),
-		carbs: Math.round(currentRecipe.macros.carbs * quantities),
-		fat: Math.round(currentRecipe.macros.fat * quantities)
-	});
+	const selected = $derived(data.recipes.find((r) => r.id === selectedId) ?? null);
 
-	function goBack() {
-		history.back();
+	const displayQty = $derived(customQty ?? selected?.optimalQuantityG ?? 0);
+
+	function scaledMacro(base: number | null, refYield: number | null, qty: number): number | null {
+		if (base == null) return null;
+		const ref = refYield != null && refYield > 0 ? refYield : 100;
+		return Math.round(base * (qty / ref) * 10) / 10;
+	}
+
+	const previewMacros = $derived(
+		selected
+			? {
+					kcal: Math.round(scaledMacro(selected.nutritionKcal, selected.referenceYieldG, displayQty) ?? 0),
+					p: scaledMacro(selected.nutritionProteinG, selected.referenceYieldG, displayQty) ?? 0,
+					c: scaledMacro(selected.nutritionCarbsG, selected.referenceYieldG, displayQty) ?? 0,
+					f: scaledMacro(selected.nutritionFatG, selected.referenceYieldG, displayQty) ?? 0
+				}
+			: null
+	);
+
+	function adjustQty(delta: number) {
+		const base = customQty ?? selected?.optimalQuantityG ?? 100;
+		customQty = Math.max(10, Math.min(2000, base + delta));
+	}
+
+	function selectRecipe(r: Recipe) {
+		selectedId = r.id;
+		customQty = null;
 	}
 </script>
 
-<div class="header-bar">
-	<button type="button" class="back-btn" onclick={goBack}>← Retour</button>
-	<div class="header-title">{mealLabel}</div>
+<div class="back-row">
+	<a href="/user/nutrition/cadencier/{data.dayIndex}" class="back-lnk">← Cadencier</a>
+	<div class="back-head">{data.positionLabel}</div>
 </div>
 
-<div class="info-section">
-	<div class="info-day">{dayName.charAt(0).toUpperCase() + dayName.slice(1)} {dayNum}</div>
-	<div class="info-time">{mealTime}</div>
-</div>
-
-<div class="section-block">
-	<div class="section-title">Sélectionner une recette</div>
-	<div class="recipe-buttons">
-		{#each Object.entries(recipes) as [key, recipe] (key)}
-			<button 
-				type="button"
-				class="recipe-btn"
-				class:active={selectedRecipe === key}
-				onclick={() => selectedRecipe = key as 'salad' | 'chicken' | 'pasta'}
-			>
-				<div class="recipe-btn-name">{recipe.name}</div>
-				<div class="recipe-btn-macros">{recipe.macros.calories} kcal</div>
-			</button>
-		{/each}
+{#if data.targetKcal != null || data.targetProteinG != null}
+	<div class="targets-bar">
+		{#if data.targetKcal != null}
+			<span>Cible créneau : <strong>{Math.round(data.targetKcal * data.frac)}</strong> kcal</span>
+		{/if}
+		{#if data.targetProteinG != null}
+			<span><strong>{Math.round(data.targetProteinG * data.frac * 10) / 10}</strong> g prot.</span>
+		{/if}
 	</div>
+{/if}
+
+<div class="search-row">
+	<input
+		type="search"
+		class="search-input"
+		placeholder="Rechercher une recette…"
+		bind:value={search}
+	/>
 </div>
 
-<div class="section-block">
-	<div class="section-title">Ingrédients</div>
-	<div class="ingredients-list">
-		{#each currentRecipe.ingredients as ingredient}
-			<div class="ingredient-item">
-				<div class="ingredient-dot"></div>
-				<div class="ingredient-name">{ingredient}</div>
+<div class="recipe-list">
+	{#each filtered as recipe (recipe.id)}
+		{@const isFav = data.favoriteIds.includes(recipe.id)}
+		{@const isSel = selectedId === recipe.id}
+		<button
+			type="button"
+			class="recipe-row"
+			class:selected={isSel}
+			onclick={() => selectRecipe(recipe)}
+		>
+			<div class="recipe-row-body">
+				<div class="recipe-row-name">{recipe.name}</div>
+				<div class="recipe-row-meta">
+					{#if recipe.nutritionKcal != null}
+						<span>{Math.round(recipe.nutritionKcal * (recipe.optimalQuantityG / (recipe.referenceYieldG ?? 100)))} kcal</span>
+					{/if}
+					{#if recipe.totalTimeMin != null}
+						<span>· {recipe.totalTimeMin} min</span>
+					{/if}
+				</div>
 			</div>
-		{/each}
-	</div>
+			{#if isFav}<span class="fav-dot">★</span>{/if}
+			{#if isSel}<span class="sel-check">✓</span>{/if}
+		</button>
+	{/each}
+	{#if filtered.length === 0}
+		<p class="empty">Aucune recette trouvée.</p>
+	{/if}
 </div>
 
-<div class="section-block">
-	<div class="section-title">Portions</div>
-	<div class="portions-control">
-		<button type="button" class="qty-btn" onclick={() => quantities = Math.max(1, quantities - 1)}>−</button>
-		<div class="qty-display">
-			<div class="qty-value">{quantities}</div>
-			<div class="qty-label">portion{quantities > 1 ? 's' : ''}</div>
-		</div>
-		<button type="button" class="qty-btn" onclick={() => quantities = Math.min(9, quantities + 1)}>+</button>
-	</div>
-</div>
+{#if selected}
+	<div class="selected-panel">
+		<div class="panel-title">{selected.name}</div>
 
-<div class="macros-section">
-	<div class="section-title">Valeur nutritionnelle</div>
-	<div class="macros-grid">
-		<div class="macro-card">
-			<div class="macro-icon">🔥</div>
-			<div class="macro-value">{calculatedMacros.calories}</div>
-			<div class="macro-label">kcal</div>
+		<div class="qty-row">
+			<span class="qty-label">Quantité</span>
+			<div class="qty-ctrl">
+				<button type="button" class="qty-btn" onclick={() => adjustQty(-10)}>−10g</button>
+				<span class="qty-val">{displayQty} g</span>
+				<button type="button" class="qty-btn" onclick={() => adjustQty(10)}>+10g</button>
+			</div>
+			{#if customQty != null}
+				<button type="button" class="qty-reset" onclick={() => (customQty = null)}>Réinitialiser</button>
+			{/if}
 		</div>
-		<div class="macro-card">
-			<div class="macro-icon">💪</div>
-			<div class="macro-value">{calculatedMacros.protein}g</div>
-			<div class="macro-label">Protéines</div>
-		</div>
-		<div class="macro-card">
-			<div class="macro-icon">🌾</div>
-			<div class="macro-value">{calculatedMacros.carbs}g</div>
-			<div class="macro-label">Glucides</div>
-		</div>
-		<div class="macro-card">
-			<div class="macro-icon">🧈</div>
-			<div class="macro-value">{calculatedMacros.fat}g</div>
-			<div class="macro-label">Lipides</div>
-		</div>
-	</div>
-</div>
 
-<div class="action-bar">
-	<button type="button" class="btn-secondary">Supprimer</button>
-	<button type="button" class="btn-primary">Valider</button>
-</div>
+		{#if previewMacros}
+			<div class="macros">
+				<div class="macro"><div class="mv">{previewMacros.kcal}</div><div class="ml">kcal</div></div>
+				<div class="macro"><div class="mv">{previewMacros.p}g</div><div class="ml">Prot.</div></div>
+				<div class="macro"><div class="mv">{previewMacros.c}g</div><div class="ml">Gluc.</div></div>
+				<div class="macro"><div class="mv">{previewMacros.f}g</div><div class="ml">Lip.</div></div>
+			</div>
+		{/if}
+
+		<form
+			method="POST"
+			action="?/save"
+			use:enhance={() => {
+				saving = true;
+				return async ({ update }) => { saving = false; await update(); };
+			}}
+		>
+			<input type="hidden" name="recipeId" value={selected.id} />
+			<input type="hidden" name="quantityG" value={displayQty} />
+			<button type="submit" class="btn-save" disabled={saving}>
+				{saving ? 'Enregistrement…' : 'Valider cette recette →'}
+			</button>
+		</form>
+	</div>
+{/if}
 
 <style>
-	.header-bar {
+	.back-row {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		padding: 12px 16px;
-		background: transparent;
 		border-bottom: 1px solid var(--br);
-		flex-shrink: 0;
 	}
-
-	.back-btn {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		background: transparent;
-		border: 1px solid var(--br2);
-		color: var(--txd);
+	.back-lnk {
 		font-size: 0.65rem;
 		font-weight: 500;
+		color: var(--txd);
+		text-decoration: none;
 		padding: 6px 10px;
+		border: 1px solid var(--br2);
 		border-radius: 3px;
-		cursor: pointer;
-		transition: color 0.15s;
 	}
-
-	.back-btn:active {
-		color: var(--tx);
-	}
-
-	.header-title {
+	.back-head {
 		font-size: 0.7rem;
 		font-weight: 800;
 		color: var(--tx);
@@ -166,241 +172,129 @@
 		letter-spacing: -0.05em;
 	}
 
-	.info-section {
+	.targets-bar {
 		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 12px 16px;
+		gap: 12px;
+		padding: 8px 16px;
 		background: transparent;
 		border-bottom: 1px solid var(--br);
+		font-size: 0.55rem;
+		color: var(--txd);
 	}
+	.targets-bar strong { color: var(--cy); }
 
-	.info-day {
-		font-size: 0.65rem;
-		font-weight: 600;
-		color: var(--tx);
-		font-family: var(--fh), sans-serif;
-	}
-
-	.info-time {
-		font-size: 0.56rem;
-		color: var(--cy);
-		font-family: var(--fh), sans-serif;
-	}
-
-	.section-block {
-		padding: 14px 16px;
+	.search-row {
+		padding: 10px 16px;
 		border-bottom: 1px solid var(--br);
 	}
-
-	.section-title {
-		font-size: 0.62rem;
-		font-weight: 800;
-		color: var(--g);
-		text-transform: uppercase;
-		letter-spacing: -0.04em;
-		margin-bottom: 10px;
-		font-family: var(--fh), sans-serif;
-	}
-
-	.recipe-buttons {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-
-	.recipe-btn {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 10px 12px;
+	.search-input {
+		width: 100%;
+		padding: 8px 10px;
 		background: transparent;
 		border: 1px solid var(--br2);
-		border-radius: 4px;
-		cursor: pointer;
-		transition: border-color 0.15s;
-	}
-
-	.recipe-btn:active {
-		border-color: var(--cy);
-	}
-
-	.recipe-btn.active {
-		background: transparent;
-		border-color: var(--g);
-	}
-
-	.recipe-btn-name {
-		font-size: 0.64rem;
-		font-weight: 500;
 		color: var(--tx);
-		text-align: left;
+		font-size: 0.62rem;
+		font-family: inherit;
+		border-radius: 4px;
+		box-sizing: border-box;
 	}
+	.search-input::placeholder { color: var(--txd); }
 
-	.recipe-btn-macros {
-		font-size: 0.56rem;
-		color: var(--cy);
-		font-weight: 600;
+	.recipe-list {
+		overflow-y: auto;
+		max-height: 40vh;
+		border-bottom: 1px solid var(--br);
 	}
-
-	.ingredients-list {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-	}
-
-	.ingredient-item {
+	.recipe-row {
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		font-size: 0.64rem;
-		color: var(--tx);
+		width: 100%;
+		padding: 11px 16px;
+		background: transparent;
+		border: none;
+		border-bottom: 1px solid var(--br);
+		text-align: left;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
 	}
+	.recipe-row:active { background: rgba(200,164,74,.05); }
+	.recipe-row.selected { border-left: 2px solid var(--g); background: rgba(200,164,74,.04); }
+	.recipe-row-body { flex: 1; min-width: 0; }
+	.recipe-row-name { font-size: 0.64rem; font-weight: 500; color: var(--tx); }
+	.recipe-row-meta { font-size: 0.52rem; color: var(--txd); margin-top: 2px; display: flex; gap: 4px; }
+	.fav-dot { font-size: 0.7rem; color: #ffb800; }
+	.sel-check { font-size: 0.7rem; color: var(--cy); font-weight: 700; }
+	.empty { padding: 16px; font-size: 0.58rem; color: var(--txd); text-align: center; margin: 0; }
 
-	.ingredient-dot {
-		width: 4px;
-		height: 4px;
-		border-radius: 50%;
-		background: var(--g);
-		flex-shrink: 0;
-	}
-
-	.portions-control {
+	.selected-panel {
+		padding: 14px 16px;
 		display: flex;
-		align-items: center;
-		justify-content: space-between;
+		flex-direction: column;
 		gap: 12px;
 	}
+	.panel-title {
+		font-size: 0.7rem;
+		font-weight: 700;
+		color: var(--g);
+		font-family: var(--fh), sans-serif;
+	}
 
-	.qty-btn {
-		width: 36px;
-		height: 36px;
+	.qty-row {
 		display: flex;
 		align-items: center;
-		justify-content: center;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+	.qty-label { font-size: 0.55rem; color: var(--txd); }
+	.qty-ctrl { display: flex; align-items: center; gap: 8px; }
+	.qty-btn {
+		padding: 5px 10px;
 		background: transparent;
 		border: 1px solid var(--br2);
 		color: var(--tx);
-		font-size: 1.2rem;
-		font-weight: 700;
-		border-radius: 4px;
+		font-size: 0.58rem;
+		font-weight: 600;
+		border-radius: 3px;
 		cursor: pointer;
-		transition: border-color 0.15s, color 0.15s;
+		font-family: inherit;
 	}
+	.qty-btn:active { border-color: var(--cy); color: var(--cy); }
+	.qty-val { font-size: 0.7rem; font-weight: 700; color: var(--cy); min-width: 52px; text-align: center; }
+	.qty-reset { font-size: 0.5rem; color: var(--txd); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-family: inherit; }
 
-	.qty-btn:active {
-		border-color: var(--cy);
-		color: var(--cy);
+	.macros {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 6px;
 	}
-
-	.qty-display {
-		flex: 1;
+	.macro {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		gap: 2px;
-	}
-
-	.qty-value {
-		font-size: 1.5rem;
-		font-weight: 700;
-		color: var(--tx);
-	}
-
-	.qty-label {
-		font-size: 0.52rem;
-		color: var(--txd);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		font-family: var(--fh), sans-serif;
-	}
-
-	.macros-section {
-		padding: 14px 16px;
-		border-bottom: 1px solid var(--br);
-	}
-
-	.macros-grid {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: 10px;
-	}
-
-	.macro-card {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 6px;
-		padding: 12px 8px;
-		background: transparent;
+		padding: 8px 4px;
 		border: 1px solid var(--br2);
 		border-radius: 4px;
 	}
+	.mv { font-size: 0.7rem; font-weight: 700; color: var(--cy); }
+	.ml { font-size: 0.44rem; color: var(--txd); text-transform: uppercase; letter-spacing: 0.04em; }
 
-	.macro-icon {
-		font-size: 1.4rem;
-	}
-
-	.macro-value {
-		font-size: 1rem;
-		font-weight: 700;
-		color: var(--cy);
-	}
-
-	.macro-label {
-		font-size: 0.5rem;
-		color: var(--txd);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		text-align: center;
-		font-family: var(--fh), sans-serif;
-	}
-
-	.action-bar {
-		display: flex;
-		gap: 8px;
-		padding: 12px 16px;
-		background: transparent;
-		border-top: 1px solid var(--br);
-	}
-
-	.btn-secondary {
-		flex: 1;
-		padding: 10px 12px;
-		background: transparent;
-		border: 1px solid var(--br2);
-		color: var(--tx);
-		font-size: 0.62rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		border-radius: 4px;
-		cursor: pointer;
-		transition: border-color 0.15s;
-		font-family: var(--fh), sans-serif;
-	}
-
-	.btn-secondary:active {
-		border-color: var(--tx);
-	}
-
-	.btn-primary {
-		flex: 1;
-		padding: 10px 12px;
+	.btn-save {
+		width: 100%;
+		padding: 12px;
 		background: var(--g);
 		border: none;
 		color: var(--s1);
 		font-size: 0.62rem;
-		font-weight: 600;
+		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		border-radius: 4px;
 		cursor: pointer;
-		transition: opacity 0.15s;
 		font-family: var(--fh), sans-serif;
+		transition: opacity 0.15s;
 	}
-
-	.btn-primary:active {
-		opacity: 0.85;
-	}
+	.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+	.btn-save:active { opacity: 0.85; }
 </style>

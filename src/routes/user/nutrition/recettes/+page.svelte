@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
+
 	let { data } = $props();
 	const pageData = $derived(data as {
 		favoriteRecipes?: Array<{ id: string; name: string; category: string; totalTimeMin: number | null }>;
@@ -16,7 +18,7 @@
 		favorites = new Set((pageData.favoriteRecipes ?? []).map((r) => r.id));
 	});
 
-	function toggleFavorite(id: string) {
+	function optimisticToggle(id: string) {
 		const next = new Set(favorites);
 		if (next.has(id)) next.delete(id);
 		else next.add(id);
@@ -94,17 +96,20 @@
 						{categoryLabels[recipe.category] ?? recipe.category} • {recipeTimeLabel(recipe)}
 					</div>
 				</div>
-				<button
-					type="button"
-					class="star-btn"
-					class:starred={favorites.has(recipe.id)}
-					onclick={(e) => {
-						e.preventDefault();
-						toggleFavorite(recipe.id);
+				<form
+					method="POST"
+					action="?/toggleFavorite"
+					use:enhance={() => {
+						optimisticToggle(recipe.id);
+						return async ({ update }) => { await update({ reset: false }); };
 					}}
 				>
-					{favorites.has(recipe.id) ? '★' : '☆'}
-				</button>
+					<input type="hidden" name="recipeId" value={recipe.id} />
+					<input type="hidden" name="action" value={favorites.has(recipe.id) ? 'remove' : 'add'} />
+					<button type="submit" class="star-btn" class:starred={favorites.has(recipe.id)}>
+						{favorites.has(recipe.id) ? '★' : '☆'}
+					</button>
+				</form>
 			</div>
 		{/each}
 	{/if}

@@ -193,7 +193,7 @@
 				<h2 class="recipe-name">{meal.recipeName}</h2>
 				<a
 					class="edit-link"
-					href="/user/nutrition/cadencier/{data.dayIndex}/edit-meal/{meal.slotIndex}"
+					href="/user/nutrition/cadencier/{data.dayIndex}/edit-meal/{meal.position.toLowerCase()}"
 				>
 					Modifier →
 				</a>

@@ -1,7 +1,9 @@
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import { redirect, fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
+import { addFavoriteRecipe } from '$lib/prisma/userFavoriteRecipe/addFavorite';
+import { removeFavoriteRecipe } from '$lib/prisma/userFavoriteRecipe/removeFavorite';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -86,4 +88,25 @@ export const load: PageServerLoad = async ({ locals }) => {
 		programDays,
 		user: locals.user
 	};
+};
+
+export const actions: Actions = {
+	toggleFavorite: async ({ locals, request }) => {
+		if (!locals.user) return fail(401, { error: 'Non authentifié' });
+		const userId = locals.user.id;
+		const data = await request.formData();
+		const recipeId = data.get('recipeId');
+		const action = data.get('action');
+		if (typeof recipeId !== 'string' || !recipeId) return fail(400, { error: 'recipeId manquant' });
+		try {
+			if (action === 'add') {
+				await addFavoriteRecipe(userId, recipeId);
+			} else {
+				await removeFavoriteRecipe(userId, recipeId);
+			}
+			return { success: true };
+		} catch {
+			return fail(500, { error: 'Erreur serveur' });
+		}
+	}
 };

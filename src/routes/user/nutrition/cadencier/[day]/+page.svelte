@@ -68,15 +68,18 @@
 		);
 
 		const count = noBreakfast.length;
+		const tKcal = data.targetKcal ?? total.calories;
+		const tProt = data.targetProteinG ?? total.proteinG;
+		const tFib = data.targetFiberG ?? total.fiberG;
 		return noBreakfast.map((m, i) => ({
 			...m,
 			slotIndex: i + 1,
 			label: mealLabelForFasting(m.position, i + 1, m.label),
-			calories: Math.round(total.calories / count),
-			proteinG: Math.round((total.proteinG / count) * 10) / 10,
+			calories: Math.round(tKcal / count),
+			proteinG: Math.round((tProt / count) * 10) / 10,
 			carbsG: Math.round((total.carbsG / count) * 10) / 10,
 			fatG: Math.round((total.fatG / count) * 10) / 10,
-			fiberG: Math.round((total.fiberG / count) * 10) / 10
+			fiberG: Math.round((tFib / count) * 10) / 10
 		}));
 	});
 
@@ -125,8 +128,7 @@
 <div class="section-head">
 	<div class="title">Plan du jour</div>
 	<div class="sub">
-		Repas et quantités issues du planning (échelle recette : quantité planifiée ÷ rendement de fiche). Tu peux
-		ajuster un multiplicateur pour simuler plus / moins de portions en cuisine.
+		Repas et quantités issus de ton planning personnel Thower. Tu peux ajuster le coefficient pour simuler plus / moins de portions en cuisine.
 	</div>
 </div>
 

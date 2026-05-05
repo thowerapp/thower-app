@@ -9,8 +9,9 @@ import { programGenLog, programGenWarn } from '../programGenerationLog';
 export const PROGRAM_NUTRITION_DAYS = NUTRITION_SEGMENT_DAYS;
 
 const DEFAULT_REFERENCE_G = 100;
-const SCALE_MIN = 0.35;
+const SCALE_MIN = 0.15;
 const SCALE_MAX = 2.5;
+const SCALE_PROTEIN_TOLERANCE = 0.25;
 
 /**
  * Répartition équilibrée du budget alimentaire pour chaque créneau repas.
@@ -380,38 +381,65 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 
 		const scalesForLog: number[] = [];
 
-		for (const { position, recipe } of toCreate) {
-			const baseQ = mealQuantityG(recipe);
-			const baseKcal = kcalAtBaseQuantity(recipe);
-			const baseProtein = proteinAtBaseQuantity(recipe);
-			let calorieScale = Number.POSITIVE_INFINITY;
-			let proteinScale = Number.POSITIVE_INFINITY;
-
+		for (const { position, recipe: firstRecipe } of toCreate) {
 			const frac = mealBudgetFractionForPosition(position);
-			if (targetKcal != null && mealBudget > 0 && baseKcal > 0) {
-				const targetSlotKcal = mealBudget * frac;
-				calorieScale = targetSlotKcal / baseKcal;
-			}
-			if (targetProteinG != null && targetProteinG > 0 && baseProtein > 0) {
-				const targetSlotProtein = targetProteinG * frac;
-				proteinScale = targetSlotProtein / baseProtein;
+			const pool =
+				position === 'BREAKFAST' ? breakfastPool : mealRecipes.length > 0 ? mealRecipes : fallbackPool;
+			const seed = catalogPickSeed(userId, dayIndex, position, toCreate.findIndex((t) => t.position === position));
+			const targetSlotProtein = targetProteinG != null ? targetProteinG * frac : null;
+
+			let chosenRecipe = firstRecipe;
+			let chosenScale = 1;
+			let chosenMacros = scaledMacrosForQuantity(firstRecipe, mealQuantityG(firstRecipe));
+
+			for (let attempt = 0; attempt < 2; attempt++) {
+				const candidate = attempt === 0 ? firstRecipe : (pickRandomFromPool(pool, seed + 1) ?? firstRecipe);
+				const baseQ = mealQuantityG(candidate);
+				const baseKcalC = kcalAtBaseQuantity(candidate);
+				const baseProteinC = proteinAtBaseQuantity(candidate);
+				let calorieScale = Number.POSITIVE_INFINITY;
+				let proteinScale = Number.POSITIVE_INFINITY;
+
+				if (targetKcal != null && mealBudget > 0 && baseKcalC > 0) {
+					calorieScale = (mealBudget * frac) / baseKcalC;
+				}
+				if (targetProteinG != null && targetProteinG > 0 && baseProteinC > 0) {
+					proteinScale = (targetProteinG * frac) / baseProteinC;
+				}
+
+				const finiteScales = [calorieScale, proteinScale].filter(Number.isFinite);
+				let scale = finiteScales.length > 0 ? Math.min(...finiteScales) : 1;
+				scale = clampScale(scale);
+
+				const candidateMacros = scaledMacrosForQuantity(candidate, baseQ * scale);
+				const proteinDeviation =
+					candidateMacros.calcProteinG != null && targetSlotProtein != null && targetSlotProtein > 0
+						? candidateMacros.calcProteinG / targetSlotProtein - 1
+						: 0;
+
+				if (attempt === 0 || Math.abs(proteinDeviation) < Math.abs(
+					chosenMacros.calcProteinG != null && targetSlotProtein != null && targetSlotProtein > 0
+						? chosenMacros.calcProteinG / targetSlotProtein - 1
+						: 0
+				)) {
+					chosenRecipe = candidate;
+					chosenScale = scale;
+					chosenMacros = candidateMacros;
+				}
+
+				if (Math.abs(proteinDeviation) <= SCALE_PROTEIN_TOLERANCE) break;
 			}
 
-			const finiteScales = [calorieScale, proteinScale].filter(Number.isFinite);
-			let scale = finiteScales.length > 0 ? Math.min(...finiteScales) : 1;
-			scale = clampScale(scale);
-			scalesForLog.push(Math.round(scale * 1000) / 1000);
-
-			const quantityG = baseQ * scale;
-			const macros = scaledMacrosForQuantity(recipe, quantityG);
+			scalesForLog.push(Math.round(chosenScale * 1000) / 1000);
+			const quantityG = mealQuantityG(chosenRecipe) * chosenScale;
 
 			await prisma.meal.create({
 				data: {
 					nutritionDayId: nutritionDay.id,
 					position,
-					recipeId: recipe.id,
+					recipeId: chosenRecipe.id,
 					quantityG,
-					...macros
+					...chosenMacros
 				}
 			});
 			mealsCreated++;

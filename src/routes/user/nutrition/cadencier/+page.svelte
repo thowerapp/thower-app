@@ -49,15 +49,18 @@
 							{ calories: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 }
 						);
 						const count = noBreakfast.length;
+						const tKcal = data.targetKcal ?? total.calories;
+						const tProt = data.targetProteinG ?? total.proteinG;
+						const tFib = data.targetFiberG ?? total.fiberG;
 						return noBreakfast.map((m, i) => ({
 							...m,
 							slotIndex: i + 1,
 							label: `Repas ${i + 1} — ${m.position === 'LUNCH' ? 'Déjeuner' : m.position === 'DINNER' ? 'Dîner' : m.label.split('—')[1]?.trim() ?? m.label}`,
-							calories: Math.round(total.calories / count),
-							proteinG: Math.round((total.proteinG / count) * 10) / 10,
+							calories: Math.round(tKcal / count),
+							proteinG: Math.round((tProt / count) * 10) / 10,
 							carbsG: Math.round((total.carbsG / count) * 10) / 10,
 							fatG: Math.round((total.fatG / count) * 10) / 10,
-							fiberG: Math.round((total.fiberG / count) * 10) / 10
+							fiberG: Math.round((tFib / count) * 10) / 10
 						}));
 					})()
 	);
@@ -132,9 +135,9 @@
 			<div class="jt-label">Jeûne intermittent — aujourd'hui</div>
 			<div class="jt-sub">
 				{#if jeuneActive}
-					Actif · 2 repas à <strong>50 / 50 %</strong> (protéines, fibres, kcal)
+					Actif · 2 repas équilibrés
 				{:else}
-					Inactif · 3 repas <strong>30 / 35 / 35 %</strong> (PD + déj. + dîner)
+					Inactif · 3 repas (Petit-déj. + Déjeuner + Dîner)
 				{/if}
 			</div>
 		</div>

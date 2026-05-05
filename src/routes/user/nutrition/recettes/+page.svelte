@@ -227,7 +227,7 @@
 	.recipe-name {
 		font-size: 0.66rem;
 		font-weight: 500;
-		color: var(--tx);
+		color: #111;
 	}
 
 	.recipe-meta {

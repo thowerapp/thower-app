@@ -2,12 +2,18 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { requireNutritionAccess } from '$lib/server/programAccessGuard';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
-import type { MealPosition, Prisma } from '@prisma/client';
+import type { ActivityLevel, MealPosition, Prisma } from '@prisma/client';
 import {
 	currentProgramDayIndex,
 	TOTAL_PROGRAM_DAYS,
 	TOTAL_PROGRAM_WEEKS
 } from '$lib/utils/programDay';
+import {
+	targetCaloriesPerDay,
+	dailyProteinTargetG,
+	dailyFiberTargetG
+} from '$lib/nutrition/nutritionTargets';
+import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
 
 const TOTAL_DAYS = TOTAL_PROGRAM_DAYS;
 const WEEKS = TOTAL_PROGRAM_WEEKS;
@@ -187,6 +193,48 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		defaultSelectedDay = weekStart;
 	}
 
+	const profile = await prisma.userProfile.findUnique({
+		where: { userId },
+		select: {
+			activityLevel: true,
+			bodyFatPercent: true,
+			weightLossGoalKg: true,
+			breadDaily: true,
+			breadGramsPerDay: true,
+			breadType: true
+		}
+	});
+	const lastMeasure = await prisma.bodyMeasurement.findFirst({
+		where: { userId },
+		orderBy: { createdAt: 'desc' },
+		select: { weightKg: true }
+	});
+	const weightKg = lastMeasure?.weightKg ?? null;
+
+	let breadKcal = 0;
+	if (profile?.breadDaily && profile.breadType && profile.breadGramsPerDay != null && profile.breadGramsPerDay > 0) {
+		breadKcal = breadMacrosForGrams(profile.breadType as BreadTypeValue, profile.breadGramsPerDay).kcal;
+	}
+
+	const targetKcal =
+		weightKg != null && weightKg > 0
+			? targetCaloriesPerDay({
+					weightKg,
+					bodyFatPercent: profile?.bodyFatPercent,
+					activityLevel: profile?.activityLevel as ActivityLevel | null | undefined,
+					weightLossGoalKg: profile?.weightLossGoalKg
+				})
+			: null;
+
+	const mealBudgetKcal = targetKcal != null ? Math.max(0, Math.round(targetKcal - breadKcal)) : null;
+
+	const targetProteinG =
+		weightKg != null && weightKg > 0 && profile?.bodyFatPercent != null && profile.bodyFatPercent >= 3 && profile.bodyFatPercent <= 70
+			? Math.round(dailyProteinTargetG(weightKg, profile.bodyFatPercent) * 10) / 10
+			: null;
+
+	const targetFiberG = targetKcal != null ? Math.round(dailyFiberTargetG(targetKcal) * 10) / 10 : null;
+
 	return {
 		currentDayIndex,
 		currentWeek,
@@ -198,6 +246,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		nutritionDaysAllocated: user?.nutritionDaysAllocated ?? 0,
 		hasProgramStart: user?.programStartDate != null,
 		intermittentFasting: user?.profile?.intermittentFastingMorning ?? false,
+		targetKcal: mealBudgetKcal,
+		targetProteinG,
+		targetFiberG
 	};
 };
 

@@ -7,13 +7,10 @@
 	import { toast } from 'svelte-sonner';
 	import { goto, invalidate } from '$app/navigation';
 	import { enhance as kitFormEnhance } from '$app/forms';
-	import { updateVideoSchema, type VideoKind } from '$lib/schema/video/videoAdminSchema';
-	import {
-		discoveryCategoryEnum
-	} from '$lib/schema/discovery/discoveryContentSchema';
+	import { updateVideoSchema } from '$lib/schema/video/videoAdminSchema';
+	import { discoveryCategoryEnum } from '$lib/schema/discovery/discoveryContentSchema';
 	import { workoutVideoPositionEnum } from '$lib/schema/workout/workoutVideoSchema';
-	import { attachDayTypeEnum, type AttachDaySchema } from '$lib/schema/video/attachDaySchema';
-	import { defaultProgramDayAttach } from '$lib/schema/video/defaultProgramDayAttach';
+	import { attachDayTypeEnum } from '$lib/schema/video/attachDaySchema';
 	import ArrowLeft from 'lucide-svelte/icons/arrow-left';
 	import Video from 'lucide-svelte/icons/video';
 	import RefreshCw from 'lucide-svelte/icons/refresh-cw';
@@ -90,6 +87,30 @@
 			await update({ reset: false });
 			if (result.type === 'success') {
 				await invalidate('app:admin-video-program-items');
+			}
+		};
+	};
+
+	// Quick-add day attachment (formulaire dédié, indépendant du formulaire principal)
+	let qaDay = $state(1);
+	let qaType = $state('VIDEO_OF_DAY');
+	let qaPoints = $state(50);
+	let qaLabel = $state('');
+	let qaError = $state<string | null>(null);
+	let qaSuccess = $state<number | null>(null);
+
+	const attachToDaySubmit: import('@sveltejs/kit').SubmitFunction = () => {
+		qaError = null;
+		qaSuccess = null;
+		return async ({ result, update }) => {
+			await update({ reset: false });
+			if (result.type === 'failure') {
+				qaError = (result.data as { error?: string })?.error ?? 'Erreur.';
+			} else if (result.type === 'success') {
+				qaSuccess = qaDay;
+				await invalidate('app:admin-video-program-items');
+				qaDay = qaDay + 1 <= 91 ? qaDay + 1 : qaDay;
+				qaLabel = '';
 			}
 		};
 	};
@@ -312,79 +333,9 @@
 			</fieldset>
 		{/if}
 
-		<section class="rounded-lg border p-4 space-y-4">
-			<header class="flex items-center gap-2">
-				<CalendarPlus class="size-5 text-primary" />
-				<h2 class="text-base font-semibold">Programme 91 jours (à l’enregistrement)</h2>
-			</header>
-
-			<label class="flex cursor-pointer items-center gap-2 text-sm">
-				<input
-					type="checkbox"
-					class="size-4 rounded border"
-					checked={$form.attachToProgramDay === true}
-					onchange={(e) => {
-						const on = e.currentTarget.checked;
-						$form.attachToProgramDay = on;
-						if (!on) {
-							$form.programDayAttach = undefined;
-							return;
-						}
-						$form.programDayAttach = defaultProgramDayAttach(
-							$form.kind as VideoKind,
-							$form.category as string | null | undefined
-						);
-					}}
-				/>
-				Ajouter un rattachement au programme lors de l’enregistrement du formulaire
-			</label>
-
-			{#if $form.attachToProgramDay === true && $form.programDayAttach}
-				{@const pa = $form.programDayAttach as AttachDaySchema}
-				<div class="grid grid-cols-1 gap-3 sm:grid-cols-5 rounded-md border bg-muted/30 p-3">
-					<div>
-						<label for="edit-att-dayIndex" class="mb-1 block text-xs font-medium text-muted-foreground">
-							Jour
-						</label>
-						<Input id="edit-att-dayIndex" type="number" min={1} max={91} bind:value={pa.dayIndex} />
-					</div>
-					<div class="sm:col-span-2">
-						<label for="edit-att-type" class="mb-1 block text-xs font-medium text-muted-foreground">Type</label>
-						<select
-							id="edit-att-type"
-							bind:value={pa.type}
-							class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
-						>
-							{#each allowedDayTypes as opt}
-								<option value={opt.value}>{opt.label}</option>
-							{/each}
-						</select>
-					</div>
-					<div>
-						<label for="edit-att-points" class="mb-1 block text-xs font-medium text-muted-foreground">
-							Points
-						</label>
-						<Input id="edit-att-points" type="number" min={0} max={1000} bind:value={pa.points} />
-					</div>
-					<div class="sm:col-span-5">
-						<label for="edit-att-label" class="mb-1 block text-xs font-medium text-muted-foreground">
-							Libellé affiché (optionnel)
-						</label>
-						<Input
-							id="edit-att-label"
-							placeholder="Ex. : Vidéo intro mindset"
-							bind:value={pa.label as string}
-						/>
-					</div>
-				</div>
-				<Form.Field name="programDayAttach" form={videoForm}>
-					<Form.FieldErrors />
-				</Form.Field>
-			{/if}
-			<p class="text-xs text-muted-foreground">
-				Les rattachements existants sont listés ci‑dessous ; la case permet d’en ajouter un en une fois avec le reste du formulaire.
-			</p>
-		</section>
+		<p class="text-xs text-muted-foreground">
+			Les rattachements au programme 91 jours se gèrent dans le panneau ci-dessous.
+		</p>
 
 		<div class="flex justify-end gap-3">
 			<Button variant="outline" onclick={() => goto('/admin/videos')}>Retour</Button>
@@ -430,5 +381,51 @@
 				{/each}
 			</ul>
 		{/if}
+
+		<!-- Formulaire rapide : rattacher à un jour sans re-sauvegarder la fiche -->
+		<form
+			method="POST"
+			action="?/attachToDay"
+			use:kitFormEnhance={attachToDaySubmit}
+			class="mt-4 border-t pt-4 space-y-3"
+		>
+			<p class="text-xs font-medium text-muted-foreground">Rattacher à un jour du programme</p>
+			<div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+				<div>
+					<label for="qa-day" class="mb-1 block text-xs text-muted-foreground">Jour (1-91) *</label>
+					<Input id="qa-day" name="dayIndex" type="number" min={1} max={91} bind:value={qaDay} />
+				</div>
+				<div>
+					<label for="qa-type" class="mb-1 block text-xs text-muted-foreground">Type *</label>
+					<select
+						id="qa-type"
+						name="type"
+						bind:value={qaType}
+						class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+					>
+						{#each allowedDayTypes as opt}
+							<option value={opt.value}>{opt.label}</option>
+						{/each}
+					</select>
+				</div>
+				<div>
+					<label for="qa-points" class="mb-1 block text-xs text-muted-foreground">Points</label>
+					<Input id="qa-points" name="points" type="number" min={0} max={1000} bind:value={qaPoints} />
+				</div>
+				<div>
+					<label for="qa-label" class="mb-1 block text-xs text-muted-foreground">Libellé</label>
+					<Input id="qa-label" name="label" bind:value={qaLabel} placeholder="(optionnel)" />
+				</div>
+			</div>
+			{#if qaError}
+				<p class="text-xs text-destructive">{qaError}</p>
+			{/if}
+			{#if qaSuccess != null}
+				<p class="text-xs text-green-600">Jour {qaSuccess} rattaché ✓</p>
+			{/if}
+			<Button type="submit" size="sm" variant="secondary">
+				<CalendarPlus class="mr-1 size-3.5" /> Rattacher ce jour
+			</Button>
+		</form>
 	</section>
 </div>

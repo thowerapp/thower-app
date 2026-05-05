@@ -15,7 +15,7 @@ import {
 } from '$lib/server/cloudflare-stream';
 import { prisma } from '$lib/server';
 import { serializeData } from '$lib/utils/serializeData';
-import { detachDaySchema, type DetachDaySchema } from '$lib/schema/video/attachDaySchema';
+import { attachDaySchema, detachDaySchema, type DetachDaySchema } from '$lib/schema/video/attachDaySchema';
 import { listProgramDayItemsForVideo } from '$lib/prisma/programDayItem/listForVideo';
 import { attachVideoToDay } from '$lib/prisma/programDayItem/attachVideo';
 import { detachProgramDayItem } from '$lib/prisma/programDayItem/detach';
@@ -185,6 +185,38 @@ export const actions: Actions = {
 		} catch (err) {
 			console.error('[admin/videos/[kind]/[id]] sync error', err);
 			return fail(500, { message: 'Erreur de synchronisation Cloudflare.' });
+		}
+	},
+
+	/** Rattache la vidéo à un jour du programme (indépendamment du formulaire principal). */
+	attachToDay: async ({ request, params, locals }) => {
+		if (!locals.user || locals.role !== 'ADMIN') {
+			return fail(403, { error: 'Accès refusé.' });
+		}
+		const kind = videoKindEnum.parse(params.kind);
+		const formData = await request.formData();
+
+		const parsed = attachDaySchema.safeParse({
+			dayIndex: formData.get('dayIndex'),
+			type: formData.get('type'),
+			points: formData.get('points') ?? 0,
+			label: formData.get('label') || null
+		});
+		if (!parsed.success) {
+			return fail(400, {
+				error: 'Données invalides : ' + parsed.error.issues.map((i) => i.message).join(', ')
+			});
+		}
+
+		try {
+			const result = await attachVideoToDay({ kind, videoId: params.id, ...parsed.data });
+			if (!result.created) {
+				return fail(409, { error: `Déjà rattachée au jour ${result.dayIndex}.` });
+			}
+			return { success: true, dayIndex: result.dayIndex };
+		} catch (err) {
+			console.error('[admin/videos/[kind]/[id]] attachToDay error', err);
+			return fail(500, { error: err instanceof Error ? err.message : 'Erreur lors du rattachement.' });
 		}
 	},
 

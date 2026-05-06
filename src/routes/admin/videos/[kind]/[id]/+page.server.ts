@@ -13,7 +13,6 @@ import {
 	getStreamEmbedUrl,
 	getVideoDetails
 } from '$lib/server/cloudflare-stream';
-import { prisma } from '$lib/server';
 import { serializeData } from '$lib/utils/serializeData';
 import { attachDaySchema, detachDaySchema, type DetachDaySchema } from '$lib/schema/video/attachDaySchema';
 import { listProgramDayItemsForVideo } from '$lib/prisma/programDayItem/listForVideo';
@@ -61,11 +60,10 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 					kind: 'workout',
 					cloudflareUid: row.cloudflareUid,
 					title: row.title,
-					order: row.order ?? 0,
-					sessionId: row.sessionId,
 					position: row.position,
 					isOptional: row.isOptional ?? false,
 					category: null,
+					order: 0,
 					unlockThreshold: 0,
 					breathworkIntent: null,
 					tags: [],
@@ -76,11 +74,10 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 					kind: 'discovery',
 					cloudflareUid: row.cloudflareUid,
 					title: row.title,
-					order: row.order ?? 0,
-					sessionId: null,
 					position: null,
 					isOptional: false,
 					category: row.category,
+					order: row.order ?? 0,
 					unlockThreshold: row.unlockThreshold ?? 0,
 					breathworkIntent: row.breathworkIntent ?? null,
 					tags: row.tags ?? [],
@@ -92,23 +89,12 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 
 	const programDayItems = await listProgramDayItemsForVideo(kind, params.id);
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
-	const sessions = db.workoutSession
-		? await db.workoutSession.findMany({
-				where: { active: true },
-				select: { id: true, name: true, type: true },
-				orderBy: [{ weekNumber: 'asc' }, { order: 'asc' }]
-			})
-		: [];
-
 	return {
 		form,
 		kind,
 		video: serializeData(row),
 		cloudflareDetails,
 		previewEmbedUrl,
-		sessions,
 		programDayItems
 	};
 };
@@ -169,19 +155,19 @@ export const actions: Actions = {
 			const details = await getVideoDetails(row.cloudflareUid);
 			if (!details) return fail(404, { message: 'Vidéo absente côté Cloudflare.' });
 
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const db = prisma as any;
-			const data = {
-				durationSeconds: details.duration ?? null,
-				status: details.status === 'ready' ? 'ready' : details.status,
-				thumbnailUrl: details.thumbnail ?? null
-			};
-			if (kind === 'workout') {
-				await db.workoutVideo.update({ where: { id: params.id }, data });
-			} else {
-				await db.discoveryContent.update({ where: { id: params.id }, data });
-			}
-			return { success: true };
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const db = (await import('$lib/server')).prisma as any;
+		const syncData = {
+			durationSeconds: details.duration ?? null,
+			status: details.status === 'ready' ? 'ready' : details.status,
+			thumbnailUrl: details.thumbnail ?? null
+		};
+		if (kind === 'workout') {
+			await db.workoutVideo.update({ where: { id: params.id }, data: syncData });
+		} else {
+			await db.discoveryContent.update({ where: { id: params.id }, data: syncData });
+		}
+		return { success: true };
 		} catch (err) {
 			console.error('[admin/videos/[kind]/[id]] sync error', err);
 			return fail(500, { message: 'Erreur de synchronisation Cloudflare.' });

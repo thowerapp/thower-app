@@ -10,17 +10,15 @@ export async function createVideo(data: VideoFormCoreInput) {
 	const db = prisma as any;
 
 	if (data.kind === 'workout') {
-		if (!data.sessionId || !data.position) {
-			throw new Error('sessionId et position sont requis pour une vidéo sport.');
+		if (!data.position) {
+			throw new Error('position est requise pour une vidéo sport.');
 		}
 		return db.workoutVideo.create({
 			data: {
-				sessionId: data.sessionId,
 				cloudflareUid: data.cloudflareUid,
 				title: data.title,
 				position: data.position,
 				isOptional: data.isOptional ?? false,
-				order: data.order ?? 0,
 				status: 'pending'
 			}
 		});

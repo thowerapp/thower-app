@@ -10,7 +10,7 @@ export type CreateProgramDayItemData = {
 	stepsThreshold?: number | null;
 	dailyTaskId?: string | null;
 	discoveryContentId?: string | null;
-	workoutSessionId?: string | null;
+	workoutVideoId?: string | null;
 };
 
 export async function createProgramDayItem(data: CreateProgramDayItemData) {
@@ -28,7 +28,7 @@ export async function createProgramDayItem(data: CreateProgramDayItemData) {
 			stepsThreshold: data.stepsThreshold ?? undefined,
 			dailyTaskId: data.dailyTaskId ?? undefined,
 			discoveryContentId: data.discoveryContentId ?? undefined,
-			workoutSessionId: data.workoutSessionId ?? undefined
+			workoutVideoId: data.workoutVideoId ?? undefined
 		}
 	});
 }

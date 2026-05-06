@@ -82,18 +82,16 @@ export type AdminVideoRow = {
 	durationSeconds: number | null;
 	status: string;
 	thumbnailUrl: string | null;
-	order: number;
 	createdAt: Date | null;
 	updatedAt: Date;
 
 	// Workout-specific
-	sessionId?: string | null;
-	sessionName?: string | null;
 	position?: string | null;
 	isOptional?: boolean | null;
 
 	// Discovery-specific
 	category?: string | null;
+	order?: number | null;
 	unlockThreshold?: number | null;
 	breathworkIntent?: string | null;
 	tags?: string[] | null;
@@ -109,10 +107,7 @@ export async function getAllAdminVideos(): Promise<AdminVideoRow[]> {
 	await repairVideoCloudflareBsonFields();
 
 	const workoutVideos = db.workoutVideo
-		? await db.workoutVideo.findMany({
-				include: { session: { select: { id: true, name: true } } },
-				orderBy: [{ session: { order: 'asc' } }, { order: 'asc' }]
-			})
+		? await db.workoutVideo.findMany({ orderBy: [{ position: 'asc' }, { title: 'asc' }] })
 		: [];
 
 	const rawDiscovery = await fetchDiscoveryContentsMongoRaw();
@@ -133,11 +128,8 @@ export async function getAllAdminVideos(): Promise<AdminVideoRow[]> {
 			durationSeconds: v.durationSeconds ?? null,
 			status: v.status ?? 'pending',
 			thumbnailUrl: v.thumbnailUrl ?? null,
-			order: v.order,
 			createdAt: null,
 			updatedAt: v.updatedAt,
-			sessionId: v.sessionId,
-			sessionName: v.session?.name ?? null,
 			position: v.position,
 			isOptional: v.isOptional ?? false
 		});

@@ -4,8 +4,6 @@ import { fail, superValidate } from 'sveltekit-superforms';
 import { redirect } from '@sveltejs/kit';
 import { createVideoSchema, type CreateVideoSchema } from '$lib/schema/video/videoAdminSchema';
 import { createVideo } from '$lib/prisma/video/createVideo';
-import { attachVideoToDay } from '$lib/prisma/programDayItem/attachVideo';
-import { prisma } from '$lib/server';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user || locals.role !== 'ADMIN') {
@@ -13,17 +11,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 	const form = await superValidate(zod(createVideoSchema));
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
-	const sessions = db.workoutSession
-		? await db.workoutSession.findMany({
-				where: { active: true },
-				select: { id: true, name: true, type: true },
-				orderBy: [{ weekNumber: 'asc' }, { order: 'asc' }]
-			})
-		: [];
-
-	return { form, sessions };
+	return { form };
 };
 
 export const actions: Actions = {
@@ -46,21 +34,9 @@ export const actions: Actions = {
 		const d = form.data as CreateVideoSchema;
 
 		try {
-			const { attachToProgramDay, programDayAttach, ...videoPayload } = d;
-			const row = await createVideo(videoPayload);
+			const row = await createVideo(d);
 
-			if (attachToProgramDay && programDayAttach) {
-				await attachVideoToDay({
-					kind: d.kind,
-					videoId: row.id,
-					dayIndex: programDayAttach.dayIndex,
-					type: programDayAttach.type,
-					points: programDayAttach.points,
-					label: programDayAttach.label ?? null
-				});
-			}
-
-			throw redirect(302, '/admin/videos');
+			throw redirect(302, `/admin/videos/${d.kind}/${row.id}`);
 		} catch (err) {
 			if ((err as { status?: number }).status === 302) throw err;
 			console.error('[admin/videos/create] createVideo error', err);

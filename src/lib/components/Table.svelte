@@ -234,12 +234,10 @@
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
 
-					{#if addLink}
-						<Button class="ml-auto">
-							<a href={addLink}>
-								<Plus class="size-4" />
-							</a>
-						</Button>
+				{#if addLink}
+					<Button href={addLink} class="ml-auto">
+						<Plus class="size-4" />
+					</Button>
 					{/if}
 				</div>
 			</div>

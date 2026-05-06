@@ -22,8 +22,7 @@ export type AttachVideoToDayResult = {
  * Rattache une vidéo à un jour du programme actif.
  *
  * - Récupère (ou crée) le `ProgramDay { dayIndex }` du `Program { active: true }`.
- * - Pour `kind=workout` : insère un `ProgramDayItem` rattaché à la `WorkoutSession`
- *   propriétaire de la `WorkoutVideo` (via `WorkoutVideo.sessionId`).
+ * - Pour `kind=workout` : insère un `ProgramDayItem` rattaché directement à la `WorkoutVideo`.
  * - Pour `kind=discovery` : insère un `ProgramDayItem` rattaché à la `DiscoveryContent`.
  *
  * Idempotent : si un item identique existe déjà sur ce jour pour cette vidéo,
@@ -54,22 +53,10 @@ export async function attachVideoToDay(
 		});
 	}
 
-	let workoutSessionId: string | null = null;
-	if (input.kind === 'workout') {
-		const wv = await db.workoutVideo.findUnique({
-			where: { id: input.videoId },
-			select: { sessionId: true }
-		});
-		if (!wv?.sessionId) {
-			throw new Error('WorkoutVideo introuvable ou sans WorkoutSession associée.');
-		}
-		workoutSessionId = wv.sessionId;
-	}
-
 	const dedupWhere =
 		input.kind === 'discovery'
 			? { programDayId: programDay.id, discoveryContentId: input.videoId }
-			: { programDayId: programDay.id, workoutSessionId };
+			: { programDayId: programDay.id, workoutVideoId: input.videoId };
 
 	const existing = await db.programDayItem.findFirst({
 		where: dedupWhere,
@@ -86,7 +73,7 @@ export async function attachVideoToDay(
 			points: input.points,
 			label: input.label ?? undefined,
 			discoveryContentId: input.kind === 'discovery' ? input.videoId : undefined,
-			workoutSessionId: input.kind === 'workout' ? workoutSessionId : undefined
+			workoutVideoId: input.kind === 'workout' ? input.videoId : undefined
 		},
 		select: { id: true }
 	});

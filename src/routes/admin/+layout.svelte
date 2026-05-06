@@ -24,18 +24,20 @@
 				<Sidebar.Group>
 					<Sidebar.GroupLabel>Dashboard</Sidebar.GroupLabel>
 					<Sidebar.Menu>
-						{#each navItems as item}
-							<Sidebar.MenuItem>
-								<Sidebar.MenuButton isActive={$page.url.pathname === item.url}>
-									<!-- preload data on hover + preload code eagerly for instant tab switching -->
+					{#each navItems as item}
+						<Sidebar.MenuItem>
+							<Sidebar.MenuButton isActive={$page.url.pathname === item.url}>
+								{#snippet child({ props })}
 									<a
 										href={item.url}
 										data-sveltekit-preload-data="hover"
 										data-sveltekit-preload-code="eager"
+										{...props}
 									>{item.title}</a>
-								</Sidebar.MenuButton>
-							</Sidebar.MenuItem>
-						{/each}
+								{/snippet}
+							</Sidebar.MenuButton>
+						</Sidebar.MenuItem>
+					{/each}
 					</Sidebar.Menu>
 				</Sidebar.Group>
 			</Sidebar.Content>

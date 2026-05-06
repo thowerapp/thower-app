@@ -23,10 +23,7 @@ const videoFormCoreBaseSchema = z.object({
 
 		// Discovery-only
 		category: discoveryCategoryEnum.optional().nullable(),
-		order: z.number().int().min(0).default(0),
-		unlockThreshold: z.number().int().min(0).default(0),
-	breathworkIntent: z.string().max(100).optional().nullable(),
-	tags: z.array(z.string()).default([])
+		order: z.number().int().min(0).default(0)
 });
 
 /**

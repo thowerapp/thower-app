@@ -2,13 +2,12 @@
 import type { PageData } from './$types';
 let { data } = $props<{ data: PageData }>();
 
-type Counts = { unlocked: number; total: number };
+type Counts = { total: number };
 const counts = $derived(data.counts as { meditation: Counts; mindset: Counts; breathwork: Counts; motivation: Counts } | undefined);
 
 function countLabel(c: Counts | undefined): string {
 	if (!c) return '';
-	const locked = c.total - c.unlocked;
-	return locked > 0 ? `${c.unlocked} débloquée${c.unlocked > 1 ? 's' : ''}` : `${c.total} disponible${c.total > 1 ? 's' : ''}`;
+	return `${c.total} vidéo${c.total > 1 ? 's' : ''}`;
 }
 </script>
 

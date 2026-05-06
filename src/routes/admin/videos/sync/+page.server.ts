@@ -78,7 +78,6 @@ export const actions: Actions = {
 					// Catégorie par défaut — l'admin la modifie via la fiche d'édition
 					category: 'MOTIVATION',
 					order: 0,
-					unlockThreshold: 0,
 					active: false, // inactive jusqu'à configuration par l'admin
 					durationSeconds: durationSeconds != null && Number.isFinite(durationSeconds) ? durationSeconds : null,
 					thumbnailUrl,

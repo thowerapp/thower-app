@@ -64,9 +64,6 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 					isOptional: row.isOptional ?? false,
 					category: null,
 					order: 0,
-					unlockThreshold: 0,
-					breathworkIntent: null,
-					tags: [],
 					attachToProgramDay: false,
 					programDayAttach: undefined
 				}
@@ -78,9 +75,6 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 					isOptional: false,
 					category: row.category,
 					order: row.order ?? 0,
-					unlockThreshold: row.unlockThreshold ?? 0,
-					breathworkIntent: row.breathworkIntent ?? null,
-					tags: row.tags ?? [],
 					attachToProgramDay: false,
 					programDayAttach: undefined
 				};

@@ -28,10 +28,7 @@ export async function updateVideo(id: string, data: VideoFormCoreInput) {
 		data: {
 			category: data.category,
 			title: data.title,
-			order: data.order ?? 0,
-			unlockThreshold: data.unlockThreshold ?? 0,
-			breathworkIntent: data.breathworkIntent ?? null,
-			tags: data.tags ?? []
+			order: data.order ?? 0
 		}
 	});
 }

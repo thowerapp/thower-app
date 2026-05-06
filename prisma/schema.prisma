@@ -896,9 +896,6 @@ model DiscoveryContent {
   /// UID Cloudflare Stream (identifiant unique de la vidéo côté Cloudflare)
   cloudflareUid    String            @unique
   order            Int               @default(0)
-  unlockThreshold  Int               @default(0)
-  breathworkIntent String?
-  tags             String[]          @default([])
   active           Boolean           @default(true)
   /// Durée en secondes — renseignée par le webhook Cloudflare quand la vidéo est ready
   durationSeconds  Float?

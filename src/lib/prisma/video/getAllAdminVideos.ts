@@ -29,9 +29,6 @@ type RawDiscoveryDoc = {
 	title: string;
 	cloudflareUid?: string | null;
 	order?: number;
-	unlockThreshold?: number;
-	breathworkIntent?: string | null;
-	tags?: string[];
 	active?: boolean;
 	durationSeconds?: number | null;
 	status?: string | null;
@@ -56,10 +53,7 @@ async function fetchDiscoveryContentsMongoRaw(): Promise<RawDiscoveryDoc[]> {
 			title: 1,
 			cloudflareUid: 1,
 			order: 1,
-			unlockThreshold: 1,
-			breathworkIntent: 1,
-			tags: 1,
-			active: 1,
+		active: 1,
 			durationSeconds: 1,
 			status: 1,
 			thumbnailUrl: 1,
@@ -92,9 +86,6 @@ export type AdminVideoRow = {
 	// Discovery-specific
 	category?: string | null;
 	order?: number | null;
-	unlockThreshold?: number | null;
-	breathworkIntent?: string | null;
-	tags?: string[] | null;
 	active?: boolean | null;
 };
 
@@ -153,9 +144,6 @@ export async function getAllAdminVideos(): Promise<AdminVideoRow[]> {
 			createdAt: bsonDateToDate(d.createdAt),
 			updatedAt: bsonDateToDate(d.updatedAt) ?? new Date(),
 			category: d.category,
-			unlockThreshold: d.unlockThreshold ?? 0,
-			breathworkIntent: d.breathworkIntent ?? null,
-			tags: Array.isArray(d.tags) ? d.tags : [],
 			active: d.active ?? true
 		});
 	}

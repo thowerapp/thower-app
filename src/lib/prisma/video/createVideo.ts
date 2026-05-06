@@ -33,9 +33,6 @@ export async function createVideo(data: VideoFormCoreInput) {
 			title: data.title,
 			cloudflareUid: data.cloudflareUid,
 			order: data.order ?? 0,
-			unlockThreshold: data.unlockThreshold ?? 0,
-			breathworkIntent: data.breathworkIntent ?? null,
-			tags: data.tags ?? [],
 			active: true,
 			status: 'pending'
 		}

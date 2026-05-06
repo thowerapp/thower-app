@@ -260,49 +260,7 @@
 					</Form.Field>
 				</div>
 
-				<Form.Field name="unlockThreshold" form={videoForm}>
-					<Form.Control>
-						<Form.Label>Seuil de déblocage (points)</Form.Label>
-						<Input
-							name="unlockThreshold"
-							type="number"
-							min="0"
-							bind:value={$form.unlockThreshold}
-						/>
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-
-				<Form.Field name="breathworkIntent" form={videoForm}>
-					<Form.Control>
-						<Form.Label>Intention breathwork (optionnel)</Form.Label>
-						<Input
-							name="breathworkIntent"
-							bind:value={$form.breathworkIntent as string}
-							placeholder="cohérence cardiaque, anti-stress…"
-						/>
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-
-				<Form.Field name="tags" form={videoForm}>
-					<Form.Control>
-						<Form.Label>Tags</Form.Label>
-						<Input
-							name="tags"
-							value={(($form.tags as string[]) ?? []).join(', ')}
-							placeholder="méditation, focus (séparer par virgules)"
-							oninput={(e) => {
-								$form.tags = e.currentTarget.value
-									.split(',')
-									.map((s) => s.trim())
-									.filter(Boolean);
-							}}
-						/>
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-			</fieldset>
+		</fieldset>
 		{/if}
 
 		<p class="text-xs text-muted-foreground">

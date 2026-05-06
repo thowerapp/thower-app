@@ -2,11 +2,8 @@
 import type { PageData } from './$types';
 let { data } = $props<{ data: PageData }>();
 
-type Video = { id: string; title: string; thumbnailUrl: string | null; unlocked: boolean; completed: boolean; unlockThreshold: number };
+type Video = { id: string; title: string; thumbnailUrl: string | null; completed: boolean };
 const videos = $derived((data.videos ?? []) as Video[]);
-const unlockedCount = $derived(data.unlockedCount ?? 0);
-const totalCount = $derived(videos.length);
-const lockedCount = $derived(totalCount - unlockedCount);
 </script>
 
 <div class="back-row">
@@ -18,7 +15,7 @@ const lockedCount = $derived(totalCount - unlockedCount);
 </div>
 <div class="sh">
 	<div class="sh-t">Bienvenue · Programme</div>
-	<div class="sh-s">{unlockedCount} débloquée{unlockedCount > 1 ? 's' : ''}{lockedCount > 0 ? ` · ${lockedCount} à venir` : ''}</div>
+	<div class="sh-s">{videos.length} vidéo{videos.length > 1 ? 's' : ''}</div>
 </div>
 
 {#if videos.length === 0}
@@ -26,32 +23,23 @@ const lockedCount = $derived(totalCount - unlockedCount);
 {:else}
 <div class="vid-list">
 	{#each videos as video (video.id)}
-		{#if video.unlocked}
-			<a href="/user/decouverte/motivation/{video.id}" class="vcell" class:done={video.completed}>
-				<div class="vcell-thumb">
-					{#if video.thumbnailUrl}
-						<img src={video.thumbnailUrl} alt="" class="vcell-img" />
+		<a href="/user/decouverte/motivation/{video.id}" class="vcell" class:done={video.completed}>
+			<div class="vcell-thumb">
+				{#if video.thumbnailUrl}
+					<img src={video.thumbnailUrl} alt="" class="vcell-img" />
+				{:else}
+					<div class="vcell-img vcell-img-empty"></div>
+				{/if}
+				<div class="vcell-play">
+					{#if video.completed}
+						<div class="vcell-check"></div>
 					{:else}
-						<div class="vcell-img vcell-img-empty"></div>
+						<svg width="14" height="14" viewBox="0 0 14 14"><polygon points="3,2 12,7 3,12" fill="white"/></svg>
 					{/if}
-					<div class="vcell-play">
-						{#if video.completed}
-							<div class="vcell-check"></div>
-						{:else}
-							<svg width="14" height="14" viewBox="0 0 14 14"><polygon points="3,2 12,7 3,12" fill="white"/></svg>
-						{/if}
-					</div>
 				</div>
-				<div class="vcell-t">{video.title}</div>
-			</a>
-		{:else}
-			<div class="vcell locked">
-				<div class="vcell-thumb vcell-thumb-lock">
-					<div class="lock-sq"></div>
-				</div>
-				<div class="vcell-t">{video.title}</div>
 			</div>
-		{/if}
+			<div class="vcell-t">{video.title}</div>
+		</a>
 	{/each}
 </div>
 {/if}
@@ -69,14 +57,10 @@ const lockedCount = $derived(totalCount - unlockedCount);
 .vid-list { display:flex; flex-direction:column; gap:0; }
 .vcell { display:flex; align-items:center; gap:14px; padding:12px 18px; border-bottom:1px solid var(--br); -webkit-tap-highlight-color:transparent; text-decoration:none; }
 .vcell:active { background:rgba(200,130,20,.04); }
-.vcell.locked { opacity:.4; }
 .vcell-thumb { position:relative; width:80px; height:50px; flex-shrink:0; border-radius:4px; overflow:hidden; background:var(--s2); }
-.vcell-thumb-lock { display:flex; align-items:center; justify-content:center; }
 .vcell-img { width:100%; height:100%; object-fit:cover; display:block; }
 .vcell-img-empty { width:100%; height:100%; background:var(--s2); }
 .vcell-play { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.25); }
 .vcell-check { width:12px; height:12px; border-radius:50%; background:var(--g); }
 .vcell-t { font-size:.75rem; color:var(--tx); font-family:var(--fb); font-weight:600; flex:1; line-height:1.3; }
-.lock-sq { width:9px; height:9px; border:1.5px solid var(--txd); position:relative; }
-.lock-sq::before { content:''; position:absolute; top:-4px; left:50%; transform:translateX(-50%); width:6px; height:4px; border:1.5px solid var(--txd); border-bottom:none; border-radius:3px 3px 0 0; }
 </style>

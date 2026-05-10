@@ -4,10 +4,14 @@ import DailyChecklist from '$lib/components/DailyChecklist.svelte';
 
 let { data } = $props<{ data: PageData }>();
 
+// Tâches complétées : STANDARD validées + VIDEO auto-complétées
 const countDone = $derived(
-  data.validated ? data.items.filter((i: { done: boolean }) => i.done).length : 0
+  data.items.filter((i: { done: boolean }) => i.done).length
 );
-const ptsChecklist = $derived(data.validated ? data.pointsEarned : 0);
+// Points STANDARD (validés manuellement) + VIDEO (auto)
+const ptsChecklist = $derived(
+  (data.validated ? data.pointsEarned : 0) + (data.pointsVideoEarned ?? 0)
+);
 </script>
 
 <div class="u-back-row">
@@ -35,20 +39,30 @@ const ptsChecklist = $derived(data.validated ? data.pointsEarned : 0);
 <!-- Section checklist -->
 <div class="u-sh">
   <div class="u-sh-t">Ma checklist du jour</div>
-  <div class="u-sh-s">{countDone} / {data.items.length} sélectionnées</div>
+  <div class="u-sh-s">{countDone} / {data.items.length} complétées</div>
 </div>
 
 <DailyChecklist
   items={data.items}
   validated={data.validated}
   pointsEarned={data.pointsEarned}
+  pointsVideoEarned={data.pointsVideoEarned ?? 0}
 />
 
 <!-- Stats -->
 <div class="u-stats-row">
-  <div class="u-sbox"><div class="u-sv">{ptsChecklist}</div><div class="u-sl">Checklist</div></div>
-  <div class="u-sbox"><div class="u-sv">0</div><div class="u-sl">Séance</div></div>
-  <div class="u-sbox"><div class="u-sv">{ptsChecklist}</div><div class="u-sl">Total jour</div></div>
+  <div class="u-sbox">
+    <div class="u-sv">{data.validated ? data.pointsEarned : 0}</div>
+    <div class="u-sl">Habitudes</div>
+  </div>
+  <div class="u-sbox">
+    <div class="u-sv">{data.pointsVideoEarned ?? 0}</div>
+    <div class="u-sl">Vidéo</div>
+  </div>
+  <div class="u-sbox">
+    <div class="u-sv">{ptsChecklist}</div>
+    <div class="u-sl">Total jour</div>
+  </div>
 </div>
 
 <style>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Action } from 'svelte/action';
+	import { enhance } from '$app/forms';
 	import { Button } from '$shadcn/button';
 	import * as Table from '$shadcn/table';
 	import TableRow from '$shadcn/table/table-row.svelte';
@@ -11,35 +11,6 @@
 	import * as AlertDialog from '$shadcn/alert-dialog/index.js';
 	import { Label } from '$shadcn/label';
 	import * as Tooltip from '$shadcn/tooltip/index.js';
-	import type { SuperFormEvents } from 'sveltekit-superforms';
-
-	type SuperformEnhanceFn = (
-		form: HTMLFormElement,
-		events?: SuperFormEvents<Record<string, unknown>, string>
-	) => void | { destroy(): void };
-
-	/**
-	 * Délègue au `enhance` de superforms sans `use:obj.prop` — le compilateur
-	 * peut ne pas l’associer au formulaire, donc aucune suppression effective.
-	 */
-	const delegateSuperEnhance: Action<
-		HTMLFormElement,
-		() => SuperformEnhanceFn | undefined
-	> = (form, getter) => {
-		const sf = getter?.();
-		if (!sf) return {};
-		const ret = sf(form);
-		const inner =
-			ret && typeof ret === 'object' && typeof (ret as { destroy?: unknown }).destroy === 'function'
-				? (ret as { destroy(): void }).destroy.bind(ret)
-				: undefined;
-		return {
-			destroy() {
-				inner?.();
-			}
-		};
-	};
-
 	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 	import { Plus } from 'lucide-svelte';
 
@@ -54,11 +25,37 @@
 		[key: string]: unknown;
 	}
 
-	let { data, columns, name, actions = null, addLink = null } = $props<{
+	type FormTableAction = {
+		type: 'form';
+		name: string;
+		url: string | ((item: TableItem) => string);
+		icon?: unknown;
+		/** Si false, soumet directement sans dialog de confirmation. Défaut : true */
+		confirm?: boolean;
+		onSuccess?: (item: TableItem) => void;
+		// kept for API compat with existing callers, not used internally
+		enhanceAction?: unknown;
+	};
+
+	let {
+		data,
+		columns,
+		name,
+		actions = null,
+		addLink = null
+	} = $props<{
 		data: TableItem[];
 		columns: TableColumn[];
 		name: string;
-		actions?: Array<{ type: string; name: string; url: string | ((item: TableItem) => string); icon?: unknown; enhanceAction?: (el: HTMLFormElement, events?: SuperFormEvents<any, any>) => void | { destroy(): void } }> | null;
+		actions?: Array<{
+			type: string;
+			name: string;
+			url: string | ((item: TableItem) => string);
+			icon?: unknown;
+			confirm?: boolean;
+			onSuccess?: (item: TableItem) => void;
+			enhanceAction?: unknown;
+		}> | null;
 		addLink?: string | null;
 	}>();
 
@@ -79,13 +76,6 @@
 	let filteredItems = $state<TableItem[]>([]);
 	let paginatedItems = $state<TableItem[]>([]);
 
-	type FormTableAction = {
-		type: 'form';
-		name: string;
-		url: string | ((item: TableItem) => string);
-		icon?: unknown;
-		enhanceAction?: (el: HTMLFormElement, events?: SuperFormEvents<any, any>) => void | { destroy(): void };
-	};
 	let pendingFormDialog = $state<{ item: TableItem; action: FormTableAction } | null>(null);
 	let formConfirmOpen = $state(false);
 
@@ -132,18 +122,18 @@
 	};
 
 	const updateFilteredAndPaginatedItems = () => {
-		filteredItems = data.filter((item: TableItem) =>
+		const filtered = data.filter((item: TableItem) =>
 			Object.values(item).some((value) =>
 				String(value).toLowerCase().includes(searchQuery.toLowerCase())
 			)
 		);
+		filteredItems = filtered;
 
 		const start = (currentPage - 1) * itemsPerPage;
 		const end = start + itemsPerPage;
-		paginatedItems = filteredItems.slice(start, end);
+		paginatedItems = filtered.slice(start, end);
 	};
 
-	// Initialisation + resynchronisation lorsque les données parent changent (ex. après suppression)
 	updateFilteredAndPaginatedItems();
 
 	$effect(() => {
@@ -176,6 +166,10 @@
 			changeItemsPerPage(newItems);
 		}
 	});
+
+	function resolveUrl(action: FormTableAction, item: TableItem): string {
+		return typeof action.url === 'function' ? action.url(item) : action.url;
+	}
 </script>
 
 <div class="rcs w-[90%]">
@@ -266,10 +260,8 @@
 										{#if column.key === 'images'}
 											{@html item[column.key]}
 										{:else if column.formatter}
-											<!-- Si la colonne a un formatter, appliquez-le -->
 											{column.formatter(item[column.key])}
 										{:else}
-											<!-- Sinon, affichez la valeur brute -->
 											{item[column.key]}
 										{/if}
 									</td>
@@ -293,26 +285,45 @@
 														</Tooltip.Content>
 													</Tooltip.Root>
 												</Tooltip.Provider>
-											{:else if action.type === 'form'}
-												<Tooltip.Provider>
-													<Tooltip.Root>
-														<Tooltip.Trigger>
+										{:else if action.type === 'form'}
+											<Tooltip.Provider>
+												<Tooltip.Root>
+													<Tooltip.Trigger>
+														{#if action.confirm === false}
+															<form
+																method="POST"
+																action={resolveUrl(action as FormTableAction, item)}
+																use:enhance={() => async ({ update }) => {
+																	(action as FormTableAction).onSuccess?.(item);
+																	await update({ invalidateAll: true });
+																}}
+																class="inline"
+															>
+																<input type="hidden" name="id" value={item.id} />
+																<Button type="submit" variant="outline" class="m-1 p-1 text-xs">
+																	{#if action.icon}
+																		<action.icon class="h-4 w-4 inline" />
+																	{/if}
+																</Button>
+															</form>
+														{:else}
 															<Button
 																type="button"
 																variant="outline"
 																class="m-1 p-1 text-xs"
-																onclick={() => openFormConfirm(item, action)}
+																onclick={() => openFormConfirm(item, action as FormTableAction)}
 															>
 																{#if action.icon}
 																	<action.icon class="h-4 w-4 inline" />
 																{/if}
 															</Button>
-														</Tooltip.Trigger>
-														<Tooltip.Content>
-															<p>{action.name}</p>
-														</Tooltip.Content>
-													</Tooltip.Root>
-												</Tooltip.Provider>
+														{/if}
+													</Tooltip.Trigger>
+													<Tooltip.Content>
+														<p>{action.name}</p>
+													</Tooltip.Content>
+												</Tooltip.Root>
+											</Tooltip.Provider>
 											{/if}
 										</TableCell>
 									{/each}
@@ -326,30 +337,37 @@
 					<AlertDialog.Root bind:open={formConfirmOpen} onOpenChange={(open) => !open && closeFormConfirm()}>
 						<AlertDialog.Content>
 							<AlertDialog.Header>
-								<AlertDialog.Title>Confirmer la suppression</AlertDialog.Title>
+								<AlertDialog.Title>Confirmer l'action</AlertDialog.Title>
 								<AlertDialog.Description>
-									Cette action est définitive&nbsp;: la ligne en base et le média correspondant sur
-									Cloudflare Stream seront supprimés.
 									{#if pendingFormDialog?.item?.title != null && String(pendingFormDialog.item.title) !== ''}
 										<span class="mt-3 block font-medium text-foreground">
 											{String(pendingFormDialog.item.title)}
+										</span>
+									{:else if pendingFormDialog?.item?.label != null}
+										<span class="mt-3 block font-medium text-foreground">
+											{String(pendingFormDialog.item.label)}
 										</span>
 									{/if}
 								</AlertDialog.Description>
 							</AlertDialog.Header>
 							<AlertDialog.Footer>
 								<AlertDialog.Cancel type="button">Annuler</AlertDialog.Cancel>
-								{#if pendingFormDialog?.action?.enhanceAction}
+								{#if pendingFormDialog}
 									<form
 										method="POST"
-										action={typeof pendingFormDialog.action.url === 'function'
-											? pendingFormDialog.action.url(pendingFormDialog.item)
-											: pendingFormDialog.action.url}
-										use:delegateSuperEnhance={() => pendingFormDialog.action.enhanceAction}
+										action={resolveUrl(pendingFormDialog.action, pendingFormDialog.item)}
+										use:enhance={() => {
+											return async ({ update, result }) => {
+												if (result.type === 'success' || result.type === 'redirect') {
+													pendingFormDialog?.action?.onSuccess?.(pendingFormDialog.item);
+												}
+												await update({ invalidateAll: true });
+											};
+										}}
 										class="contents"
 									>
 										<input type="hidden" name="id" value={pendingFormDialog.item.id} />
-										<Button type="submit" variant="destructive" size="sm">Supprimer</Button>
+										<Button type="submit" variant="destructive" size="sm">Confirmer</Button>
 									</form>
 								{/if}
 							</AlertDialog.Footer>

@@ -70,6 +70,13 @@ enum DiscoveryCategory {
   EXPLICATION  /// explication méthode (jeûne, protéine, cycle circadien, recettes…)
 }
 
+
+/// Type de tâche journalière (STANDARD = texte, VIDEO = vidéo à consulter)
+enum DailyTaskType {
+  STANDARD
+  VIDEO
+}
+
 /// Type d’item sur un jour du programme 91 (défini par l’admin)
 enum ProgramDayItemType {
   DAILY_TASK       /// tâche ligne directrice (eau, pas de téléphone…)
@@ -846,10 +853,18 @@ model DailyTask {
   active    Boolean  @default(true)
   order     Int      @default(0)
   updatedAt DateTime @updatedAt
+  type               DailyTaskType     @default(STANDARD)
+  discoveryContentId String?           @db.ObjectId
+  /// Jour de programme à partir duquel la tâche est visible (null = aucune limite basse)
+  showFromDay        Int?
+  /// Jour de programme jusqu'auquel la tâche est visible (null = aucune limite haute)
+  showUntilDay       Int?
+
 
   optOuts          UserDailyTaskOptOut[]
   completions      DailyTaskCompletion[]
   programDayItems ProgramDayItem[]
+  discoveryContent   DiscoveryContent? @relation(fields: [discoveryContentId], references: [id])
 
   @@map("daily_tasks")
 }
@@ -908,6 +923,7 @@ model DiscoveryContent {
 
   progress        UserVideoProgress[]
   programDayItems ProgramDayItem[]
+  dailyTasks       DailyTask[]
 
   @@map("discovery_contents")
 }

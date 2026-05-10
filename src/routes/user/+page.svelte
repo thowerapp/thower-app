@@ -41,10 +41,18 @@ const logoStyle = $derived((() => {
 function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
 
 // ── Checklist ─────────────────────────────────────────────────────────────
-type Task = { id: string; label: string; points: number; order: number; completed: boolean };
+type VideoInfo = { id: string; title: string; cloudflareUid: string; thumbnailUrl: string | null; durationSeconds: number | null; category: string };
+type Task = { id: string; label: string; points: number; order: number; completed: boolean; type?: 'STANDARD' | 'VIDEO'; video?: VideoInfo | null };
 
 const checklistItems = $derived(
-  (data.tasks as Task[]).map((t) => ({ id: t.id, label: t.label, pts: t.points, done: t.completed }))
+  (data.tasks as Task[]).map((t) => ({
+    id: t.id,
+    label: t.label,
+    pts: t.points,
+    done: t.completed,
+    type: (t.type ?? 'STANDARD') as 'STANDARD' | 'VIDEO',
+    video: t.video ?? null
+  }))
 );
 
 let earnedFeedback = $state<number | null>(null);
@@ -52,26 +60,26 @@ let earnedFeedback = $state<number | null>(null);
 const checklistPending = $derived(!checklistValidated);
 const sportPending = $derived(access.sport && pending.seance);
 const dailyCtaActive = $derived(checklistPending || sportPending);
-const dailyCtaHref = $derived(checklistPending ? ‘/user/journee’ : ‘/user/sport’);
+const dailyCtaHref = $derived(checklistPending ? '/user/journee' : '/user/sport');
 const dailyCtaTitle = $derived(
   checklistPending && sportPending
-    ? ‘Complète ta journée’
+    ? 'Complète ta journée'
     : checklistPending
-      ? ‘Valide ta checklist du jour’
+      ? 'Valide ta checklist du jour'
       : sportPending
-        ? ‘Lance ta séance du jour’
-        : ‘Journée complétée’
+        ? 'Lance ta séance du jour'
+        : 'Journée complétée'
 );
 const dailyCtaSubtitle = $derived(
   checklistPending && sportPending
-    ? ‘Checklist quotidienne + séance sport à compléter’
+    ? 'Checklist quotidienne + séance sport à compléter'
     : checklistPending
-      ? ‘Checklist à valider · finalise ta journée’
+      ? 'Checklist à valider · finalise ta journée'
       : sportPending
-        ? ‘Programme sport en attente · ouvre ta séance’
-        : ‘Checklist et sport validés pour aujourd’hui’
+        ? 'Programme sport en attente · ouvre ta séance'
+        : `Checklist et sport validés pour aujourd'hui`
 );
-const dailyCtaLabel = $derived(dailyCtaActive ? ‘Compléter →’ : ‘Bravo →’);
+const dailyCtaLabel = $derived(dailyCtaActive ? 'Compléter →' : 'Bravo →');
 
 function handleChecklistSuccess(pts: number) {
   earnedFeedback = pts;
@@ -162,7 +170,7 @@ $effect(() => {
   <div class="u-ndot" style="background:var(--txd);animation:none;opacity:.5"></div>
   <div class="u-nb">
     <div class="u-nb-t">Programme sport</div>
-    <div class="u-nb-s">Non inclus dans ton offre · Ajoute l’option sport</div>
+    <div class="u-nb-s">Non inclus dans ton offre · Ajoute l'option sport</div>
   </div>
   <div class="u-ncta">Offres →</div>
 </a>

@@ -1,5 +1,5 @@
 import { redirect, fail } from '@sveltejs/kit';
-import type { PageServerLoad, Actions } from './$types';
+import type { PageServerLoad, Actions } from './';
 import { prisma } from '$lib/server';
 import { upsertVideoProgress } from '$lib/prisma/userVideoProgress/upsertProgress';
 import { autoCompleteVideoTask } from '$lib/prisma/dailyTask/autoCompleteVideoTask';
@@ -10,15 +10,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const { id } = params;
 
 	const db = prisma as any;
-	if (!db?.discoveryContent) throw redirect(302, '/user/decouverte/motivation');
+	if (!db?.discoveryContent) throw redirect(302, '/user/decouverte/breathwork');
 
 	const content = await db.discoveryContent.findUnique({
 		where: { id },
 		select: { id: true, title: true, cloudflareUid: true, thumbnailUrl: true, category: true, active: true }
 	});
 
-	if (!content || !content.active || content.category !== 'MOTIVATION') {
-		throw redirect(302, '/user/decouverte/motivation');
+	if (!content || !content.active || content.category !== 'BREATHWORK') {
+		throw redirect(302, '/user/decouverte/breathwork');
 	}
 
 	const progress = await db.userVideoProgress?.findFirst({
@@ -63,7 +63,7 @@ export const actions: Actions = {
 						userId,
 						type: 'VIDEO_WATCHED',
 						amount: 10,
-						metadata: { discoveryContentId: id, source: 'motivation' }
+						metadata: { discoveryContentId: id, source: 'breathwork' }
 					}
 				});
 				return { success: true, pointsEarned: 10 + taskPts };

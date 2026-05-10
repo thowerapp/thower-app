@@ -38,10 +38,28 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 	const todayStart = startOfUtcDay();
 
-	const [activeTasks, optOuts, todayCompletions, pointEvents] = await Promise.all([
+	const [activeTasks, optOuts, todayCompletions, pointEvents, userData] = await Promise.all([
 		prisma.dailyTask.findMany({
 			where: { active: true },
-			select: { id: true, label: true, points: true, order: true },
+			select: {
+				id: true,
+				label: true,
+				points: true,
+				order: true,
+				type: true,
+				showFromDay: true,
+				showUntilDay: true,
+				discoveryContent: {
+					select: {
+						id: true,
+						title: true,
+						cloudflareUid: true,
+						thumbnailUrl: true,
+						durationSeconds: true,
+						category: true
+					}
+				}
+			},
 			orderBy: { order: 'asc' }
 		}),
 		prisma.userDailyTaskOptOut.findMany({
@@ -53,13 +71,46 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			select: { taskId: true }
 		}),
 		prisma.pointEvent.findMany({ where: { userId }, select: { amount: true } }),
+		prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true } })
 	]);
+
+	// Jour courant du programme
+	let currentDayIndex = 1;
+	if (userData?.programStartDate) {
+		const diff = Math.floor(
+			(todayStart.getTime() - startOfUtcDay(userData.programStartDate).getTime()) / 86_400_000
+		);
+		currentDayIndex = Math.min(Math.max(diff + 1, 1), 91);
+	}
+
+	const isVisible = (t: { showFromDay: number | null; showUntilDay: number | null }) => {
+		if (t.showFromDay != null && currentDayIndex < t.showFromDay) return false;
+		if (t.showUntilDay != null && currentDayIndex > t.showUntilDay) return false;
+		return true;
+	};
 
 	const optOutIds = new Set(optOuts.map((o) => o.taskId));
 	const completedIds = new Set(todayCompletions.map((c) => c.taskId));
 	const tasks = activeTasks
-		.filter((t) => !optOutIds.has(t.id))
-		.map((t) => ({ ...t, completed: completedIds.has(t.id) }));
+		.filter((t) => !optOutIds.has(t.id) && isVisible(t))
+		.map((t) => ({
+			id: t.id,
+			label: t.label,
+			points: t.points,
+			order: t.order,
+			type: (t.type ?? 'STANDARD') as 'STANDARD' | 'VIDEO',
+			completed: completedIds.has(t.id),
+			video: t.discoveryContent
+				? {
+						id: t.discoveryContent.id,
+						title: t.discoveryContent.title,
+						cloudflareUid: t.discoveryContent.cloudflareUid,
+						thumbnailUrl: t.discoveryContent.thumbnailUrl ?? null,
+						durationSeconds: t.discoveryContent.durationSeconds ?? null,
+						category: t.discoveryContent.category
+					}
+				: null
+		}));
 
 	const validated = todayCompletions.length > 0;
 	const pointsEarned = validated
@@ -102,7 +153,7 @@ export const actions: Actions = {
 		}
 
 		const tasks = await prisma.dailyTask.findMany({
-			where: { id: { in: checkedIds }, active: true },
+			where: { id: { in: checkedIds }, active: true, type: 'STANDARD' },
 			select: { id: true, points: true }
 		});
 

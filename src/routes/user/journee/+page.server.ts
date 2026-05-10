@@ -21,7 +21,25 @@ export const load: PageServerLoad = async ({ locals }) => {
 		prisma.dailyTask.findMany({
 			where: { active: true },
 			orderBy: { order: 'asc' },
-			select: { id: true, label: true, points: true, order: true }
+			select: {
+				id: true,
+				label: true,
+				points: true,
+				order: true,
+				type: true,
+				showFromDay: true,
+				showUntilDay: true,
+				discoveryContent: {
+					select: {
+						id: true,
+						title: true,
+						cloudflareUid: true,
+						thumbnailUrl: true,
+						durationSeconds: true,
+						category: true
+					}
+				}
+			}
 		}),
 		prisma.userDailyTaskOptOut.findMany({
 			where: { userId },
@@ -36,19 +54,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const optOutIds = new Set(optOuts.map((o) => o.taskId));
 	const completedIds = new Set(completions.map((c) => c.taskId));
 
-	const items = tasks
-		.filter((t) => !optOutIds.has(t.id))
-		.map((t) => ({
-			id: t.id,
-			label: t.label,
-			pts: t.points,
-			done: completedIds.has(t.id)
-		}));
-	const validated = completions.length > 0;
-	const pointsEarned = validated
-		? items.filter((item) => item.done).reduce((sum, item) => sum + item.pts, 0)
-		: 0;
-
 	// ── Jour courant du programme ──────────────────────────────────────────
 	const user = await prisma.user.findUnique({
 		where: { id: userId },
@@ -62,20 +67,72 @@ export const load: PageServerLoad = async ({ locals }) => {
 		currentDayIndex = Math.min(Math.max(diff + 1, 1), 91);
 	}
 
+	const isVisible = (t: { showFromDay: number | null; showUntilDay: number | null }) => {
+		if (t.showFromDay != null && currentDayIndex < t.showFromDay) return false;
+		if (t.showUntilDay != null && currentDayIndex > t.showUntilDay) return false;
+		return true;
+	};
+
+	console.log('[journee/load] currentDayIndex =', currentDayIndex, '| tasks en DB =', tasks.length);
+	tasks.forEach((t) => {
+		const visible = isVisible(t);
+		console.log(
+			`  task id=${t.id} label="${t.label}" type=${t.type ?? 'NULL'} discoveryContentId=${(t as any).discoveryContentId ?? 'none'} showFrom=${t.showFromDay} showUntil=${t.showUntilDay} visible=${visible}`
+		);
+	});
+
+	const items = tasks
+		.filter((t) => !optOutIds.has(t.id) && isVisible(t))
+		.map((t) => ({
+			id: t.id,
+			label: t.label,
+			pts: t.points,
+			done: completedIds.has(t.id),
+			type: (t.type ?? 'STANDARD') as 'STANDARD' | 'VIDEO',
+			video: t.discoveryContent
+				? {
+						id: t.discoveryContent.id,
+						title: t.discoveryContent.title,
+						cloudflareUid: t.discoveryContent.cloudflareUid,
+						thumbnailUrl: t.discoveryContent.thumbnailUrl ?? null,
+						durationSeconds: t.discoveryContent.durationSeconds ?? null,
+						category: t.discoveryContent.category
+					}
+				: null
+		}));
+
+	console.log('[journee/load] items visibles =', items.length);
+	items.forEach((i) => {
+		console.log(`  item id=${i.id} label="${i.label}" type=${i.type} video=${i.video ? i.video.category + '/' + i.video.id : 'null'}`);
+	});
+
+	// validated = les tâches STANDARD ont été soumises manuellement aujourd'hui
+	const standardItems = items.filter((i) => i.type === 'STANDARD');
+	const validated = standardItems.some((i) => i.done);
+	const pointsEarned = validated
+		? standardItems.filter((i) => i.done).reduce((sum, i) => sum + i.pts, 0)
+		: 0;
+
+	// Points VIDEO déjà gagnés automatiquement (visionnage)
+	const pointsVideoEarned = items
+		.filter((i) => i.type === 'VIDEO' && i.done)
+		.reduce((sum, i) => sum + i.pts, 0);
+
 	// Fallback si aucune tâche en base (setup pas encore fait)
 	const fallback = [
-		{ id: '__water',      label: "Boire 2L d'eau",       pts: 5,  done: false },
-		{ id: '__meditation', label: '10 min de méditation',  pts: 5,  done: false },
-		{ id: '__nosugar',    label: 'Pas de sucre ajouté',   pts: 5,  done: false },
-		{ id: '__coffeemax',  label: 'Max 4 cafés',           pts: 5,  done: false },
-		{ id: '__coffeetime', label: 'Pas de café après 14h', pts: 5,  done: false },
-		{ id: '__notobacco',  label: 'Pas de tabac',          pts: 10, done: false }
+		{ id: '__water',      label: "Boire 2L d'eau",       pts: 5,  done: false, type: 'STANDARD' as const, video: null },
+		{ id: '__meditation', label: '10 min de méditation',  pts: 5,  done: false, type: 'STANDARD' as const, video: null },
+		{ id: '__nosugar',    label: 'Pas de sucre ajouté',   pts: 5,  done: false, type: 'STANDARD' as const, video: null },
+		{ id: '__coffeemax',  label: 'Max 4 cafés',           pts: 5,  done: false, type: 'STANDARD' as const, video: null },
+		{ id: '__coffeetime', label: 'Pas de café après 14h', pts: 5,  done: false, type: 'STANDARD' as const, video: null },
+		{ id: '__notobacco',  label: 'Pas de tabac',          pts: 10, done: false, type: 'STANDARD' as const, video: null }
 	];
 
 	return {
 		items: items.length > 0 ? items : fallback,
 		validated,
 		pointsEarned,
+		pointsVideoEarned,
 		todayLabel: new Intl.DateTimeFormat('fr-FR', {
 			weekday: 'long',
 			day: 'numeric',
@@ -91,13 +148,6 @@ export const actions: Actions = {
 		const userId = locals.user.id;
 		const todayStart = startOfUtcDay();
 
-		const existing = await prisma.dailyTaskCompletion.count({
-			where: { userId, date: todayStart }
-		});
-		if (existing > 0) {
-			return fail(409, { message: 'Checklist déjà validée pour aujourd\'hui.' });
-		}
-
 		const formData = await request.formData();
 		const checkedIds = formData
 			.getAll('taskIds')
@@ -108,10 +158,25 @@ export const actions: Actions = {
 			return fail(400, { message: 'Aucune tâche sélectionnée.' });
 		}
 
+		// Seulement les tâches STANDARD parmi les IDs soumis
+		// (les tâches VIDEO sont auto-complétées via le heartbeat vidéo)
 		const tasks = await prisma.dailyTask.findMany({
-			where: { id: { in: checkedIds }, active: true },
+			where: { id: { in: checkedIds }, active: true, type: 'STANDARD' },
 			select: { id: true, points: true }
 		});
+
+		if (tasks.length === 0) {
+			return fail(400, { message: 'Aucune tâche valide sélectionnée.' });
+		}
+
+		// Guard 409 : seulement sur les tâches STANDARD soumises (pas les VIDEO auto-complétées)
+		const taskIds = tasks.map((t) => t.id);
+		const existing = await prisma.dailyTaskCompletion.count({
+			where: { userId, date: todayStart, taskId: { in: taskIds } }
+		});
+		if (existing > 0) {
+			return fail(409, { message: 'Checklist déjà validée pour aujourd\'hui.' });
+		}
 
 		const totalPoints = tasks.reduce((sum, task) => sum + task.points, 0);
 

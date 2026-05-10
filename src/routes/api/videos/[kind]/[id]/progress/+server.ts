@@ -4,7 +4,14 @@ import { z } from 'zod';
 import { videoKindEnum } from '$lib/schema/video/videoAdminSchema';
 import { upsertVideoProgress } from '$lib/prisma/userVideoProgress/upsertProgress';
 import { createPointEvent } from '$lib/prisma/pointEvent/createEvent';
+import { autoCompleteVideoTask } from '$lib/prisma/dailyTask/autoCompleteVideoTask';
 import { prisma } from '$lib/server';
+
+function startOfUtcDay(): Date {
+	const d = new Date();
+	d.setUTCHours(0, 0, 0, 0);
+	return d;
+}
 
 const bodySchema = z.object({
 	positionSec: z.number().min(0).max(86400),
@@ -61,6 +68,15 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			});
 		} catch (err) {
 			console.error('[videos/progress] createPointEvent error', err);
+		}
+
+		// Checklist jour : même logique que markWatched (points tâche + complétion)
+		if (kind === 'discovery') {
+			try {
+				await autoCompleteVideoTask(userId, params.id);
+			} catch (err) {
+				console.error('[videos/progress] autoCompleteVideoTask error', err);
+			}
 		}
 
 		// Si la vidéo est référencée par un item du programme 91j non encore complété,

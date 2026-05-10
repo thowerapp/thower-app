@@ -81,7 +81,7 @@ function weeklySnapshots(totalWeeks, start, end, noiseSeed = 1.7) {
 const PASSWORD_HASH =
 	'$argon2id$v=19$m=19456,t=2,p=1$2h/u9dvpXqr5PiPa19tlBA$ZUYyS8+NjOxTodAaDO1ez5oVToWRfKCQWRabAe8sIgk';
 
-const TEST_EMAILS = ['marie@thower.test', 'thomas@thower.test', 'lucas@thower.test'];
+const TEST_EMAILS = ['marie@thower.test', 'thomas@thower.test', 'lucas@thower.test', 'test@thower.test'];
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 async function main() {
@@ -107,6 +107,29 @@ async function main() {
 		}
 	} catch (e) {
 		console.warn('  → Migration activityLevel user_profiles ignorée :', e?.message ?? e);
+	}
+
+	// Patch daily_tasks sans type (créées avant l'ajout du champ DailyTaskType)
+	try {
+		// Tasks avec discoveryContentId → VIDEO, les autres → STANDARD
+		await db.$runCommandRaw({
+			update: 'daily_tasks',
+			updates: [
+				{
+					q: { type: { $exists: false }, discoveryContentId: { $exists: true, $ne: null } },
+					u: { $set: { type: 'VIDEO' } },
+					multi: true
+				},
+				{
+					q: { type: { $exists: false } },
+					u: { $set: { type: 'STANDARD' } },
+					multi: true
+				}
+			]
+		});
+		console.log('  → daily_tasks : types manquants patchés (VIDEO / STANDARD).');
+	} catch (e) {
+		console.warn('  → Migration type daily_tasks ignorée :', e?.message ?? e);
 	}
 
 	try {
@@ -183,23 +206,142 @@ async function main() {
 
 	// ── 3. CONTENU DÉCOUVERTE ─────────────────────────────────────────────────
 	console.log('3/10 — DiscoveryContent…');
-	// Ordre du tableau = discoveryIdx utilisé dans `dayConfigs` (0–4). UIDs placeholders cf_seed_prog_*.
+	// Ordre du tableau = discoveryIdx utilisé dans `dayConfigs` (indices 0–4 uniquement).
+
+	// Libère l’UID Stream si une ancienne fiche doublonnait « Vidéo de bienvenue — Jour 1 » (unicité cloudflareUid).
+	try {
+		const staleDup = await db.discoveryContent.findFirst({
+			where: { category: 'MOTIVATION', title: 'Vidéo de bienvenue — Jour 1' }
+		});
+		if (staleDup) {
+			await db.discoveryContent.update({
+				where: { id: staleDup.id },
+				data: /** @type {any} */ ({
+					active: false,
+					title: '[obsolète] Vidéo de bienvenue — Jour 1',
+					cloudflareUid: `cf_seed_deprecated_mot_dup_${String(staleDup.id).slice(-8)}`,
+					status: 'pending'
+				})
+			});
+			console.log('  → Ancien doublon MOTIVATION « Jour 1 » désactivé (UID Stream libéré pour la fiche principale).');
+		}
+	} catch (e) {
+		console.warn('  → Nettoyage doublon MOTIVATION avant sync :', e?.message ?? e);
+	}
+
 	const discoveryDefs = [
 		{ category: 'BREATHWORK', title: 'Respiration anti-stress (seed prog.)', cloudflareUid: 'cf_seed_prog_bw_0', order: 0, active: true },
 		{ category: 'MINDSET', title: 'Mindset — discipline quotidienne (seed)', cloudflareUid: 'cf_seed_prog_ms_1', order: 0, active: true },
 		{ category: 'BREATHWORK', title: 'Cohérence cardiaque 5 min (seed)', cloudflareUid: 'cf_seed_prog_bw_2', order: 1, active: true },
-		{ category: 'MOTIVATION', title: 'Bienvenue dans le programme', cloudflareUid: 'local:/jour 1/motivation jour 1.mp4', thumbnailUrl: '/jour 1/Motivation jour 1-Couverture.jpg', order: 0, active: true, status: 'ready' },
+		{
+			category: 'MOTIVATION',
+			title: 'Bienvenue dans le programme',
+			cloudflareUid: '4771afb40a088a867cab0ff01ad8c655',
+			thumbnailUrl: null,
+			order: 0,
+			active: true,
+			status: 'ready'
+		},
 		{ category: 'EXPLICATION', title: 'Pourquoi la méthode (seed prog.)', cloudflareUid: 'cf_seed_prog_exp_4', order: 0, active: true }
 	];
 	const discoveries = [];
 	for (const def of discoveryDefs) {
 		let row = await db.discoveryContent.findUnique({ where: { cloudflareUid: def.cloudflareUid } });
 		if (!row) {
+			row = await db.discoveryContent.findFirst({
+				where: { category: def.category, title: def.title }
+			});
+		}
+		if (!row) {
 			row = await db.discoveryContent.create({ data: /** @type {any} */ (def) });
+		} else {
+			const patch = {
+				cloudflareUid: def.cloudflareUid,
+				title: def.title,
+				order: def.order,
+				active: def.active,
+				...(def.thumbnailUrl !== undefined ? { thumbnailUrl: def.thumbnailUrl } : {}),
+				...(def.status !== undefined ? { status: def.status } : {})
+			};
+			if (
+				row.cloudflareUid !== patch.cloudflareUid ||
+				row.title !== patch.title ||
+				row.order !== patch.order ||
+				row.active !== patch.active ||
+				(patch.thumbnailUrl !== undefined && row.thumbnailUrl !== patch.thumbnailUrl) ||
+				(patch.status !== undefined && row.status !== patch.status)
+			) {
+				try {
+					row = await db.discoveryContent.update({
+						where: { id: row.id },
+						data: /** @type {any} */ (patch)
+					});
+				} catch (e) {
+					console.warn(`  ⚠ Sync discovery ignoré (« ${def.title} ») :`, e?.message ?? e);
+				}
+			}
 		}
 		discoveries.push(row);
 	}
-	console.log(`  → ${discoveries.length} contenus découverte (indices programme 0–4).`);
+	{
+		const VIDEO_TASK_LABEL = 'Regarde la vidéo de bienvenue';
+		const VIDEO_UID = '4771afb40a088a867cab0ff01ad8c655';
+		const videoContent = await db.discoveryContent.findUnique({ where: { cloudflareUid: VIDEO_UID } });
+		if (videoContent) {
+			const existing = await db.dailyTask.findFirst({ where: { label: VIDEO_TASK_LABEL } });
+			if (!existing) {
+				const videoTask = await db.dailyTask.create({
+					data: {
+						label: VIDEO_TASK_LABEL,
+						points: 20,
+						order: 5,
+						type: 'VIDEO',
+						active: true,
+						showFromDay: 1,
+						showUntilDay: 1,
+						discoveryContent: { connect: { id: videoContent.id } }
+					}
+				});
+				tasks.push(videoTask);
+				console.log(`  → Tâche VIDEO jour 1 créée : "${VIDEO_TASK_LABEL}" (vidéo: ${VIDEO_UID})`);
+			} else {
+				await db.dailyTask.update({
+					where: { id: existing.id },
+					data: {
+						type: 'VIDEO',
+						showFromDay: 1,
+						showUntilDay: 1,
+						discoveryContent: { connect: { id: videoContent.id } }
+					}
+				});
+				const updated = await db.dailyTask.findUnique({ where: { id: existing.id } });
+				if (updated) tasks.push(updated);
+				console.log(`  → Tâche VIDEO jour 1 reliée au contenu canonique (${VIDEO_UID}).`);
+			}
+			// Anciennes fiches motivation cf_seed_* : restent en base mais ne doivent pas apparaître
+			// dans le hub (playback-token renverrait 409).
+			try {
+				const n = await db.discoveryContent.updateMany({
+					where: {
+						category: 'MOTIVATION',
+						active: true,
+						cloudflareUid: { startsWith: 'cf_seed_' },
+						id: { not: videoContent.id }
+					},
+					data: { active: false }
+				});
+				if (n.count > 0) {
+					console.log(
+						`  → ${n.count} entrée(s) motivation cf_seed_* désactivée(s) (liste + checklist → vidéo canonique).`
+					);
+				}
+			} catch (e) {
+				console.warn('  → Désactivation motivation cf_seed_* ignorée :', e?.message ?? e);
+			}
+		} else {
+			console.warn(`  ⚠ Vidéo ${VIDEO_UID} introuvable en DB — tâche VIDEO jour 1 non créée.`);
+		}
+	}
 
 	// ── 4. SÉANCES SPORT + VIDÉOS ─────────────────────────────────────────────
 	console.log('4/10 — WorkoutSessions + Videos…');
@@ -474,7 +616,7 @@ async function main() {
 	await db.transaction.deleteMany({
 		where: {
 			stripePaymentId: {
-				in: ['pi_demo_marie_nutrition', 'pi_demo_thomas_sport', 'pi_demo_lucas_both']
+				in: ['pi_demo_marie_nutrition', 'pi_demo_thomas_sport', 'pi_demo_lucas_both', 'pi_demo_test_j1']
 			}
 		}
 	});
@@ -864,6 +1006,52 @@ async function main() {
 	}
 
 	// ══════════════════════════════════════════════════════════════════════════
+	// USER 4 — Test : nutrition + sport, J1 (pour tester les tâches du premier jour)
+	// ══════════════════════════════════════════════════════════════════════════
+	console.log('  → Test (J1, nutrition + sport)…');
+	const testUser = await db.user.create({
+		data: /** @type {any} */ ({
+			email: 'test@thower.test', username: 'test.thower', name: 'Compte Test J1',
+			passwordHash: PASSWORD_HASH, emailVerified: true, role: 'CLIENT',
+			subscriptionEndsAt: daysFromNow(365),
+			programStartDate: today
+		})
+	});
+
+	await db.transaction.create({
+		data: /** @type {any} */ ({
+			stripePaymentId: 'pi_demo_test_j1', userId: testUser.id,
+			amount: (nutritionAnnual + sportAnnual) / 100, currency: 'eur', status: 'paid',
+			customer_details_email: testUser.email, customer_details_name: testUser.name,
+			offerSlugs: ['nutrition', 'sport']
+		})
+	});
+
+	await db.userProfile.create({
+		data: {
+			userId: testUser.id,
+			activityLevel: 'ACTIVE',
+			objectives: ['fat_loss'],
+			painsPathologies: null,
+			contextParticular: null,
+			breadDaily: false,
+			breadGramsPerDay: 0,
+			breadType: null,
+			breadManagement: null,
+			allergens: [],
+			coffeePerDay: 1, alcoholHabit: false, tobaccoHabit: false,
+			breakfastEnabled: true, intermittentFastingMorning: false,
+			sportActivity: null,
+			familyCoefficients: [],
+			shoppingListSortOrder: 'category'
+		}
+	});
+
+	await db.bodyMeasurement.create({
+		data: { userId: testUser.id, age: 30, heightCm: 175, weightKg: 80, waistCm: 88, chestCm: 98, armCm: 34 }
+	});
+
+	// ══════════════════════════════════════════════════════════════════════════
 	console.log('\n═══ SEED TERMINÉ ═══');
 	console.log('');
 	console.log('Catalogue créé :');
@@ -874,6 +1062,7 @@ async function main() {
 	console.log('  marie@thower.test   — nutrition uniquement  — J20 — 120 pts — 6 mesures (78→72 kg, -8 cm taille)');
 	console.log('  thomas@thower.test  — sport uniquement      — J35 — 200 pts — 6 mesures (79.5→85 kg, +4 cm torse)');
 	console.log('  lucas@thower.test   — nutrition + sport     — J10 — 160 pts — 7 mesures (99.5→92 kg, -9 cm taille)');
+	console.log('  test@thower.test    — nutrition + sport     — J1  — 0 pts   — compte test tâches jour 1');
 	console.log('  Mot de passe : thower2026');
 }
 

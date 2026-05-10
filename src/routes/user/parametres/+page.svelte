@@ -1,9 +1,5 @@
 ﻿<script lang="ts">
-	import { enhance } from '$app/forms';
-
-	let { data, form } = $props();
-	let regenerating = $state(false);
-	let regenerateDone = $state(false);
+	let { data } = $props();
 </script>
 
 <div class="u-back-row">
@@ -42,35 +38,6 @@
 <div class="li-b"><div class="li-t">Notifications</div><div class="li-s">Rappels séances · Horaires</div></div>
 <div class="li-r"><div class="arr"></div></div>
 </a>
-{#if data.canRegenerateNutrition}
-<form
-	method="POST"
-	action="?/regenerateNutrition"
-	use:enhance={() => {
-		regenerating = true;
-		return async ({ result, update }) => {
-			await update({ reset: false });
-			regenerating = false;
-			if (result.type === 'success') regenerateDone = true;
-		};
-	}}
-	class="li li-regen"
->
-	<button type="submit" class="regen-btn" disabled={regenerating}>
-		<div class="li-th"><div style="width:10px;height:10px;border-radius:50%;background:var(--cy)"></div></div>
-		<div class="li-b">
-			<div class="li-t">{regenerating ? 'Recalibrage en cours…' : regenerateDone ? 'Plan recalibré ✓' : 'Recalibrer mon plan nutrition'}</div>
-			<div class="li-s">Recalcule les repas selon ton profil actuel</div>
-		</div>
-		{#if !regenerating && !regenerateDone}
-			<div class="li-r"><div class="arr"></div></div>
-		{/if}
-	</button>
-	{#if form?.error}
-		<p class="regen-err">{form.error}</p>
-	{/if}
-</form>
-{/if}
 
 <form method="POST" action="/auth?/signout" class="li li-logout">
 <button type="submit" class="logout-btn">
@@ -97,8 +64,4 @@
 .arr { width:5px; height:5px; border-right:1.5px solid var(--txd); border-top:1.5px solid var(--txd); transform:rotate(45deg); }
 .li-logout { margin-top:20px; border-top:1px solid var(--br); }
 .logout-btn { display:flex; align-items:center; gap:10px; width:100%; padding:0; border:0; background:transparent; text-align:left; cursor:pointer; color:inherit; }
-.li-regen { margin-top:8px; border-top:1px solid var(--br); }
-.regen-btn { display:flex; align-items:center; gap:10px; width:100%; padding:0; border:0; background:transparent; text-align:left; cursor:pointer; color:inherit; }
-.regen-btn:disabled { opacity:.6; cursor:not-allowed; }
-.regen-err { font-size:.52rem; color:rgba(255,120,80,.9); padding:0 18px 8px; margin:0; }
 </style>

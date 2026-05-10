@@ -10,6 +10,9 @@ import { Input } from '$shadcn/input';
 let { data } = $props<{ data: PageData }>();
 function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
 
+let regenerating = $state(false);
+let regenerateDone = $state(false);
+
 const photoLabels = [
   { key: 'FRONT', label: 'Face' },
   { key: 'SIDE',  label: 'Profil' },
@@ -323,6 +326,53 @@ const checkInMetricsComplete = $derived(
   </div>
 {/if}
 
+<!-- Recalibration nutrition (disponible 1x/mois après check-in) -->
+{#if !data.checkInDue}
+  <div class="u-sh">
+    <div class="u-sh-t">Plan nutrition</div>
+    <div class="u-sh-s">Recalibrage mensuel</div>
+  </div>
+  {#if data.nutritionRecalibratedThisMonth}
+    <div class="recal-done">
+      <span class="recal-done-ico">✓</span>
+      <span>Plan nutrition recalibré ce mois — les nouveaux repas sont disponibles dans la section nutrition.</span>
+    </div>
+  {:else if data.canRecalibrateNutrition}
+    <form
+      method="POST"
+      action="?/regenerateNutrition"
+      use:enhance={() => {
+        regenerating = true;
+        return async ({ result, update }) => {
+          await update({ reset: false });
+          regenerating = false;
+          if (result.type === 'success') regenerateDone = true;
+        };
+      }}
+      class="recal-form"
+    >
+      <div class="recal-info">
+        <div class="recal-info-t">Recalibrer mon plan nutrition</div>
+        <div class="recal-info-s">Recalcule les repas selon ton poids et profil actuels · disponible 1×/mois</div>
+      </div>
+      <button type="submit" class="recal-btn" disabled={regenerating || regenerateDone}>
+        {#if regenerating}
+          Recalibrage…
+        {:else if regenerateDone}
+          Recalibré ✓
+        {:else}
+          Recalibrer
+        {/if}
+      </button>
+    </form>
+  {:else}
+    <div class="recal-locked">
+      <div class="recal-locked-t">Recalibrer mon plan nutrition</div>
+      <div class="recal-locked-s">Complete ton profil (poids + % masse grasse) pour débloquer</div>
+    </div>
+  {/if}
+{/if}
+
 <!-- Photos du mois -->
 <div class="u-sh"><div class="u-sh-t">Photos du mois {data.currentMonth}</div><div class="u-sh-s">3 angles requis</div></div>
 <div class="photo-grid">
@@ -483,4 +533,47 @@ const checkInMetricsComplete = $derived(
 .pts-row { display: flex; align-items: baseline; gap: 4px; }
 .pts-val { color: var(--cy); font-weight: 700; text-shadow: 0 0 6px rgba(0,229,255,.3); }
 .pts-alt { font-size: .5rem; color: var(--txd); }
+
+/* Recalibration nutrition */
+.recal-done {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--br);
+  font-size: .5625rem; color: var(--g); font-family: var(--fb);
+  background: rgba(201,168,78,.06);
+}
+.recal-done-ico { font-size: .75rem; flex-shrink: 0; }
+.recal-form {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--br);
+}
+.recal-info { flex: 1; min-width: 0; }
+.recal-info-t { font-size: .6875rem; font-weight: 500; color: var(--tx); font-family: var(--fb); }
+.recal-info-s { font-size: .5rem; color: var(--txd); margin-top: 2px; font-family: var(--fb); }
+.recal-btn {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  background: var(--cy);
+  color: var(--s1);
+  border: none;
+  border-radius: var(--br);
+  font-size: .5rem;
+  font-family: var(--fb);
+  letter-spacing: .08em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity .15s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+.recal-btn:disabled { opacity: .45; cursor: default; }
+.recal-locked {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--br);
+  opacity: .45;
+}
+.recal-locked-t { font-size: .6875rem; font-weight: 500; color: var(--tx); font-family: var(--fb); }
+.recal-locked-s { font-size: .5rem; color: var(--txd); margin-top: 2px; font-family: var(--fb); }
 </style>

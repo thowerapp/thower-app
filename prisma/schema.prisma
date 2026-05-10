@@ -952,6 +952,7 @@ model MonthlyCheckIn {
   readinessToChange   Int?
   /// Points crédités pour ce check-in
   pointsAwarded       Boolean  @default(false)
+  nutritionRecalibrated Boolean @default(false)
   submittedAt         DateTime @default(now())
 
   @@unique([userId, month])

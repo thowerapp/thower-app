@@ -1,9 +1,9 @@
 ﻿<script lang="ts">
 import type { PageData, LayoutData } from './$types';
 import EmberCanvas from '$lib/components/EmberCanvas.svelte';
+import DailyChecklist from '$lib/components/DailyChecklist.svelte';
 import { fireElement } from '$lib/utils/particles';
 import { page } from '$app/stores';
-import { enhance } from '$app/forms';
 
 let { data } = $props<{ data: PageData }>();
 
@@ -43,46 +43,41 @@ function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
 // ── Checklist ─────────────────────────────────────────────────────────────
 type Task = { id: string; label: string; points: number; order: number; completed: boolean };
 
-// État des cases — TOUJOURS vide par défaut (l'utilisateur coche lui-même)
-let checked = $state<Set<string>>(new Set());
-let submitting = $state(false);
-let earnedFeedback = $state<number | null>(null);
-
-const selectedPoints = $derived(
-  (data.tasks as Task[])
-    .filter((t: Task) => checked.has(t.id))
-    .reduce((sum: number, t: Task) => sum + t.points, 0)
+const checklistItems = $derived(
+  (data.tasks as Task[]).map((t) => ({ id: t.id, label: t.label, pts: t.points, done: t.completed }))
 );
+
+let earnedFeedback = $state<number | null>(null);
 
 const checklistPending = $derived(!checklistValidated);
 const sportPending = $derived(access.sport && pending.seance);
 const dailyCtaActive = $derived(checklistPending || sportPending);
-const dailyCtaHref = $derived(checklistPending ? '/user/journee' : '/user/sport');
+const dailyCtaHref = $derived(checklistPending ? ‘/user/journee’ : ‘/user/sport’);
 const dailyCtaTitle = $derived(
   checklistPending && sportPending
-    ? 'Complète ta journée'
+    ? ‘Complète ta journée’
     : checklistPending
-      ? 'Valide ta checklist du jour'
+      ? ‘Valide ta checklist du jour’
       : sportPending
-        ? 'Lance ta séance du jour'
-        : 'Journée complétée'
+        ? ‘Lance ta séance du jour’
+        : ‘Journée complétée’
 );
 const dailyCtaSubtitle = $derived(
   checklistPending && sportPending
-    ? 'Checklist quotidienne + séance sport à compléter'
+    ? ‘Checklist quotidienne + séance sport à compléter’
     : checklistPending
-      ? `${selectedPoints > 0 ? `${selectedPoints} pts sélectionnés` : 'Checklist à valider'} · finalise ta journée`
+      ? ‘Checklist à valider · finalise ta journée’
       : sportPending
-        ? 'Programme sport en attente · ouvre ta séance'
-        : 'Checklist et sport validés pour aujourd’hui'
+        ? ‘Programme sport en attente · ouvre ta séance’
+        : ‘Checklist et sport validés pour aujourd’hui’
 );
-const dailyCtaLabel = $derived(dailyCtaActive ? 'Compléter →' : 'Bravo →');
+const dailyCtaLabel = $derived(dailyCtaActive ? ‘Compléter →’ : ‘Bravo →’);
 
-function toggleTask(id: string) {
-  if (checklistValidated) return;
-  const next = new Set(checked);
-  if (next.has(id)) next.delete(id); else next.add(id);
-  checked = next;
+function handleChecklistSuccess(pts: number) {
+  earnedFeedback = pts;
+  setTimeout(() => { earnedFeedback = null; }, 3200);
+  animateValue((v) => { animatedTotal = v; }, animatedTotal, data.totalPoints ?? 0, 950);
+  animateValue((v) => { animatedBar = v; }, animatedBar, data.levelPercent ?? 0, 700);
 }
 
 // ── Animation score / barre de niveau ─────────────────────────────────────
@@ -220,90 +215,19 @@ $effect(() => {
     {#if data.validated}
       <span class="ck-badge ck-done">Validée ✓</span>
     {:else}
-      <span class="ck-pts-live">{selectedPoints} pts sélectionnés</span>
+      <span class="ck-pts-live">À valider</span>
     {/if}
   </div>
 </div>
 
 <div class="ck-card" class:ck-locked={data.validated}>
-  {#if data.validated}
-    <div class="ck-locked-bar">
-      <span class="ck-lock-ico">🔒</span>
-      <span>Validée — <strong>+{data.pointsEarned} pts</strong> gagnés aujourd'hui</span>
-    </div>
-  {/if}
-
-  <form
-    method="POST"
-    action="?/validateChecklist"
-    use:enhance={() => {
-      submitting = true;
-      const prevTotal = data.totalPoints ?? 0;
-      const prevBar = data.levelPercent ?? 0;
-      return async ({ result, update }) => {
-        submitting = false;
-        if (result.type === 'success' && result.data) {
-          earnedFeedback = (result.data as { pointsEarned: number }).pointsEarned;
-          setTimeout(() => earnedFeedback = null, 3200);
-          await update();
-          // Animer score et barre depuis l'ancienne valeur vers la nouvelle
-          animateValue((v) => { animatedTotal = v; }, prevTotal, data.totalPoints ?? 0, 950);
-          animateValue((v) => { animatedBar = v; }, prevBar, data.levelPercent ?? 0, 700);
-        } else {
-          await update();
-        }
-      };
-    }}
-  >
-    <ul class="ck-list">
-      {#each data.tasks as task (task.id)}
-        {@const isChecked = data.validated ? task.completed : checked.has(task.id)}
-        <li class="ck-item" class:ck-checked={isChecked} class:ck-done-item={data.validated && task.completed}>
-          <label class="ck-label" for={`ck-${task.id}`}>
-            <input
-              id={`ck-${task.id}`}
-              name="taskIds"
-              type="checkbox"
-              value={task.id}
-              checked={isChecked}
-              disabled={data.validated}
-              class="ck-native"
-              onchange={() => toggleTask(task.id)}
-            />
-            <span class="ck-box" class:ck-box-on={isChecked} aria-hidden="true">
-              {#if isChecked}<svg viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>{/if}
-            </span>
-            <span class="ck-lbl">{task.label}</span>
-            <span class="ck-pt">{task.points > 0 ? `+${task.points}` : '0'} pts</span>
-          </label>
-        </li>
-      {/each}
-    </ul>
-
-    {#if !data.validated}
-      <div class="ck-footer">
-        <div class="ck-footer-pts">
-          <span class="ck-fp-lbl">Sélection</span>
-          <span class="ck-fp-val" class:ck-fp-glow={selectedPoints > 0}>{selectedPoints} pts</span>
-        </div>
-        <button
-          type="submit"
-          class="ck-submit"
-          disabled={checked.size === 0 || submitting}
-        >
-          {submitting ? '…' : 'Valider la sélection'}
-        </button>
-      </div>
-      <p class="ck-warn">⚠ Une fois validée, la checklist ne peut plus être modifiée.</p>
-    {/if}
-
-  </form>
-
-  {#if data.validated && import.meta.env.DEV}
-    <form method="POST" action="?/resetChecklist" use:enhance={() => async ({ update }) => { await update(); }}>
-      <button type="submit" class="ck-reset-btn">↺ Reset checklist (dev)</button>
-    </form>
-  {/if}
+  <DailyChecklist
+    items={checklistItems}
+    validated={data.validated}
+    pointsEarned={data.pointsEarned}
+    resetAction="?/resetChecklist"
+    onSuccess={handleChecklistSuccess}
+  />
 
   <!-- Score animé + barre de niveau -->
   <div class="ck-score-row">
@@ -424,104 +348,6 @@ $effect(() => {
   position: relative;
 }
 .ck-card.ck-locked { opacity: .85; }
-
-.ck-locked-bar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 14px;
-  background: rgba(201,168,78,.07);
-  border-bottom: 1px solid rgba(201,168,78,.15);
-  font-size: .5rem; color: var(--g); letter-spacing: .06em; font-family: var(--fb);
-}
-.ck-lock-ico { font-size: .75rem; }
-
-.ck-list { list-style: none; margin: 0; padding: 6px 0; }
-
-.ck-item { border-bottom: 1px solid var(--br); }
-.ck-item:last-child { border-bottom: none; }
-
-.ck-label {
-  display: flex; align-items: center; gap: 10px;
-  padding: 11px 14px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  transition: background .13s;
-}
-.ck-native {
-  position: absolute;
-  opacity: 0;
-  width: 0; height: 0;
-  pointer-events: none;
-}
-.ck-locked .ck-label { cursor: default; }
-.ck-item.ck-checked .ck-label { background: rgba(0,229,255,.04); }
-.ck-item.ck-done-item .ck-label { background: rgba(0,229,255,.04); }
-
-.ck-box {
-  flex-shrink: 0;
-  width: 18px; height: 18px;
-  border: 1.5px solid var(--br2);
-  border-radius: 4px;
-  display: flex; align-items: center; justify-content: center;
-  transition: border-color .13s, background .13s;
-  color: var(--s1);
-}
-.ck-box.ck-box-on {
-  border-color: var(--cy);
-  background: var(--cy);
-}
-.ck-box svg { width: 10px; height: 10px; }
-
-.ck-lbl { flex: 1; font-size: .5625rem; color: var(--tx); font-family: var(--fb); }
-.ck-pt { font-size: .4375rem; color: var(--cy); font-family: var(--fb); letter-spacing: .06em; white-space: nowrap; }
-.ck-item.ck-done-item .ck-pt { color: var(--g); }
-
-/* footer */
-.ck-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px;
-  border-top: 1px solid var(--br);
-  gap: 10px;
-}
-.ck-footer-pts { display: flex; flex-direction: column; }
-.ck-fp-lbl { font-size: .375rem; color: var(--txd); font-family: var(--fb); letter-spacing: .1em; text-transform: uppercase; }
-.ck-fp-val { font-size: .625rem; color: var(--txd); font-family: var(--fh2); transition: color .2s; }
-.ck-fp-val.ck-fp-glow { color: var(--cy); text-shadow: 0 0 10px rgba(0,229,255,.4); }
-
-.ck-submit {
-  padding: 8px 16px;
-  background: var(--cy);
-  color: var(--s1);
-  border: none;
-  border-radius: var(--br);
-  font-size: .5rem;
-  font-family: var(--fb);
-  letter-spacing: .08em;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity .15s, transform .1s;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-.ck-submit:disabled { opacity: .35; cursor: default; }
-.ck-submit:not(:disabled):active { transform: scale(.97); opacity: .85; }
-
-.ck-warn {
-  margin: 0; padding: 6px 14px 10px;
-  font-size: .375rem; color: var(--txd); font-family: var(--fb);
-  letter-spacing: .04em;
-}
-.ck-reset-btn {
-  display: block; width: 100%;
-  padding: 7px 14px;
-  background: transparent;
-  border: none; border-top: 1px dashed rgba(255,80,80,.25);
-  color: rgba(255,80,80,.5);
-  font-size: .375rem; font-family: var(--fb); letter-spacing: .06em;
-  cursor: pointer; text-align: center;
-  touch-action: manipulation;
-}
-.ck-reset-btn:active { color: rgba(255,80,80,.9); }
 
 /* header badges */
 .ck-badge { font-size: .4375rem; font-family: var(--fb); letter-spacing: .06em; padding: 2px 7px; border-radius: 10px; }

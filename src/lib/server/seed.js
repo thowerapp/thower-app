@@ -185,11 +185,11 @@ async function main() {
 	console.log('3/10 — DiscoveryContent…');
 	// Ordre du tableau = discoveryIdx utilisé dans `dayConfigs` (0–4). UIDs placeholders cf_seed_prog_*.
 	const discoveryDefs = [
-		{ category: 'BREATHWORK', title: 'Respiration anti-stress (seed prog.)', cloudflareUid: 'cf_seed_prog_bw_0', order: 0, unlockThreshold: 0, breathworkIntent: 'anti-stress', tags: ['seed'], active: true },
-		{ category: 'MINDSET', title: 'Mindset — discipline quotidienne (seed)', cloudflareUid: 'cf_seed_prog_ms_1', order: 0, unlockThreshold: 0, tags: ['seed'], active: true },
-		{ category: 'BREATHWORK', title: 'Cohérence cardiaque 5 min (seed)', cloudflareUid: 'cf_seed_prog_bw_2', order: 1, unlockThreshold: 0, breathworkIntent: 'cohérence cardiaque', tags: ['seed'], active: true },
-		{ category: 'MOTIVATION', title: 'Bienvenue dans le programme', cloudflareUid: 'local:/jour_1/motivation jour 1.mp4', thumbnailUrl: '/jour_1/Motivation jour 1-Couverture.jpg', order: 0, unlockThreshold: 0, tags: ['seed', 'jour1'], active: true, status: 'ready' },
-		{ category: 'EXPLICATION', title: 'Pourquoi la méthode (seed prog.)', cloudflareUid: 'cf_seed_prog_exp_4', order: 0, unlockThreshold: 0, tags: ['seed'], active: true }
+		{ category: 'BREATHWORK', title: 'Respiration anti-stress (seed prog.)', cloudflareUid: 'cf_seed_prog_bw_0', order: 0, active: true },
+		{ category: 'MINDSET', title: 'Mindset — discipline quotidienne (seed)', cloudflareUid: 'cf_seed_prog_ms_1', order: 0, active: true },
+		{ category: 'BREATHWORK', title: 'Cohérence cardiaque 5 min (seed)', cloudflareUid: 'cf_seed_prog_bw_2', order: 1, active: true },
+		{ category: 'MOTIVATION', title: 'Bienvenue dans le programme', cloudflareUid: 'local:/jour 1/motivation jour 1.mp4', thumbnailUrl: '/jour 1/Motivation jour 1-Couverture.jpg', order: 0, active: true, status: 'ready' },
+		{ category: 'EXPLICATION', title: 'Pourquoi la méthode (seed prog.)', cloudflareUid: 'cf_seed_prog_exp_4', order: 0, active: true }
 	];
 	const discoveries = [];
 	for (const def of discoveryDefs) {

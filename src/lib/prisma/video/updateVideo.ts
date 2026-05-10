@@ -7,17 +7,15 @@ export async function updateVideo(id: string, data: VideoFormCoreInput) {
 	const db = prisma as any;
 
 	if (data.kind === 'workout') {
-		if (!data.sessionId || !data.position) {
-			throw new Error('sessionId et position sont requis pour une vidéo sport.');
+		if (!data.position) {
+			throw new Error('position est requise pour une vidéo sport.');
 		}
 		return db.workoutVideo.update({
 			where: { id },
 			data: {
-				sessionId: data.sessionId,
 				title: data.title,
 				position: data.position,
-				isOptional: data.isOptional ?? false,
-				order: data.order ?? 0
+				isOptional: data.isOptional ?? false
 			}
 		});
 	}
@@ -30,10 +28,7 @@ export async function updateVideo(id: string, data: VideoFormCoreInput) {
 		data: {
 			category: data.category,
 			title: data.title,
-			order: data.order ?? 0,
-			unlockThreshold: data.unlockThreshold ?? 0,
-			breathworkIntent: data.breathworkIntent ?? null,
-			tags: data.tags ?? []
+			order: data.order ?? 0
 		}
 	});
 }
@@ -42,10 +37,7 @@ export async function getVideoById(kind: 'workout' | 'discovery', id: string) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const db = prisma as any;
 	if (kind === 'workout') {
-		return db.workoutVideo.findUnique({
-			where: { id },
-			include: { session: { select: { id: true, name: true } } }
-		});
+		return db.workoutVideo.findUnique({ where: { id } });
 	}
 	return db.discoveryContent.findUnique({ where: { id } });
 }

@@ -11,7 +11,7 @@ export type ProgramDayItemForVideo = {
 /**
  * Liste tous les `ProgramDayItem` rattachés à une vidéo donnée :
  * - Discovery : items dont `discoveryContentId === videoId`
- * - Workout   : items dont la `WorkoutSession` contient cette `WorkoutVideo`
+ * - Workout   : items dont `workoutVideoId === videoId`
  *
  * Les items sont triés par `dayIndex` croissant pour faciliter l'affichage.
  */
@@ -29,10 +29,7 @@ export async function listProgramDayItemsForVideo(
 	if (kind === 'discovery') {
 		where = { discoveryContentId: videoId };
 	} else {
-		// Pour un workout : on cherche les items qui pointent vers la WorkoutSession
-		// dont la WorkoutVideo a cet id. La relation WorkoutSession.videos est
-		// une back-relation Prisma utilisable via `some`.
-		where = { workoutSession: { videos: { some: { id: videoId } } } };
+		where = { workoutVideoId: videoId };
 	}
 
 	const rows = await db.programDayItem.findMany({

@@ -69,8 +69,6 @@
 		label: ({ PRE: 'Pré-séance (facultative)', VID1: 'Vidéo 1', VID2: 'Vidéo 2' })[v]
 	}));
 
-	const sessions = (data.sessions ?? []) as Array<{ id: string; name: string; type: string }>;
-
 	const cf = data.cloudflareDetails;
 
 	function formatDuration(n: number | null | undefined): string {
@@ -200,63 +198,37 @@
 			<Form.FieldErrors />
 		</Form.Field>
 
-		{#if $form.kind === 'workout'}
-			<fieldset class="rounded-lg border p-4 space-y-4">
-				<legend class="px-2 text-sm font-semibold">Paramètres séance sport</legend>
+	{#if $form.kind === 'workout'}
+		<fieldset class="rounded-lg border p-4 space-y-4">
+			<legend class="px-2 text-sm font-semibold">Paramètres séance sport</legend>
 
-				<Form.Field name="sessionId" form={videoForm}>
-					<Form.Control>
-						<Form.Label>Séance *</Form.Label>
-						<select
-							name="sessionId"
-							bind:value={$form.sessionId}
-							class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
-						>
-							{#each sessions as s}
-								<option value={s.id}>{s.name} ({s.type})</option>
-							{/each}
-						</select>
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
+			<Form.Field name="position" form={videoForm}>
+				<Form.Control>
+					<Form.Label>Position *</Form.Label>
+					<select
+						name="position"
+						bind:value={$form.position}
+						class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+					>
+						{#each positionOptions as opt}
+							<option value={opt.value}>{opt.label}</option>
+						{/each}
+					</select>
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
 
-				<div class="grid grid-cols-2 gap-4">
-					<Form.Field name="position" form={videoForm}>
-						<Form.Control>
-							<Form.Label>Position *</Form.Label>
-							<select
-								name="position"
-								bind:value={$form.position}
-								class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
-							>
-								{#each positionOptions as opt}
-									<option value={opt.value}>{opt.label}</option>
-								{/each}
-							</select>
-						</Form.Control>
-						<Form.FieldErrors />
-					</Form.Field>
-
-					<Form.Field name="order" form={videoForm}>
-						<Form.Control>
-							<Form.Label>Ordre</Form.Label>
-							<Input name="order" type="number" min="0" bind:value={$form.order} />
-						</Form.Control>
-						<Form.FieldErrors />
-					</Form.Field>
-				</div>
-
-				<label class="flex items-center gap-2 text-sm">
-					<input
-						type="checkbox"
-						class="size-4 rounded border"
-						checked={$form.isOptional === true}
-						onchange={(e) => ($form.isOptional = e.currentTarget.checked)}
-					/>
-					Vidéo facultative (pré-séance par exemple)
-				</label>
-			</fieldset>
-		{/if}
+			<label class="flex items-center gap-2 text-sm">
+				<input
+					type="checkbox"
+					class="size-4 rounded border"
+					checked={$form.isOptional === true}
+					onchange={(e) => ($form.isOptional = e.currentTarget.checked)}
+				/>
+				Vidéo facultative (pré-séance par exemple)
+			</label>
+		</fieldset>
+	{/if}
 
 		{#if $form.kind === 'discovery'}
 			<fieldset class="rounded-lg border p-4 space-y-4">
@@ -288,49 +260,7 @@
 					</Form.Field>
 				</div>
 
-				<Form.Field name="unlockThreshold" form={videoForm}>
-					<Form.Control>
-						<Form.Label>Seuil de déblocage (points)</Form.Label>
-						<Input
-							name="unlockThreshold"
-							type="number"
-							min="0"
-							bind:value={$form.unlockThreshold}
-						/>
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-
-				<Form.Field name="breathworkIntent" form={videoForm}>
-					<Form.Control>
-						<Form.Label>Intention breathwork (optionnel)</Form.Label>
-						<Input
-							name="breathworkIntent"
-							bind:value={$form.breathworkIntent as string}
-							placeholder="cohérence cardiaque, anti-stress…"
-						/>
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-
-				<Form.Field name="tags" form={videoForm}>
-					<Form.Control>
-						<Form.Label>Tags</Form.Label>
-						<Input
-							name="tags"
-							value={(($form.tags as string[]) ?? []).join(', ')}
-							placeholder="méditation, focus (séparer par virgules)"
-							oninput={(e) => {
-								$form.tags = e.currentTarget.value
-									.split(',')
-									.map((s) => s.trim())
-									.filter(Boolean);
-							}}
-						/>
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
-			</fieldset>
+		</fieldset>
 		{/if}
 
 		<p class="text-xs text-muted-foreground">

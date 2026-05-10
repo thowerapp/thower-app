@@ -29,9 +29,6 @@ type RawDiscoveryDoc = {
 	title: string;
 	cloudflareUid?: string | null;
 	order?: number;
-	unlockThreshold?: number;
-	breathworkIntent?: string | null;
-	tags?: string[];
 	active?: boolean;
 	durationSeconds?: number | null;
 	status?: string | null;
@@ -56,10 +53,7 @@ async function fetchDiscoveryContentsMongoRaw(): Promise<RawDiscoveryDoc[]> {
 			title: 1,
 			cloudflareUid: 1,
 			order: 1,
-			unlockThreshold: 1,
-			breathworkIntent: 1,
-			tags: 1,
-			active: 1,
+		active: 1,
 			durationSeconds: 1,
 			status: 1,
 			thumbnailUrl: 1,
@@ -82,21 +76,16 @@ export type AdminVideoRow = {
 	durationSeconds: number | null;
 	status: string;
 	thumbnailUrl: string | null;
-	order: number;
 	createdAt: Date | null;
 	updatedAt: Date;
 
 	// Workout-specific
-	sessionId?: string | null;
-	sessionName?: string | null;
 	position?: string | null;
 	isOptional?: boolean | null;
 
 	// Discovery-specific
 	category?: string | null;
-	unlockThreshold?: number | null;
-	breathworkIntent?: string | null;
-	tags?: string[] | null;
+	order?: number | null;
 	active?: boolean | null;
 };
 
@@ -109,10 +98,7 @@ export async function getAllAdminVideos(): Promise<AdminVideoRow[]> {
 	await repairVideoCloudflareBsonFields();
 
 	const workoutVideos = db.workoutVideo
-		? await db.workoutVideo.findMany({
-				include: { session: { select: { id: true, name: true } } },
-				orderBy: [{ session: { order: 'asc' } }, { order: 'asc' }]
-			})
+		? await db.workoutVideo.findMany({ orderBy: [{ position: 'asc' }, { title: 'asc' }] })
 		: [];
 
 	const rawDiscovery = await fetchDiscoveryContentsMongoRaw();
@@ -133,11 +119,8 @@ export async function getAllAdminVideos(): Promise<AdminVideoRow[]> {
 			durationSeconds: v.durationSeconds ?? null,
 			status: v.status ?? 'pending',
 			thumbnailUrl: v.thumbnailUrl ?? null,
-			order: v.order,
 			createdAt: null,
 			updatedAt: v.updatedAt,
-			sessionId: v.sessionId,
-			sessionName: v.session?.name ?? null,
 			position: v.position,
 			isOptional: v.isOptional ?? false
 		});
@@ -161,9 +144,6 @@ export async function getAllAdminVideos(): Promise<AdminVideoRow[]> {
 			createdAt: bsonDateToDate(d.createdAt),
 			updatedAt: bsonDateToDate(d.updatedAt) ?? new Date(),
 			category: d.category,
-			unlockThreshold: d.unlockThreshold ?? 0,
-			breathworkIntent: d.breathworkIntent ?? null,
-			tags: Array.isArray(d.tags) ? d.tags : [],
 			active: d.active ?? true
 		});
 	}

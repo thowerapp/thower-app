@@ -75,26 +75,6 @@ function handleToggle(e: MouseEvent, id: string) {
   </div>
 </div>
 
-{#if data.dayVideo}
-  {@const dv = data.dayVideo as { id: string; title: string; thumbnailUrl: string | null; pts: number }}
-  <a href="/user/decouverte/motivation/{dv.id}" class="vid-card">
-    <div class="vid-thumb-wrap">
-      {#if dv.thumbnailUrl}
-        <img class="vid-thumb" src={dv.thumbnailUrl} alt="" />
-      {:else}
-        <div class="vid-thumb vid-thumb-empty"></div>
-      {/if}
-      <div class="vid-overlay">
-        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="2,1 11,6 2,11" fill="white"/></svg>
-      </div>
-    </div>
-    <div class="vid-info">
-      <div class="vid-badge">VIDÉO DU JOUR</div>
-      <div class="vid-title">{dv.title}</div>
-    </div>
-    <div class="vid-pts">+{dv.pts} pts</div>
-  </a>
-{/if}
 
 <!-- Section checklist -->
 <div class="u-sh">

@@ -9,55 +9,44 @@ export type VideoKind = z.infer<typeof videoKindEnum>;
 
 const baseVideoFields = {
 	cloudflareUid: z.string().min(1, 'UID Cloudflare requis.').max(64),
-	title: z.string().min(1, 'Titre requis.').max(300),
-	order: z.number().int().min(0).default(0)
+	title: z.string().min(1, 'Titre requis.').max(300)
 };
 
-/**
- * Champs métier communs création / édition (titre, séance, catégorie, etc.).
- * Le rattachement programme optionnel est ajouté dans create / update schemas.
- */
-export const videoFormCoreSchema = z
-	.object({
-		kind: videoKindEnum,
-		...baseVideoFields,
+/** Champs bruts communs création / édition, sans validation métier (superRefine ajouté après). */
+const videoFormCoreBaseSchema = z.object({
+	kind: videoKindEnum,
+	...baseVideoFields,
 
 		// Workout-only
-		sessionId: z.string().optional().nullable(),
 		position: workoutVideoPositionEnum.optional().nullable(),
 		isOptional: z.boolean().default(false),
 
 		// Discovery-only
 		category: discoveryCategoryEnum.optional().nullable(),
-		unlockThreshold: z.number().int().min(0).default(0),
-		breathworkIntent: z.string().max(100).optional().nullable(),
-		tags: z.array(z.string()).default([])
-	})
-	.superRefine((d, ctx) => {
-		if (d.kind === 'workout') {
-			if (!d.sessionId) {
-				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
-					message: 'Séance requise pour une vidéo sport.',
-					path: ['sessionId']
-				});
-			}
-			if (!d.position) {
-				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
-					message: 'Position requise (PRE, VID1 ou VID2).',
-					path: ['position']
-				});
-			}
-		}
-		if (d.kind === 'discovery' && !d.category) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message: 'Catégorie requise pour une vidéo Découverte.',
-				path: ['category']
-			});
-		}
-	});
+		order: z.number().int().min(0).default(0)
+});
+
+/**
+ * Champs métier communs — version édition (toutes les validations, dont séance requise).
+ * Le rattachement programme optionnel est ajouté dans update/create schemas.
+ */
+export const videoFormCoreSchema = videoFormCoreBaseSchema.superRefine((d, ctx) => {
+	if (d.kind === 'workout' && !d.position) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Position requise (PRE, VID1 ou VID2).',
+			path: ['position']
+		});
+	}
+	if (d.kind === 'discovery' && !d.category) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Catégorie requise pour une vidéo Découverte.',
+			path: ['category']
+		});
+	}
+});
+
 
 export type VideoFormCoreInput = z.infer<typeof videoFormCoreSchema>;
 
@@ -81,7 +70,7 @@ const refineProgramDayAttachIfEnabled = (
 };
 
 /**
- * Création : même cœur + rattachement optionnel au programme 91 jours.
+ * Création : position + catégorie requises, rattachement programme optionnel.
  */
 export const createVideoSchema = videoFormCoreSchema
 	.and(optionalProgramDayAttachFields)

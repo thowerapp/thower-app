@@ -2,7 +2,14 @@ import { json } from '@sveltejs/kit';
 import { uploadToR2 } from '$lib/server/cloudflare-r2';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request }) => {
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_SIZE = 10 * 1024 * 1024; // 10 Mo
+
+export const POST: RequestHandler = async ({ request, locals }) => {
+	if (!locals.user) {
+		return json({ error: 'Non authentifié' }, { status: 401 });
+	}
+
 	const formData = await request.formData();
 	const file = formData.get('file') as File | null;
 
@@ -10,16 +17,20 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({ error: 'Aucun fichier reçu' }, { status: 400 });
 	}
 
-	const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-	if (!allowedTypes.includes(file.type)) {
-		return json({ error: 'Type de fichier non autorisé' }, { status: 400 });
+	if (!ALLOWED_TYPES.includes(file.type)) {
+		return json({ error: 'Type de fichier non autorisé (jpeg, png, webp uniquement)' }, { status: 400 });
 	}
 
-	const ext = file.name.split('.').pop();
-	const key = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+	if (file.size > MAX_SIZE) {
+		return json({ error: 'Fichier trop lourd (max 10 Mo)' }, { status: 400 });
+	}
+
+	const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+	const key = `photos/${locals.user.id}/${crypto.randomUUID()}.${ext}`;
 
 	const buffer = await file.arrayBuffer();
 	await uploadToR2(key, buffer, file.type);
 
-	return json({ key });
+	const url = `/api/cloudflare/r2/image/${key}`;
+	return json({ key, url });
 };

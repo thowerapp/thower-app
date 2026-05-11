@@ -5,9 +5,9 @@ import { createProgressPhoto } from '$lib/prisma/progressPhoto/createProgressPho
 import { prisma } from '$lib/server';
 
 const submitPhotosSchema = z.object({
-	frontUrl: z.string().url('URL de photo avant invalide'),
-	sideUrl: z.string().url('URL de photo profil invalide'),
-	backUrl: z.string().url('URL de photo arrière invalide')
+	frontUrl: z.string().startsWith('/api/cloudflare/r2/image/photos/', 'URL photo avant invalide'),
+	sideUrl: z.string().startsWith('/api/cloudflare/r2/image/photos/', 'URL photo profil invalide'),
+	backUrl: z.string().startsWith('/api/cloudflare/r2/image/photos/', 'URL photo arrière invalide')
 });
 
 export const load: PageServerLoad = async ({ locals }) => {

@@ -35,9 +35,36 @@ let checkInPhotos = $state({
   backUrl: ''
 });
 
-async function handlePhotoUpload(angle: 'FRONT' | 'SIDE' | 'BACK') {
-  // Placeholder : normalement, cela ouvrirait un file input
-  console.log('Upload photo:', angle);
+let photoUploading = $state({ FRONT: false, SIDE: false, BACK: false });
+let photoError = $state<string | null>(null);
+
+function triggerPhotoInput(angle: 'FRONT' | 'SIDE' | 'BACK') {
+  (document.getElementById(`photo-input-${angle}`) as HTMLInputElement)?.click();
+}
+
+async function handlePhotoFileChange(e: Event, angle: 'FRONT' | 'SIDE' | 'BACK') {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  photoUploading = { ...photoUploading, [angle]: true };
+  photoError = null;
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/cloudflare/r2/upload', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { error?: string };
+      photoError = err.error ?? 'Erreur upload photo';
+      return;
+    }
+    const { url } = await res.json() as { url: string };
+    if (angle === 'FRONT') checkInPhotos.frontUrl = url;
+    else if (angle === 'SIDE') checkInPhotos.sideUrl = url;
+    else checkInPhotos.backUrl = url;
+  } catch {
+    photoError = 'Erreur réseau';
+  } finally {
+    photoUploading = { ...photoUploading, [angle]: false };
+  }
 }
 
 const checkInMetricsComplete = $derived(
@@ -287,31 +314,46 @@ const checkInMetricsComplete = $derived(
 
       <!-- Photos optionnelles -->
       <div class="space-y-2">
-        <div style="font-size: .8rem; font-weight: 600; color: var(--txd);">Photos optionnelles</div>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
-          <input type="hidden" name="frontUrl" bind:value={checkInPhotos.frontUrl} />
-          <input type="hidden" name="sideUrl" bind:value={checkInPhotos.sideUrl} />
-          <input type="hidden" name="backUrl" bind:value={checkInPhotos.backUrl} />
-          {#each ['FRONT', 'SIDE', 'BACK'] as angle, idx}
-            <button
-              type="button"
-              disabled={submitCheckInLoading}
-              onclick={() => handlePhotoUpload(angle as 'FRONT' | 'SIDE' | 'BACK')}
-              style="
-                aspect-ratio: 3/4;
-                background: var(--s3);
-                border: 1px dashed var(--br2);
-                border-radius: 4px;
-                cursor: pointer;
-                opacity: {submitCheckInLoading ? 0.5 : 1};
-              "
-            >
-              <div style="text-align: center; color: var(--txd);">
-                {angle === 'FRONT' ? 'Face' : angle === 'SIDE' ? 'Profil' : 'Dos'}
-              </div>
-            </button>
+        <div style="font-size:.75rem;font-weight:600;color:var(--txd);font-family:var(--fb);letter-spacing:.05em;text-transform:uppercase;">Photos optionnelles</div>
+        <input type="hidden" name="frontUrl" bind:value={checkInPhotos.frontUrl} />
+        <input type="hidden" name="sideUrl" bind:value={checkInPhotos.sideUrl} />
+        <input type="hidden" name="backUrl" bind:value={checkInPhotos.backUrl} />
+        <div class="photo-upload-grid">
+          {#each [
+            { angle: 'FRONT' as const, label: 'Face',   urlKey: 'frontUrl' as const },
+            { angle: 'SIDE'  as const, label: 'Profil', urlKey: 'sideUrl'  as const },
+            { angle: 'BACK'  as const, label: 'Dos',    urlKey: 'backUrl'  as const }
+          ] as ph}
+            <div class="pu-cell">
+              <input
+                id="photo-input-{ph.angle}"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                style="display:none"
+                onchange={(e) => handlePhotoFileChange(e, ph.angle)}
+              />
+              <button
+                type="button"
+                class="pu-btn"
+                class:pu-done={!!checkInPhotos[ph.urlKey]}
+                disabled={submitCheckInLoading || photoUploading[ph.angle]}
+                onclick={() => triggerPhotoInput(ph.angle)}
+              >
+                {#if photoUploading[ph.angle]}
+                  <span class="pu-state">...</span>
+                {:else if checkInPhotos[ph.urlKey]}
+                  <img src={checkInPhotos[ph.urlKey]} alt={ph.label} class="pu-preview" />
+                  <span class="pu-badge">✓</span>
+                {:else}
+                  <span class="pu-state">{ph.label}</span>
+                {/if}
+              </button>
+            </div>
           {/each}
         </div>
+        {#if photoError}
+          <div class="pu-error">{photoError}</div>
+        {/if}
       </div>
 
       <!-- Submit -->
@@ -509,6 +551,36 @@ const checkInMetricsComplete = $derived(
 .pcell.filled { border:1px solid var(--br2); }
 .pc-plus { font-size:1rem; color:var(--txd); }
 .pc-lbl { font-size:.5625rem; color:var(--txd); text-align:center; font-family:var(--fb); }
+
+/* Upload photos check-in */
+.photo-upload-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.pu-cell { position: relative; }
+.pu-btn {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: var(--s3);
+  border: 1px dashed var(--br2);
+  cursor: pointer;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s;
+}
+.pu-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pu-btn.pu-done { border-color: var(--g); border-style: solid; }
+.pu-state { font-size: .5rem; color: var(--txd); font-family: var(--fb); }
+.pu-preview { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+.pu-badge {
+  position: absolute; top: 4px; right: 4px;
+  background: var(--g); color: var(--s1);
+  font-size: .5rem; font-weight: 700; font-family: var(--fb);
+  padding: 2px 5px;
+}
+.pu-error {
+  font-size: .5625rem; color: var(--err, #f55);
+  font-family: var(--fb); padding: 4px 0;
+}
 
 /* Check-in mensuel */
 .checkin-grid {

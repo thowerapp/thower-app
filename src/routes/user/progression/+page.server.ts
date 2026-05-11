@@ -211,9 +211,9 @@ export const actions: Actions = {
 			happinessLevel: z.coerce.number().int().min(1).max(10),
 			readinessToChange: z.coerce.number().int().min(1).max(10).optional(),
 			// Photos optionnelles
-			frontUrl: z.string().url().optional().or(z.literal('')),
-			sideUrl: z.string().url().optional().or(z.literal('')),
-			backUrl: z.string().url().optional().or(z.literal(''))
+			frontUrl: z.string().startsWith('/api/cloudflare/r2/image/photos/').optional().or(z.literal('')),
+			sideUrl: z.string().startsWith('/api/cloudflare/r2/image/photos/').optional().or(z.literal('')),
+			backUrl: z.string().startsWith('/api/cloudflare/r2/image/photos/').optional().or(z.literal(''))
 		});
 
 		const parsed = schema.safeParse({

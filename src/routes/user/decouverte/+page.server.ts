@@ -7,21 +7,32 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
 	const userId = locals.user.id;
 
-	const currentDayIndex = await getCurrentDayIndex(userId);
+	try {
+		const currentDayIndex = await getCurrentDayIndex(userId);
 
-	const [meditation, mindset, breathwork, motivation] = await Promise.all([
-		getDiscoveryContentByCategoryProgressive('MEDITATION', currentDayIndex),
-		getDiscoveryContentByCategoryProgressive('MINDSET', currentDayIndex),
-		getDiscoveryContentByCategoryProgressive('BREATHWORK', currentDayIndex),
-		getDiscoveryContentByCategoryProgressive('MOTIVATION', currentDayIndex)
-	]);
+		const [meditation, mindset, breathwork, motivation] = await Promise.all([
+			getDiscoveryContentByCategoryProgressive('MEDITATION', currentDayIndex),
+			getDiscoveryContentByCategoryProgressive('MINDSET', currentDayIndex),
+			getDiscoveryContentByCategoryProgressive('BREATHWORK', currentDayIndex),
+			getDiscoveryContentByCategoryProgressive('MOTIVATION', currentDayIndex)
+		]);
 
-	return {
-		counts: {
-			meditation: { total: meditation.length },
-			mindset:    { total: mindset.length    },
-			breathwork: { total: breathwork.length },
-			motivation: { total: motivation.length }
-		}
-	};
+		return {
+			counts: {
+				meditation: { total: meditation.length },
+				mindset:    { total: mindset.length    },
+				breathwork: { total: breathwork.length },
+				motivation: { total: motivation.length }
+			}
+		};
+	} catch {
+		return {
+			counts: {
+				meditation: { total: 0 },
+				mindset:    { total: 0 },
+				breathwork: { total: 0 },
+				motivation: { total: 0 }
+			}
+		};
+	}
 };

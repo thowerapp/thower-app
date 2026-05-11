@@ -50,9 +50,12 @@
 	};
 </script>
 
-<div class="back-row">
-	<a href="/user/nutrition" class="home-btn">← Nutrition</a>
-	<div class="page-title">Recettes du programme</div>
+<div class="u-back-row">
+	<a href="/user/nutrition" class="u-back-lnk">
+		<svg width="12" height="12" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="var(--txd)" stroke-width="1.5" stroke-linecap="round"/></svg>
+		<span class="u-back-lbl">Nutrition</span>
+	</a>
+	<div class="u-back-head">Recettes</div>
 </div>
 
 <div class="tabs-section">
@@ -89,7 +92,7 @@
 	{:else}
 		{#each recipesByTab as recipe (recipe.id)}
 			<div class="recipe-item">
-				<div class="recipe-icon">⬛</div>
+				<div class="recipe-icon"><div style="width:10px;height:10px;border:1.5px solid var(--g);opacity:.7"></div></div>
 				<div class="recipe-body">
 					<div class="recipe-name">{recipe.name}</div>
 					<div class="recipe-meta">
@@ -126,171 +129,137 @@
 </div>
 
 <style>
-	.back-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 12px 16px;
-		background: #111;
-		gap: 12px;
-	}
-
-	.home-btn {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		text-decoration: none;
-		color: #fff;
-		font-size: 0.7rem;
-		font-weight: 500;
-		padding: 6px 10px;
-		border-radius: 3px;
-		background: rgba(255, 255, 255, 0.1);
-		transition: all 0.15s;
-	}
-
-	.page-title {
-		font-size: 0.72rem;
-		font-weight: 600;
-		color: #fff;
-		margin-left: auto;
-	}
-
 	.tabs-section {
 		display: flex;
-		gap: 8px;
-		padding: 12px;
-		background: #f5f5f5;
+		gap: 6px;
+		padding: 10px 18px;
+		background: var(--s1);
 		overflow-x: auto;
-		flex-wrap: wrap;
-		border-bottom: 1px solid #eee;
+		border-bottom: 1px solid var(--br);
+		scrollbar-width: none;
 	}
+	.tabs-section::-webkit-scrollbar { display: none; }
 
 	.tab-btn {
 		flex-shrink: 0;
-		padding: 6px 12px;
-		border: 1px solid #ddd;
-		background: #fff;
-		border-radius: 3px;
-		font-size: 0.55rem;
-		font-weight: 500;
-		color: #666;
+		padding: 5px 11px;
+		border: 1px solid var(--br2);
+		background: transparent;
+		font-size: 0.5rem;
+		font-weight: 600;
+		color: var(--txd);
 		cursor: pointer;
-		font-family: inherit;
+		font-family: var(--fb);
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		-webkit-tap-highlight-color: transparent;
+		transition: color 0.15s, border-color 0.15s;
 	}
-
 	.tab-btn.active {
-		background: #111;
-		color: #fff;
-		border-color: #111;
+		color: var(--cy);
+		border-color: var(--cy);
 	}
-
-	.tab-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
+	.tab-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 	.program-info {
-		padding: 10px 16px;
-		font-size: 0.6rem;
-		color: #666;
-		border-bottom: 1px solid #eee;
+		padding: 8px 18px;
+		font-size: 0.5rem;
+		color: var(--txd);
+		font-family: var(--fb);
+		letter-spacing: 0.06em;
+		border-bottom: 1px solid var(--br);
 	}
 
-	.recipes-list {
-		display: flex;
-		flex-direction: column;
-	}
+	.recipes-list { display: flex; flex-direction: column; }
 
 	.recipe-item {
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		padding: 14px 16px;
-		border-bottom: 1px solid #f0f0f0;
-		text-decoration: none;
-		color: inherit;
+		padding: 11px 18px;
+		border-bottom: 1px solid var(--br);
+		-webkit-tap-highlight-color: transparent;
 	}
 
 	.recipe-icon {
-		width: 32px;
-		height: 32px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: #ddd;
-		font-size: 0.8rem;
-		border-radius: 2px;
-		color: #999;
+		width: 34px; height: 34px;
+		flex-shrink: 0;
+		background: var(--s2);
+		border: 1px solid var(--br2);
+		display: flex; align-items: center; justify-content: center;
 	}
 
-	.recipe-body {
-		flex: 1;
-		min-width: 0;
-	}
+	.recipe-body { flex: 1; min-width: 0; }
 
 	.recipe-name {
-		font-size: 0.66rem;
+		font-size: 0.6875rem;
 		font-weight: 500;
-		color: #111;
+		color: var(--tx);
+		font-family: var(--fb);
 	}
 
 	.recipe-meta {
-		font-size: 0.54rem;
-		color: #888;
+		font-size: 0.5rem;
+		color: var(--txd);
 		margin-top: 2px;
+		font-family: var(--fb);
 	}
 
 	.star-btn {
-		width: 24px;
-		height: 24px;
-		border: none;
-		background: none;
-		font-size: 0.9rem;
-		color: #bbb;
-		cursor: pointer;
-		padding: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
+		width: 28px; height: 28px;
+		border: none; background: none;
+		font-size: 1rem;
+		color: var(--br2);
+		cursor: pointer; padding: 0;
+		display: flex; align-items: center; justify-content: center;
+		flex-shrink: 0;
+		-webkit-tap-highlight-color: transparent;
+		transition: color 0.15s;
 	}
-
 	.star-btn.starred {
-		color: #ffb800;
+		color: var(--g);
+		text-shadow: 0 0 8px rgba(201,168,78,.4);
 	}
 
 	.empty-state {
-		padding: 24px 16px;
-		font-size: 0.62rem;
-		color: #777;
+		padding: 28px 18px;
+		font-size: 0.5625rem;
+		color: var(--txd);
 		text-align: center;
+		font-family: var(--fb);
 	}
 
 	.create-link {
-		padding: 14px 16px;
-		border-top: 1px solid #eee;
+		padding: 14px 18px;
+		border-top: 1px solid var(--br);
 		text-align: center;
 	}
 
 	.create-lock {
-		text-decoration: none;
-		color: #999;
-		font-size: 0.64rem;
-		font-weight: 500;
-		border: 1px dashed #bbb;
-		padding: 8px 12px;
-		background: #f7f7f7;
+		color: var(--txd);
+		font-size: 0.5rem;
+		font-weight: 600;
+		font-family: var(--fb);
+		letter-spacing: 0.06em;
+		border: 1px dashed var(--br2);
+		padding: 8px 14px;
+		background: transparent;
 		cursor: not-allowed;
+		opacity: 0.45;
 	}
 
 	.create-open {
 		text-decoration: none;
-		color: #111;
-		font-size: 0.64rem;
-		font-weight: 600;
-		border: 1px solid #111;
-		padding: 8px 12px;
-		background: #fff;
+		color: var(--s1);
+		font-size: 0.5rem;
+		font-weight: 700;
+		font-family: var(--fb);
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		border: none;
+		padding: 8px 16px;
+		background: var(--cy);
 		display: inline-block;
+		-webkit-tap-highlight-color: transparent;
 	}
 </style>

@@ -24,9 +24,9 @@ function handleStreamCompleted() {
 </script>
 
 <div class="back-row">
-<a href="/user/decouverte/mindset" class="back-lnk">
+<a href="/user/decouverte" class="back-lnk">
 <svg width="12" height="12" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="var(--txd)" stroke-width="1.5" stroke-linecap="round"/></svg>
-<span class="back-lbl">Mindset</span>
+<span class="back-lbl">Découverte</span>
 </a>
 <div class="back-head">{video.title}</div>
 </div>

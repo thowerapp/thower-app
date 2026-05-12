@@ -62,20 +62,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const scorePercent =
 		expectedCompletions > 0 ? Math.round((completions / expectedCompletions) * 100) : 0;
 
-	// ─── Photos du mois ──────────────────────────────────────────────────────
+	// ─── Photos du mois + photos d'inscription ──────────────────────────────
 	const currentMonth = Math.ceil(currentDayIndex / 30);
-	const photosByAngle = await prisma.progressPhoto.findMany({
-		where: { userId, month: currentMonth },
-		select: { angle: true, url: true }
-	});
-	const photoMap: Record<string, string | null> = {
-		FRONT: null,
-		SIDE: null,
-		BACK: null
-	};
-	for (const p of photosByAngle) {
-		photoMap[p.angle] = p.url;
-	}
+	const [photosByAngle, inscriptionPhotosByAngle] = await Promise.all([
+		prisma.progressPhoto.findMany({
+			where: { userId, month: currentMonth },
+			select: { angle: true, url: true }
+		}),
+		prisma.progressPhoto.findMany({
+			where: { userId, month: 0 },
+			select: { angle: true, url: true }
+		})
+	]);
+	const photoMap: Record<string, string | null> = { FRONT: null, SIDE: null, BACK: null };
+	for (const p of photosByAngle) photoMap[p.angle] = p.url;
+
+	const inscriptionPhotoMap: Record<string, string | null> = { FRONT: null, SIDE: null, BACK: null };
+	for (const p of inscriptionPhotosByAngle) inscriptionPhotoMap[p.angle] = p.url;
 
 	// ─── Check-in mensuel ────────────────────────────────────────────────────
 	const monthlyCheckIns = await prisma.monthlyCheckIn.findMany({
@@ -130,6 +133,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			iconUrl: ub.badge.iconUrl ?? null,
 		})),
 		photoMap,
+		inscriptionPhotoMap,
 		currentMonth,
 		monthlyCheckIns,
 		checkInDue,

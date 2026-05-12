@@ -69,11 +69,9 @@
 	<div class="auth-card">
 		<h1>Photos de référence</h1>
 		<p class="subtitle">
-			Ces 3 photos aident à estimer votre pourcentage de masse grasse pour mieux personnaliser la
-			nutrition. Vous pouvez aussi passer cette étape et continuer.
+			Ces 3 photos sont obligatoires pour personnaliser votre programme nutrition. Prenez-les en
+			sous-vêtements, de face, de profil et de dos.
 		</p>
-
-		<a href="/auth/measurement" class="skip-link">Passer cette étape pour le moment</a>
 
 		{#if uploadError}
 			<div class="error-banner">
@@ -190,8 +188,7 @@
 		</form>
 
 		<p class="help-text">
-			Les photos sont recommandées mais non bloquantes. Vous pourrez les mettre à jour pendant le
-			suivi mensuel depuis votre profil.
+			Vos photos sont stockées de façon sécurisée et ne sont accessibles que par vous.
 		</p>
 	</div>
 </div>

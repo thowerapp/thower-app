@@ -312,9 +312,9 @@ const checkInMetricsComplete = $derived(
         </div>
       </div>
 
-      <!-- Photos optionnelles -->
+      <!-- Photos du check-in mensuel -->
       <div class="space-y-2">
-        <div style="font-size:.75rem;font-weight:600;color:var(--txd);font-family:var(--fb);letter-spacing:.05em;text-transform:uppercase;">Photos optionnelles</div>
+        <div style="font-size:.75rem;font-weight:600;color:var(--txd);font-family:var(--fb);letter-spacing:.05em;text-transform:uppercase;">Photos mois {data.currentMonth}</div>
         <input type="hidden" name="frontUrl" bind:value={checkInPhotos.frontUrl} />
         <input type="hidden" name="sideUrl" bind:value={checkInPhotos.sideUrl} />
         <input type="hidden" name="backUrl" bind:value={checkInPhotos.backUrl} />
@@ -415,16 +415,35 @@ const checkInMetricsComplete = $derived(
   {/if}
 {/if}
 
-<!-- Photos du mois -->
-<div class="u-sh"><div class="u-sh-t">Photos du mois {data.currentMonth}</div><div class="u-sh-s">3 angles requis</div></div>
+<!-- Photos d'inscription -->
+<div class="u-sh"><div class="u-sh-t">Photos d'inscription</div><div class="u-sh-s">Référence de départ</div></div>
 <div class="photo-grid">
   {#each photoLabels as ph}
-    <button type="button" class="pcell" class:filled={!!data.photoMap[ph.key]} onclick={fire}>
-      <div class="pc-plus" style={data.photoMap[ph.key] ? 'color:var(--g)' : ''}>
-        {data.photoMap[ph.key] ? '✓' : '+'}
-      </div>
-      <div class="pc-lbl" style={data.photoMap[ph.key] ? 'color:var(--g)' : ''}>{ph.label}</div>
-    </button>
+    <div class="pcell filled">
+      {#if data.inscriptionPhotoMap[ph.key]}
+        <img src={data.inscriptionPhotoMap[ph.key]} alt={ph.label} class="pc-img" />
+        <div class="pc-lbl" style="color:var(--g)">{ph.label}</div>
+      {:else}
+        <div class="pc-plus" style="color:var(--txd)">—</div>
+        <div class="pc-lbl">{ph.label}</div>
+      {/if}
+    </div>
+  {/each}
+</div>
+
+<!-- Photos du mois -->
+<div class="u-sh"><div class="u-sh-t">Photos mois {data.currentMonth}</div><div class="u-sh-s">3 angles requis</div></div>
+<div class="photo-grid">
+  {#each photoLabels as ph}
+    <div class="pcell" class:filled={!!data.photoMap[ph.key]}>
+      {#if data.photoMap[ph.key]}
+        <img src={data.photoMap[ph.key]} alt={ph.label} class="pc-img" />
+        <div class="pc-lbl" style="color:var(--g)">{ph.label}</div>
+      {:else}
+        <div class="pc-plus">+</div>
+        <div class="pc-lbl">{ph.label}</div>
+      {/if}
+    </div>
   {/each}
 </div>
 
@@ -546,11 +565,11 @@ const checkInMetricsComplete = $derived(
 
 /* Grille photos — unique à cette page */
 .photo-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:12px 18px 20px; }
-.pcell { aspect-ratio:3/4; background:var(--s2); border:1px dashed var(--br2); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; -webkit-tap-highlight-color:transparent; cursor:pointer; }
-.pcell:active { background:var(--s3); border-color:var(--gd); }
+.pcell { aspect-ratio:3/4; background:var(--s2); border:1px dashed var(--br2); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; overflow:hidden; position:relative; }
 .pcell.filled { border:1px solid var(--br2); }
+.pc-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .pc-plus { font-size:1rem; color:var(--txd); }
-.pc-lbl { font-size:.5625rem; color:var(--txd); text-align:center; font-family:var(--fb); }
+.pc-lbl { font-size:.5625rem; color:var(--txd); text-align:center; font-family:var(--fb); position:relative; z-index:1; background:rgba(0,0,0,.45); padding:1px 4px; border-radius:2px; }
 
 /* Upload photos check-in */
 .photo-upload-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }

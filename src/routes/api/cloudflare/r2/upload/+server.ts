@@ -28,9 +28,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
 	const key = `photos/${locals.user.id}/${crypto.randomUUID()}.${ext}`;
 
-	const buffer = await file.arrayBuffer();
-	await uploadToR2(key, buffer, file.type);
+	console.log(`[r2/upload] start — user=${locals.user.id} file=${file.name} size=${file.size}o type=${file.type} key=${key}`);
 
+	try {
+		const buffer = await file.arrayBuffer();
+		await uploadToR2(key, buffer, file.type);
+	} catch (err) {
+		console.error(`[r2/upload] ✗ R2 error — key=${key}`, err);
+		return json({ error: 'Erreur upload R2' }, { status: 500 });
+	}
+
+	console.log(`[r2/upload] ✓ success — key=${key}`);
 	const url = `/api/cloudflare/r2/image/${key}`;
 	return json({ key, url });
 };

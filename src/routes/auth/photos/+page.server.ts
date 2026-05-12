@@ -44,6 +44,8 @@ export const actions: Actions = {
 			return fail(400, { message: errorMsg });
 		}
 
+		console.log(`[photos action] saving — user=${locals.user.id} front=${frontUrl} side=${sideUrl} back=${backUrl}`);
+
 		try {
 			// Créer les 3 ProgressPhoto avec month: 0 (inscription)
 			await Promise.all([
@@ -78,13 +80,13 @@ export const actions: Actions = {
 					}
 				})
 			]);
-
-			throw redirect(302, '/auth/well-being');
 		} catch (error) {
-			if (error instanceof Response) throw error;
-			console.error('[photos action]', error);
+			console.error('[photos action] ✗ DB error', error);
 			return fail(500, { message: 'Erreur lors de l\'envoi des photos.' });
 		}
+
+		console.log(`[photos action] ✓ 3 photos + 50pts saved — user=${locals.user.id}`);
+		throw redirect(302, '/auth/measurement');
 	}
 };
 

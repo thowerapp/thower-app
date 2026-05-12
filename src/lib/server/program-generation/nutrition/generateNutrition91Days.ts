@@ -305,26 +305,35 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 
 	const breakfastRecipes = recipes.filter((r) => r.category === 'BREAKFAST');
 	const mealRecipes = recipes.filter((r) => r.category === 'MEAL');
-	const fallbackPool = mealRecipes.length > 0 ? mealRecipes : recipes;
 
-	if (fallbackPool.length === 0) {
+	if (mealRecipes.length === 0) {
 		programGenWarn(
-			'N6/ ABORT — aucune recette catalogue utilisable (actives + sans conflit allergènes)',
+			'N6/ ABORT — aucune recette MEAL utilisable (actives + sans conflit allergènes)',
 			{ userId, catalogActive: recipesRaw.length, userAllergens }
 		);
 		return;
 	}
 
-	const breakfastPool = breakfastRecipes.length > 0 ? breakfastRecipes : fallbackPool;
+	const breakfastEnabled = profile?.breakfastEnabled ?? false;
+
+	if (breakfastEnabled && breakfastRecipes.length === 0) {
+		programGenWarn(
+			'N6/ WARN — breakfastEnabled mais zéro recette BREAKFAST après filtrage allergènes — créneau petit-déj ignoré',
+			{ userId, userAllergens }
+		);
+	}
 
 	programGenLog('N6/ Pools par catégorie', {
 		userId,
-		breakfastPool: breakfastPool.length,
-		mealRecipes: mealRecipes.length,
-		fallbackPool: fallbackPool.length
+		breakfastEnabled,
+		breakfastPool: breakfastRecipes.length,
+		mealPool: mealRecipes.length
 	});
 
-	const positions: MealPosition[] = ['BREAKFAST', 'LUNCH', 'DINNER'];
+	// BREAKFAST inclus uniquement si activé ET qu'il existe au moins une recette éligible.
+	const positions: MealPosition[] = breakfastEnabled && breakfastRecipes.length > 0
+		? ['BREAKFAST', 'LUNCH', 'DINNER']
+		: ['LUNCH', 'DINNER'];
 
 	programGenLog('N7/ Boucle jours — positions repas', {
 		userId,
@@ -365,8 +374,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 			const position = positions[slot];
 			if (hasPosition.has(position)) continue;
 
-			const pool =
-				position === 'BREAKFAST' ? breakfastPool : mealRecipes.length > 0 ? mealRecipes : fallbackPool;
+			const pool = position === 'BREAKFAST' ? breakfastRecipes : mealRecipes;
 			const seed = catalogPickSeed(userId, dayIndex, position, slot);
 			const recipe = pickRandomFromPool(pool, seed);
 			if (recipe) toCreate.push({ position, recipe });
@@ -383,8 +391,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 
 		for (const { position, recipe: firstRecipe } of toCreate) {
 			const frac = mealBudgetFractionForPosition(position);
-			const pool =
-				position === 'BREAKFAST' ? breakfastPool : mealRecipes.length > 0 ? mealRecipes : fallbackPool;
+			const pool = position === 'BREAKFAST' ? breakfastRecipes : mealRecipes;
 			const seed = catalogPickSeed(userId, dayIndex, position, toCreate.findIndex((t) => t.position === position));
 			const targetSlotProtein = targetProteinG != null ? targetProteinG * frac : null;
 

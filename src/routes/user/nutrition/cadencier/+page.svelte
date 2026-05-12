@@ -182,7 +182,6 @@
 						<div class="meal-time-clock">{meal.timeLabel}</div>
 					</div>
 					<div class="meal-name">{meal.recipeName}</div>
-
 					<div class="meal-macros">
 						<div class="macro-box">
 							<div class="macro-val">{meal.calories}</div>
@@ -199,10 +198,12 @@
 						<div class="macro-box">
 							<div class="macro-val">{meal.fatG}g</div>
 							<div class="macro-lbl">L</div>
-						</div>					<div class="macro-box">
-						<div class="macro-val">{meal.fiberG}g</div>
-						<div class="macro-lbl">F</div>
-					</div>					</div>
+						</div>
+						<div class="macro-box">
+							<div class="macro-val">{meal.fiberG}g</div>
+							<div class="macro-lbl">F</div>
+						</div>
+					</div>
 					<div class="meal-arrow">Fiche jour →</div>
 				</a>
 			{/each}

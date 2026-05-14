@@ -448,7 +448,11 @@
 
 <footer>
   <div class="footer-logo">T<span>H</span>OWER</div>
-  <a href="/mentions-legales" class="footer-legal">Mentions légales</a>
+  <div class="footer-links">
+    <a href="/mentions-legales" class="footer-legal">Mentions légales</a>
+    <a href="/cgu" class="footer-legal">CGU</a>
+    <a href="/politique-confidentialite" class="footer-legal">Politique de confidentialité</a>
+  </div>
   <div class="footer-copy">© 2026 Thower · Tous droits réservés</div>
 </footer>
 
@@ -568,6 +572,7 @@
   footer { position: relative; z-index: 10; padding: 40px 48px; border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: space-between; pointer-events: all; }
   .footer-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 0.1em; color: rgba(240,237,232,0.25); }
   .footer-logo span { color: var(--gold); opacity: 0.5; }
+  .footer-links { display: flex; gap: 20px; }
   .footer-legal { font-size: 0.65rem; color: rgba(240,237,232,0.2); letter-spacing: 0.06em; text-decoration: none; transition: color 0.2s; }
   .footer-legal:hover { color: rgba(240,237,232,0.5); }
   .footer-copy { font-size: 0.65rem; color: rgba(240,237,232,0.2); letter-spacing: 0.06em; }

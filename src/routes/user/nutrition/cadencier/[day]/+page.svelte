@@ -2,175 +2,124 @@
 	import type { PageData } from './$types';
 
 	type DayMealRow = PageData['meals'][number];
-
 	let { data }: { data: PageData } = $props();
 
-	/** Multiplicateur affichage (1 = quantités du planning Thower) */
 	let mealMult = $state<Record<string, number>>({});
-
 	$effect.pre(() => {
 		const next: Record<string, number> = {};
 		for (const m of data.meals) next[m.id] = 1;
 		mealMult = next;
 	});
 
-	function multOf(mealId: string): number {
-		return mealMult[mealId] ?? 1;
+	function multOf(id: string) { return mealMult[id] ?? 1; }
+	function setMult(id: string, v: number) {
+		const clamped = Math.min(9, Math.max(0.5, Math.round(v * 10) / 10));
+		mealMult = { ...mealMult, [id]: clamped };
+	}
+	function setMultRaw(id: string, raw: string) {
+		const n = parseFloat(raw.replace(',', '.'));
+		if (Number.isFinite(n)) setMult(id, n);
 	}
 
-	function setMult(mealId: string, value: number) {
-		const v = Math.min(9, Math.max(0.5, Math.round(value * 10) / 10));
-		mealMult = { ...mealMult, [mealId]: v };
-	}
-
-	function setMultRaw(mealId: string, raw: string) {
-		const parsed = parseFloat(raw.replace(',', '.'));
-		if (!Number.isFinite(parsed)) return;
-		const v = Math.min(9, Math.max(0.5, Math.round(parsed * 10) / 10));
-		mealMult = { ...mealMult, [mealId]: v };
-	}
-
-	function macrosScaled(
-		m: DayMealRow,
-		mult: number
-	): { kcal: number; p: number; c: number; f: number; fib: number } {
+	function macrosScaled(m: DayMealRow, u: number) {
 		return {
-			kcal: Math.round(m.calories * mult),
-			p: Math.round(m.proteinG * mult * 10) / 10,
-			c: Math.round(m.carbsG * mult * 10) / 10,
-			f: Math.round(m.fatG * mult * 10) / 10,
-			fib: Math.round(m.fiberG * mult * 10) / 10
+			kcal: Math.round(m.calories * u),
+			p:   Math.round(m.proteinG * u * 10) / 10,
+			c:   Math.round(m.carbsG   * u * 10) / 10,
+			f:   Math.round(m.fatG     * u * 10) / 10,
+			fib: Math.round(m.fiberG   * u * 10) / 10
 		};
 	}
 
-	function mealLabelForFasting(position: string, slotIndex: number, fallback: string): string {
-		if (position === 'LUNCH') return `Repas ${slotIndex} — Déjeuner`;
-		if (position === 'DINNER') return `Repas ${slotIndex} — Dîner`;
-		return fallback;
-	}
-
-	const fastingActive = $derived((data as { intermittentFasting?: boolean }).intermittentFasting === true);
-
-	const displayMeals = $derived.by(() => {
-		if (!fastingActive) return data.meals;
-		const noBreakfast = data.meals.filter((m) => m.position !== 'BREAKFAST');
-		if (noBreakfast.length === 0) return [];
-
-		const total = data.meals.reduce(
-			(acc, m) => ({
-				calories: acc.calories + m.calories,
-				proteinG: acc.proteinG + m.proteinG,
-				carbsG: acc.carbsG + m.carbsG,
-				fatG: acc.fatG + m.fatG,
-				fiberG: acc.fiberG + m.fiberG
-			}),
-			{ calories: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 }
-		);
-
-		const count = noBreakfast.length;
-		const tKcal = data.targetKcal ?? total.calories;
-		const tProt = data.targetProteinG ?? total.proteinG;
-		const tFib = data.targetFiberG ?? total.fiberG;
-		return noBreakfast.map((m, i) => ({
-			...m,
-			slotIndex: i + 1,
-			label: mealLabelForFasting(m.position, i + 1, m.label),
-			calories: Math.round(tKcal / count),
-			proteinG: Math.round((tProt / count) * 10) / 10,
-			carbsG: Math.round((total.carbsG / count) * 10) / 10,
-			fatG: Math.round((total.fatG / count) * 10) / 10,
-			fiberG: Math.round((tFib / count) * 10) / 10
-		}));
-	});
-
-	const dayTotalsLive = $derived.by(() => {
-		let kcal = 0;
-		let p = 0;
-		let c = 0;
-		let f = 0;
-		let fib = 0;
-		for (const m of displayMeals) {
-			const u = multOf(m.id);
-			kcal += m.calories * u;
-			p += m.proteinG * u;
-			c += m.carbsG * u;
-			f += m.fatG * u;
-			fib += m.fiberG * u;
-		}
-		return {
-			kcal: Math.round(kcal),
-			p: Math.round(p * 10) / 10,
-			c: Math.round(c * 10) / 10,
-			f: Math.round(f * 10) / 10,
-			fib: Math.round(fib * 10) / 10
-		};
-	});
-
-	function fmtG(g: number): string {
+	function fmtG(g: number) {
 		if (!Number.isFinite(g)) return '—';
 		const r = Math.round(g * 10) / 10;
 		return r % 1 === 0 ? String(Math.round(r)) : String(r);
 	}
 
+	const fastingActive = $derived(
+		(data as { intermittentFasting?: boolean }).intermittentFasting === true
+	);
+
+	const displayMeals = $derived.by(() => {
+		if (!fastingActive) return data.meals;
+		const noBreakfast = data.meals.filter((m) => m.position !== 'BREAKFAST');
+		if (noBreakfast.length === 0) return [];
+		const total = data.meals.reduce(
+			(acc, m) => ({
+				calories: acc.calories + m.calories,
+				proteinG: acc.proteinG + m.proteinG,
+				carbsG:   acc.carbsG   + m.carbsG,
+				fatG:     acc.fatG     + m.fatG,
+				fiberG:   acc.fiberG   + m.fiberG
+			}),
+			{ calories: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 }
+		);
+		const count = noBreakfast.length;
+		const tKcal = data.targetKcal ?? total.calories;
+		const tProt = data.targetProteinG ?? total.proteinG;
+		const tFib  = data.targetFiberG   ?? total.fiberG;
+		return noBreakfast.map((m, i) => ({
+			...m,
+			slotIndex: i + 1,
+			label: i === 0 ? 'Repas 1 — Déjeuner' : 'Repas 2 — Dîner',
+			calories:  Math.round(tKcal / count),
+			proteinG:  Math.round((tProt / count) * 10) / 10,
+			carbsG:    Math.round((total.carbsG / count) * 10) / 10,
+			fatG:      Math.round((total.fatG   / count) * 10) / 10,
+			fiberG:    Math.round((tFib  / count) * 10) / 10
+		}));
+	});
+
+	// Onglet actif — initialisé depuis le hash URL
+	let activeTab = $state('');
+	$effect(() => {
+		const positions = displayMeals.map((m) => m.position.toLowerCase());
+		const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
+		if (hash && positions.includes(hash)) {
+			activeTab = hash;
+		} else if (positions.length > 0 && !positions.includes(activeTab)) {
+			activeTab = positions[0];
+		}
+	});
+
+	const activeMeal = $derived(
+		displayMeals.find((m) => m.position.toLowerCase() === activeTab) ?? displayMeals[0] ?? null
+	);
+
+	function tabLabel(pos: string): string {
+		if (pos === 'BREAKFAST') return 'Petit-déj.';
+		if (pos === 'LUNCH')     return 'Déjeuner';
+		if (pos === 'DINNER')    return 'Dîner';
+		return pos;
+	}
+
 	const titleDay = $derived(
-		data.dayName.charAt(0).toUpperCase() +
-			data.dayName.slice(1) +
-			' · Jour ' +
-			data.dayIndex
+		data.dayName.charAt(0).toUpperCase() + data.dayName.slice(1) + ' · Jour ' + data.dayIndex
 	);
 </script>
 
-<div class="back-row">
-	<a href="/user/nutrition/cadencier?semaine={data.weekNum}" class="home-btn">← Cadencier</a>
-	<div class="page-title">{titleDay}</div>
+<div class="u-back-row">
+	<a href="/user/nutrition/cadencier?semaine={data.weekNum}" class="u-back-lnk">
+		<svg width="12" height="12" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="var(--txd)" stroke-width="1.5" stroke-linecap="round"/></svg>
+		<span class="u-back-lbl">Cadencier</span>
+	</a>
+	<div class="u-back-head">{titleDay}</div>
 </div>
 
-<div class="section-head">
-	<div class="title">Plan du jour</div>
-	<div class="sub">
-		Repas et quantités issus de ton planning personnel Thower. Tu peux ajuster le coefficient pour simuler plus / moins de portions en cuisine.
-	</div>
-</div>
-
-{#if data.targetKcal != null || data.targetProteinG != null}
-	<div class="targets-card">
-		<div class="targets-title">Objectifs journaliers</div>
-		<ul class="targets-list">
-			{#if data.targetKcal != null}
-				<li>
-					<strong>{data.targetKcal}</strong> kcal / j
-				</li>
-			{/if}
-			{#if data.breadKcal != null && data.breadKcal > 0}
-				<li>
-					Pain estimé : <strong>−{data.breadKcal}</strong> kcal → calories pour vos repas
-					<strong>{data.mealBudgetKcal ?? '—'}</strong> kcal
-				</li>
-			{:else if data.mealBudgetKcal != null}
-				<li>Calories pour vos repas : <strong>{data.mealBudgetKcal}</strong> kcal</li>
-			{/if}
-			{#if data.targetProteinG != null}
-				<li>
-					Protéines cible : <strong>{data.targetProteinG}</strong> g / j
-				</li>
-			{/if}
-			{#if data.targetFiberG != null}
-				<li>
-					Fibres mini : <strong>{data.targetFiberG}</strong> g
-				</li>
-			{/if}
-			{#if data.dailyWaterLRest != null && data.dailyWaterLWorkout != null}
-				<li>
-					Eau mini : sans séance <strong>{data.dailyWaterLRest}</strong> L · avec séance
-					<strong>{data.dailyWaterLWorkout}</strong> L
-				</li>
-			{/if}
-		</ul>
-	</div>
-{:else if !data.hasProfileForTargets}
-	<div class="warn-banner">
-		Ajoute une <strong>mensuration poids</strong> et des données profil (% masse grasse, activité, objectif perte)
-		pour afficher les objectifs kcal / protéines.
+<!-- Onglets repas -->
+{#if data.hasPlan && displayMeals.length > 0}
+	<div class="meal-tabs">
+		{#each displayMeals as meal}
+			<button
+				type="button"
+				class="meal-tab"
+				class:active={activeTab === meal.position.toLowerCase()}
+				onclick={() => activeTab = meal.position.toLowerCase()}
+			>
+				{tabLabel(meal.position)}
+			</button>
+		{/each}
 	</div>
 {/if}
 
@@ -179,283 +128,125 @@
 		<p>Pas encore de journée nutrition pour le jour {data.dayIndex}.</p>
 		<p class="muted">Elle apparaîtra après génération du planning nutrition.</p>
 	</div>
-{:else}
-	{#each displayMeals as meal (meal.id)}
-		{@const u = multOf(meal.id)}
-		{@const ms = macrosScaled(meal, u)}
-		<section id={meal.position.toLowerCase()} class="meal-section">
-			<div class="meal-header">
-				<span class="meal-label">{meal.label}</span>
-				<span class="meal-time">{meal.timeLabel}</span>
-			</div>
+{:else if activeMeal}
+	{@const u = multOf(activeMeal.id)}
+	{@const ms = macrosScaled(activeMeal, u)}
 
-			<div class="recipe-title-row">
-				<h2 class="recipe-name">{meal.recipeName}</h2>
-				<a
-					class="edit-link"
-					href="/user/nutrition/cadencier/{data.dayIndex}/edit-meal/{meal.position.toLowerCase()}"
-				>
-					Modifier →
-				</a>
-			</div>
+	<div class="meal-section">
+		<div class="meal-header">
+			<span class="meal-slot">{activeMeal.label}</span>
+			<span class="meal-clock">{activeMeal.timeLabel}</span>
+		</div>
 
-			{#if meal.isManual}
-				<p class="badge-manual">Saisie manuelle (partenaire / plat externe)</p>
-			{/if}
+		<h2 class="recipe-name">{activeMeal.recipeName}</h2>
 
-			{#if meal.description}
-				<p class="desc">{meal.description}</p>
-			{/if}
+		{#if activeMeal.isManual}
+			<p class="badge-manual">Saisie manuelle</p>
+		{/if}
 
+		{#if activeMeal.description}
+			<p class="desc">{activeMeal.description}</p>
+		{/if}
+
+		{#if activeMeal.totalTimeMin != null || (activeMeal.quantityG != null && activeMeal.quantityG > 0)}
 			<div class="meta-row">
-				{#if meal.totalTimeMin != null}
-					<span>⏱ ~{meal.totalTimeMin} min</span>
+				{#if activeMeal.totalTimeMin != null}
+					<span>⏱ {activeMeal.totalTimeMin} min</span>
 				{/if}
-				{#if meal.quantityG != null && meal.quantityG > 0}
-					<span>Plat planifié : <strong>{fmtG(meal.quantityG)}</strong> g</span>
-				{/if}
-				{#if meal.servings > 1}
-					<span>Fiche : {meal.servings} portion(s) de référence</span>
+				{#if activeMeal.quantityG != null && activeMeal.quantityG > 0}
+					<span>{fmtG(activeMeal.quantityG)} g planifiés</span>
 				{/if}
 			</div>
+		{/if}
 
-			{#if meal.allergens.length > 0}
-				<p class="allergens">Allergènes déclarés (recette) : {meal.allergens.join(', ')}</p>
-			{/if}
+		{#if activeMeal.allergens.length > 0}
+			<p class="allergens">Allergènes : {activeMeal.allergens.join(', ')}</p>
+		{/if}
 
-			<div class="macros">
-				<div class="macro">
-					<div class="value">{ms.kcal}</div>
-					<div class="lbl">kcal</div>
-				</div>
-				<div class="macro">
-					<div class="value">{ms.p}g</div>
-					<div class="lbl">Prot.</div>
-				</div>
-				<div class="macro">
-					<div class="value">{ms.c}g</div>
-					<div class="lbl">Gluc.</div>
-				</div>
-				<div class="macro">
-					<div class="value">{ms.f}g</div>
-					<div class="lbl">Lip.</div>
-				</div>
-				<div class="macro">
-					<div class="value">{ms.fib}g</div>
-					<div class="lbl">Fib.</div>
-				</div>
-			</div>
-
-			<div class="portions">
-				<span>Coefficient familial</span>
-				<div class="qty-control">
-					<button type="button" onclick={() => setMult(meal.id, u - 0.1)} disabled={u <= 0.5}>−</button>
-					<input
-						type="number"
-						min="0.5"
-						max="9"
-						step="0.1"
-						value={u}
-						oninput={(e) => setMultRaw(meal.id, e.currentTarget.value)}
-						class="mult-input"
-					/>
-					<button type="button" onclick={() => setMult(meal.id, u + 0.1)} disabled={u >= 9}>+</button>
-				</div>
-			</div>
-
-			{#if meal.ingredients.length > 0}
-				<h3 class="subh">Ingrédients (pour ce repas)</h3>
-				<ul class="ing-list">
-					{#each meal.ingredients as ing}
-						<li>
-							<span class="ing-name">{ing.name}</span>
-							{#if ing.scaledG != null}
-								<span class="ing-qty"
-									>{fmtG(ing.scaledG * u)} g{#if ing.unit && ing.unit !== 'g'} ({ing.unit}){/if}</span
-								>
-							{:else}
-								<span class="ing-qty muted">quantité au goût / non pesée</span>
-							{/if}
-							{#if ing.isOptional}
-								<span class="opt">facultatif</span>
-							{/if}
-							{#if ing.note}
-								<div class="ing-note">{ing.note}</div>
-							{/if}
-						</li>
-					{/each}
-				</ul>
-			{/if}
-
-			{#if meal.instructions}
-				<h3 class="subh">Préparation</h3>
-				<pre class="instructions">{meal.instructions}</pre>
-			{/if}
-		</section>
-	{/each}
-
-	<div class="total-section">
-		<div class="total-title">Total du jour (avec multiplicateurs)</div>
+		<!-- Macros -->
 		<div class="macros">
-			<div class="macro">
-				<div class="value">{dayTotalsLive.kcal}</div>
-				<div class="lbl">kcal</div>
-			</div>
-			<div class="macro">
-				<div class="value">{dayTotalsLive.p}g</div>
-				<div class="lbl">Prot.</div>
-			</div>
-			<div class="macro">
-				<div class="value">{dayTotalsLive.c}g</div>
-				<div class="lbl">Gluc.</div>
-			</div>
-			<div class="macro">
-				<div class="value">{dayTotalsLive.f}g</div>
-				<div class="lbl">Lip.</div>
-			</div>
-			<div class="macro">
-				<div class="value">{dayTotalsLive.fib}g</div>
-				<div class="lbl">Fib.</div>
+			<div class="macro"><div class="mac-val">{ms.kcal}</div><div class="mac-lbl">kcal</div></div>
+			<div class="macro"><div class="mac-val">{ms.p}g</div><div class="mac-lbl">Prot.</div></div>
+			<div class="macro"><div class="mac-val">{ms.c}g</div><div class="mac-lbl">Gluc.</div></div>
+			<div class="macro"><div class="mac-val">{ms.f}g</div><div class="mac-lbl">Lip.</div></div>
+			<div class="macro"><div class="mac-val">{ms.fib}g</div><div class="mac-lbl">Fib.</div></div>
+		</div>
+
+		<!-- Portions -->
+		<div class="portions-row">
+			<span class="portions-lbl">Portions</span>
+			<div class="qty-control">
+				<button type="button" onclick={() => setMult(activeMeal.id, u - 0.1)} disabled={u <= 0.5}>−</button>
+				<input
+					type="number" min="0.5" max="9" step="0.1"
+					value={u}
+					oninput={(e) => setMultRaw(activeMeal.id, e.currentTarget.value)}
+					class="mult-input"
+				/>
+				<button type="button" onclick={() => setMult(activeMeal.id, u + 0.1)} disabled={u >= 9}>+</button>
 			</div>
 		</div>
-		{#if data.dayTotals.calories !== dayTotalsLive.kcal}
-			<p class="muted small">
-				Sans multiplicateur : {data.dayTotals.calories} kcal · P {data.dayTotals.proteinG} g · C
-				{data.dayTotals.carbsG} g · L {data.dayTotals.fatG} g · F {data.dayTotals.fiberG} g
-			</p>
+
+		<!-- Ingrédients -->
+		{#if activeMeal.ingredients.length > 0}
+			<h3 class="subh">Ingrédients</h3>
+			<ul class="ing-list">
+				{#each activeMeal.ingredients as ing}
+					<li>
+						<span class="ing-name">{ing.name}</span>
+						{#if ing.scaledG != null}
+							<span class="ing-qty">{fmtG(ing.scaledG * u)} g{#if ing.unit && ing.unit !== 'g'} ({ing.unit}){/if}</span>
+						{:else}
+							<span class="ing-qty muted">au goût</span>
+						{/if}
+						{#if ing.isOptional}<span class="opt">facultatif</span>{/if}
+						{#if ing.note}<div class="ing-note">{ing.note}</div>{/if}
+					</li>
+				{/each}
+			</ul>
 		{/if}
+
+		<!-- Préparation -->
+		{#if activeMeal.instructions}
+			<h3 class="subh">Préparation</h3>
+			<pre class="instructions">{activeMeal.instructions}</pre>
+		{/if}
+
+		<a class="edit-link" href="/user/nutrition/cadencier/{data.dayIndex}/edit-meal/{activeMeal.position.toLowerCase()}">
+			Modifier ce repas →
+		</a>
 	</div>
 {/if}
 
 <style>
-	.back-row {
+	/* Onglets */
+	.meal-tabs {
 		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 14px 18px;
-		background: transparent;
-		flex-shrink: 0;
-		gap: 12px;
 		border-bottom: 1px solid var(--br);
 	}
-
-	.home-btn {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		text-decoration: none;
-		color: var(--txd);
-		font-size: 0.7rem;
-		font-weight: 500;
-		padding: 6px 10px;
-		border-radius: 3px;
-		background: transparent;
-		transition: color 0.15s;
-	}
-
-	.home-btn:active {
-		color: var(--tx);
-	}
-
-	.page-title {
-		font-size: 0.72rem;
-		font-weight: 800;
-		color: var(--tx);
-		margin-left: auto;
-		font-family: var(--fh), sans-serif;
-		text-transform: uppercase;
-		letter-spacing: -0.06em;
-		text-align: right;
-		line-height: 1.2;
-		max-width: 62%;
-	}
-
-	.section-head {
-		padding: 14px 18px;
-		background: transparent;
-		border-bottom: 1px solid var(--br);
-	}
-
-	.title {
-		font-size: 0.7rem;
-		font-weight: 800;
-		color: var(--tx);
-		font-family: var(--fh), sans-serif;
-		text-transform: uppercase;
-		letter-spacing: -0.05em;
-	}
-
-	.sub {
-		font-size: 0.55rem;
-		color: var(--txd);
-		margin-top: 6px;
-		line-height: 1.45;
-	}
-
-	.targets-card {
-		margin: 12px 18px;
-		padding: 12px 14px;
-		background: transparent;
-		border: 1px solid var(--br2);
-		border-left: 2px solid var(--cy);
-		border-radius: 6px;
-	}
-
-	.targets-title {
-		font-size: 0.62rem;
+	.meal-tab {
+		flex: 1;
+		padding: 13px 8px;
+		background: none;
+		border: none;
+		border-bottom: 2px solid transparent;
+		font-size: .625rem;
 		font-weight: 600;
-		color: var(--cy);
-		margin-bottom: 8px;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-	}
-
-	.targets-list {
-		margin: 0;
-		padding-left: 1.1rem;
-		font-size: 0.58rem;
-		color: var(--tx);
-		line-height: 1.55;
-	}
-
-	.targets-list li {
-		margin-bottom: 4px;
-	}
-
-	.muted {
 		color: var(--txd);
-		font-weight: 400;
+		font-family: var(--fb);
+		letter-spacing: .06em;
+		text-transform: uppercase;
+		cursor: pointer;
+		transition: color .15s, border-color .15s;
+		-webkit-tap-highlight-color: transparent;
+	}
+	.meal-tab.active {
+		color: var(--g);
+		border-bottom-color: var(--g);
 	}
 
-	.warn-banner {
-		margin: 12px 18px;
-		padding: 12px 14px;
-		font-size: 0.58rem;
-		color: var(--tx);
-		background: transparent;
-		border: 1px solid var(--br2);
-		border-left: 2px solid rgba(255, 140, 100, 0.7);
-		border-radius: 6px;
-		line-height: 1.45;
-	}
-
-	.empty-state {
-		padding: 28px 18px;
-		text-align: center;
-		font-size: 0.65rem;
-		color: var(--tx);
-	}
-
-	.empty-state .muted {
-		margin-top: 8px;
-		display: block;
-	}
-
-	.meal-section {
-		padding: 16px 18px;
-		border-bottom: 1px solid var(--br);
-		background: transparent;
-	}
+	/* Contenu repas */
+	.meal-section { padding: 20px 18px 48px; }
 
 	.meal-header {
 		display: flex;
@@ -463,238 +254,175 @@
 		align-items: center;
 		margin-bottom: 10px;
 	}
-
-	.meal-label {
-		font-size: 0.6rem;
+	.meal-slot {
+		font-size: .625rem;
 		font-weight: 600;
-		color: var(--tx);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.meal-time {
-		font-size: 0.55rem;
 		color: var(--txd);
+		text-transform: uppercase;
+		letter-spacing: .06em;
+		font-family: var(--fb);
 	}
-
-	.recipe-title-row {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 10px;
-		margin-bottom: 8px;
-	}
+	.meal-clock { font-size: .625rem; color: var(--txd); font-family: var(--fb); }
 
 	.recipe-name {
-		margin: 0;
-		font-size: 0.72rem;
-		font-weight: 600;
+		margin: 0 0 16px;
+		font-size: 1.375rem;
+		font-weight: 700;
 		color: var(--g);
-		line-height: 1.25;
+		line-height: 1.15;
+		font-family: var(--fh);
+		letter-spacing: -.03em;
 	}
 
-	.edit-link {
-		flex-shrink: 0;
-		font-size: 0.55rem;
-		font-weight: 600;
-		color: var(--cy);
-		text-decoration: none;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-	}
+	.badge-manual { font-size: .5625rem; color: var(--txd); margin: 0 0 10px; font-family: var(--fb); }
 
-	.badge-manual {
-		font-size: 0.52rem;
-		color: var(--txd);
-		margin: 0 0 8px;
-	}
-
-	.desc {
-		font-size: 0.58rem;
-		color: var(--txd);
-		line-height: 1.45;
-		margin: 0 0 8px;
-	}
+	.desc { font-size: .6875rem; color: var(--txd); line-height: 1.55; margin: 0 0 14px; }
 
 	.meta-row {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 10px 14px;
-		font-size: 0.54rem;
+		gap: 16px;
+		font-size: .625rem;
 		color: var(--txd);
-		margin-bottom: 10px;
+		margin-bottom: 12px;
+		font-family: var(--fb);
 	}
 
-	.allergens {
-		font-size: 0.52rem;
-		color: var(--g);
-		margin: 0 0 10px;
-		line-height: 1.4;
-	}
+	.allergens { font-size: .5625rem; color: var(--g); margin: 0 0 12px; font-family: var(--fb); }
 
+	/* Macros — 5 colonnes */
 	.macros {
 		display: grid;
-		grid-template-columns: repeat(4, 1fr);
-		gap: 8px;
-		margin-bottom: 12px;
+		grid-template-columns: repeat(5, 1fr);
+		gap: 6px;
+		margin-bottom: 0;
 	}
-
 	.macro {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 2px;
-		padding: 8px 4px;
-		background: transparent;
+		gap: 5px;
+		padding: 12px 4px;
 		border: 1px solid var(--br2);
-		border-radius: 4px;
 	}
-
-	.value {
-		font-size: 0.72rem;
+	.mac-val {
+		font-size: 1rem;
 		font-weight: 700;
 		color: var(--cy);
+		font-family: var(--fh);
+		line-height: 1;
 	}
-
-	.lbl {
-		font-size: 0.46rem;
+	.mac-lbl {
+		font-size: .5rem;
 		color: var(--txd);
 		text-transform: uppercase;
-		letter-spacing: 0.04em;
+		letter-spacing: .04em;
+		font-family: var(--fb);
 	}
 
-	.portions {
+	/* Portions */
+	.portions-row {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		font-size: 0.58rem;
-		color: var(--txd);
-		margin-bottom: 12px;
+		padding: 16px 0;
+		border-top: 1px solid var(--br);
+		border-bottom: 1px solid var(--br);
+		margin: 16px 0 24px;
 	}
-
-	.qty-control {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-	}
-
+	.portions-lbl { font-size: .6875rem; color: var(--txd); font-family: var(--fb); font-weight: 500; }
+	.qty-control { display: flex; align-items: center; gap: 14px; }
 	.qty-control button {
-		width: 28px;
-		height: 28px;
+		width: 38px; height: 38px;
 		border: 1px solid var(--br2);
 		background: transparent;
 		color: var(--tx);
 		cursor: pointer;
-		font-size: 0.75rem;
+		font-size: .875rem;
 		font-weight: 600;
-		border-radius: 4px;
 		font-family: inherit;
-		transition: border-color 0.15s, color 0.15s;
+		transition: border-color .15s;
+		-webkit-tap-highlight-color: transparent;
 	}
-
-	.qty-control button:active {
-		border-color: var(--cy);
-		color: var(--cy);
-	}
-
-	.qty-control button:disabled {
-		opacity: 0.35;
-		cursor: not-allowed;
-	}
-
+	.qty-control button:active { border-color: var(--cy); color: var(--cy); }
+	.qty-control button:disabled { opacity: .3; cursor: not-allowed; }
 	.mult-input {
-		width: 48px;
+		width: 52px;
 		text-align: center;
 		background: transparent;
 		border: 1px solid var(--br2);
 		color: var(--tx);
-		font-size: 0.7rem;
+		font-size: .875rem;
 		font-weight: 600;
 		font-family: var(--fh);
-		padding: 4px 2px;
-		border-radius: 3px;
+		padding: 6px 2px;
 		-moz-appearance: textfield;
 		appearance: textfield;
 	}
 	.mult-input::-webkit-outer-spin-button,
 	.mult-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
+	/* Ingrédients */
 	.subh {
-		margin: 0 0 8px;
-		font-size: 0.58rem;
+		margin: 0 0 12px;
+		font-size: .6875rem;
 		font-weight: 600;
 		color: var(--tx);
 		text-transform: uppercase;
-		letter-spacing: 0.04em;
+		letter-spacing: .05em;
+		font-family: var(--fb);
 	}
-
 	.ing-list {
-		margin: 0;
-		padding-left: 1rem;
-		font-size: 0.58rem;
-		color: var(--tx);
-		line-height: 1.5;
+		margin: 0 0 24px;
+		padding: 0;
+		list-style: none;
 	}
-
 	.ing-list li {
-		margin-bottom: 8px;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 8px;
+		padding: 11px 0;
+		border-bottom: 1px solid var(--br);
 	}
+	.ing-list li:first-child { border-top: 1px solid var(--br); }
+	.ing-name { font-size: .8125rem; font-weight: 500; color: var(--tx); flex: 1; }
+	.ing-qty  { font-size: .8125rem; color: var(--g); font-weight: 600; }
+	.opt { font-size: .5rem; color: var(--txd); text-transform: uppercase; font-family: var(--fb); }
+	.ing-note { width: 100%; font-size: .5625rem; color: var(--txd); }
+	.muted { color: var(--txd); }
 
-	.ing-name {
-		font-weight: 500;
-	}
-
-	.ing-qty {
-		display: block;
-		color: var(--g);
-		margin-top: 2px;
-	}
-
-	.opt {
-		display: inline-block;
-		margin-left: 6px;
-		font-size: 0.5rem;
-		color: var(--txd);
-		text-transform: uppercase;
-	}
-
-	.ing-note {
-		font-size: 0.52rem;
-		color: var(--txd);
-		margin-top: 2px;
-	}
-
+	/* Préparation */
 	.instructions {
-		margin: 0;
-		padding: 12px;
-		font-size: 0.58rem;
-		line-height: 1.5;
+		margin: 0 0 24px;
+		padding: 16px;
+		font-size: .6875rem;
+		line-height: 1.65;
 		color: var(--tx);
-		background: transparent;
-		border-radius: 6px;
+		background: var(--s2);
 		border: 1px solid var(--br);
 		white-space: pre-wrap;
 		font-family: inherit;
 	}
 
-	.total-section {
-		padding: 18px;
-		background: transparent;
-		border-top: 1px solid var(--br);
-	}
-
-	.total-title {
-		font-size: 0.65rem;
+	/* Lien modifier */
+	.edit-link {
+		display: inline-block;
+		margin-top: 8px;
+		font-size: .5625rem;
 		font-weight: 600;
-		color: var(--g);
-		margin-bottom: 12px;
+		color: var(--cy);
+		text-decoration: none;
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		font-family: var(--fh2), sans-serif;
+		letter-spacing: .05em;
+		font-family: var(--fb);
 	}
 
-	.small {
-		font-size: 0.52rem;
-		margin-top: 10px;
+	/* Empty */
+	.empty-state {
+		padding: 48px 18px;
+		text-align: center;
+		font-size: .8125rem;
+		color: var(--tx);
 	}
+	.empty-state .muted { display: block; margin-top: 10px; font-size: .6875rem; }
 </style>

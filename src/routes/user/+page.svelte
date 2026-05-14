@@ -140,9 +140,6 @@ $effect(() => {
         <div class="npip"></div>
       </a>
     </div>
-    <div class="hh-pills">
-      <a href={dailyCtaHref} class="u-hpill" class:pending={dailyCtaActive}>Aujourd'hui</a>
-    </div>
   </div>
 </div>
 
@@ -164,17 +161,6 @@ $effect(() => {
   </div>
   <div class="u-ncta" style:color={!dailyCtaActive ? 'var(--g)' : undefined}>{dailyCtaLabel}</div>
 </a>
-
-{#if !access.sport}
-<a href="/auth/subscription" class="u-notif-banner program-locked" onclick={fire}>
-  <div class="u-ndot" style="background:var(--txd);animation:none;opacity:.5"></div>
-  <div class="u-nb">
-    <div class="u-nb-t">Programme sport</div>
-    <div class="u-nb-s">Non inclus dans ton offre · Ajoute l'option sport</div>
-  </div>
-  <div class="u-ncta">Offres →</div>
-</a>
-{/if}
 
 <div class="u-sh"><div class="u-sh-t">Mon programme</div><div class="u-sh-s">Jour {currentDayIndex} / 91</div></div>
 

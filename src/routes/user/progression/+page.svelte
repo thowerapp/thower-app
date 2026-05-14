@@ -37,6 +37,7 @@ let checkInPhotos = $state({
 
 let photoUploading = $state({ FRONT: false, SIDE: false, BACK: false });
 let photoError = $state<string | null>(null);
+let inscriptionOpen = $state(false);
 
 function triggerPhotoInput(angle: 'FRONT' | 'SIDE' | 'BACK') {
   (document.getElementById(`photo-input-${angle}`) as HTMLInputElement)?.click();
@@ -200,9 +201,10 @@ const checkInMetricsComplete = $derived(
   <div class="u-li-b"><div class="u-li-s">Défi 30 jours complété</div><div class="u-li-t pts-row"><span class="pts-val">+200 pts</span></div></div>
 </div>
 
-<!-- Check-in mensuel (si dû) -->
+<!-- Check-in mensuel -->
+<div class="u-sh"><div class="u-sh-t">Check-in mensuel</div><div class="u-sh-s">{data.checkInDue ? `Mois ${data.currentMonth} · À compléter · +100 pts` : `Mois ${data.currentMonth} · Complété ✓`}</div></div>
+
 {#if data.checkInDue}
-  <div class="u-sh"><div class="u-sh-t">Check-in du mois {data.currentMonth}</div><div class="u-sh-s">Rapportez votre bien-être · +100 pts</div></div>
   <div style="padding: 18px; background: var(--s2); border-bottom: 1px solid var(--br); margin-bottom: 12px;">
     <form
       method="POST"
@@ -314,7 +316,7 @@ const checkInMetricsComplete = $derived(
 
       <!-- Photos du check-in mensuel -->
       <div class="space-y-2">
-        <div style="font-size:.75rem;font-weight:600;color:var(--txd);font-family:var(--fb);letter-spacing:.05em;text-transform:uppercase;">Photos mois {data.currentMonth}</div>
+        <div style="font-size:.75rem;font-weight:600;color:var(--txd);font-family:var(--fb);letter-spacing:.05em;text-transform:uppercase;">Photos</div>
         <input type="hidden" name="frontUrl" bind:value={checkInPhotos.frontUrl} />
         <input type="hidden" name="sideUrl" bind:value={checkInPhotos.sideUrl} />
         <input type="hidden" name="backUrl" bind:value={checkInPhotos.backUrl} />
@@ -366,6 +368,21 @@ const checkInMetricsComplete = $derived(
       </Button>
     </form>
   </div>
+{:else}
+  <div class="photo-grid">
+    {#each photoLabels as ph}
+      <div class="pcell" class:filled={!!data.photoMap[ph.key]}>
+        {#if data.photoMap[ph.key]}
+          <img src={data.photoMap[ph.key]} alt={ph.label} class="pc-img" />
+          <div class="pc-lbl" style="color:var(--g)">{ph.label}</div>
+        {:else}
+          <div class="pc-plus" style="color:var(--txd)">—</div>
+          <div class="pc-lbl">{ph.label}</div>
+        {/if}
+      </div>
+    {/each}
+  </div>
+  <div class="checkin-next">Prochain check-in disponible au mois {data.currentMonth + 1}</div>
 {/if}
 
 <!-- Recalibration nutrition (disponible 1x/mois après check-in) -->
@@ -416,36 +433,26 @@ const checkInMetricsComplete = $derived(
 {/if}
 
 <!-- Photos d'inscription -->
-<div class="u-sh"><div class="u-sh-t">Photos d'inscription</div><div class="u-sh-s">Référence de départ</div></div>
-<div class="photo-grid">
-  {#each photoLabels as ph}
-    <div class="pcell filled">
-      {#if data.inscriptionPhotoMap[ph.key]}
-        <img src={data.inscriptionPhotoMap[ph.key]} alt={ph.label} class="pc-img" />
-        <div class="pc-lbl" style="color:var(--g)">{ph.label}</div>
-      {:else}
-        <div class="pc-plus" style="color:var(--txd)">—</div>
-        <div class="pc-lbl">{ph.label}</div>
-      {/if}
-    </div>
-  {/each}
-</div>
+<button class="inscrip-toggle" onclick={() => inscriptionOpen = !inscriptionOpen}>
+  <span class="inscrip-toggle-t">Photos d'inscription</span>
+  <span class="inscrip-arrow" class:open={inscriptionOpen}>›</span>
+</button>
+{#if inscriptionOpen}
+  <div class="photo-grid">
+    {#each photoLabels as ph}
+      <div class="pcell filled">
+        {#if data.inscriptionPhotoMap[ph.key]}
+          <img src={data.inscriptionPhotoMap[ph.key]} alt={ph.label} class="pc-img" />
+          <div class="pc-lbl" style="color:var(--g)">{ph.label}</div>
+        {:else}
+          <div class="pc-plus" style="color:var(--txd)">—</div>
+          <div class="pc-lbl">{ph.label}</div>
+        {/if}
+      </div>
+    {/each}
+  </div>
+{/if}
 
-<!-- Photos du mois -->
-<div class="u-sh"><div class="u-sh-t">Photos mois {data.currentMonth}</div><div class="u-sh-s">3 angles requis</div></div>
-<div class="photo-grid">
-  {#each photoLabels as ph}
-    <div class="pcell" class:filled={!!data.photoMap[ph.key]}>
-      {#if data.photoMap[ph.key]}
-        <img src={data.photoMap[ph.key]} alt={ph.label} class="pc-img" />
-        <div class="pc-lbl" style="color:var(--g)">{ph.label}</div>
-      {:else}
-        <div class="pc-plus">+</div>
-        <div class="pc-lbl">{ph.label}</div>
-      {/if}
-    </div>
-  {/each}
-</div>
 
 <style>
 /* ── Hero Progression ── */
@@ -667,4 +674,20 @@ const checkInMetricsComplete = $derived(
 }
 .recal-locked-t { font-size: .6875rem; font-weight: 500; color: var(--tx); font-family: var(--fb); }
 .recal-locked-s { font-size: .5rem; color: var(--txd); margin-top: 2px; font-family: var(--fb); }
+
+/* Photos d'inscription dropdown */
+.inscrip-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 18px; background: none; border: none; border-bottom: 1px solid var(--br);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.inscrip-toggle-t { font-size: .5625rem; color: var(--txd); font-family: var(--fb); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+.inscrip-arrow { font-size: .875rem; color: var(--txd); transition: transform .2s; display: inline-block; }
+.inscrip-arrow.open { transform: rotate(90deg); }
+
+/* Check-in complété */
+.checkin-next {
+  padding: 10px 18px 16px;
+  font-size: .5rem; color: var(--txd); font-family: var(--fb); letter-spacing: .05em;
+}
 </style>

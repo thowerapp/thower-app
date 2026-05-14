@@ -346,16 +346,6 @@
 			</div>
 		</section>
 
-		<!-- Accès bloqué -->
-		{#if !hasValidPayment}
-			<div class="locked-msg">
-				{#if !hasMeasurements}
-					<a href="/auth/measurement">Remplissez votre profil physique</a> pour débloquer le paiement, puis l'application.
-				{:else}
-					<a href="/auth/subscription">Finalisez votre souscription</a> pour débloquer l'application.
-				{/if}
-			</div>
-		{/if}
 
 		{/if}
 

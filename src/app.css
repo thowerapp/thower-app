@@ -200,11 +200,9 @@ a, button, [role="button"], input[type="button"], input[type="submit"], select {
   cursor: none;
 }
 
-/* Curseur visible (triangle cyan) */
-::-webkit-scrollbar-thumb {
-  background: var(--thower-teal);
-  border-radius: 4px;
-}
+/* Scrollbar masquée visuellement (scroll conservé) */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
 
 /* ── STYLES DES FORMULAIRES SHADCN ── */
 

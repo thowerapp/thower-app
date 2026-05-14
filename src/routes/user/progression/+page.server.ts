@@ -86,7 +86,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		orderBy: { month: 'asc' }
 	});
 	const currentMonthCheckIn = monthlyCheckIns.find((c) => c.month === currentMonth);
-	const checkInDue = currentMonth >= 1 && !currentMonthCheckIn;
+	const checkInDue = currentMonth >= 2 && !currentMonthCheckIn;
 
 	// ─── Recalibration nutrition (1x/mois, après check-in) ───────────────────
 	const [profileForRecal, lastMeasureForRecal] = await Promise.all([

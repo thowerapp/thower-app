@@ -201,7 +201,8 @@ const checkInMetricsComplete = $derived(
   <div class="u-li-b"><div class="u-li-s">Défi 30 jours complété</div><div class="u-li-t pts-row"><span class="pts-val">+200 pts</span></div></div>
 </div>
 
-<!-- Check-in mensuel -->
+<!-- Check-in mensuel — visible à partir du mois 2 uniquement -->
+{#if data.currentMonth >= 2}
 <div class="u-sh"><div class="u-sh-t">Check-in mensuel</div><div class="u-sh-s">{data.checkInDue ? `Mois ${data.currentMonth} · À compléter · +100 pts` : `Mois ${data.currentMonth} · Complété ✓`}</div></div>
 
 {#if data.checkInDue}
@@ -383,6 +384,7 @@ const checkInMetricsComplete = $derived(
     {/each}
   </div>
   <div class="checkin-next">Prochain check-in disponible au mois {data.currentMonth + 1}</div>
+{/if}
 {/if}
 
 <!-- Recalibration nutrition (disponible 1x/mois après check-in) -->

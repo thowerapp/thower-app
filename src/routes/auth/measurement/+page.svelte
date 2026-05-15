@@ -124,23 +124,6 @@
 		{/if}
 	</div>
 
-	{#if activeTab === 'wizard' && currentStep === TOTAL_STEPS}
-		<div class="mb-4 sm:mb-6 lg:mb-8 flex flex-col gap-3">
-			<div class="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-4 py-3">
-				<span class="mt-0.5 text-base leading-none">📱</span>
-				<p class="text-xs leading-relaxed text-yellow-300/80">
-					<strong class="font-semibold text-yellow-300">Pour une meilleure expérience</strong>, télécharge l'application directement depuis ton smartphone. Thower est conçue pour le mobile : suivi, recettes et programme sont optimisés sur téléphone.
-				</p>
-			</div>
-			<a
-				href="/auth/subscription"
-				class="inline-flex w-full items-center justify-center rounded-lg border border-cyan-400/60 bg-cyan-400/10 px-4 py-2.5 font-['DM_Sans'] text-sm font-semibold uppercase tracking-wide text-cyan-300 transition-colors hover:bg-cyan-400/20"
-			>
-				Continuer vers paiement et téléchargement
-			</a>
-		</div>
-	{/if}
-
 	{#if activeTab === 'wizard'}
 		<form method="POST" action="?/save" use:measurementEnhance class="space-y-4 sm:space-y-6">
 		<div class="overflow-hidden rounded-lg bg-black">

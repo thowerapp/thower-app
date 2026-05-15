@@ -52,6 +52,7 @@
 	const errorMessage = $derived($page.form?.message);
 	const hasValidPayment = $derived((data as unknown as { hasValidPayment?: boolean })?.hasValidPayment ?? false);
 	const subscriptionEndsAt = $derived((data as unknown as { subscriptionEndsAt?: string | Date | null })?.subscriptionEndsAt ?? null);
+	const entitlements = $derived((data as unknown as { entitlements?: { nutrition: boolean; sport: boolean } })?.entitlements ?? { nutrition: false, sport: false });
 	const subscriptionLabel = $derived(
 		subscriptionEndsAt
 			? new Date(subscriptionEndsAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -118,6 +119,32 @@
 						Votre accompagnement est valide jusqu'au <strong>{subscriptionLabel}</strong>. Un paiement ci-dessous prolongera votre accès à partir de cette date (pas de perte de jours).
 					</Card.Description>
 				</Card.Header>
+			</Card.Root>
+		{/if}
+
+		{#if hasValidPayment}
+			<Card.Root class="border-muted">
+				<Card.Header>
+					<Card.Title class="text-sm font-medium">Programmes inclus</Card.Title>
+				</Card.Header>
+				<Card.Content class="flex gap-3 pt-0">
+					<div class="flex items-center gap-2 rounded-lg border px-3 py-2 {entitlements.nutrition ? 'border-green-500/50 bg-green-500/5' : 'border-muted bg-muted/30 opacity-50'}">
+						{#if entitlements.nutrition}
+							<CheckCircle class="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+						{:else}
+							<XCircle class="w-4 h-4 text-muted-foreground flex-shrink-0" />
+						{/if}
+						<span class="text-sm font-medium">Nutrition</span>
+					</div>
+					<div class="flex items-center gap-2 rounded-lg border px-3 py-2 {entitlements.sport ? 'border-green-500/50 bg-green-500/5' : 'border-muted bg-muted/30 opacity-50'}">
+						{#if entitlements.sport}
+							<CheckCircle class="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+						{:else}
+							<XCircle class="w-4 h-4 text-muted-foreground flex-shrink-0" />
+						{/if}
+						<span class="text-sm font-medium">Sport</span>
+					</div>
+				</Card.Content>
 			</Card.Root>
 		{/if}
 

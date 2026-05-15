@@ -5,9 +5,13 @@ import type { DiscoveryCategory } from '@prisma/client';
  * Retourne les vidéos de découverte accessibles pour l'utilisateur à son jour courant.
  *
  * Règle :
- *  - Une vidéo NON rattachée au programme est toujours visible (libre).
- *  - Une vidéo rattachée au programme est visible uniquement si au moins un
- *    de ses ProgramDayItem a programDay.dayIndex <= currentDayIndex.
+ *  - Une vidéo NON rattachée au programme (ni ProgramDayItem, ni DailyTask active)
+ *    est toujours visible (libre).
+ *  - Une vidéo rattachée au programme via ProgramDayItem est visible si au moins un
+ *    de ses items a programDay.dayIndex <= currentDayIndex.
+ *  - Une vidéo liée à une DailyTask active et visible (showFromDay/showUntilDay)
+ *    est toujours débloquée, même si son ProgramDayItem pointe plus loin —
+ *    cohérence avec la checklist qui affiche déjà cette vidéo à l'utilisateur.
  */
 export async function getDiscoveryContentByCategoryProgressive(
 	category: DiscoveryCategory,
@@ -28,7 +32,7 @@ export async function getDiscoveryContentByCategoryProgressive(
 		.map((r) => r.discoveryContentId)
 		.filter((id): id is string => id != null);
 
-	// 2. IDs débloqués : rattachés à un jour déjà atteint
+	// 2. IDs débloqués via le calendrier (ProgramDayItem d'un jour déjà atteint)
 	const unlockedLinked: { discoveryContentId: string | null }[] =
 		await db.programDayItem.findMany({
 			where: {
@@ -42,14 +46,45 @@ export async function getDiscoveryContentByCategoryProgressive(
 		.map((r) => r.discoveryContentId)
 		.filter((id): id is string => id != null);
 
-	// 3. Vidéos visibles = libres (non gérées) OU débloquées par le calendrier
+	// 3. IDs débloqués via une DailyTask active et visible aujourd'hui.
+	//    Garantit la cohérence avec la checklist : si la tâche VIDEO est affichée,
+	//    la vidéo doit aussi apparaître dans la section découverte.
+	//    On utilise Math.max(currentDayIndex, 1) pour aligner avec journee/+page.server.ts
+	//    qui default à 1 quand programStartDate est absent (getCurrentDayIndex retourne 0).
+	const effectiveDayIndex = Math.max(currentDayIndex, 1);
+	const visibleTaskLinked: { discoveryContentId: string | null }[] =
+		await db.dailyTask.findMany({
+			where: {
+				active: true,
+				discoveryContentId: { not: null },
+				AND: [
+					{ OR: [{ showFromDay: null }, { showFromDay: { lte: effectiveDayIndex } }] },
+					{ OR: [{ showUntilDay: null }, { showUntilDay: { gte: effectiveDayIndex } }] }
+				]
+			},
+			select: { discoveryContentId: true },
+			distinct: ['discoveryContentId']
+		});
+	const taskUnlockedIds = visibleTaskLinked
+		.map((r) => r.discoveryContentId)
+		.filter((id): id is string => id != null);
+
+	// IDs gérés par le programme mais pas encore débloqués via ProgramDayItem.
+	// S'ils sont débloqués via DailyTask, ils doivent quand même apparaître.
+	const programLockedIds = programManagedIds.filter((id) => !unlockedIds.includes(id));
+	// Parmi les vidéos encore verrouillées par le calendrier, celles débloquées par DailyTask
+	const taskUnlockedFromLocked = programLockedIds.filter((id) => taskUnlockedIds.includes(id));
+
+	// 4. Vidéos visibles = libres (non gérées) OU débloquées calendrier OU débloquées DailyTask
+	const allUnlockedIds = [...new Set([...unlockedIds, ...taskUnlockedFromLocked])];
+
 	return db.discoveryContent.findMany({
 		where: {
 			category,
 			active: true,
 			OR: [
 				{ id: { notIn: programManagedIds } },
-				{ id: { in: unlockedIds.length > 0 ? unlockedIds : ['__none__'] } }
+				...(allUnlockedIds.length > 0 ? [{ id: { in: allUnlockedIds } }] : [])
 			]
 		},
 		orderBy: { order: 'asc' }

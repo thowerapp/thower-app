@@ -1,6 +1,7 @@
 import { fail, redirect, isRedirect } from '@sveltejs/kit';
 import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
+import { getProgramOfferEntitlements } from '$lib/prisma/transaction/getProgramOfferEntitlements';
 import { getActiveOffers } from '$lib/prisma/offer/getActiveOffers';
 import { prisma } from '$lib/server';
 import { stripe } from '$lib/server/stripe';
@@ -21,23 +22,24 @@ export const load = async (event: RequestEvent) => {
 		return redirect(302, '/auth/verify-email');
 	}
 
-	// Si paiement réussi, rediriger vers photos
-	const success = event.url.searchParams.get('success') === '1';
-	if (success) {
-		return redirect(302, '/auth/photos');
-	}
-
 	const bodyMeasurements = await getBodyMeasurementsByUserId(event.locals.user.id, 1);
 	const hasMeasurements = bodyMeasurements.length > 0;
+
+	// Premier paiement (pas encore de profil) → formulaire ; renouvellement → tableau de bord
+	const success = event.url.searchParams.get('success') === '1';
+	if (success) {
+		return redirect(302, hasMeasurements ? '/user' : '/auth/measurement');
+	}
 	const offers = await getActiveOffers();
 	const defaultPlans = getPlansForOfferSlugs(offers, []);
 
-	const [hasValidPayment, userRow] = await Promise.all([
+	const [hasValidPayment, userRow, entitlements] = await Promise.all([
 		getHasValidPaymentByUserId(event.locals.user.id),
 		prisma.user.findUnique({
 			where: { id: event.locals.user.id },
 			select: { subscriptionEndsAt: true }
-		})
+		}),
+		getProgramOfferEntitlements(event.locals.user.id)
 	]);
 
 	return {
@@ -47,7 +49,8 @@ export const load = async (event: RequestEvent) => {
 		subscriptionEndsAt: userRow?.subscriptionEndsAt ?? null,
 		offers,
 		defaultPlans,
-		SUBSCRIPTION_PLANS
+		SUBSCRIPTION_PLANS,
+		entitlements
 	};
 };
 

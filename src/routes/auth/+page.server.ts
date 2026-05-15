@@ -89,7 +89,7 @@ export const load = async (event: PageServerLoadEvent) => {
 
 	const bodyMeasurements = await getBodyMeasurementsByUserId(userId, 1);
 	const hasMeasurements = bodyMeasurements.length > 0;
-	const [hasValidPayment, userRow, hasAnyTransaction, nutritionAgg, mealCount, photoCount] = await Promise.all([
+	const [hasValidPayment, userRow, hasAnyTransaction, nutritionAgg, mealCount] = await Promise.all([
 		getHasValidPaymentByUserId(userId),
 		prisma.user.findUnique({
 			where: { id: userId },
@@ -103,10 +103,8 @@ export const load = async (event: PageServerLoadEvent) => {
 			_max: { dayIndex: true },
 			_count: { _all: true }
 		}),
-		prisma.meal.count({ where: { nutritionDay: { userId } } }),
-		prisma.progressPhoto.count({ where: { userId, month: 0 } })
+		prisma.meal.count({ where: { nutritionDay: { userId } } })
 	]);
-	const hasPhotos = photoCount > 0;
 
 	if (isClient) {
 		logAuth('programme nutrition (état DB)', {
@@ -134,13 +132,11 @@ export const load = async (event: PageServerLoadEvent) => {
 	});
 
 	// Calcul de l'étape d'onboarding client
-	let onboardingStep = 'payment'; // Par défaut: paiement en premier
-	if (hasValidPayment && !hasPhotos) {
-		onboardingStep = 'photos'; // Paiement fait, photos manquantes
-	} else if (hasValidPayment && hasPhotos && !hasMeasurements) {
-		onboardingStep = 'measurement'; // Photos faites, formulaire en attente
-	} else if (hasValidPayment && hasPhotos && hasMeasurements) {
-		onboardingStep = 'app_ready'; // Tout complété, app prête à l'emploi
+	let onboardingStep = 'payment';
+	if (hasValidPayment && !hasMeasurements) {
+		onboardingStep = 'measurement';
+	} else if (hasValidPayment && hasMeasurements) {
+		onboardingStep = 'app_ready';
 	}
 
 	return {

@@ -3,9 +3,6 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import { z } from 'zod';
-import { requireNutritionAccess } from '$lib/server/programAccessGuard';
-import { generateNutritionDaysForUser } from '$lib/server/program-generation/nutrition/generateNutrition91Days';
-import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
@@ -88,18 +85,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const currentMonthCheckIn = monthlyCheckIns.find((c) => c.month === currentMonth);
 	const checkInDue = currentMonth >= 2 && !currentMonthCheckIn;
 
-	// ─── Recalibration nutrition (1x/mois, après check-in) ───────────────────
-	const [profileForRecal, lastMeasureForRecal] = await Promise.all([
-		prisma.userProfile.findUnique({ where: { userId }, select: { bodyFatPercent: true } }),
-		prisma.bodyMeasurement.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' }, select: { weightKg: true } })
-	]);
-	const canRecalibrateNutrition =
-		lastMeasureForRecal?.weightKg != null &&
-		lastMeasureForRecal.weightKg > 0 &&
-		profileForRecal?.bodyFatPercent != null &&
-		profileForRecal.bodyFatPercent >= 3 &&
-		profileForRecal.bodyFatPercent <= 70;
-	const nutritionRecalibratedThisMonth = currentMonthCheckIn?.nutritionRecalibrated === true;
 
 	// ─── Niveau Thower — calculé depuis les points ────────────────────────────
 	// Paliers : 0–199=1, 200–499=2, 500–999=3, 1000–1999=4, 2000+=5
@@ -138,69 +123,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		monthlyCheckIns,
 		checkInDue,
 		currentMonthCheckIn,
-		canRecalibrateNutrition,
-		nutritionRecalibratedThisMonth
 	};
 };
 
 export const actions: Actions = {
-	regenerateNutrition: async ({ locals }) => {
-		if (!locals.user) return fail(401, { error: 'Non authentifié' });
-
-		const userId = locals.user.id;
-
-		try {
-			await requireNutritionAccess(userId, locals.user.role);
-		} catch {
-			return fail(403, { error: 'Accès nutrition non activé' });
-		}
-
-		const [profile, lastMeasure, user] = await Promise.all([
-			prisma.userProfile.findUnique({ where: { userId }, select: { bodyFatPercent: true } }),
-			prisma.bodyMeasurement.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' }, select: { weightKg: true } }),
-			prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true } })
-		]);
-
-		if (
-			lastMeasure?.weightKg == null || lastMeasure.weightKg <= 0 ||
-			profile?.bodyFatPercent == null || profile.bodyFatPercent < 3 || profile.bodyFatPercent > 70
-		) {
-			return fail(400, { error: 'Profil incomplet — ajoute ton poids et ton % masse grasse avant de recalibrer.' });
-		}
-
-		function startOfUtcDay(d: Date = new Date()): Date {
-			const r = new Date(d);
-			r.setUTCHours(0, 0, 0, 0);
-			return r;
-		}
-
-		const currentMonth = user?.programStartDate
-			? Math.ceil((Math.floor((startOfUtcDay().getTime() - startOfUtcDay(user.programStartDate).getTime()) / 86_400_000) + 1) / 30)
-			: 1;
-
-		const checkIn = await prisma.monthlyCheckIn.findUnique({
-			where: { userId_month: { userId, month: currentMonth } }
-		});
-
-		if (!checkIn) {
-			return fail(400, { error: 'Effectue d\'abord le check-in du mois pour débloquer le recalibrage.' });
-		}
-
-		if (checkIn.nutritionRecalibrated) {
-			return fail(409, { error: 'Plan déjà recalibré ce mois-ci.' });
-		}
-
-		await prisma.nutritionDay.deleteMany({ where: { userId } });
-		await generateNutritionDaysForUser(userId, NUTRITION_SEGMENT_DAYS);
-
-		await prisma.monthlyCheckIn.update({
-			where: { userId_month: { userId, month: currentMonth } },
-			data: { nutritionRecalibrated: true }
-		});
-
-		return { success: true };
-	},
-
 	submitMonthlyCheckIn: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, { message: 'Unauthorized' });
 

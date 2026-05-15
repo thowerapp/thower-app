@@ -69,7 +69,7 @@
 	<div class="auth-card">
 		<h1>Photos de référence</h1>
 		<p class="subtitle">
-			Ces 3 photos sont obligatoires pour personnaliser votre programme nutrition. Prenez-les en
+			Ces photos sont facultatives mais recommandées pour suivre votre évolution. Prenez-les en
 			sous-vêtements, de face, de profil et de dos.
 		</p>
 
@@ -190,6 +190,7 @@
 		<p class="help-text">
 			Vos photos sont stockées de façon sécurisée et ne sont accessibles que par vous.
 		</p>
+		<a href="/auth/measurement" class="skip-link">Passer cette étape →</a>
 	</div>
 </div>
 
@@ -360,4 +361,13 @@
 		margin: 0;
 		line-height: 1.4;
 	}
+	.skip-link {
+		display: block;
+		text-align: center;
+		margin-top: 16px;
+		font-size: 0.75rem;
+		color: var(--txd);
+		text-decoration: none;
+	}
+	.skip-link:hover { color: var(--tx); }
 </style>

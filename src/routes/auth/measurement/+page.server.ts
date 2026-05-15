@@ -28,19 +28,13 @@ export const load = async (event: RequestEvent) => {
 		return redirect(302, '/auth/verify-email');
 	}
 
-	const [profile, bodyMeasurements, photoCount] = await Promise.all([
+	const [profile, bodyMeasurements] = await Promise.all([
 		getProfileByUserId(event.locals.user.id),
-		getBodyMeasurementsByUserId(event.locals.user.id),
-		prisma.progressPhoto.count({ where: { userId: event.locals.user.id, month: 0 } })
+		getBodyMeasurementsByUserId(event.locals.user.id)
 	]);
 
 	// Check bien-être complété (redirige vers /auth/well-being si manquant)
 	checkWellBeingCompleted(event.locals, profile);
-
-	// Check photos d'inscription obligatoires (redirige vers /auth/photos si manquantes)
-	if (photoCount === 0) {
-		return redirect(302, '/auth/photos');
-	}
 
 	const lastBody: BodyMeasurementSnapshot | null = bodyMeasurements[0] ?? null;
 

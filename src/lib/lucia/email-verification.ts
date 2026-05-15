@@ -118,7 +118,7 @@ export async function sendVerificationEmail(email: string, code: string): Promis
 
 	try {
 		const mailOptions = {
-			from: '"Thower" <contact@thower.com>',
+			from: '"Thower" <contact@thower.fr>',
 			to: email,
 			subject: 'Your Verification Code',
 			text: `Your verification code is: ${code}`,

@@ -150,7 +150,7 @@ export async function sendPasswordResetEmail(email: string, code: string): Promi
 
 	try {
 		const mailOptions = {
-			from: '"Thower" <contact@thower.com>', // Expéditeur
+			from: '"Thower" <contact@thower.fr>', // Expéditeur
 			to: email, // Destinataire
 			subject: 'Password Reset Request', // Objet de l'email
 			text: `Your password reset code is: ${code}`, // Corps texte brut (fallback)

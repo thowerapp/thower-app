@@ -134,8 +134,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			intermittentFastingMorning: true
 		}
 	});
-	const intermittentFasting = profile?.intermittentFastingMorning ?? false;
-
 	const lastMeasure = await prisma.bodyMeasurement.findFirst({
 		where: { userId },
 		orderBy: { createdAt: 'desc' },
@@ -205,6 +203,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const dow = (dayIndex - 1) % 7;
 
 	const weekNum = Math.min(13, Math.max(1, Math.ceil(dayIndex / 7)));
+
+	const intermittentFasting =
+		nutritionDay != null
+			? nutritionDay.intermittentFasting
+			: (profile?.intermittentFastingMorning ?? false);
 
 	if (!nutritionDay) {
 		return {

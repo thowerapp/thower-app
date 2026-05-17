@@ -280,13 +280,9 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	}
 
 	const orderedSessionVideos = [...session.videos].sort((a, b) => a.order - b.order);
-	const requiredSourceVideos =
-		session.type === 'DISCOVERY'
-			? orderedSessionVideos
-			: orderedSessionVideos.slice(0, 3);
-	const requiredVideoIds = new Set(requiredSourceVideos.map((v) => v.id));
 
-	const videos = requiredSourceVideos.map((v) => {
+	const videos = orderedSessionVideos.map((v) => {
+		const isOptional = session.type !== 'DISCOVERY' && v.position === 'PRE';
 		const status = v.status ?? 'pending';
 		const prog = progressByVideoId.get(v.id);
 		const videoCompleted = prog?.completedAt != null;
@@ -316,8 +312,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			order: v.order,
 			status,
 			cloudflareUid: v.cloudflareUid,
-			isOptional: false,
-			isRequired: true,
+			isOptional,
+			isRequired: !isOptional,
 			videoCompleted,
 			progressState,
 			maxPositionSec: Math.round(maxPositionSec * 10) / 10,
@@ -326,8 +322,12 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		};
 	});
 
-	const mandatoryVideos = requiredSourceVideos;
-	const optionalVideos: typeof requiredSourceVideos = [];
+	const mandatoryVideos = orderedSessionVideos.filter(
+		(v) => session.type === 'DISCOVERY' || v.position !== 'PRE'
+	);
+	const optionalVideos = orderedSessionVideos.filter(
+		(v) => session.type !== 'DISCOVERY' && v.position === 'PRE'
+	);
 	const allMandatoryVideosCompleted =
 		mandatoryVideos.length === 0 ||
 		mandatoryVideos.every((v) => progressByVideoId.get(v.id)?.completedAt != null);
@@ -346,6 +346,23 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			: 100;
 	const canWatchSession = dayIndex <= currentUnlockedDayIndex;
 
+	// Ordre A→B→C : vérifier que la séance prérequise est validée
+	let prerequisiteBlocked = false;
+	let prerequisiteMessage: string | null = null;
+	if (session.type === 'MAIN_B' || session.type === 'MAIN_C') {
+		const requiredPrevType = session.type === 'MAIN_B' ? 'MAIN_A' : 'MAIN_B';
+		const prevCompleted = await prisma.userWorkoutDay.findFirst({
+			where: { userId, completedAt: { not: null }, session: { type: requiredPrevType } }
+		});
+		if (!prevCompleted) {
+			prerequisiteBlocked = true;
+			prerequisiteMessage =
+				session.type === 'MAIN_B'
+					? 'Valide la séance A avant d\'accéder à la séance B.'
+					: 'Valide la séance B avant d\'accéder à la séance C.';
+		}
+	}
+
 	return serializeData({
 		sessionId,
 		sessionName: session.name,
@@ -353,7 +370,9 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		dayIndex,
 		currentUnlockedDayIndex,
 		canWatchSession,
-		canValidateSession: dayIndex <= currentUnlockedDayIndex,
+		canValidateSession: dayIndex <= currentUnlockedDayIndex && !prerequisiteBlocked,
+		prerequisiteBlocked,
+		prerequisiteMessage,
 		scheduledDateISO: scheduledISO,
 		seanceCompletedAt: userDay?.completedAt?.toISOString() ?? null,
 		seanceLocked: userDay?.isLocked ?? false,
@@ -413,10 +432,26 @@ export const actions: Actions = {
 			return fail(409, { message: 'Cette séance est déjà validée.' });
 		}
 
+		// Ordre A→B→C
+		if (session.type === 'MAIN_B' || session.type === 'MAIN_C') {
+			const requiredPrevType = session.type === 'MAIN_B' ? 'MAIN_A' : 'MAIN_B';
+			const prevCompleted = await prisma.userWorkoutDay.findFirst({
+				where: { userId, completedAt: { not: null }, session: { type: requiredPrevType } }
+			});
+			if (!prevCompleted) {
+				return fail(409, {
+					message:
+						session.type === 'MAIN_B'
+							? 'Valide la séance A avant de valider la séance B.'
+							: 'Valide la séance B avant de valider la séance C.'
+				});
+			}
+		}
+
 		const mandatoryVideoIds =
 			session.type === 'DISCOVERY'
 				? session.videos.map((video) => video.id)
-				: session.videos.slice(0, 3).map((video) => video.id);
+				: session.videos.filter((video) => video.position !== 'PRE').map((video) => video.id);
 		const progressDelegate = getUserVideoProgressDelegate();
 		if (mandatoryVideoIds.length > 0) {
 			const completedMandatoryCount = progressDelegate

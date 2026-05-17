@@ -11,9 +11,7 @@
 	/** null = utiliser defaultSelectedDay du serveur pour cette semaine */
 	let userPickedDay = $state<number | null>(null);
 	let syncedWeek = $state(-1);
-	let jeune = $derived(data.intermittentFasting ?? false);
-	let jeuneOverride = $state<boolean | null>(null);
-	const jeuneActive = $derived(jeuneOverride ?? jeune);
+	let jeuneOverrideByDay = $state<Record<number, boolean>>({});
 
 	$effect.pre(() => {
 		const w = data.selectedWeek;
@@ -27,6 +25,10 @@
 
 	const selectedDayData = $derived(
 		data.weekDays.find((d) => d.dayIndex === selectedDay) ?? null
+	);
+
+	const jeuneActive = $derived(
+		jeuneOverrideByDay[selectedDay] ?? selectedDayData?.intermittentFasting ?? false
 	);
 
 	const displayMeals = $derived(
@@ -123,16 +125,18 @@
 <!-- Toggle jeûne intermittent -->
 <form
 	method="POST"
-	action="?/toggleJeune"
+	action="?/toggleJeuneDay"
 	use:enhance={() => {
-		jeuneOverride = !jeuneActive;
+		const day = selectedDay;
+		jeuneOverrideByDay = { ...jeuneOverrideByDay, [day]: !jeuneActive };
 		return async ({ update }) => { await update({ invalidateAll: false }); };
 	}}
 >
 	<input type="hidden" name="active" value={String(!jeuneActive)} />
-	<button type="submit" class="jeune-toggle" class:jim-on={jeuneActive}>
+	<input type="hidden" name="dayIndex" value={String(selectedDay)} />
+	<button type="submit" class="jeune-toggle" class:jim-on={jeuneActive} disabled={!selectedDayData?.hasPlan}>
 		<div class="jt-left">
-			<div class="jt-label">Jeûne intermittent — aujourd'hui</div>
+			<div class="jt-label">Jeûne intermittent — Jour {selectedDay}</div>
 			<div class="jt-sub">
 				{#if jeuneActive}
 					Actif · 2 repas équilibrés

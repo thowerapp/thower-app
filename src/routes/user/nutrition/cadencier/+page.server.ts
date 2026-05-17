@@ -77,6 +77,7 @@ type CadencierDayDTO = {
 	dayNumInWeek: number;
 	isToday: boolean;
 	hasPlan: boolean;
+	intermittentFasting: boolean;
 	meals: CadencierMealDTO[];
 };
 
@@ -184,6 +185,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			dayNumInWeek: dow + 1,
 			isToday: dayIndex === currentDayIndex,
 			hasPlan: sortedMeals.length > 0,
+			intermittentFasting: row?.intermittentFasting ?? false,
 			meals
 		});
 	}
@@ -253,6 +255,32 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
+	toggleJeuneDay: async ({ locals, request }) => {
+		if (!locals.user) return fail(401, { error: 'Non authentifié' });
+		await requireNutritionAccess(locals.user.id, locals.user.role);
+		const userId = locals.user.id;
+		const data = await request.formData();
+		const active = data.get('active') === 'true';
+		const dayIndexRaw = data.get('dayIndex');
+		const dayIndex = Number.parseInt(String(dayIndexRaw ?? ''), 10);
+		if (!Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > TOTAL_DAYS) {
+			return fail(400, { error: 'Jour invalide' });
+		}
+		try {
+			const updated = await prisma.nutritionDay.updateMany({
+				where: { userId, dayIndex },
+				data: { intermittentFasting: active }
+			});
+			if (updated.count === 0) {
+				return fail(404, { error: 'Aucun jour de nutrition trouvé pour ce jour' });
+			}
+			return { success: true };
+		} catch (e) {
+			console.error('[cadencier toggleJeuneDay]', e);
+			return fail(500, { error: 'Erreur serveur' });
+		}
+	},
+
 	toggleJeune: async ({ locals, request }) => {
 		if (!locals.user) return fail(401, { error: 'Non authentifié' });
 		await requireNutritionAccess(locals.user.id, locals.user.role);

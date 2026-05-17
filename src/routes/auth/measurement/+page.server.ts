@@ -125,6 +125,9 @@ export const actions: Actions = {
 			breadType: data.breadType,
 			breadManagement: data.breadManagement,
 			sportActivity: data.sportActivity,
+			coffeePerDay: data.coffeePerDay,
+			alcoholHabit: data.alcoholHabit,
+			tobaccoHabit: data.tobaccoHabit,
 			// Alimentation & équipement
 			kitchenEquipment,
 			disgustingFoods: data.disgustingFoods,

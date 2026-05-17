@@ -44,11 +44,11 @@
 
 	function isVideoUnlocked(index: number): boolean {
 		if (!data.canWatchSession) return false;
-		if (index === 0) return true;
-		for (let i = 0; i < index; i++) {
-			if (sessionVideos[i]?.progressState !== 'validated') return false;
-		}
-		return true;
+		const v = sessionVideos[index];
+		if (v?.isOptional) return true; // pré-séance toujours accessible
+		// Pour les vidéos obligatoires, seules les précédentes obligatoires doivent être validées
+		const prevRequired = sessionVideos.slice(0, index).filter((sv) => !sv.isOptional);
+		return prevRequired.every((sv) => sv.progressState === 'validated');
 	}
 </script>
 
@@ -72,7 +72,7 @@
 	</div>
 </div>
 
-<div class="seance-expected mx-4">Regarde les 3 vidéos dans l’ordre pour valider la séance.</div>
+<div class="seance-expected mx-4">Visionne les vidéos obligatoires (VID1 + VID2) dans l’ordre pour valider la séance. La pré-séance est facultative.</div>
 
 {#if summary.mandatoryTotal > 0}
 	<div class="seance-synth mx-4">
@@ -88,6 +88,8 @@
 
 {#if data.seanceCompletedAt}
 	<p class="seance-banner seance-banner--ok mx-4">Séance enregistrée comme terminée côté programme.</p>
+{:else if data.prerequisiteBlocked}
+	<p class="seance-banner seance-banner--wait mx-4">{data.prerequisiteMessage}</p>
 {:else if !data.canValidateSession}
 	<p class="seance-banner seance-banner--wait mx-4">
 		Cette séance est placée après le jour actuel du programme. Elle se débloquera à partir du jour {data.dayIndex}.

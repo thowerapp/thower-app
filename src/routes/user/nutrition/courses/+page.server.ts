@@ -63,7 +63,7 @@ async function getOrGenerateList(
 	// Si absente, générer à la volée
 	if (!list) {
 		const result = await generateShoppingListFromPlanning(userId, startDayIndex, endDayIndex, {
-			includeReportedFromPrevious: false
+			includeReportedFromPrevious: true
 		});
 		if (!result) return null;
 		list = await db.shoppingList.findUnique({
@@ -143,7 +143,7 @@ export const actions: Actions = {
 		}
 
 		const result = await generateShoppingListFromPlanning(userId, startDayIndex, endDayIndex, {
-			includeReportedFromPrevious: false
+			includeReportedFromPrevious: true
 		});
 		if (!result) return fail(500, { message: 'Erreur lors de la génération de la liste.' });
 		return { success: true };

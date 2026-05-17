@@ -86,20 +86,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const checkInDue = currentMonth >= 2 && !currentMonthCheckIn;
 
 
-	// ─── Niveau Thower — calculé depuis les points ────────────────────────────
-	// Paliers : 0–199=1, 200–499=2, 500–999=3, 1000–1999=4, 2000+=5
-	const levels = [
-		{ min: 0,    max: 199,  num: 1, name: 'Bambou en herbe', next: 'Bambou Furieux',     nextMin: 200  },
-		{ min: 200,  max: 499,  num: 2, name: 'Bambou Furieux',  next: 'Guerrier en devenir', nextMin: 500  },
-		{ min: 500,  max: 999,  num: 3, name: 'Guerrier en devenir', next: 'Guerrier Thower', nextMin: 1000 },
-		{ min: 1000, max: 1999, num: 4, name: 'Guerrier Thower', next: 'Maître Thower',       nextMin: 2000 },
-		{ min: 2000, max: Infinity, num: 5, name: 'Maître Thower', next: null, nextMin: null },
+	// ─── Statut Thower — calculé depuis le score global (% tâches complétées) ──
+	// 6 statuts spec : basés sur scorePercent
+	const statuts = [
+		{ minPercent: 100, num: 6, name: 'Titan Légendaire',    next: null,                  nextMin: null },
+		{ minPercent: 98,  num: 5, name: 'Héro Millénium',      next: 'Titan Légendaire',    nextMin: 100  },
+		{ minPercent: 94,  num: 4, name: 'Guerrier en devenir', next: 'Héro Millénium',      nextMin: 98   },
+		{ minPercent: 90,  num: 3, name: 'Bambou Furieux',      next: 'Guerrier en devenir', nextMin: 94   },
+		{ minPercent: 86,  num: 2, name: 'Éponge molle',        next: 'Bambou Furieux',      nextMin: 90   },
+		{ minPercent: 0,   num: 1, name: 'Gland de chêne',      next: 'Éponge molle',        nextMin: 86   },
 	];
 
-	const levelData = levels.find((l) => totalPoints >= l.min && totalPoints <= l.max) ?? levels[0];
+	const levelData = statuts.find((s) => scorePercent >= s.minPercent) ?? statuts[statuts.length - 1];
 	const levelPercent =
-		levelData.nextMin != null
-			? Math.round(((totalPoints - levelData.min) / (levelData.nextMin - levelData.min)) * 100)
+		levelData.next != null && levelData.nextMin != null
+			? Math.round(((scorePercent - levelData.minPercent) / (levelData.nextMin - levelData.minPercent)) * 100)
 			: 100;
 
 	return {

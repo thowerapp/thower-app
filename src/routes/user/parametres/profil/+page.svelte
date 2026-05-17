@@ -2,10 +2,15 @@
 import type { PageData } from './$types';
 import EmberCanvas from '$lib/components/EmberCanvas.svelte';
 import { fireElement } from '$lib/utils/particles';
+import { enhance } from '$app/forms';
 
 let { data } = $props<{ data: PageData }>();
 
 function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
+
+let optOutIds = $state(new Set(data.optOutIds ?? []));
+
+function isOptOut(taskId: string) { return optOutIds.has(taskId); }
 
 const activityLabels: Record<string, string> = {
   SEDENTARY: 'Sédentaire',
@@ -239,6 +244,42 @@ $effect(() => {
   </div>
 </details>
 
+{#if data.dailyTasks && data.dailyTasks.length > 0}
+<details class="acc">
+  <summary class="acc-sum">
+    <span class="acc-title">Checklist journalière</span>
+    <span class="acc-sub">{(data.dailyTasks.length - optOutIds.size)} / {data.dailyTasks.length} actives</span>
+    <span class="acc-arr"></span>
+  </summary>
+  <div class="acc-body">
+    <div class="optout-hint">Désactive les tâches que tu ne suis pas.</div>
+    {#each data.dailyTasks as task (task.id)}
+      <form
+        method="POST"
+        action="?/toggleTaskOptOut"
+        use:enhance={() => {
+          const next = new Set(optOutIds);
+          if (next.has(task.id)) next.delete(task.id);
+          else next.add(task.id);
+          optOutIds = next;
+          return async ({ update }) => update({ reset: false });
+        }}
+      >
+        <input type="hidden" name="taskId" value={task.id} />
+        <input type="hidden" name="optOut" value={String(!isOptOut(task.id))} />
+        <button type="submit" class="task-row" class:opted-out={isOptOut(task.id)}>
+          <div class="task-check" class:off={isOptOut(task.id)}>
+            {#if !isOptOut(task.id)}✓{/if}
+          </div>
+          <div class="task-label">{task.label}</div>
+          <div class="task-pts">{task.points} pts</div>
+        </button>
+      </form>
+    {/each}
+  </div>
+</details>
+{/if}
+
 <div style="height:24px"></div>
 
 <style>
@@ -397,4 +438,45 @@ details[open] .acc-arr { transform: rotate(-45deg); }
 .score-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
 .score-bar { font-size: .5rem; color: var(--cy); letter-spacing: .06em; font-family: monospace; }
 .score-val { font-size: .5625rem; color: var(--txd); font-family: var(--fb); }
+
+/* ── Checklist opt-out ── */
+.optout-hint {
+  padding: 8px 18px;
+  font-size: .5rem;
+  color: var(--txd);
+  font-family: var(--fb);
+  border-bottom: 1px solid var(--br);
+}
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--br);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  text-align: left;
+  transition: background .1s;
+}
+.task-row:active { background: rgba(255,255,255,.03); }
+.task-row.opted-out .task-label { color: var(--txd); text-decoration: line-through; }
+.task-check {
+  width: 18px; height: 18px;
+  border: 1.5px solid var(--cy);
+  background: rgba(0,229,255,.1);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .5625rem;
+  color: var(--cy);
+  font-weight: 700;
+}
+.task-check.off {
+  border-color: var(--br2);
+  background: transparent;
+}
+.task-label { flex: 1; font-size: .6875rem; font-weight: 500; color: var(--tx); font-family: var(--fb); }
+.task-pts { font-size: .5rem; color: var(--g); font-family: var(--fb); font-weight: 600; white-space: nowrap; }
 </style>

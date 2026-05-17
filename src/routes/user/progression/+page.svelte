@@ -101,9 +101,9 @@ const checkInMetricsComplete = $derived(
         </div>
       </div>
       <div class="ph-bar-limits">
-        <span>Niveau {data.levelData.num} — {data.levelData.min} pts</span>
+        <span>Statut {data.levelData.num} — {data.levelData.minPercent}%</span>
         {#if data.levelData.next}
-          <span class="ph-next">{data.levelData.nextMin} pts → {data.levelData.next}</span>
+          <span class="ph-next">{data.levelData.nextMin}% → {data.levelData.next}</span>
         {:else}
           <span class="ph-next">Niveau max ★</span>
         {/if}

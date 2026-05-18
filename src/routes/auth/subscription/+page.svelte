@@ -2,7 +2,7 @@
 	import * as Card from '$shadcn/card';
 	import { Button } from '$shadcn/button';
 	import type { PageProps } from './$types';
-	import { CreditCard, Ruler, AlertCircle, CheckCircle, XCircle, LayoutDashboard } from 'lucide-svelte';
+	import { CreditCard, AlertCircle, CheckCircle, XCircle, LayoutDashboard } from 'lucide-svelte';
 	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
 
@@ -10,11 +10,10 @@
 
 	type OfferRow = { id: string; slug: string; name: string; amountCentsMonthly: number; amountCentsAnnual: number };
 	type PlanInfo = { amountCents: number; label: string; description: string };
-	type PlansData = { monthly?: PlanInfo; annual?: PlanInfo };
 
 	const offers = $derived((data as unknown as { offers?: OfferRow[] })?.offers ?? []);
-	const defaultPlans = $derived((data as unknown as { defaultPlans?: PlansData })?.defaultPlans ?? ({} as PlansData));
-	const SUBSCRIPTION_PLANS = $derived((data as unknown as { SUBSCRIPTION_PLANS?: PlansData })?.SUBSCRIPTION_PLANS ?? {});
+	const defaultPlan = $derived((data as unknown as { defaultPlan?: PlanInfo })?.defaultPlan ?? null);
+	const SUBSCRIPTION_PLANS = $derived((data as unknown as { SUBSCRIPTION_PLANS?: Record<string, PlanInfo> })?.SUBSCRIPTION_PLANS ?? {});
 
 	let selectedOfferSlugs = $state<string[]>([]);
 
@@ -26,25 +25,13 @@
 		}
 	}
 
-	const plans = $derived.by(() => {
-		const base = SUBSCRIPTION_PLANS as Record<string, PlanInfo>;
-		if (selectedOfferSlugs.length === 0) {
-			return {
-				monthly: defaultPlans.monthly ?? base.monthly,
-				annual: defaultPlans.annual ?? base.annual
-			};
-		}
+	const plan = $derived.by(() => {
+		const base = (SUBSCRIPTION_PLANS as Record<string, PlanInfo>).quarterly ?? defaultPlan;
+		if (!base) return null;
+		if (selectedOfferSlugs.length === 0) return defaultPlan ?? base;
 		const selected = offers.filter((p) => selectedOfferSlugs.includes(p.slug));
-		const monthlyCents = selected.reduce((s, p) => s + p.amountCentsMonthly, 0);
-		const annualCents = selected.reduce((s, p) => s + p.amountCentsAnnual, 0);
-		return {
-			monthly: base.monthly
-				? { ...base.monthly, amountCents: monthlyCents || (defaultPlans.monthly?.amountCents ?? base.monthly.amountCents) }
-				: undefined,
-			annual: base.annual
-				? { ...base.annual, amountCents: annualCents || (defaultPlans.annual?.amountCents ?? base.annual.amountCents) }
-				: undefined
-		};
+		const quarterlyCents = selected.reduce((s, p) => s + p.amountCentsMonthly * 3, 0);
+		return { ...base, amountCents: quarterlyCents || base.amountCents };
 	});
 
 	const success = $derived($page.url.searchParams.get('success') === '1');
@@ -109,7 +96,7 @@
 
 	{#if !success}
 		{#if hasValidPayment && subscriptionLabel}
-			<Card.Root class="border-green-500/50 bg-green-500/5">
+			<Card.Root class="border-green-500/50 bg-green-500/5 mb-4">
 				<Card.Header>
 					<Card.Title class="flex items-center gap-2 text-green-700 dark:text-green-400">
 						<CheckCircle class="w-6 h-6" />
@@ -123,7 +110,7 @@
 		{/if}
 
 		{#if hasValidPayment}
-			<Card.Root class="border-muted">
+			<Card.Root class="border-muted mb-4">
 				<Card.Header>
 					<Card.Title class="text-sm font-medium">Programmes inclus</Card.Title>
 				</Card.Header>
@@ -156,9 +143,8 @@
 				</Card.Title>
 				<Card.Description>
 					{hasValidPayment
-						? 'Choisissez une formule pour prolonger votre accès. Paiement sécurisé par Stripe.'
-						: 'Choisissez votre formule. Paiement sécurisé par Stripe.'}
-					Sélectionnez une ou plusieurs offres ci-dessous : le tarif s'adapte à votre choix.
+						? 'Prolongez votre accès pour 3 mois supplémentaires. Paiement sécurisé par Stripe.'
+						: 'Accédez à votre accompagnement Thower sur 3 mois. Paiement sécurisé par Stripe.'}
 				</Card.Description>
 			</Card.Header>
 			<Card.Content class="space-y-4">
@@ -176,51 +162,28 @@
 									/>
 									<span>{offer.name}</span>
 									<span class="text-muted-foreground text-sm">
-										{formatPrice(offer.amountCentsMonthly)}/mois — {formatPrice(offer.amountCentsAnnual)}/an
+										{formatPrice(offer.amountCentsMonthly * 3)}/3 mois
 									</span>
 								</label>
 							{/each}
 						</div>
 					</div>
 				{/if}
-				<p class="text-muted-foreground">
-					{hasValidPayment
-						? 'Votre accès sera prolongé à partir de la date de fin actuelle.'
-						: 'Sélectionnez une ou plusieurs offres puis choisissez la formule (mensuel ou annuel).'}
-				</p>
-				<div class="grid gap-3 sm:grid-cols-2">
-					{#if plans.monthly}
-						<form method="POST" action="?/createCheckout" use:enhance class="rounded-lg border bg-card p-4">
-							<input type="hidden" name="plan" value="monthly" />
-							<input type="hidden" name="selectedOfferSlugs" value={JSON.stringify(selectedOfferSlugs)} />
-							<div class="mb-3">
-								<div class="font-semibold">{plans.monthly.label}</div>
-								<div class="text-2xl font-bold text-primary">{formatPrice(plans.monthly.amountCents)}<span class="text-sm font-normal text-muted-foreground">/mois</span></div>
-								<p class="mt-1 text-sm text-muted-foreground">{plans.monthly.description}</p>
-							</div>
-							<Button type="submit" class="w-full gap-2" variant="outline">
-								<CreditCard class="w-4 h-4" />
-								{hasValidPayment ? 'Renouveler (mensuel)' : 'Choisir mensuel'}
-							</Button>
-						</form>
-					{/if}
-					{#if plans.annual}
-						<form method="POST" action="?/createCheckout" use:enhance class="rounded-lg border-2 border-primary/50 bg-card p-4">
-							<input type="hidden" name="plan" value="annual" />
-							<input type="hidden" name="selectedOfferSlugs" value={JSON.stringify(selectedOfferSlugs)} />
-							<div class="mb-3">
-								<span class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Avantageux</span>
-								<div class="mt-2 font-semibold">{plans.annual.label}</div>
-								<div class="text-2xl font-bold text-primary">{formatPrice(plans.annual.amountCents)}<span class="text-sm font-normal text-muted-foreground">/an</span></div>
-								<p class="mt-1 text-sm text-muted-foreground">{plans.annual.description}</p>
-							</div>
-							<Button type="submit" class="w-full gap-2">
-								<CreditCard class="w-4 h-4" />
-								{hasValidPayment ? 'Renouveler (annuel)' : 'Choisir annuel'}
-							</Button>
-						</form>
-					{/if}
-				</div>
+
+				{#if plan}
+					<form method="POST" action="?/createCheckout" use:enhance class="rounded-lg border-2 border-primary/50 bg-card p-6">
+						<input type="hidden" name="selectedOfferSlugs" value={JSON.stringify(selectedOfferSlugs)} />
+						<div class="mb-4 text-center">
+							<div class="text-4xl font-bold text-primary">{formatPrice(plan.amountCents)}</div>
+							<div class="mt-1 text-muted-foreground">pour 3 mois d'accompagnement</div>
+							<p class="mt-2 text-sm text-muted-foreground">{plan.description}</p>
+						</div>
+						<Button type="submit" class="w-full gap-2 text-base">
+							<CreditCard class="w-5 h-5" />
+							{hasValidPayment ? 'Renouveler pour 3 mois' : 'Commencer — 3 mois'}
+						</Button>
+					</form>
+				{/if}
 			</Card.Content>
 		</Card.Root>
 	{/if}

@@ -4,10 +4,8 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/index';
 import { createTransactionFromStripeSession } from '$lib/prisma/transaction/createTransactionFromStripeSession';
 import { getSubscriptionEndDateFromPlan, type PlanId } from '$lib/server/subscription-plans';
-import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
 import { claimNutritionSegmentCreditOnTransaction } from '$lib/server/mongo/claimNutritionSegmentCredit';
 import { incUserNutritionDaysAllocatedMongo } from '$lib/server/mongo/incUserNutritionDaysAllocated';
-import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import dotenv from 'dotenv';
 
@@ -15,7 +13,7 @@ dotenv.config();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
-const VALID_PLANS: PlanId[] = ['monthly', 'annual'];
+const VALID_PLANS: PlanId[] = ['quarterly'];
 
 /** Ligne User minimale pour le repli webhook (assertions : certains caches TS servent un User Prisma sans ce champ). */
 type UserNutritionAllocatedRow = { nutritionDaysAllocated: number };
@@ -86,7 +84,7 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 			return;
 		}
 
-		const planId = (session.metadata?.plan as PlanId | undefined) ?? 'annual';
+		const planId = (session.metadata?.plan as PlanId | undefined) ?? 'quarterly';
 		const user = await prisma.user.findUnique({
 			where: { id: transaction.userId },
 			select: { subscriptionEndsAt: true }
@@ -95,7 +93,7 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 		const endsAt =
 			VALID_PLANS.includes(planId)
 				? getSubscriptionEndDateFromPlan(planId, currentEndsAt)
-				: getSubscriptionEndDateFromPlan('annual', currentEndsAt);
+				: getSubscriptionEndDateFromPlan('quarterly', currentEndsAt);
 
 		const credited = await claimNutritionSegmentCreditOnTransaction(transaction.id);
 
@@ -138,26 +136,9 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				'| nutritionDaysAllocated=',
 				after?.nutritionDaysAllocated ?? '?'
 			);
-
-			// On ne génère le programme que lorsqu'un nouveau crédit a réellement été appliqué.
-			// Cela évite les régénérations déclenchées par des webhooks dupliqués/non-opérants.
-		// LE NOUVEAU FLUX : on génère seulement si les measurements (formulaire) existent déjà.
-		// Sinon on attend que l'utilisateur remplisse le formulaire et déclenche la génération depuis là.
-		const bodyMeasurements = await getBodyMeasurementsByUserId(transaction.userId, 1);
-		if (bodyMeasurements.length > 0) {
-			void scheduleProgramGenerationAfterPayment(transaction.userId).catch((err) => {
-				console.error('scheduleProgramGenerationAfterPayment failed', transaction.userId, err);
-			});
 			console.log(
-				'[webhook] Paiement validé avec profil complet → génération programme déclenchée pour',
-				transaction.userId
+				'[webhook] Programme : génération uniquement depuis /auth/measurement après formulaire (pas depuis le webhook).'
 			);
-		} else {
-			console.log(
-				'[webhook] Paiement validé MAIS profil physique incomplet → attente formulaire pour user',
-				transaction.userId
-			);
-		}
 		} else {
 			console.log(
 				'Checkout session already credited (nutrition segment) — skip user update + skip program generation:',

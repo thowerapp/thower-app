@@ -5,11 +5,7 @@ import { getProgramOfferEntitlements } from '$lib/prisma/transaction/getProgramO
 import { getActiveOffers } from '$lib/prisma/offer/getActiveOffers';
 import { prisma } from '$lib/server';
 import { stripe } from '$lib/server/stripe';
-import {
-	SUBSCRIPTION_PLANS,
-	getPlansForOfferSlugs,
-	type PlanId
-} from '$lib/server/subscription-plans';
+import { SUBSCRIPTION_PLANS, getPlansForOfferSlugs } from '$lib/server/subscription-plans';
 
 import type { Actions, RequestEvent } from './$types';
 
@@ -31,7 +27,7 @@ export const load = async (event: RequestEvent) => {
 		return redirect(302, hasMeasurements ? '/user' : '/auth/measurement');
 	}
 	const offers = await getActiveOffers();
-	const defaultPlans = getPlansForOfferSlugs(offers, []);
+	const defaultPlan = getPlansForOfferSlugs(offers, []).quarterly;
 
 	const [hasValidPayment, userRow, entitlements] = await Promise.all([
 		getHasValidPaymentByUserId(event.locals.user.id),
@@ -48,13 +44,11 @@ export const load = async (event: RequestEvent) => {
 		hasValidPayment,
 		subscriptionEndsAt: userRow?.subscriptionEndsAt ?? null,
 		offers,
-		defaultPlans,
+		defaultPlan,
 		SUBSCRIPTION_PLANS,
 		entitlements
 	};
 };
-
-const VALID_PLANS: PlanId[] = ['monthly', 'annual'];
 
 export const actions: Actions = {
 	createCheckout: async (event: RequestEvent) => {
@@ -62,13 +56,8 @@ export const actions: Actions = {
 			return fail(401, { message: 'Non authentifié' });
 		}
 
-		const formData = await event.request.formData();
-		const planId = (formData.get('plan') as string | null) ?? 'annual';
-		if (!VALID_PLANS.includes(planId as PlanId)) {
-			return fail(400, { message: 'Formule invalide' });
-		}
-
 		let selectedOfferSlugs: string[] = [];
+		const formData = await event.request.formData();
 		const slugsRaw = formData.get('selectedOfferSlugs');
 		if (typeof slugsRaw === 'string' && slugsRaw) {
 			try {
@@ -83,8 +72,7 @@ export const actions: Actions = {
 		const validSlugs = new Set(offers.map((p) => p.slug));
 		const slugs = selectedOfferSlugs.filter((s) => validSlugs.has(s));
 
-		const plans = getPlansForOfferSlugs(offers, slugs);
-		const plan = plans[planId as PlanId];
+		const plan = getPlansForOfferSlugs(offers, slugs).quarterly;
 		const origin = event.url.origin;
 		const successUrl = `${origin}/auth/subscription?success=1`;
 		const cancelUrl = `${origin}/auth/subscription?canceled=1`;
@@ -110,7 +98,7 @@ export const actions: Actions = {
 				client_reference_id: event.locals.user.id,
 				customer_email: event.locals.user.email ?? undefined,
 				metadata: {
-					plan: planId,
+					plan: 'quarterly',
 					userId: event.locals.user.id,
 					offerSlugs: slugs.length > 0 ? JSON.stringify(slugs) : ''
 				}

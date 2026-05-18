@@ -1,3 +1,4 @@
+import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
 import { generateProgramForUser } from './generateProgramForUser';
 import { programGenLog } from './programGenerationLog';
 
@@ -5,10 +6,18 @@ export { PROGRAM_NUTRITION_DAYS, generateNutritionDaysForUser, generateNutrition
 export { generateProgramForUser } from './generateProgramForUser';
 
 /**
- * Appel après paiement validé (webhook Stripe).
- * Retourne une promesse : à lancer avec void + .catch dans le handler pour ne pas bloquer la réponse HTTP.
+ * Déclenché côté serveur après validation du formulaire measurement.
+ * Vérifie les droits (transaction payée + abonnement actif) avant toute génération.
  */
-export function scheduleProgramGenerationAfterPayment(userId: string): Promise<void> {
-	programGenLog('1/ entrée scheduleProgramGenerationAfterPayment (ex. webhook Stripe)', { userId });
-	return generateProgramForUser(userId);
+export async function scheduleProgramGenerationAfterPayment(userId: string): Promise<void> {
+	programGenLog('1/ entrée scheduleProgramGenerationAfterPayment', { userId });
+	const allowed = await getHasValidPaymentByUserId(userId);
+	if (!allowed) {
+		console.warn(
+			'[program-generation] Génération refusée : accès accompagnement invalide (pas de transaction payée ou abonnement expiré)',
+			{ userId }
+		);
+		return;
+	}
+	await generateProgramForUser(userId);
 }

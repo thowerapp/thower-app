@@ -13,7 +13,7 @@ import {
 	getBodyMeasurementsByUserId,
 	type BodyMeasurementSnapshot
 } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
-import { prisma } from '$lib/server';
+import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
 import { checkWellBeingCompleted } from '$lib/server/access';
 
@@ -148,21 +148,13 @@ export const actions: Actions = {
 			armCm: data.armCm
 		});
 
-		// Nouvelle logique onboarding: après complétion du formulaire, déclencher la génération
-		// programme SI un paiement valide existe déjà (abonnement actif).
-		const user = await prisma.user.findUnique({
-			where: { id: event.locals.user.id },
-			select: { subscriptionEndsAt: true }
-		});
-		const hasValidPayment = user !== null && (
-			user.subscriptionEndsAt === null || (user.subscriptionEndsAt != null && user.subscriptionEndsAt > new Date())
-		);
+		// Génération uniquement ici (plus depuis le webhook) : au moins une transaction `paid` + abonnement actif.
+		const hasValidPayment = await getHasValidPaymentByUserId(event.locals.user.id);
 		if (hasValidPayment) {
-			// Paiement valide : déclencher génération asynchrone
 			void scheduleProgramGenerationAfterPayment(event.locals.user.id).catch((err) => {
 				console.error('[measurement] scheduleProgramGenerationAfterPayment failed', event.locals.user.id, err);
 			});
-			console.log('[measurement] Formulaire complété + paiement valide → génération programme déclenchée');
+			console.log('[measurement] Formulaire complété + droits validés → génération programme planifiée');
 			// Flux onboarding attendu: retour hub auth, puis CTA "Accéder à l'application".
 			throw redirect(302, '/auth');
 		} else {

@@ -63,6 +63,84 @@ export function registerSources(container: HTMLElement = document.body): void {
 }
 
 /**
+ * Effet "unlock" : explosion de 8 étincelles dorées depuis le centre d'un élément.
+ * Utilisé quand un contenu passe de verrouillé à déverrouillé.
+ */
+export function burstUnlock(el: HTMLElement): void {
+	const rect = el.getBoundingClientRect();
+	const cx = rect.width / 2;
+	const cy = rect.height / 2;
+
+	if (!document.getElementById('_burst-kf')) {
+		const style = document.createElement('style');
+		style.id = '_burst-kf';
+		style.textContent = `
+			@keyframes _spark {
+				0%   { transform: translate(-50%,-50%) translate(0,0) scale(1); opacity:1; }
+				100% { transform: translate(-50%,-50%) translate(var(--sx),var(--sy)) scale(0); opacity:0; }
+			}
+		`;
+		document.head.appendChild(style);
+	}
+
+	const pos = getComputedStyle(el).position;
+	if (pos === 'static') el.style.position = 'relative';
+
+	const COUNT = 8;
+	for (let i = 0; i < COUNT; i++) {
+		const angle = (i / COUNT) * Math.PI * 2;
+		const dist = 28 + Math.random() * 18;
+		const sx = Math.round(Math.cos(angle) * dist);
+		const sy = Math.round(Math.sin(angle) * dist);
+		const size = 3 + Math.random() * 3;
+
+		const spark = document.createElement('span');
+		spark.style.cssText = `
+			position:absolute;
+			left:${cx}px;top:${cy}px;
+			width:${size}px;height:${size}px;
+			border-radius:50%;
+			background:var(--g,#c9a84c);
+			pointer-events:none;
+			z-index:999;
+			--sx:${sx}px;--sy:${sy}px;
+			animation:_spark ${320 + Math.random() * 160}ms cubic-bezier(.2,.8,.3,1) ${i * 20}ms forwards;
+		`;
+		el.appendChild(spark);
+		spark.addEventListener('animationend', () => spark.remove(), { once: true });
+	}
+}
+
+/**
+ * Détecte les éléments nouvellement déverrouillés depuis la dernière visite.
+ * Stocke les IDs verrouillés dans localStorage sous `storageKey`.
+ * Appelle `burstUnlock` sur chaque élément `[data-vid-id="X"]` nouvellement déverrouillé.
+ */
+export function fireNewlyUnlocked(
+	storageKey: string,
+	videos: { id: string; locked: boolean }[]
+): void {
+	const storedRaw = localStorage.getItem(storageKey);
+	const previouslyLocked: Set<string> = storedRaw ? new Set(JSON.parse(storedRaw)) : new Set();
+	const currentlyLocked = new Set(videos.filter((v) => v.locked).map((v) => v.id));
+
+	// Mettre à jour localStorage
+	localStorage.setItem(storageKey, JSON.stringify([...currentlyLocked]));
+
+	if (previouslyLocked.size === 0) return; // première visite, pas d'effet
+
+	// IDs qui étaient verrouillés et ne le sont plus
+	const newlyUnlocked = [...previouslyLocked].filter((id) => !currentlyLocked.has(id));
+
+	newlyUnlocked.forEach((id, idx) => {
+		setTimeout(() => {
+			const el = document.querySelector<HTMLElement>(`[data-vid-id="${id}"]`);
+			if (el) burstUnlock(el);
+		}, 300 + idx * 120);
+	});
+}
+
+/**
  * Effet "consume" : un flash radial se propage depuis le point de clic
  * puis se dissipe rapidement — remplace l'explosion de particules.
  */

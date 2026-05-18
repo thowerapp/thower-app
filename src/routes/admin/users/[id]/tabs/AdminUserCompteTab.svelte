@@ -144,4 +144,32 @@
 		</div>
 		<Button type="submit">Enregistrer</Button>
 	</form>
+
+	<div class="p-4 rounded-lg border {userSelected.programPausedAt ? 'border-destructive/50 bg-destructive/5' : 'bg-muted/30'}">
+		<h2 class="text-sm font-semibold mb-3 {userSelected.programPausedAt ? 'text-destructive' : 'text-muted-foreground'}">
+			Programme
+		</h2>
+		{#if userSelected.programPausedAt}
+			<p class="text-sm mb-1">
+				<span class="font-medium text-destructive">Stoppé</span> le {fmtDate(userSelected.programPausedAt)}
+			</p>
+			{#if userSelected.programPausedReason}
+				<p class="text-sm text-muted-foreground mb-3">Motif : {userSelected.programPausedReason}</p>
+			{/if}
+			<form method="POST" action="?/resumeProgram">
+				<Button type="submit" variant="outline" size="sm">Reprendre le programme</Button>
+			</form>
+		{:else}
+			<p class="text-sm text-muted-foreground mb-3">Programme actif.</p>
+			<form method="POST" action="?/pauseProgram" class="space-y-2">
+				<textarea
+					name="reason"
+					rows="2"
+					placeholder="Motif (optionnel)"
+					class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+				></textarea>
+				<Button type="submit" variant="destructive" size="sm">Stopper le programme</Button>
+			</form>
+		{/if}
+	</div>
 </div>

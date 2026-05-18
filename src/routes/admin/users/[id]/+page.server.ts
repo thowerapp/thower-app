@@ -115,6 +115,34 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
+	pauseProgram: async ({ request, params }) => {
+		const formData = await request.formData();
+		const reason = String(formData.get('reason') ?? '').trim() || null;
+		try {
+			await prisma.user.update({
+				where: { id: params.id },
+				data: { programPausedAt: new Date(), programPausedReason: reason }
+			});
+			return { success: true };
+		} catch (error) {
+			console.error('[admin] pauseProgram error:', error);
+			return fail(500, { message: 'Erreur lors de la pause du programme' });
+		}
+	},
+
+	resumeProgram: async ({ params }) => {
+		try {
+			await prisma.user.update({
+				where: { id: params.id },
+				data: { programPausedAt: null, programPausedReason: null }
+			});
+			return { success: true };
+		} catch (error) {
+			console.error('[admin] resumeProgram error:', error);
+			return fail(500, { message: 'Erreur lors de la reprise du programme' });
+		}
+	},
+
 	updateUser: async ({ request }) => {
 		const formData = await request.formData();
 		const form = await superValidate(formData, zod(adminUpdateUserSchema));

@@ -1,11 +1,15 @@
 ﻿<script lang="ts">
+	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import { toast } from 'svelte-sonner';
+	import { fireNewlyUnlocked } from '$lib/utils/particles';
 	let { data } = $props<{ data: PageData }>();
 
 	type Video = { id: string; title: string; completed: boolean; locked: boolean };
 	const videos = $derived((data.videos ?? []) as Video[]);
 	const unlockedCount = $derived(videos.filter(v => !v.locked).length);
+
+	onMount(() => fireNewlyUnlocked('thower_locked_mindset', videos));
 
 	function onLockedClick() {
 		toast.info('Contenu verrouillé', {
@@ -32,11 +36,11 @@
 <div class="media-grid">
 	{#each videos as video (video.id)}
 		{#if video.locked}
-			<button type="button" class="mcell locked" onclick={onLockedClick}>
+			<button type="button" class="mcell locked" data-vid-id={video.id} onclick={onLockedClick}>
 				<div class="lock-icon">🔒</div>
 			</button>
 		{:else}
-			<a href="/user/decouverte/mindset/{video.id}" class="mcell" class:done={video.completed}>
+			<a href="/user/decouverte/mindset/{video.id}" class="mcell" class:done={video.completed} data-vid-id={video.id}>
 				{#if video.completed}
 					<div style="width:9px;height:9px;border-radius:50%;background:var(--g)"></div>
 				{:else}

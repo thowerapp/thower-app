@@ -1,6 +1,7 @@
 ﻿<script lang="ts">
 import type { PageData } from './$types';
 import EmberCanvas from '$lib/components/EmberCanvas.svelte';
+import LevelUpCelebration from '$lib/components/LevelUpCelebration.svelte';
 import { fireElement } from '$lib/utils/particles';
 import { enhance } from '$app/forms';
 import { toast } from 'svelte-sonner';
@@ -75,6 +76,8 @@ const checkInMetricsComplete = $derived(
 );
 
 </script>
+
+<LevelUpCelebration levelData={data.levelData} />
 
 <div class="u-back-row">
   <a href="/user" class="u-back-lnk">

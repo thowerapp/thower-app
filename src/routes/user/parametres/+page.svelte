@@ -33,11 +33,6 @@
 <div class="li-b"><div class="li-t">Abonnement</div><div class="li-s">Plan actif</div></div>
 <div class="li-r"><div class="arr"></div></div>
 </a>
-<a href="/user/parametres/notifications" class="li">
-<div class="li-th"><div style="width:10px;height:10px;border-radius:50%;background:var(--txd)"></div></div>
-<div class="li-b"><div class="li-t">Notifications</div><div class="li-s">Rappels séances · Horaires</div></div>
-<div class="li-r"><div class="arr"></div></div>
-</a>
 
 <form method="POST" action="/auth?/signout" class="li li-logout">
 <button type="submit" class="logout-btn">

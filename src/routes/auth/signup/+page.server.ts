@@ -3,7 +3,7 @@
 // -----------------------------------------------------------------------------
 
 import { redirect, fail } from '@sveltejs/kit';
-import { message, superValidate } from 'sveltekit-superforms';
+import { superValidate } from 'sveltekit-superforms';
 import { zod } from '$lib/superforms-zod';
 
 import { signupSchema } from '$lib/schema/auth/signupSchema';
@@ -91,10 +91,11 @@ export const actions: Actions = {
 
 		/* ---------- 3. Email déjà utilisé ? -------------------------------- */
 		if (!(await checkEmailAvailability(email))) {
-			log('❌ Email already exists:', email);
-			log('⚠️ About to return early with simple object');
-			// Retour d'un objet simple sérialisable pour test
-			return message(form , 'vous etes deja inscrit avec cette adresse email.')
+			log('❌ Email already exists → redirect login', email);
+			throw redirect(
+				303,
+				`/auth/login?reason=already_registered&email=${encodeURIComponent(email)}`
+			);
 		}
 
 		/* Consommation réelle du token RL */

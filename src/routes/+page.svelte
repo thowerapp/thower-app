@@ -4,7 +4,6 @@
   import { superForm } from 'sveltekit-superforms/client';
   import { signupSchema } from '$lib/schema/auth/signupSchema';
   import { toast } from 'svelte-sonner';
-  import { goto } from '$app/navigation';
   import { zodClient } from '$lib/superforms-zod';
   import SmoothScrollBarStore from '$lib/store/SmoothScrollBarStore';
   import { get } from 'svelte/store';
@@ -30,9 +29,8 @@
   let formElement: HTMLFormElement;
 
   $effect(() => {
-    if ($signupMessage === 'vous etes deja inscrit avec cette adresse email.') {
+    if ($signupMessage) {
       toast.error($signupMessage);
-      setTimeout(() => goto('/auth/login'), 0);
     }
   });
 

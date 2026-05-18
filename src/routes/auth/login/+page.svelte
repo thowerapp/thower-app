@@ -20,6 +20,8 @@
 	const loginForm = $derived.by(() => superForm(data?.loginForm ?? {}, formOptions));
 
 	const { form: loginData, enhance: loginEnhance, message: loginMessage } = $derived(loginForm);
+	const showAlreadyRegisteredNotice = $derived(data.authNotice != null);
+
 	const showCreateAccountCta = $derived.by(() => {
 		const text = ($loginMessage ?? '').toLowerCase();
 		return (
@@ -36,6 +38,10 @@
 	});
 
 	onMount(() => {
+		if (data.authNotice) {
+			toast.error(data.authNotice);
+		}
+
 		// ── CURSOR — détecte le support tactile/mobile ──
 		// Détecte si c'est un appareil tactile/mobile (pas de souris)
 		const isMobileOrTouchDevice = () => {
@@ -290,6 +296,12 @@
 			</Card.Header>
 			<Card.Content>
 				<form method="POST" action="?/login" use:loginEnhance class="login-form">
+					{#if showAlreadyRegisteredNotice}
+						<div class="create-account-alert" role="alert">
+							<p>{data.authNotice}</p>
+						</div>
+					{/if}
+
 					{#if showCreateAccountCta}
 						<div class="create-account-alert" role="alert">
 							<p>Veuillez creer un compte pour vous authentifier.</p>

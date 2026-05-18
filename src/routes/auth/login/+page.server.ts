@@ -2,21 +2,22 @@ import { fail, redirect } from '@sveltejs/kit';
 import { getUserFromEmail, getUserPasswordHash } from '$lib/lucia/user';
 import { RefillingTokenBucket, Throttler } from '$lib/lucia/rate-limit';
 import { verifyPasswordHash } from '$lib/lucia/password';
-import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/lucia/session';
+import { auth } from '$lib/lucia';
 
-import type { SessionFlags } from '$lib/lucia/session';
 import type { Actions, PageServerLoadEvent, RequestEvent } from './$types';
 import { loginSchema } from '$lib/schema/auth/loginSchema';
 import { zod } from '$lib/superforms-zod';
 import { message, superValidate } from 'sveltekit-superforms';
+
+function logLogin(...args: unknown[]) {
+	console.log('[login]', ...args);
+}
 
 export const load = async (event: PageServerLoadEvent) => {
 	if (event.locals.session !== null && event.locals.user !== null) {
 		if (!event.locals.user.emailVerified) {
 			return redirect(302, '/auth/verify-email');
 		}
-
-		console.log(event.locals.user, 'slkrjghxkgujh');
 
 		if (!event.locals.user.googleId || !event.locals.user?.isMfaEnabled) {
 			if (!event.locals.user.registered2FA) {
@@ -35,8 +36,20 @@ export const load = async (event: PageServerLoadEvent) => {
 
 	const loginForm = await superValidate(event, zod(loginSchema));
 
+	const reason = event.url.searchParams.get('reason');
+	const emailParam = event.url.searchParams.get('email');
+	const authNotice =
+		reason === 'already_registered'
+			? 'Vous etes deja inscrit avec cette adresse e-mail. Connectez-vous ci-dessous.'
+			: null;
+
+	if (emailParam && loginSchema.shape.email.safeParse(emailParam).success) {
+		loginForm.data.email = emailParam;
+	}
+
 	return {
-		loginForm
+		loginForm,
+		authNotice
 	};
 };
 
@@ -63,9 +76,9 @@ export const actions: Actions = {
 		}
 
 		const user = await getUserFromEmail(email);
-		console.log(user);
 
 		if (user === null) {
+			logLogin('unknown email', email);
 			return message(form, "Veuillez creer un compte pour vous authentifier.");
 		}
 
@@ -89,27 +102,27 @@ export const actions: Actions = {
 			return message(form, 'Invalid password');
 		}
 		throttler.reset(user.id);
-		const sessionFlags: SessionFlags = {
-			twoFactorVerified: false
-		};
 
-		const sessionToken = generateSessionToken();
-		const session = await createSession(sessionToken, user.id, sessionFlags);
-		setSessionTokenCookie(event, sessionToken, session.expiresAt);
+		const session = await auth.createSession(user.id, { twoFactorVerified: false });
+		const sessionCookie = auth.createSessionCookie(session.id);
+		event.cookies.set(sessionCookie.name, sessionCookie.value, {
+			path: '/',
+			...sessionCookie.attributes
+		});
+		logLogin('session created', { userId: user.id, sessionId: session.id });
 
 		if (!user.emailVerified) {
-			return redirect(302, '/auth/verify-email');
+			throw redirect(302, '/auth/verify-email');
 		}
 
-		if (!user.registered2FA) {
-			if (user.isMfaEnabled) {
-				return redirect(302, '/auth/2fa/setup');
-			}
+		if (!user.registered2FA && user.isMfaEnabled) {
+			throw redirect(302, '/auth/2fa/setup');
 		}
 
-		if (!user.isMfaEnabled) {
-			return redirect(302, '/auth');
+		if (user.isMfaEnabled) {
+			throw redirect(302, '/auth/2fa');
 		}
-		redirect(302, '/auth/2fa');
+
+		throw redirect(302, '/auth');
 	}
 };

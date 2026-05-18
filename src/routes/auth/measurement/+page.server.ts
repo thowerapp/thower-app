@@ -154,7 +154,10 @@ export const actions: Actions = {
 			where: { id: event.locals.user.id },
 			select: { subscriptionEndsAt: true }
 		});
-		if (user?.subscriptionEndsAt && user.subscriptionEndsAt > new Date()) {
+		const hasValidPayment = user !== null && (
+			user.subscriptionEndsAt === null || (user.subscriptionEndsAt != null && user.subscriptionEndsAt > new Date())
+		);
+		if (hasValidPayment) {
 			// Paiement valide : déclencher génération asynchrone
 			void scheduleProgramGenerationAfterPayment(event.locals.user.id).catch((err) => {
 				console.error('[measurement] scheduleProgramGenerationAfterPayment failed', event.locals.user.id, err);

@@ -86,7 +86,7 @@ export const actions: Actions = {
 		}
 
 		console.log(`[photos action] ✓ 3 photos + 50pts saved — user=${locals.user.id}`);
-		throw redirect(302, '/auth/measurement');
+		throw redirect(302, '/auth/well-being');
 	}
 };
 

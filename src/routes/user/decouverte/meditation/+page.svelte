@@ -1,9 +1,17 @@
 ﻿<script lang="ts">
 	import type { PageData } from './$types';
+	import { toast } from 'svelte-sonner';
 	let { data } = $props<{ data: PageData }>();
 
-	type Video = { id: string; title: string; completed: boolean };
+	type Video = { id: string; title: string; completed: boolean; locked: boolean };
 	const videos = $derived((data.videos ?? []) as Video[]);
+	const unlockedCount = $derived(videos.filter(v => !v.locked).length);
+
+	function onLockedClick() {
+		toast.info('Contenu verrouillé', {
+			description: 'Ce contenu se débloque au fil de ta progression dans le programme.'
+		});
+	}
 </script>
 
 <div class="back-row">
@@ -15,7 +23,7 @@
 </div>
 <div class="sh">
 	<div class="sh-t">Pleine conscience · Guidée</div>
-	<div class="sh-s">{videos.length} vidéo{videos.length > 1 ? 's' : ''}</div>
+	<div class="sh-s">{unlockedCount} / {videos.length} débloqué{unlockedCount > 1 ? 's' : ''}</div>
 </div>
 
 {#if videos.length === 0}
@@ -23,14 +31,20 @@
 {:else}
 <div class="media-grid">
 	{#each videos as video (video.id)}
-		<a href="/user/decouverte/meditation/{video.id}" class="mcell" class:done={video.completed}>
-			{#if video.completed}
-				<div style="width:9px;height:9px;border-radius:50%;background:var(--g)"></div>
-			{:else}
-				<div style="width:9px;height:9px;background:var(--gd)"></div>
-			{/if}
-			<div class="mc-t">{video.title}</div>
-		</a>
+		{#if video.locked}
+			<button type="button" class="mcell locked" onclick={onLockedClick}>
+				<div class="lock-icon">🔒</div>
+			</button>
+		{:else}
+			<a href="/user/decouverte/meditation/{video.id}" class="mcell" class:done={video.completed}>
+				{#if video.completed}
+					<div style="width:9px;height:9px;border-radius:50%;background:var(--g)"></div>
+				{:else}
+					<div style="width:9px;height:9px;background:var(--gd)"></div>
+				{/if}
+				<div class="mc-t">{video.title}</div>
+			</a>
+		{/if}
 	{/each}
 </div>
 {/if}
@@ -46,5 +60,7 @@
 .media-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; padding:8px 18px; }
 .mcell { aspect-ratio:1; background:var(--s2); border:1px solid var(--br2); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
 .mcell:active { background:var(--s3); border-color:var(--gd); }
+.mcell.locked { background:var(--s1); border-color:var(--br); opacity:.45; cursor:pointer; }
+.lock-icon { font-size:.75rem; opacity:.5; }
 .mc-t { font-size:.5625rem; color:var(--txd); text-align:center; padding:0 3px; line-height:1.3; font-family:var(--fb); }
 </style>

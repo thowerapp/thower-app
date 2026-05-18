@@ -280,7 +280,7 @@
 							</div>
 						</div>
 						<div class="card-foot">
-							<a href="/auth/measurement" class="btn {!hasMeasurements ? 'btn-gold' : 'btn-outline'} w-full">
+							<a href={!hasMeasurements ? '/auth/photos' : '/auth/measurement'} class="btn {!hasMeasurements ? 'btn-gold' : 'btn-outline'} w-full">
 								{!hasMeasurements ? 'Remplir mon profil' : 'Modifier'}
 							</a>
 						</div>

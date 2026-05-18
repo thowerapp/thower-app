@@ -190,7 +190,7 @@
 		<p class="help-text">
 			Vos photos sont stockées de façon sécurisée et ne sont accessibles que par vous.
 		</p>
-		<a href="/auth/measurement" class="skip-link">Passer cette étape →</a>
+		<a href="/auth/well-being" class="skip-link">Passer cette étape →</a>
 	</div>
 </div>
 

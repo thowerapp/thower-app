@@ -50,14 +50,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 		orderBy: { unlockedAt: 'desc' }
 	});
 
-	// ─── Score global (% tâches validées / tâches actives attendues) ─────────
-	const [activeTasks, completions] = await Promise.all([
-		prisma.dailyTask.count({ where: { active: true } }),
-		prisma.dailyTaskCompletion.count({ where: { userId } })
+	// ─── Score du jour (% tâches validées aujourd'hui / tâches actives) ────────
+	const todayStartProg = new Date();
+	todayStartProg.setUTCHours(0, 0, 0, 0);
+	const [activeTaskDetails, todayCompletions] = await Promise.all([
+		prisma.dailyTask.findMany({
+			where: { active: true },
+			select: { points: true, showFromDay: true, showUntilDay: true }
+		}),
+		prisma.dailyTaskCompletion.count({ where: { userId, date: todayStartProg } })
 	]);
-	const expectedCompletions = activeTasks * currentDayIndex;
+	const activeTasks = activeTaskDetails.length;
 	const scorePercent =
-		expectedCompletions > 0 ? Math.round((completions / expectedCompletions) * 100) : 0;
+		activeTasks > 0 ? Math.min(100, Math.round((todayCompletions / activeTasks) * 100)) : 0;
 
 	// ─── Photos du mois + photos d'inscription ──────────────────────────────
 	const currentMonth = Math.ceil(currentDayIndex / 30);
@@ -86,8 +91,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const checkInDue = currentMonth >= 2 && !currentMonthCheckIn;
 
 
-	// ─── Statut Thower — calculé depuis le score global (% tâches complétées) ──
-	// 6 statuts spec : basés sur scorePercent
+	// ─── Statut Thower — % des points possibles obtenus (spec cahier des charges) ──
+	// Points possibles = somme pondérée des tâches actives sur les jours écoulés + check-ins
+	const taskPossiblePoints = activeTaskDetails.reduce((sum, task) => {
+		const from = task.showFromDay ?? 1;
+		const until = task.showUntilDay ?? 91;
+		const daysVisible = Math.max(0, Math.min(currentDayIndex, until) - from + 1);
+		return sum + task.points * daysVisible;
+	}, 0);
+	const checkInPossiblePoints = Math.max(0, currentMonth - 1) * 50;
+	const totalPossiblePoints = taskPossiblePoints + checkInPossiblePoints;
+
+	const achievedPercent =
+		totalPossiblePoints > 0
+			? Math.min(100, Math.round((totalPoints / totalPossiblePoints) * 100))
+			: 0;
+
+	// Seuils conformes au cahier des charges client
 	const statuts = [
 		{ minPercent: 100, num: 6, name: 'Titan Légendaire',    next: null,                  nextMin: null },
 		{ minPercent: 98,  num: 5, name: 'Héro Millénium',      next: 'Titan Légendaire',    nextMin: 100  },
@@ -97,16 +117,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 		{ minPercent: 0,   num: 1, name: 'Gland de chêne',      next: 'Éponge molle',        nextMin: 86   },
 	];
 
-	const levelData = statuts.find((s) => scorePercent >= s.minPercent) ?? statuts[statuts.length - 1];
+	const levelData = statuts.find((s) => achievedPercent >= s.minPercent) ?? statuts[statuts.length - 1];
 	const levelPercent =
 		levelData.next != null && levelData.nextMin != null
-			? Math.round(((scorePercent - levelData.minPercent) / (levelData.nextMin - levelData.minPercent)) * 100)
+			? Math.min(100, Math.round(((achievedPercent - levelData.minPercent) / (levelData.nextMin - levelData.minPercent)) * 100))
 			: 100;
 
 	return {
 		currentDayIndex,
 		currentWeek,
 		totalPoints,
+		totalPossiblePoints,
+		achievedPercent,
 		workoutCount,
 		scorePercent,
 		levelData,
@@ -243,17 +265,17 @@ export const actions: Actions = {
 				});
 			}
 
-			// Créer l'événement de points (+100)
+			// Créer l'événement de points (+50)
 			await prisma.pointEvent.create({
 				data: {
 					userId: locals.user.id,
 					type: 'MONTHLY_CHECKIN',
-					amount: 100,
+					amount: 50,
 					metadata: { source: 'monthly-checkin', month: currentMonth }
 				}
 			});
 
-			return { success: true, message: 'Check-in soumis et +100 points gagnés !' };
+			return { success: true, message: 'Check-in soumis et +50 points gagnés !' };
 		} catch (error: unknown) {
 			console.error('Error submitting monthly check-in:', error);
 			return fail(500, { message: 'Erreur lors de la soumission du check-in' });

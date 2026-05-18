@@ -100,7 +100,7 @@ const checkInMetricsComplete = $derived(
       <div class="ph-bar">
         <div class="ph-fill" style="width:{data.levelPercent}%"></div>
         <div class="ph-cursor" style="left:{data.levelPercent}%">
-          <div class="ph-cursor-label">{data.levelPercent}%</div>
+          <div class="ph-cursor-label">{data.achievedPercent}%</div>
         </div>
       </div>
       <div class="ph-bar-limits">
@@ -127,7 +127,7 @@ const checkInMetricsComplete = $derived(
       <div class="ph-kpi-sep"></div>
       <div class="ph-kpi">
         <div class="ph-kv">{data.scorePercent}%</div>
-        <div class="ph-kl">Score global</div>
+        <div class="ph-kl">Score du jour</div>
       </div>
     </div>
   </div>
@@ -186,13 +186,13 @@ const checkInMetricsComplete = $derived(
   <div class="u-li-b"><div class="u-li-s">Séance validée</div><div class="u-li-t pts-row"><span class="pts-val">+50 pts</span></div></div>
 </div>
 <div class="u-li">
-  <div class="u-li-b"><div class="u-li-s">Tâche journalière cochée</div><div class="u-li-t pts-row"><span class="pts-val">+5 pts</span><span class="pts-alt"> (tabac/alcool : +10 pts)</span></div></div>
+  <div class="u-li-b"><div class="u-li-s">Tâche journalière cochée</div><div class="u-li-t pts-row"><span class="pts-val">+10 pts</span></div></div>
 </div>
 <div class="u-li">
   <div class="u-li-b"><div class="u-li-s">Vidéo du jour regardée</div><div class="u-li-t pts-row"><span class="pts-val">+5 pts</span></div></div>
 </div>
 <div class="u-li">
-  <div class="u-li-b"><div class="u-li-s">Photos de progression uploadées</div><div class="u-li-t pts-row"><span class="pts-val">+25 pts</span></div></div>
+  <div class="u-li-b"><div class="u-li-s">Photos de progression uploadées</div><div class="u-li-t pts-row"><span class="pts-val">+50 pts</span></div></div>
 </div>
 <div class="u-li">
   <div class="u-li-b"><div class="u-li-s">Badge débloqué</div><div class="u-li-t pts-row"><span class="pts-val">+100 pts</span></div></div>
@@ -203,7 +203,7 @@ const checkInMetricsComplete = $derived(
 
 <!-- Check-in mensuel — visible à partir du mois 2 uniquement -->
 {#if data.currentMonth >= 2}
-<div class="u-sh"><div class="u-sh-t">Check-in mensuel</div><div class="u-sh-s">{data.checkInDue ? `Mois ${data.currentMonth} · À compléter · +100 pts` : `Mois ${data.currentMonth} · Complété ✓`}</div></div>
+<div class="u-sh"><div class="u-sh-t">Check-in mensuel</div><div class="u-sh-s">{data.checkInDue ? `Mois ${data.currentMonth} · À compléter · +50 pts` : `Mois ${data.currentMonth} · Complété ✓`}</div></div>
 
 {#if data.checkInDue}
   <div style="padding: 18px; background: var(--s2); border-bottom: 1px solid var(--br); margin-bottom: 12px;">
@@ -215,7 +215,7 @@ const checkInMetricsComplete = $derived(
         return async ({ result, update }) => {
           submitCheckInLoading = false;
           if (result.type === 'success') {
-            toast.success('Check-in soumis ! +100 points gagnés.');
+            toast.success('Check-in soumis ! +50 points gagnés.');
             await update();
             // Réinitialiser le formulaire
             checkInMetrics = { stressLevel: '', sleepQuality: '', bodyConfidence: '', digestionQuality: '', happinessLevel: '', readinessToChange: '' };

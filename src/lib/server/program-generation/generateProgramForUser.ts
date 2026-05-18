@@ -3,7 +3,8 @@ import { prisma } from '$lib/server';
 import { generateNutritionDaysForUser } from './nutrition/generateNutrition91Days';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/generateFromPlanning';
-import { programGenLog, programGenWarn } from './programGenerationLog';
+import { logProgramGenSummary } from './logProgramGenSummary';
+import { programGenLog, programGenTrace, programGenWarn, type ProgramGenSource } from './programGenerationLog';
 
 /** Contourne un UserSelect Prisma parfois désynchronisé dans l’IDE (champ absent des types générés en cache). */
 type UserNutritionAllocatedRow = { nutritionDaysAllocated: number };
@@ -91,21 +92,33 @@ async function isNutritionPlanComplete(userId: string, targetDays: number): Prom
  * Génère le planning nutrition sur la plage allouée (paiements cumulables).
  * Idempotent : ne refait pas les jours déjà complets.
  */
-export async function generateProgramForUser(userId: string): Promise<void> {
-	programGenLog('2/ generateProgramForUser — début', { userId });
+export async function generateProgramForUser(
+	userId: string,
+	source: ProgramGenSource = 'internal'
+): Promise<void> {
+	programGenTrace('generate_start', { userId, source });
+	programGenLog('2/ generateProgramForUser — début', { userId, source });
 
 	try {
 		const targetDays = await resolveTargetNutritionDays(userId);
 
 		if (targetDays < 1) {
+			programGenTrace('generate_abort', {
+				userId,
+				source,
+				reason: 'targetDays_lt_1',
+				targetDays
+			});
 			programGenWarn(
 				'ABORT — targetDays < 1 : aucune génération. Augmenter User.nutritionDaysAllocated (webhook paiement) ou créer des NutritionDay.',
 				{ userId, targetDays }
 			);
+			await logProgramGenSummary(userId, 'aborted', { source, targetDays });
 			return;
 		}
 
 		if (await isNutritionPlanComplete(userId, targetDays)) {
+			programGenTrace('generate_skip_complete', { userId, source, targetDays });
 			programGenLog('5/ Planning déjà complet — vérification liste de courses', { userId, targetDays });
 			// Le plan est complet mais la liste de courses n'existe peut-être pas encore
 			// (cas : programme généré avant l'ajout de la fonctionnalité).
@@ -116,8 +129,10 @@ export async function generateProgramForUser(userId: string): Promise<void> {
 					includeReportedFromPrevious: false
 				});
 				programGenLog('5c/ Liste de courses rattrapée', { userId, listId: shoppingResult?.listId ?? null });
+				await logProgramGenSummary(userId, 'shopping_only', { source, targetDays });
 			} else {
 				programGenLog('5b/ Liste de courses déjà présente — sortie', { userId });
+				await logProgramGenSummary(userId, 'already_complete', { source, targetDays });
 			}
 			return;
 		}
@@ -152,6 +167,7 @@ export async function generateProgramForUser(userId: string): Promise<void> {
 		}
 
 		programGenLog('9/ generateProgramForUser — fin OK', { userId, targetDays });
+		await logProgramGenSummary(userId, 'created', { source, targetDays });
 	} catch (err) {
 		programGenWarn('ERREUR generateProgramForUser', { userId, err });
 		throw err;

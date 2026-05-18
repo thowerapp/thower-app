@@ -21,6 +21,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { PrismaClient } from '@prisma/client';
 import { RECIPE_CATALOG_DEFS } from './seed/recipeCatalogDefs.js';
+import { ADMIN_EMAIL, ensureAdminUser } from './ensureAdminUser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -1056,6 +1057,12 @@ async function main() {
 		data: { userId: testUser.id, age: 30, heightCm: 175, weightKg: 80, waistCm: 88, chestCm: 98, armCm: 34 }
 	});
 
+	// Admin (npm run reset le crée aussi ; seed seul ne le garantissait pas avant)
+	const adminResult = await ensureAdminUser(db);
+	if (adminResult.created) {
+		console.log(`\n  → Compte admin créé : ${ADMIN_EMAIL} (mdp thower2026)`);
+	}
+
 	// ══════════════════════════════════════════════════════════════════════════
 	console.log('\n═══ SEED TERMINÉ ═══');
 	console.log('');
@@ -1068,6 +1075,7 @@ async function main() {
 	console.log('  thomas@thower.test  — sport uniquement      — J35 — 200 pts — 6 mesures (79.5→85 kg, +4 cm torse)');
 	console.log('  lucas@thower.test   — nutrition + sport     — J10 — 160 pts — 7 mesures (99.5→92 kg, -9 cm taille)');
 	console.log('  test@thower.test    — nutrition + sport     — J1  — 0 pts   — compte test tâches jour 1');
+	console.log(`  ${ADMIN_EMAIL}      — administrateur`);
 	console.log('  Mot de passe : thower2026');
 }
 

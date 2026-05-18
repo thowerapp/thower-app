@@ -3,7 +3,7 @@ import type { ActivityLevel, MealPosition, Prisma, RecipeCategory } from '@prism
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { dailyProteinTargetG, targetCaloriesPerDay } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
-import { programGenLog, programGenWarn } from '../programGenerationLog';
+import { programGenLog, programGenTrace, programGenWarn } from '../programGenerationLog';
 
 /** @deprecated Utiliser NUTRITION_SEGMENT_DAYS depuis $lib/nutrition/nutritionPlanConstants */
 export const PROGRAM_NUTRITION_DAYS = NUTRITION_SEGMENT_DAYS;
@@ -307,6 +307,12 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 	const mealRecipes = recipes.filter((r) => r.category === 'MEAL');
 
 	if (mealRecipes.length === 0) {
+		programGenTrace('generate_abort', {
+			userId,
+			reason: 'no_meal_recipes_in_catalog',
+			catalogActive: recipesRaw.length,
+			userAllergens
+		});
 		programGenWarn(
 			'N6/ ABORT — aucune recette MEAL utilisable (actives + sans conflit allergènes)',
 			{ userId, catalogActive: recipesRaw.length, userAllergens }

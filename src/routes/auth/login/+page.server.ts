@@ -68,7 +68,7 @@ export const actions: Actions = {
 		}
 
 		const form = await superValidate(event, zod(loginSchema));
-		const email = form.data.email as string;
+		const email = (form.data.email as string).trim().toLowerCase();
 		const password = form.data.password as string;
 
 		if (!form.valid) {

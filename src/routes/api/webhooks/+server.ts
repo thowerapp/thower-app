@@ -4,8 +4,11 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/index';
 import { createTransactionFromStripeSession } from '$lib/prisma/transaction/createTransactionFromStripeSession';
 import { getSubscriptionEndDateFromPlan, type PlanId } from '$lib/server/subscription-plans';
+import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 import { claimNutritionSegmentCreditOnTransaction } from '$lib/server/mongo/claimNutritionSegmentCredit';
 import { incUserNutritionDaysAllocatedMongo } from '$lib/server/mongo/incUserNutritionDaysAllocated';
+import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
+import { programGenTrace } from '$lib/server/program-generation/programGenerationLog';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import dotenv from 'dotenv';
 
@@ -94,6 +97,16 @@ export async function POST({ request }: { request: Request }) {
 }
 
 async function handleCheckoutSession(session: Stripe.Checkout.Session) {
+	const checkoutUserId =
+		session.metadata?.userId ?? session.client_reference_id ?? undefined;
+	programGenTrace('trigger', {
+		source: 'webhook',
+		action: 'checkout.session.completed',
+		sessionId: session.id,
+		paymentStatus: session.payment_status,
+		...(checkoutUserId ? { userId: checkoutUserId } : {})
+	});
+
 	try {
 		let transaction = await prisma.transaction.findUnique({
 			where: { stripePaymentId: session.id }
@@ -171,9 +184,27 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				'| nutritionDaysAllocated=',
 				after?.nutritionDaysAllocated ?? '?'
 			);
-			console.log(
-				'[webhook] Programme : génération uniquement depuis /auth/measurement après formulaire (pas depuis le webhook).'
-			);
+			const measurements = await getBodyMeasurementsByUserId(transaction.userId, 1);
+			if (measurements.length > 0) {
+				programGenTrace('trigger', {
+					userId: transaction.userId,
+					source: 'webhook',
+					action: 'schedule_generation_after_credit',
+					measurementCount: measurements.length
+				});
+				void scheduleProgramGenerationAfterPayment(transaction.userId, {
+					source: 'webhook'
+				}).catch((err) => {
+					console.error('[webhook] scheduleProgramGenerationAfterPayment failed', transaction.userId, err);
+				});
+			} else {
+				programGenTrace('schedule_denied', {
+					userId: transaction.userId,
+					source: 'webhook',
+					reason: 'no_measurements_yet',
+					hint: 'complete /auth/measurement after payment'
+				});
+			}
 		} else {
 			console.log(
 				'Checkout session already credited (nutrition segment) — skip user update + skip program generation:',

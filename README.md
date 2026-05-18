@@ -4,6 +4,19 @@ Site d’accompagnement Thower — coach et programme personnalisé.
 
 stripe listen --forward-to localhost:2000/api/webhooks
 
+### Logs génération programme nutrition
+
+Filtrer les logs serveur sur le préfixe **`[program-gen]`** (toujours actif en prod).
+
+| `step` | Signification |
+|--------|----------------|
+| `trigger` | Déclencheur (mensurations, retour Stripe, webhook) |
+| `schedule_start` / `schedule_ok` / `schedule_denied` | Contrôles paiement / admin |
+| `generate_start` / `generate_done` / `generate_abort` | Génération BDD |
+| `schedule_complete` | Pipeline terminé sans erreur |
+
+Détail verbeux : `PROGRAM_GENERATION_LOG=1` dans `.env` → préfixe `[program-generation]`.
+
 - **Stack** : SvelteKit, Vite, PWA (vite-plugin-pwa, injectManifest).
 - **Déploiement** : Vercel. Un push sur `main` déclenche un déploiement automatique.
 - **PWA** : voir [docs/pwa.md](docs/pwa.md) pour les tests et le débogage du service worker.

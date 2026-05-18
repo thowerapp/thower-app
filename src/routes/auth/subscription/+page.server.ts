@@ -5,6 +5,8 @@ import { getProgramOfferEntitlements } from '$lib/prisma/transaction/getProgramO
 import { getActiveOffers } from '$lib/prisma/offer/getActiveOffers';
 import { prisma } from '$lib/server';
 import { stripe } from '$lib/server/stripe';
+import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
+import { programGenTrace } from '$lib/server/program-generation/programGenerationLog';
 import { SUBSCRIPTION_PLANS, getPlansForOfferSlugs } from '$lib/server/subscription-plans';
 
 import type { Actions, RequestEvent } from './$types';
@@ -21,11 +23,6 @@ export const load = async (event: RequestEvent) => {
 	const bodyMeasurements = await getBodyMeasurementsByUserId(event.locals.user.id, 1);
 	const hasMeasurements = bodyMeasurements.length > 0;
 
-	// Premier paiement (pas encore de profil) → formulaire ; renouvellement → tableau de bord
-	const success = event.url.searchParams.get('success') === '1';
-	if (success) {
-		return redirect(302, hasMeasurements ? '/user' : '/auth/measurement');
-	}
 	const offers = await getActiveOffers();
 	const defaultPlan = getPlansForOfferSlugs(offers, []).quarterly;
 
@@ -37,6 +34,41 @@ export const load = async (event: RequestEvent) => {
 		}),
 		getProgramOfferEntitlements(event.locals.user.id)
 	]);
+
+	// Retour Stripe : mensurations déjà faites avant paiement → relancer la génération ici.
+	const success = event.url.searchParams.get('success') === '1';
+	if (success) {
+		const { id: userId, role } = event.locals.user;
+		const isAdmin = role === 'ADMIN';
+		if (hasMeasurements && (hasValidPayment || isAdmin)) {
+			programGenTrace('trigger', {
+				userId,
+				source: 'subscription',
+				isAdmin,
+				hasValidPayment,
+				hasMeasurements,
+				action: 'schedule_generation_after_checkout'
+			});
+			void scheduleProgramGenerationAfterPayment(userId, {
+				role,
+				source: 'subscription'
+			}).catch((err) => {
+				console.error('[subscription] scheduleProgramGenerationAfterPayment failed', userId, err);
+			});
+		} else {
+			programGenTrace('schedule_denied', {
+				userId,
+				source: 'subscription',
+				isAdmin,
+				hasValidPayment,
+				hasMeasurements,
+				reason: hasMeasurements
+					? 'payment_not_valid'
+					: 'missing_measurements_redirect_measurement'
+			});
+		}
+		return redirect(302, hasMeasurements ? '/user' : '/auth/measurement');
+	}
 
 	return {
 		user: event.locals.user,

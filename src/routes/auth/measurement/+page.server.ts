@@ -15,6 +15,7 @@ import {
 } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
+import { programGenTrace } from '$lib/server/program-generation/programGenerationLog';
 import { checkWellBeingCompleted } from '$lib/server/access';
 
 import type { Actions, RequestEvent } from './$types';
@@ -148,18 +149,34 @@ export const actions: Actions = {
 			armCm: data.armCm
 		});
 
-		// Génération uniquement ici (plus depuis le webhook) : au moins une transaction `paid` + abonnement actif.
-		const hasValidPayment = await getHasValidPaymentByUserId(event.locals.user.id);
-		if (hasValidPayment) {
-			void scheduleProgramGenerationAfterPayment(event.locals.user.id).catch((err) => {
-				console.error('[measurement] scheduleProgramGenerationAfterPayment failed', event.locals.user.id, err);
+		// Génération uniquement ici (plus depuis le webhook) : transaction `paid` + abo actif, ou compte ADMIN.
+		const { id: userId, role } = event.locals.user;
+		const isAdmin = role === 'ADMIN';
+		const hasValidPayment = await getHasValidPaymentByUserId(userId);
+
+		if (hasValidPayment || isAdmin) {
+			programGenTrace('trigger', {
+				userId,
+				source: 'measurement',
+				isAdmin,
+				hasValidPayment,
+				action: 'schedule_generation'
 			});
-			console.log('[measurement] Formulaire complété + droits validés → génération programme planifiée');
-			// Flux onboarding attendu: retour hub auth, puis CTA "Accéder à l'application".
+			void scheduleProgramGenerationAfterPayment(userId, { role, source: 'measurement' }).catch(
+				(err) => {
+					console.error('[measurement] scheduleProgramGenerationAfterPayment failed', userId, err);
+				}
+			);
 			throw redirect(302, '/auth');
-		} else {
-			console.log('[measurement] Formulaire complété mais paiement non validé → attente paiement');
-			throw redirect(302, '/auth/subscription');
 		}
+
+		programGenTrace('schedule_denied', {
+			userId,
+			source: 'measurement',
+			isAdmin,
+			hasValidPayment,
+			reason: 'redirect_to_subscription'
+		});
+		throw redirect(302, '/auth/subscription');
 	}
 };

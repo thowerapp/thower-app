@@ -10,6 +10,7 @@ import { serializeData } from '$lib/utils/serializeData';
 import { requireSportAccess } from '$lib/server/programAccessGuard';
 import { VIDEO_COMPLETION_THRESHOLD } from '$lib/prisma/userVideoProgress/upsertProgress';
 import { createPointEvent } from '$lib/prisma/pointEvent/createEvent';
+import { getWorkoutVideosForSessionType } from '$lib/prisma/workoutSession/getWorkoutVideosForSessionType';
 import type { WorkoutSessionType } from '@prisma/client';
 
 const OID = /^[a-f\d]{24}$/i;
@@ -199,15 +200,9 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	}
 
 	let sessionId = requestedSessionId;
-	let session =
-		OID.test(sessionId)
-			? await prisma.workoutSession.findUnique({
-					where: { id: sessionId },
-					include: {
-						videos: { orderBy: { order: 'asc' } }
-					}
-				})
-			: null;
+	let session = OID.test(sessionId)
+		? await prisma.workoutSession.findUnique({ where: { id: sessionId } })
+		: null;
 
 	if (!session || !session.active) {
 		const fallbackSessionId = await resolveSessionIdForDay(userId, dayIndex);
@@ -216,12 +211,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		}
 		if (fallbackSessionId && OID.test(fallbackSessionId)) {
 			sessionId = fallbackSessionId;
-			session = await prisma.workoutSession.findUnique({
-				where: { id: sessionId },
-				include: {
-					videos: { orderBy: { order: 'asc' } }
-				}
-			});
+			session = await prisma.workoutSession.findUnique({ where: { id: sessionId } });
 		}
 	}
 
@@ -229,7 +219,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		throw error(404, 'Séance introuvable.');
 	}
 
-	const videoIds = session.videos.map((v) => v.id);
+	const sessionVideos = await getWorkoutVideosForSessionType(session.type);
+	const videoIds = sessionVideos.map((v) => v.id);
 	const progressDelegate = getUserVideoProgressDelegate();
 
 	const [userDay, progressRows] = await Promise.all([
@@ -279,7 +270,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		scheduledISO = calendarDateForProgramDay(ps, dayIndex).toISOString();
 	}
 
-	const orderedSessionVideos = [...session.videos].sort((a, b) => a.order - b.order);
+	const orderedSessionVideos = sessionVideos;
 
 	const videos = orderedSessionVideos.map((v) => {
 		const isOptional = session.type !== 'DISCOVERY' && v.position === 'PRE';
@@ -415,14 +406,11 @@ export const actions: Actions = {
 
 		const session = await prisma.workoutSession.findUnique({
 			where: { id: sessionId },
-			include: {
-				videos: {
-					orderBy: { order: 'asc' },
-					select: { id: true }
-				}
-			}
+			select: { id: true, active: true, type: true, name: true }
 		});
 		if (!session?.active) return fail(404, { message: 'Séance introuvable.' });
+
+		const sessionVideos = await getWorkoutVideosForSessionType(session.type);
 
 		const existingWorkoutDay = await prisma.userWorkoutDay.findFirst({
 			where: { userId, sessionId, dayIndex: dayIdx },
@@ -450,8 +438,8 @@ export const actions: Actions = {
 
 		const mandatoryVideoIds =
 			session.type === 'DISCOVERY'
-				? session.videos.map((video) => video.id)
-				: session.videos.filter((video) => video.position !== 'PRE').map((video) => video.id);
+				? sessionVideos.map((video) => video.id)
+				: sessionVideos.filter((video) => video.position !== 'PRE').map((video) => video.id);
 		const progressDelegate = getUserVideoProgressDelegate();
 		if (mandatoryVideoIds.length > 0) {
 			const completedMandatoryCount = progressDelegate

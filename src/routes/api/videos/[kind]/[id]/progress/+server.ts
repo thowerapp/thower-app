@@ -87,7 +87,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			const where =
 				kind === 'discovery'
 					? { discoveryContentId: params.id }
-					: { workoutSession: { videos: { some: { id: params.id } } } };
+					: { workoutVideoId: params.id };
 			const items = await db.programDayItem.findMany({
 				where,
 				select: { id: true }

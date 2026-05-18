@@ -357,7 +357,10 @@ async function main() {
 		{ position: 'VID2', title: 'Vidéo 2', isOptional: false, order: 2, uidKey: 'v2' }
 	];
 	const sessions = [];
-	for (const sdef of sessionDefs) {
+	/** Vidéo principale (VID1) par index de séance — pour les items SPORT_SESSION du programme 91j */
+	const sessionMainVideoIdByIdx = /** @type {(string | null)[]} */ ([]);
+	for (let sessionIdx = 0; sessionIdx < sessionDefs.length; sessionIdx++) {
+		const sdef = sessionDefs[sessionIdx];
 		let sess = await db.workoutSession.findFirst({
 			where: { type: sdef.type, weekNumber: sdef.weekNumber, order: sdef.order }
 		});
@@ -366,23 +369,24 @@ async function main() {
 				data: /** @type {any} */ ({ ...sdef, active: true, description: 'Seed Méthode Thower' })
 			});
 		}
+		let mainVideoId = null;
 		for (const slot of videoSlots) {
 			const cloudflareUid = `cf_seed_${slot.uidKey}_${sdef.type}`;
-			const existingVid = await db.workoutVideo.findFirst({ where: { cloudflareUid } });
-			if (!existingVid) {
-				await db.workoutVideo.create({
-					data: /** @type {any} */ ({
-						sessionId: sess.id,
+			let vid = await db.workoutVideo.findFirst({ where: { cloudflareUid } });
+			if (!vid) {
+				vid = await db.workoutVideo.create({
+					data: {
 						cloudflareUid,
 						title: `${sdef.name} — ${slot.title}`,
 						position: slot.position,
 						isOptional: slot.isOptional,
-						order: slot.order,
 						status: 'pending'
-					})
+					}
 				});
 			}
+			if (slot.position === 'VID1') mainVideoId = vid.id;
 		}
+		sessionMainVideoIdByIdx[sessionIdx] = mainVideoId;
 		sessions.push(sess);
 	}
 	console.log(`  → ${sessions.length} séances sport (A/B/C) + vidéos placeholder cf_seed_*`);
@@ -473,7 +477,7 @@ async function main() {
 
 	// ── 8. PROGRAMME 91 JOURS ────────────────────────────────────────────────
 	// Modèle : `Program` (1 actif) → `ProgramDay` (dayIndex 1–91) → `ProgramDayItem`
-	// (tâches, vidéos découverte, séances `WorkoutSession` via workoutSessionId, pas, custom…).
+	// (tâches, vidéos découverte, séances sport via workoutVideoId, pas, custom…).
 	// Les séances A/B/C sont les 3 `WorkoutSession` seedées ; elles reviennent chaque semaine
 	// (mardi A, jeudi B, samedi C) sur le motif de la semaine 1.
 	console.log('8/10 — Programme 91 jours…');
@@ -571,7 +575,8 @@ async function main() {
 						stepsThreshold: cfg.stepsThreshold ?? null,
 						dailyTaskId: cfg.dailyTaskIdx != null ? tasks[cfg.dailyTaskIdx].id : null,
 						discoveryContentId: cfg.discoveryIdx != null ? discoveries[cfg.discoveryIdx].id : null,
-						workoutSessionId: cfg.sessionIdx != null ? sessions[cfg.sessionIdx].id : null
+						workoutVideoId:
+							cfg.sessionIdx != null ? (sessionMainVideoIdByIdx[cfg.sessionIdx] ?? null) : null
 					}
 				});
 			}

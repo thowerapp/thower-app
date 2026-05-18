@@ -284,7 +284,7 @@
 <nav>
   <a class="nav-logo" href="/">T<span>H</span>OWER</a>
   <div class="nav-btns">
-    <button class="nav-btn outline" onclick={() => goto('/auth/login')}>Se connecter</button>
+    <a class="nav-btn outline" href="/auth/login">Se connecter</a>
     <button class="nav-btn fill" onclick={scrollToForm}>S'inscrire</button>
   </div>
 </nav>
@@ -464,7 +464,22 @@
   .nav-logo { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.12em; color: var(--white); text-decoration: none; flex: 0 0 auto; }
   .nav-logo span { color: var(--gold); }
   .nav-btns { display: flex; gap: 12px; flex-direction: row; }
-  .nav-btn { padding: 8px 22px; font-family: 'DM Sans', sans-serif; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; cursor: none; border: none; transition: all 0.2s; white-space: nowrap; }
+  .nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 22px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: none;
+    border: none;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
   .nav-btn.outline { background: transparent; border: 1px solid rgba(240,237,232,0.3); color: var(--white); }
   .nav-btn.outline:hover { border-color: var(--gold); color: var(--gold); }
   .nav-btn.fill { background: var(--gold); color: var(--black); font-weight: 600; }

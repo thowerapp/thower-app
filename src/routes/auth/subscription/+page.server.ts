@@ -6,6 +6,7 @@ import { getActiveOffers } from '$lib/prisma/offer/getActiveOffers';
 import { prisma } from '$lib/server';
 import { stripe } from '$lib/server/stripe';
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
+import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
 import { programGenTrace } from '$lib/server/program-generation/programGenerationLog';
 import { SUBSCRIPTION_PLANS, getPlansForOfferSlugs } from '$lib/server/subscription-plans';
 
@@ -41,19 +42,17 @@ export const load = async (event: RequestEvent) => {
 		const { id: userId, role } = event.locals.user;
 		const isAdmin = role === 'ADMIN';
 		if (hasMeasurements && (hasValidPayment || isAdmin)) {
+			const dispatchMode = await dispatchProgramGeneration(event, () =>
+				scheduleProgramGenerationAfterPayment(userId, { role, source: 'subscription' })
+			);
 			programGenTrace('trigger', {
 				userId,
 				source: 'subscription',
 				isAdmin,
 				hasValidPayment,
 				hasMeasurements,
-				action: 'schedule_generation_after_checkout'
-			});
-			void scheduleProgramGenerationAfterPayment(userId, {
-				role,
-				source: 'subscription'
-			}).catch((err) => {
-				console.error('[subscription] scheduleProgramGenerationAfterPayment failed', userId, err);
+				action: 'schedule_generation_after_checkout',
+				dispatchMode
 			});
 		} else {
 			programGenTrace('schedule_denied', {

@@ -15,10 +15,16 @@ import {
 } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
+import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
 import { programGenTrace } from '$lib/server/program-generation/programGenerationLog';
 import { checkWellBeingCompleted } from '$lib/server/access';
 
 import type { Actions, RequestEvent } from './$types';
+
+/** Génération nutrition peut durer >10s si waitUntil indisponible (repli await). */
+export const config = {
+	maxDuration: 300
+};
 
 export const load = async (event: RequestEvent) => {
 	if (event.locals.session === null || event.locals.user === null) {
@@ -155,18 +161,17 @@ export const actions: Actions = {
 		const hasValidPayment = await getHasValidPaymentByUserId(userId);
 
 		if (hasValidPayment || isAdmin) {
+			const dispatchMode = await dispatchProgramGeneration(event, () =>
+				scheduleProgramGenerationAfterPayment(userId, { role, source: 'measurement' })
+			);
 			programGenTrace('trigger', {
 				userId,
 				source: 'measurement',
 				isAdmin,
 				hasValidPayment,
-				action: 'schedule_generation'
+				action: 'schedule_generation',
+				dispatchMode
 			});
-			void scheduleProgramGenerationAfterPayment(userId, { role, source: 'measurement' }).catch(
-				(err) => {
-					console.error('[measurement] scheduleProgramGenerationAfterPayment failed', userId, err);
-				}
-			);
 			throw redirect(302, '/auth');
 		}
 

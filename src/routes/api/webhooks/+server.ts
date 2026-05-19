@@ -190,12 +190,11 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 					userId: transaction.userId,
 					source: 'webhook',
 					action: 'schedule_generation_after_credit',
-					measurementCount: measurements.length
+					measurementCount: measurements.length,
+					dispatchMode: 'awaited'
 				});
-				void scheduleProgramGenerationAfterPayment(transaction.userId, {
+				await scheduleProgramGenerationAfterPayment(transaction.userId, {
 					source: 'webhook'
-				}).catch((err) => {
-					console.error('[webhook] scheduleProgramGenerationAfterPayment failed', transaction.userId, err);
 				});
 			} else {
 				programGenTrace('schedule_denied', {

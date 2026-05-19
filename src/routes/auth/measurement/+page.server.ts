@@ -13,11 +13,12 @@ import {
 	getBodyMeasurementsByUserId,
 	type BodyMeasurementSnapshot
 } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
-import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
 import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
 import { programGenTrace } from '$lib/server/program-generation/programGenerationLog';
+import { syncRecentPaidCheckoutSessionsForUser } from '$lib/server/stripe/reconcileCheckoutSession';
 import { checkWellBeingCompleted } from '$lib/server/access';
+import { logPaymentStatus, onboardingTrace } from '$lib/server/onboarding/onboardingLog';
 
 import type { Actions, RequestEvent } from './$types';
 
@@ -95,6 +96,17 @@ export const load = async (event: RequestEvent) => {
 		createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt
 	}));
 
+	const userId = event.locals.user.id;
+	const paymentBeforeLoad = await logPaymentStatus(userId, 'measurement', 'measurement_load');
+
+	onboardingTrace('measurement_load', {
+		userId,
+		source: 'measurement',
+		measurementCount: bodyMeasurements.length,
+		hasWellBeing: !!(profile as { stressLevel?: number | null } | null)?.stressLevel,
+		hasValidPayment: paymentBeforeLoad.hasValidPayment
+	});
+
 	return {
 		measurementForm,
 		bodyMeasurements: bodyMeasurementsSafe
@@ -109,6 +121,11 @@ export const actions: Actions = {
 
 		const form = await superValidate(event, zod(measurementSchema));
 		if (!form.valid) {
+			onboardingTrace('measurement_save', {
+				userId: event.locals.user.id,
+				source: 'measurement',
+				outcome: 'validation_failed'
+			});
 			return fail(400, { form });
 		}
 
@@ -158,12 +175,38 @@ export const actions: Actions = {
 		// Génération uniquement ici (plus depuis le webhook) : transaction `paid` + abo actif, ou compte ADMIN.
 		const { id: userId, role } = event.locals.user;
 		const isAdmin = role === 'ADMIN';
-		const hasValidPayment = await getHasValidPaymentByUserId(userId);
+
+		const paymentBeforeSync = await logPaymentStatus(userId, 'measurement', 'before_stripe_sync');
+
+		let hasValidPayment = paymentBeforeSync.hasValidPayment;
+		let syncedFromStripe = false;
+		if (!hasValidPayment && !isAdmin) {
+			onboardingTrace('measurement_save', {
+				userId,
+				source: 'measurement',
+				action: 'stripe_sync_start',
+				reason: 'no_valid_payment_in_db'
+			});
+			hasValidPayment = await syncRecentPaidCheckoutSessionsForUser(userId);
+			syncedFromStripe = hasValidPayment;
+			await logPaymentStatus(userId, 'measurement', 'after_stripe_sync');
+		}
 
 		if (hasValidPayment || isAdmin) {
 			const dispatchMode = await dispatchProgramGeneration(event, () =>
 				scheduleProgramGenerationAfterPayment(userId, { role, source: 'measurement' })
 			);
+			onboardingTrace('measurement_save', {
+				userId,
+				source: 'measurement',
+				outcome: 'ok',
+				isAdmin,
+				hasValidPayment,
+				syncedFromStripe,
+				action: 'schedule_generation',
+				dispatchMode,
+				redirectTo: '/auth'
+			});
 			programGenTrace('trigger', {
 				userId,
 				source: 'measurement',
@@ -175,6 +218,16 @@ export const actions: Actions = {
 			throw redirect(302, '/auth');
 		}
 
+		onboardingTrace('measurement_save', {
+			userId,
+			source: 'measurement',
+			outcome: 'redirect_subscription',
+			isAdmin,
+			hasValidPayment,
+			syncedFromStripe,
+			reason: 'no_paid_transaction_after_sync',
+			redirectTo: '/auth/subscription'
+		});
 		programGenTrace('schedule_denied', {
 			userId,
 			source: 'measurement',

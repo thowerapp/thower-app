@@ -2,7 +2,15 @@
 	import * as Card from '$shadcn/card';
 	import { Button } from '$shadcn/button';
 	import type { PageProps } from './$types';
-	import { CreditCard, AlertCircle, CheckCircle, XCircle, LayoutDashboard } from 'lucide-svelte';
+	import {
+		CreditCard,
+		AlertCircle,
+		CheckCircle,
+		XCircle,
+		LayoutDashboard,
+		UtensilsCrossed,
+		Dumbbell
+	} from 'lucide-svelte';
 	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
 
@@ -12,10 +20,20 @@
 	type PlanInfo = { amountCents: number; label: string; description: string };
 
 	const offers = $derived((data as unknown as { offers?: OfferRow[] })?.offers ?? []);
-	const defaultPlan = $derived((data as unknown as { defaultPlan?: PlanInfo })?.defaultPlan ?? null);
 	const SUBSCRIPTION_PLANS = $derived((data as unknown as { SUBSCRIPTION_PLANS?: Record<string, PlanInfo> })?.SUBSCRIPTION_PLANS ?? {});
 
 	let selectedOfferSlugs = $state<string[]>([]);
+
+	const offerMeta: Record<string, { icon: typeof UtensilsCrossed; blurb: string }> = {
+		nutrition: {
+			icon: UtensilsCrossed,
+			blurb: 'Planning repas personnalisé, courses et suivi nutritionnel.'
+		},
+		sport: {
+			icon: Dumbbell,
+			blurb: 'Séances vidéo, programme hebdomadaire et suivi sportif.'
+		}
+	};
 
 	function toggleOffer(slug: string) {
 		if (selectedOfferSlugs.includes(slug)) {
@@ -26,13 +44,19 @@
 	}
 
 	const plan = $derived.by(() => {
-		const base = (SUBSCRIPTION_PLANS as Record<string, PlanInfo>).quarterly ?? defaultPlan;
-		if (!base) return null;
-		if (selectedOfferSlugs.length === 0) return defaultPlan ?? base;
+		const base = (SUBSCRIPTION_PLANS as Record<string, PlanInfo>).quarterly;
+		if (!base || selectedOfferSlugs.length === 0) return null;
 		const selected = offers.filter((p) => selectedOfferSlugs.includes(p.slug));
 		const quarterlyCents = selected.reduce((s, p) => s + p.amountCentsMonthly * 3, 0);
-		return { ...base, amountCents: quarterlyCents || base.amountCents };
+		const labels = selected.map((p) => p.name).join(' + ');
+		return {
+			...base,
+			amountCents: quarterlyCents,
+			description: `Accompagnement Thower — ${labels} — 3 mois.`
+		};
 	});
+
+	const canCheckout = $derived(selectedOfferSlugs.length > 0 && plan !== null);
 
 	const success = $derived($page.url.searchParams.get('success') === '1');
 	const canceled = $derived($page.url.searchParams.get('canceled') === '1');
@@ -47,6 +71,10 @@
 	);
 	const formatPrice = (cents: number) =>
 		new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
+
+	function quarterlyPrice(offer: OfferRow) {
+		return offer.amountCentsMonthly * 3;
+	}
 </script>
 
 <div class="container mx-auto max-w-2xl px-4 py-8 pb-[100px]">
@@ -139,51 +167,70 @@
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2">
 					<CreditCard class="w-6 h-6 text-primary" />
-					<span>{hasValidPayment ? "Renouveler à l'avance" : 'Paiement sécurisé'}</span>
+					<span>{hasValidPayment ? "Renouveler à l'avance" : 'Choisissez vos programmes'}</span>
 				</Card.Title>
 				<Card.Description>
 					{hasValidPayment
-						? 'Prolongez votre accès pour 3 mois supplémentaires. Paiement sécurisé par Stripe.'
-						: 'Accédez à votre accompagnement Thower sur 3 mois. Paiement sécurisé par Stripe.'}
+						? 'Sélectionnez Nutrition et/ou Sport pour prolonger votre accès de 3 mois. Paiement sécurisé par Stripe.'
+						: 'Sélectionnez au moins un programme. Chaque programme est à 250 € pour 3 mois. Paiement sécurisé par Stripe.'}
 				</Card.Description>
 			</Card.Header>
 			<Card.Content class="space-y-4">
-				{#if offers.length > 0}
-					<div class="space-y-2">
-						<p class="text-sm font-medium">Offres</p>
-						<div class="flex flex-wrap gap-3">
-							{#each offers as offer}
-								<label class="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 cursor-pointer hover:bg-accent/50">
-									<input
-										type="checkbox"
-										checked={selectedOfferSlugs.includes(offer.slug)}
-										onchange={() => toggleOffer(offer.slug)}
-										class="h-4 w-4 rounded border-input"
-									/>
-									<span>{offer.name}</span>
-									<span class="text-muted-foreground text-sm">
-										{formatPrice(offer.amountCentsMonthly * 3)}/3 mois
-									</span>
-								</label>
-							{/each}
-						</div>
+				<div class="space-y-3">
+					<p class="text-sm font-medium">Programmes disponibles</p>
+					<div class="grid gap-3 sm:grid-cols-2">
+						{#each offers as offer (offer.slug)}
+							{@const selected = selectedOfferSlugs.includes(offer.slug)}
+							{@const meta = offerMeta[offer.slug]}
+							{@const Icon = meta?.icon ?? CreditCard}
+							<button
+								type="button"
+								class="flex w-full flex-col rounded-xl border-2 p-4 text-left transition-colors {selected
+									? 'border-primary bg-primary/5'
+									: 'border-muted bg-card hover:border-primary/40 hover:bg-accent/30'}"
+								onclick={() => toggleOffer(offer.slug)}
+							>
+								<div class="mb-3 flex items-start justify-between gap-2">
+									<div class="flex items-center gap-2">
+										<Icon class="h-5 w-5 text-primary" />
+										<span class="font-semibold">{offer.name}</span>
+									</div>
+									<div
+										class="flex h-5 w-5 shrink-0 items-center justify-center rounded border {selected
+											? 'border-primary bg-primary text-primary-foreground'
+											: 'border-input bg-background'}"
+									>
+										{#if selected}
+											<CheckCircle class="h-3.5 w-3.5" />
+										{/if}
+									</div>
+								</div>
+								<p class="mb-3 text-sm text-muted-foreground">{meta?.blurb ?? offer.name}</p>
+								<p class="text-2xl font-bold text-primary">{formatPrice(quarterlyPrice(offer))}</p>
+								<p class="text-xs text-muted-foreground">pour 3 mois</p>
+							</button>
+						{/each}
 					</div>
-				{/if}
+				</div>
 
-				{#if plan}
-					<form method="POST" action="?/createCheckout" use:enhance class="rounded-lg border-2 border-primary/50 bg-card p-6">
-						<input type="hidden" name="selectedOfferSlugs" value={JSON.stringify(selectedOfferSlugs)} />
+				<form method="POST" action="?/createCheckout" use:enhance class="rounded-lg border-2 border-primary/50 bg-card p-6">
+					<input type="hidden" name="selectedOfferSlugs" value={JSON.stringify(selectedOfferSlugs)} />
+					{#if plan}
 						<div class="mb-4 text-center">
 							<div class="text-4xl font-bold text-primary">{formatPrice(plan.amountCents)}</div>
-							<div class="mt-1 text-muted-foreground">pour 3 mois d'accompagnement</div>
+							<div class="mt-1 text-muted-foreground">total pour 3 mois</div>
 							<p class="mt-2 text-sm text-muted-foreground">{plan.description}</p>
 						</div>
-						<Button type="submit" class="w-full gap-2 text-base">
-							<CreditCard class="w-5 h-5" />
-							{hasValidPayment ? 'Renouveler pour 3 mois' : 'Commencer — 3 mois'}
-						</Button>
-					</form>
-				{/if}
+					{:else}
+						<p class="mb-4 text-center text-sm text-muted-foreground">
+							Sélectionnez Nutrition et/ou Sport pour voir le total.
+						</p>
+					{/if}
+					<Button type="submit" class="w-full gap-2 text-base" disabled={!canCheckout}>
+						<CreditCard class="w-5 h-5" />
+						{hasValidPayment ? 'Renouveler pour 3 mois' : 'Commencer — 3 mois'}
+					</Button>
+				</form>
 			</Card.Content>
 		</Card.Root>
 	{/if}

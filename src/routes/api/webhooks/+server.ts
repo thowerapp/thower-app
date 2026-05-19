@@ -133,6 +133,10 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 		}
 
 		const planId = (session.metadata?.plan as PlanId | undefined) ?? 'quarterly';
+		const offerSlugs = transaction.offerSlugs ?? [];
+		// Anciens paiements sans métadonnées → nutrition créditée (rétrocompatibilité).
+		const includesNutrition = offerSlugs.length === 0 || offerSlugs.includes('nutrition');
+
 		const user = await prisma.user.findUnique({
 			where: { id: transaction.userId },
 			select: { subscriptionEndsAt: true }
@@ -150,30 +154,36 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				where: { id: transaction.userId },
 				data: { subscriptionEndsAt: endsAt }
 			});
-			const { modified } = await incUserNutritionDaysAllocatedMongo(
-				transaction.userId,
-				NUTRITION_SEGMENT_DAYS
-			);
-			if (modified < 1) {
-				const u = (await prisma.user.findUnique({
-					where: { id: transaction.userId },
-					select: selectNutritionDaysAllocated
-				})) as UserNutritionAllocatedRow | null;
-				const base = u?.nutritionDaysAllocated ?? 0;
-				await prisma.user.update({
-					where: { id: transaction.userId },
-					data: {
-						nutritionDaysAllocated: base + NUTRITION_SEGMENT_DAYS
-					} as unknown as Prisma.UserUpdateInput
-				});
-				console.warn(
-					'[webhook] $inc Mongo n’a touché aucun User — repli Prisma set explicite nutritionDaysAllocated'
+
+			if (includesNutrition) {
+				const { modified } = await incUserNutritionDaysAllocatedMongo(
+					transaction.userId,
+					NUTRITION_SEGMENT_DAYS
 				);
+				if (modified < 1) {
+					const u = (await prisma.user.findUnique({
+						where: { id: transaction.userId },
+						select: selectNutritionDaysAllocated
+					})) as UserNutritionAllocatedRow | null;
+					const base = u?.nutritionDaysAllocated ?? 0;
+					await prisma.user.update({
+						where: { id: transaction.userId },
+						data: {
+							nutritionDaysAllocated: base + NUTRITION_SEGMENT_DAYS
+						} as unknown as Prisma.UserUpdateInput
+					});
+					console.warn(
+						'[webhook] $inc Mongo n’a touché aucun User — repli Prisma set explicite nutritionDaysAllocated'
+					);
+				}
 			}
-			const after = (await prisma.user.findUnique({
-				where: { id: transaction.userId },
-				select: selectNutritionDaysAllocated
-			})) as UserNutritionAllocatedRow | null;
+
+			const after = includesNutrition
+				? ((await prisma.user.findUnique({
+						where: { id: transaction.userId },
+						select: selectNutritionDaysAllocated
+					})) as UserNutritionAllocatedRow | null)
+				: null;
 			console.log(
 				'User subscriptionEndsAt updated for',
 				transaction.userId,
@@ -181,8 +191,9 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
 				planId,
 				'until',
 				endsAt.toISOString(),
-				'| nutritionDaysAllocated=',
-				after?.nutritionDaysAllocated ?? '?'
+				'| offerSlugs=',
+				offerSlugs.join(',') || '(legacy both)',
+				includesNutrition ? `| nutritionDaysAllocated=${after?.nutritionDaysAllocated ?? '?'}` : '| nutrition skip (sport only)'
 			);
 			const measurements = await getBodyMeasurementsByUserId(transaction.userId, 1);
 			if (measurements.length > 0) {

@@ -2,12 +2,12 @@ import { fail, redirect, isRedirect } from '@sveltejs/kit';
 import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
 import { getProgramOfferEntitlements } from '$lib/prisma/transaction/getProgramOfferEntitlements';
-import { getActiveOffers } from '$lib/prisma/offer/getActiveOffers';
 import { prisma } from '$lib/server';
 import { stripe } from '$lib/server/stripe';
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
 import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
 import { programGenTrace } from '$lib/server/program-generation/programGenerationLog';
+import { getProgramOffers } from '$lib/server/subscription-offers';
 import { SUBSCRIPTION_PLANS, getPlansForOfferSlugs } from '$lib/server/subscription-plans';
 
 import type { Actions, RequestEvent } from './$types';
@@ -24,8 +24,7 @@ export const load = async (event: RequestEvent) => {
 	const bodyMeasurements = await getBodyMeasurementsByUserId(event.locals.user.id, 1);
 	const hasMeasurements = bodyMeasurements.length > 0;
 
-	const offers = await getActiveOffers();
-	const defaultPlan = getPlansForOfferSlugs(offers, []).quarterly;
+	const offers = await getProgramOffers();
 
 	const [hasValidPayment, userRow, entitlements] = await Promise.all([
 		getHasValidPaymentByUserId(event.locals.user.id),
@@ -75,7 +74,6 @@ export const load = async (event: RequestEvent) => {
 		hasValidPayment,
 		subscriptionEndsAt: userRow?.subscriptionEndsAt ?? null,
 		offers,
-		defaultPlan,
 		SUBSCRIPTION_PLANS,
 		entitlements
 	};
@@ -99,31 +97,41 @@ export const actions: Actions = {
 		}
 		if (!Array.isArray(selectedOfferSlugs)) selectedOfferSlugs = [];
 
-		const offers = await getActiveOffers();
+		const offers = await getProgramOffers();
 		const validSlugs = new Set(offers.map((p) => p.slug));
 		const slugs = selectedOfferSlugs.filter((s) => validSlugs.has(s));
 
+		if (slugs.length === 0) {
+			return fail(400, {
+				message: 'Sélectionnez au moins un programme : Nutrition et/ou Sport.'
+			});
+		}
+
 		const plan = getPlansForOfferSlugs(offers, slugs).quarterly;
+		if (plan.amountCents < 1) {
+			return fail(400, { message: 'Montant invalide pour la sélection.' });
+		}
+
 		const origin = event.url.origin;
 		const successUrl = `${origin}/auth/subscription?success=1`;
 		const cancelUrl = `${origin}/auth/subscription?canceled=1`;
 
+		const selectedOffers = offers.filter((o) => slugs.includes(o.slug));
+
 		try {
 			const session = await stripe.checkout.sessions.create({
 				mode: 'payment',
-				line_items: [
-					{
-						price_data: {
-							currency: 'eur',
-							unit_amount: plan.amountCents,
-							product_data: {
-								name: `Accompagnement Thower - ${plan.label}`,
-								description: plan.description
-							}
-						},
-						quantity: 1
-					}
-				],
+				line_items: selectedOffers.map((offer) => ({
+					price_data: {
+						currency: 'eur',
+						unit_amount: offer.amountCentsMonthly * 3,
+						product_data: {
+							name: `Accompagnement Thower — ${offer.name}`,
+							description: `${offer.name} — 3 mois d'accompagnement`
+						}
+					},
+					quantity: 1
+				})),
 				success_url: successUrl,
 				cancel_url: cancelUrl,
 				client_reference_id: event.locals.user.id,
@@ -131,7 +139,7 @@ export const actions: Actions = {
 				metadata: {
 					plan: 'quarterly',
 					userId: event.locals.user.id,
-					offerSlugs: slugs.length > 0 ? JSON.stringify(slugs) : ''
+					offerSlugs: JSON.stringify(slugs)
 				}
 			});
 

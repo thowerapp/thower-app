@@ -748,6 +748,7 @@ model ShoppingList {
   items ShoppingItem[]
 
   @@index([userId])
+  @@index([userId, startDayIndex, endDayIndex])
   @@map("shopping_lists")
 }
 
@@ -763,6 +764,8 @@ model ShoppingItem {
   isChecked      Boolean      @default(false)
   /// Reporté automatiquement à la prochaine liste si non coché (Lot 6 spec)
   isReported     Boolean      @default(false)
+  /// Détail par recette : [{ recipeName, quantityG }]
+  sources        Json         @default("[]")
 
   @@index([listId])
   @@map("shopping_items")

@@ -6,7 +6,6 @@ import {
 	targetCaloriesPerDay
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
-import { cadencierJeuneLog } from '$lib/server/cadencierJeuneLog';
 
 const DEFAULT_REFERENCE_G = 100;
 const SCALE_MIN = 0.15;
@@ -216,12 +215,6 @@ export async function loadBreakfastBackfillContextFromProfile(
 
 	const breakfastRecipes = filterBreakfastRecipes(profile, recipesRaw);
 	if (breakfastRecipes.length === 0) {
-		cadencierJeuneLog('ensureBreakfast:skip', {
-			userId,
-			reason: 'no_eligible_breakfast_recipes',
-			catalogActive: recipesRaw.length,
-			afterAllergenFilter: 0
-		});
 		return null;
 	}
 
@@ -347,27 +340,12 @@ export async function backfillMissingBreakfastMeals(
 	}
 	if (payloads.length === 0) return false;
 
-	try {
-		await prisma.meal.createMany({ data: payloads });
-	} catch (e) {
-		cadencierJeuneLog('ensureBreakfast:error', {
-			userId,
-			dayIndices: needs.map((d) => d.dayIndex),
-			error: e instanceof Error ? e.message : String(e)
-		});
-		throw e;
-	}
+	await prisma.meal.createMany({ data: payloads });
 
 	await regenerateShoppingListsForDayIndices(
 		userId,
 		needs.map((d) => d.dayIndex)
 	);
-
-	cadencierJeuneLog('ensureBreakfast:batch', {
-		userId,
-		createdCount: payloads.length,
-		dayIndices: needs.map((d) => d.dayIndex)
-	});
 
 	return true;
 }
@@ -391,25 +369,9 @@ export async function ensureBreakfastMealForDay(
 	const payload = buildBreakfastMealPayload(userId, dayIndex, nutritionDayId, context);
 	if (!payload) return false;
 
-	try {
-		await prisma.meal.create({ data: payload });
-	} catch (e) {
-		cadencierJeuneLog('ensureBreakfast:error', {
-			userId,
-			dayIndex,
-			error: e instanceof Error ? e.message : String(e)
-		});
-		throw e;
-	}
+	await prisma.meal.create({ data: payload });
 
 	await regenerateShoppingListsForDayIndices(userId, [dayIndex]);
-
-	cadencierJeuneLog('ensureBreakfast:created', {
-		userId,
-		dayIndex,
-		recipeId: payload.recipeId,
-		quantityG: Math.round(payload.quantityG * 10) / 10
-	});
 
 	return true;
 }

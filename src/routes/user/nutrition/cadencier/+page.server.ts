@@ -14,7 +14,6 @@ import {
 	dailyFiberTargetG
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
-import { cadencierJeuneLog } from '$lib/server/cadencierJeuneLog';
 import {
 	ensureBreakfastMealForDay,
 	backfillMissingBreakfastMeals,
@@ -279,22 +278,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const targetFiberG = targetKcal != null ? Math.round(dailyFiberTargetG(targetKcal) * 10) / 10 : null;
 
-	cadencierJeuneLog('load', {
-		userId,
-		selectedWeek,
-		weekStart,
-		weekEnd,
-		currentDayIndex,
-		profileIntermittentFastingMorning: user?.profile?.intermittentFastingMorning ?? null,
-		days: weekDays.map((d) => ({
-			dayIndex: d.dayIndex,
-			intermittentFasting: d.intermittentFasting,
-			mealCount: d.meals.length,
-			positions: d.meals.map((m) => m.position),
-			hasBreakfast: d.meals.some((m) => m.position === 'BREAKFAST')
-		}))
-	});
-
 	return {
 		currentDayIndex,
 		currentWeek,
@@ -334,60 +317,24 @@ export const actions: Actions = {
 			}
 		});
 
-		cadencierJeuneLog('toggleJeuneDay:before', {
-			userId,
-			dayIndex,
-			requestedActive: active,
-			beforeIntermittentFasting: before?.intermittentFasting ?? null,
-			beforeMealPositions: before?.meals.map((m) => m.position) ?? [],
-			beforeHasBreakfast: before?.meals.some((m) => m.position === 'BREAKFAST') ?? false
-		});
-
 		try {
 			const updated = await prisma.nutritionDay.updateMany({
 				where: { userId, dayIndex },
 				data: { intermittentFasting: active }
 			});
 			if (updated.count === 0) {
-				cadencierJeuneLog('toggleJeuneDay:not_found', { userId, dayIndex, requestedActive: active });
 				return fail(404, { error: 'Aucun jour de nutrition trouvé pour ce jour' });
 			}
 
-			let breakfastCreated = false;
 			if (!active && before?.id) {
 				const ctx = await loadBreakfastBackfillContext(userId);
 				if (ctx) {
-					breakfastCreated = await ensureBreakfastMealForDay(userId, dayIndex, before.id, ctx);
+					await ensureBreakfastMealForDay(userId, dayIndex, before.id, ctx);
 				}
 			}
 
-			const after = await prisma.nutritionDay.findUnique({
-				where: { userId_dayIndex: { userId, dayIndex } },
-				select: {
-					intermittentFasting: true,
-					meals: { select: { position: true } }
-				}
-			});
-
-			cadencierJeuneLog('toggleJeuneDay:after', {
-				userId,
-				dayIndex,
-				updatedCount: updated.count,
-				breakfastCreated,
-				afterIntermittentFasting: after?.intermittentFasting ?? null,
-				afterMealPositions: after?.meals.map((m) => m.position) ?? [],
-				afterHasBreakfast: after?.meals.some((m) => m.position === 'BREAKFAST') ?? false
-			});
-
 			return { success: true };
-		} catch (e) {
-			console.error('[cadencier toggleJeuneDay]', e);
-			cadencierJeuneLog('toggleJeuneDay:error', {
-				userId,
-				dayIndex,
-				requestedActive: active,
-				error: e instanceof Error ? e.message : String(e)
-			});
+		} catch {
 			return fail(500, { error: 'Erreur serveur' });
 		}
 	},
@@ -405,8 +352,7 @@ export const actions: Actions = {
 				update: { intermittentFastingMorning: active },
 			});
 			return { success: true };
-		} catch (e) {
-			console.error('[cadencier toggleJeune]', e);
+		} catch {
 			return fail(500, { error: 'Erreur serveur' });
 		}
 	}

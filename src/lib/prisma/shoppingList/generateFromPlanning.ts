@@ -1,32 +1,33 @@
 import { prisma } from '$lib/server';
-
-const DEFAULT_REFERENCE_YIELD_G = 100;
+import { shoppingListAggregateKey } from '$lib/nutrition/normalizeIngredientName';
+import {
+	aggregateShoppingItemsFromPlanningDays,
+	mergeReportedItemsIntoAggregate,
+	sortAggregatedShoppingItems,
+	type AggregatedShoppingItem,
+	type PlanningDayInput
+} from './aggregateShoppingItems';
+import {
+	parseShoppingItemSources,
+	type ShoppingListWithItems
+} from './types';
 
 export type GenerateShoppingListOptions = {
 	/** Inclure les articles non cochés de la liste précédente (report) */
 	includeReportedFromPrevious?: boolean;
 };
 
-type AggregatedItem = {
-	ingredientName: string;
-	category: string | null;
-	unit: string | null;
-	totalQuantityG: number;
-	isReported: boolean;
-};
-
 /**
  * Génère ou régénère une liste de courses pour la période [startDayIndex, endDayIndex]
  * à partir du planning repas (NutritionDay → Meal → Recipe → RecipeIngredient).
- * Quantités = (meal.quantityG / recipe.referenceYieldG) × ingredient.quantityG (ingrédients sans quantityG exclus).
- * Tri selon UserProfile.shoppingListSortOrder (category | alphabetical).
+ * Ingrédients fusionnés par libellé complet + unité (ex. chocolat 90 % ≠ 50 %) ; quantités = scaledIngredientGrams.
  */
 export async function generateShoppingListFromPlanning(
 	userId: string,
 	startDayIndex: number,
 	endDayIndex: number,
 	options: GenerateShoppingListOptions = {}
-): Promise<{ listId: string } | null> {
+): Promise<{ listId: string; list: ShoppingListWithItems } | null> {
 	const { includeReportedFromPrevious = true } = options;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const db = prisma as any;
@@ -35,51 +36,48 @@ export async function generateShoppingListFromPlanning(
 		return null;
 	}
 
-	const profile = await db.userProfile.findUnique({ where: { userId } });
+	const profile = await db.userProfile.findUnique({
+		where: { userId },
+		select: { shoppingListSortOrder: true }
+	});
 	const sortOrder = profile?.shoppingListSortOrder === 'alphabetical' ? 'alphabetical' : 'category';
 
 	const nutritionDays = await db.nutritionDay.findMany({
 		where: { userId, dayIndex: { gte: startDayIndex, lte: endDayIndex } },
-		include: {
+		select: {
+			dayIndex: true,
 			meals: {
-				include: {
-					recipe: { include: { ingredients: true } }
+				select: {
+					quantityG: true,
+					recipe: {
+						select: {
+							name: true,
+							referenceYieldG: true,
+							ingredients: {
+								select: {
+									name: true,
+									quantityG: true,
+									category: true,
+									unit: true,
+									order: true
+								},
+								orderBy: { order: 'asc' }
+							}
+						}
+					}
 				}
 			}
 		},
 		orderBy: { dayIndex: 'asc' }
 	});
 
-	const aggregated = new Map<string, AggregatedItem>();
-
-	function addItem(name: string, category: string | null, unit: string | null, qty: number, isReported: boolean) {
-		const key = `${name}|${category ?? ''}|${unit ?? ''}`;
-		const existing = aggregated.get(key);
-		if (existing) {
-			existing.totalQuantityG += qty;
-			existing.isReported = existing.isReported || isReported;
-		} else {
-			aggregated.set(key, { ingredientName: name, category, unit, totalQuantityG: qty, isReported });
-		}
+	const aggregated = new Map<string, AggregatedShoppingItem>();
+	for (const item of aggregateShoppingItemsFromPlanningDays(
+		nutritionDays as PlanningDayInput[]
+	)) {
+		aggregated.set(shoppingListAggregateKey(item.ingredientName, item.unit), item);
 	}
 
-	// 1) Ingrédients issus du planning
-	for (const nd of nutritionDays) {
-		for (const meal of nd.meals) {
-			const recipe = meal.recipe;
-			if (!recipe || !meal.quantityG || meal.quantityG <= 0) continue;
-			const refYield = recipe.referenceYieldG ?? DEFAULT_REFERENCE_YIELD_G;
-			const factor = meal.quantityG / refYield;
-			const sortedIngredients = [...recipe.ingredients].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-			for (const ing of sortedIngredients) {
-				if (ing.quantityG == null || Number.isNaN(ing.quantityG)) continue;
-				const qty = ing.quantityG * factor;
-				addItem(ing.name, ing.category ?? null, ing.unit ?? null, qty, false);
-			}
-		}
-	}
-
-	// 2) Report : articles non cochés de la liste dont la période se termine juste avant
 	if (includeReportedFromPrevious && startDayIndex > 1) {
 		const previousList = await db.shoppingList.findFirst({
 			where: { userId, endDayIndex: startDayIndex - 1 },
@@ -87,34 +85,46 @@ export async function generateShoppingListFromPlanning(
 			include: { items: true }
 		});
 		if (previousList) {
-			for (const item of previousList.items) {
-				if (item.isChecked) continue;
-				addItem(item.ingredientName, item.category, item.unit, item.totalQuantityG, true);
-			}
+			mergeReportedItemsIntoAggregate(
+				aggregated,
+				previousList.items.map(
+					(item: {
+						ingredientName: string;
+						category: string | null;
+						unit: string | null;
+						totalQuantityG: number;
+						isChecked: boolean;
+						sources: unknown;
+					}) => ({
+						ingredientName: item.ingredientName,
+						category: item.category,
+						unit: item.unit,
+						totalQuantityG: item.totalQuantityG,
+						isChecked: item.isChecked,
+						sources: parseShoppingItemSources(item.sources)
+					})
+				)
+			);
 		}
 	}
 
-	let items = Array.from(aggregated.values());
-	if (sortOrder === 'alphabetical') {
-		items.sort((a, b) => a.ingredientName.localeCompare(b.ingredientName, 'fr'));
-	} else {
-		items.sort((a, b) => {
-			const catA = a.category ?? '';
-			const catB = b.category ?? '';
-			if (catA !== catB) return catA.localeCompare(catB, 'fr');
-			return a.ingredientName.localeCompare(b.ingredientName, 'fr');
-		});
-	}
+	const items = sortAggregatedShoppingItems(Array.from(aggregated.values()), sortOrder);
 
-	// Supprimer une liste existante pour la même période
 	await db.shoppingList.deleteMany({
 		where: { userId, startDayIndex, endDayIndex }
 	});
 
 	const list = await db.shoppingList.create({
 		data: { userId, startDayIndex, endDayIndex },
-		include: { items: true }
+		select: {
+			id: true,
+			startDayIndex: true,
+			endDayIndex: true,
+			generatedAt: true
+		}
 	});
+
+	const createdItems: ShoppingListWithItems['items'] = [];
 
 	if (items.length > 0) {
 		await db.shoppingItem.createMany({
@@ -125,10 +135,60 @@ export async function generateShoppingListFromPlanning(
 				totalQuantityG: Math.round(it.totalQuantityG * 10) / 10,
 				unit: it.unit,
 				isChecked: false,
-				isReported: it.isReported
+				isReported: it.isReported,
+				sources: it.sources.map((s) => ({
+					recipeName: s.recipeName,
+					quantityG: Math.round(s.quantityG * 10) / 10
+				}))
 			}))
 		});
+
+		const rows = await db.shoppingItem.findMany({
+			where: { listId: list.id },
+			select: {
+				id: true,
+				ingredientName: true,
+				category: true,
+				totalQuantityG: true,
+				unit: true,
+				isChecked: true,
+				isReported: true,
+				sources: true
+			}
+		});
+
+		const orderMap = new Map(
+			items.map((it, i) => [shoppingListAggregateKey(it.ingredientName, it.unit), i])
+		);
+		rows.sort(
+			(a: { ingredientName: string; unit: string | null }, b: { ingredientName: string; unit: string | null }) => {
+				const ia = orderMap.get(shoppingListAggregateKey(a.ingredientName, a.unit)) ?? 999;
+				const ib = orderMap.get(shoppingListAggregateKey(b.ingredientName, b.unit)) ?? 999;
+				return ia - ib;
+			}
+		);
+
+		for (const row of rows) {
+			createdItems.push({
+				id: row.id,
+				ingredientName: row.ingredientName,
+				category: row.category,
+				totalQuantityG: row.totalQuantityG,
+				unit: row.unit,
+				isChecked: row.isChecked,
+				isReported: row.isReported,
+				sources: parseShoppingItemSources(row.sources)
+			});
+		}
 	}
 
-	return { listId: list.id };
+	const result: ShoppingListWithItems = {
+		id: list.id,
+		startDayIndex: list.startDayIndex,
+		endDayIndex: list.endDayIndex,
+		generatedAt: list.generatedAt,
+		items: createdItems
+	};
+
+	return { listId: list.id, list: result };
 }

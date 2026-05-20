@@ -11,6 +11,7 @@ import {
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
 import { scaledIngredientGrams } from '$lib/nutrition/scaleMealIngredients';
 import { cadencierJeuneLog } from '$lib/server/cadencierJeuneLog';
+import { ensureBreakfastMealForDay } from '$lib/server/nutrition/ensureBreakfastMeal';
 
 const TOTAL_DAYS = 91;
 
@@ -185,7 +186,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			? Math.round(dailyWaterLitersMin(weightKg, true) * 100) / 100
 			: null;
 
-	const nutritionDay = await prisma.nutritionDay.findUnique({
+	let nutritionDay = await prisma.nutritionDay.findUnique({
 		where: { userId_dayIndex: { userId, dayIndex } },
 		include: {
 			meals: {
@@ -199,6 +200,28 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			}
 		}
 	});
+
+	if (
+		nutritionDay &&
+		nutritionDay.meals.length > 0 &&
+		!nutritionDay.meals.some((m) => m.position === 'BREAKFAST')
+	) {
+		await ensureBreakfastMealForDay(userId, dayIndex, nutritionDay.id);
+		nutritionDay = await prisma.nutritionDay.findUnique({
+			where: { userId_dayIndex: { userId, dayIndex } },
+			include: {
+				meals: {
+					include: {
+						recipe: {
+							include: {
+								ingredients: { orderBy: { order: 'asc' } }
+							}
+						}
+					}
+				}
+			}
+		});
+	}
 
 	const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 	const dow = (dayIndex - 1) % 7;

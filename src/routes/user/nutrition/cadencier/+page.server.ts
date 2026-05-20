@@ -15,7 +15,7 @@ import {
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
 import { cadencierJeuneLog } from '$lib/server/cadencierJeuneLog';
-import { ensureBreakfastMealForDay } from '$lib/server/nutrition/ensureBreakfastMeal';
+import { ensureBreakfastMealForDay, backfillMissingBreakfastMeals } from '$lib/server/nutrition/ensureBreakfastMeal';
 
 const TOTAL_DAYS = TOTAL_PROGRAM_DAYS;
 const WEEKS = TOTAL_PROGRAM_WEEKS;
@@ -128,9 +128,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
-	const rows = await prisma.nutritionDay.findMany({
+	const nutritionDayQuery = {
 		where: { userId, dayIndex: { gte: weekStart, lte: weekEnd } },
-		orderBy: { dayIndex: 'asc' },
+		orderBy: { dayIndex: 'asc' as const },
 		include: {
 			meals: {
 				include: {
@@ -138,7 +138,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				}
 			}
 		}
-	});
+	};
+
+	let rows = await prisma.nutritionDay.findMany(nutritionDayQuery);
+
+	const backfilled = await backfillMissingBreakfastMeals(
+		userId,
+		rows.map((r) => ({ id: r.id, dayIndex: r.dayIndex, meals: r.meals }))
+	);
+	if (backfilled) {
+		cadencierJeuneLog('load:backfill', { userId, weekStart, weekEnd });
+		rows = await prisma.nutritionDay.findMany(nutritionDayQuery);
+	}
 
 	const byIndex = new Map(rows.map((d) => [d.dayIndex, d]));
 

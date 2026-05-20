@@ -1,6 +1,6 @@
 import { prisma } from '$lib/server';
 import type { ActivityLevel, Prisma } from '@prisma/client';
-import { upsertMeal } from '$lib/prisma/nutritionDay/upsertMeal';
+import { regenerateShoppingListsOverlappingDay } from '$lib/prisma/shoppingList/regenerateOverlappingDay';
 import {
 	dailyProteinTargetG,
 	targetCaloriesPerDay
@@ -174,7 +174,9 @@ export async function ensureBreakfastMealForDay(
 		cadencierJeuneLog('ensureBreakfast:skip', {
 			userId,
 			dayIndex,
-			reason: 'no_eligible_breakfast_recipes'
+			reason: 'no_eligible_breakfast_recipes',
+			catalogActive: recipesRaw.length,
+			afterAllergenFilter: breakfastRecipes.length
 		});
 		return false;
 	}
@@ -239,13 +241,26 @@ export async function ensureBreakfastMealForDay(
 	const quantityG = baseQ * scale;
 	const macros = scaledMacrosForQuantity(recipe, quantityG);
 
-	await upsertMeal({
-		nutritionDayId,
-		position: 'BREAKFAST',
-		recipeId: recipe.id,
-		quantityG,
-		...macros
-	});
+	try {
+		await prisma.meal.create({
+			data: {
+				nutritionDayId,
+				position: 'BREAKFAST',
+				recipeId: recipe.id,
+				quantityG,
+				...macros
+			}
+		});
+	} catch (e) {
+		cadencierJeuneLog('ensureBreakfast:error', {
+			userId,
+			dayIndex,
+			error: e instanceof Error ? e.message : String(e)
+		});
+		throw e;
+	}
+
+	await regenerateShoppingListsOverlappingDay(userId, dayIndex);
 
 	cadencierJeuneLog('ensureBreakfast:created', {
 		userId,
@@ -256,4 +271,26 @@ export async function ensureBreakfastMealForDay(
 	});
 
 	return true;
+}
+
+type DayForBackfill = {
+	id: string;
+	dayIndex: number;
+	meals: { position: string }[];
+};
+
+/** Crée les BREAKFAST manquants pour les jours déjà planifiés (jeûne = affichage seulement). */
+export async function backfillMissingBreakfastMeals(
+	userId: string,
+	days: DayForBackfill[]
+): Promise<boolean> {
+	let anyCreated = false;
+	for (const day of days) {
+		if (day.meals.length === 0) continue;
+		if (day.meals.some((m) => m.position === 'BREAKFAST')) continue;
+		if (await ensureBreakfastMealForDay(userId, day.dayIndex, day.id)) {
+			anyCreated = true;
+		}
+	}
+	return anyCreated;
 }

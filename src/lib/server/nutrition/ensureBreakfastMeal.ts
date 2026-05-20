@@ -1,6 +1,6 @@
 import { prisma } from '$lib/server';
 import type { ActivityLevel, Prisma } from '@prisma/client';
-import { regenerateShoppingListsOverlappingDay } from '$lib/prisma/shoppingList/regenerateOverlappingDay';
+import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/generateFromPlanning';
 import {
 	dailyProteinTargetG,
 	targetCaloriesPerDay
@@ -40,6 +40,36 @@ type CatalogRecipe = {
 	name: string;
 };
 
+export type BreakfastProfileInput = {
+	allergens: string[];
+	otherAllergens: string | null;
+	disgustingFoods: string | null;
+	activityLevel: ActivityLevel | null;
+	bodyFatPercent: number | null;
+	weightLossGoalKg: number | null;
+	breadDaily: boolean;
+	breadGramsPerDay: number | null;
+	breadType: string | null;
+};
+
+export type BreakfastBackfillContext = {
+	breakfastRecipes: CatalogRecipe[];
+	mealBudget: number;
+	targetProteinG: number | null;
+};
+
+type MealCreatePayload = {
+	nutritionDayId: string;
+	position: 'BREAKFAST';
+	recipeId: string;
+	quantityG: number;
+	calcCalories: number | null;
+	calcProteinG: number | null;
+	calcCarbsG: number | null;
+	calcFatG: number | null;
+	calcFiberG: number | null;
+};
+
 function normalize(str: string): string {
 	return str
 		.toLowerCase()
@@ -70,6 +100,15 @@ function recipeConflictsUser(
 			recipeName.includes(term) ||
 			ingredientNames.some((ing) => ing.includes(term))
 	);
+}
+
+function filterBreakfastRecipes(profile: BreakfastProfileInput, recipesRaw: CatalogRecipe[]): CatalogRecipe[] {
+	const userAllergens = profile.allergens ?? [];
+	const freeTerms = [
+		...parseTextTerms(profile.otherAllergens),
+		...parseTextTerms(profile.disgustingFoods)
+	];
+	return recipesRaw.filter((r) => !recipeConflictsUser(r, userAllergens, freeTerms));
 }
 
 function mealQuantityG(recipe: CatalogRecipe): number {
@@ -125,72 +164,13 @@ function clampScale(scale: number): number {
 	return Math.min(SCALE_MAX, Math.max(SCALE_MIN, scale));
 }
 
-/**
- * Crée un repas BREAKFAST manquant (ex. utilisateur jeûne → repas non générés à l'origine).
- * Retourne true si un repas a été créé.
- */
-export async function ensureBreakfastMealForDay(
-	userId: string,
-	dayIndex: number,
-	nutritionDayId: string
-): Promise<boolean> {
-	const existing = await prisma.meal.findFirst({
-		where: { nutritionDayId, position: 'BREAKFAST' },
-		select: { id: true }
-	});
-	if (existing) return false;
-
-	const profile = await prisma.userProfile.findUnique({
-		where: { userId },
-		select: {
-			allergens: true,
-			otherAllergens: true,
-			disgustingFoods: true,
-			activityLevel: true,
-			bodyFatPercent: true,
-			weightLossGoalKg: true,
-			breadDaily: true,
-			breadGramsPerDay: true,
-			breadType: true
-		}
-	});
-
-	const userAllergens = profile?.allergens ?? [];
-	const freeTerms = [
-		...parseTextTerms(profile?.otherAllergens),
-		...parseTextTerms(profile?.disgustingFoods)
-	];
-
-	const recipesRaw = (await prisma.recipe.findMany({
-		where: { isCustom: false, active: true, category: 'BREAKFAST' },
-		select: recipeCatalogSelect
-	})) as unknown as CatalogRecipe[];
-
-	const breakfastRecipes = recipesRaw.filter(
-		(r) => !recipeConflictsUser(r, userAllergens, freeTerms)
-	);
-
-	if (breakfastRecipes.length === 0) {
-		cadencierJeuneLog('ensureBreakfast:skip', {
-			userId,
-			dayIndex,
-			reason: 'no_eligible_breakfast_recipes',
-			catalogActive: recipesRaw.length,
-			afterAllergenFilter: breakfastRecipes.length
-		});
-		return false;
-	}
-
-	const lastMeasure = await prisma.bodyMeasurement.findFirst({
-		where: { userId },
-		orderBy: { createdAt: 'desc' },
-		select: { weightKg: true }
-	});
-	const weightKg = lastMeasure?.weightKg ?? null;
-
+function computeMealBudget(profile: BreakfastProfileInput, weightKg: number | null): {
+	mealBudget: number;
+	targetProteinG: number | null;
+} {
 	let breadKcal = 0;
 	if (
-		profile?.breadDaily &&
+		profile.breadDaily &&
 		profile.breadType &&
 		profile.breadGramsPerDay != null &&
 		profile.breadGramsPerDay > 0
@@ -202,26 +182,90 @@ export async function ensureBreakfastMealForDay(
 		weightKg != null && weightKg > 0
 			? targetCaloriesPerDay({
 					weightKg,
-					bodyFatPercent: profile?.bodyFatPercent,
-					activityLevel: profile?.activityLevel as ActivityLevel | null | undefined,
-					weightLossGoalKg: profile?.weightLossGoalKg
+					bodyFatPercent: profile.bodyFatPercent,
+					activityLevel: profile.activityLevel,
+					weightLossGoalKg: profile.weightLossGoalKg
 				})
 			: null;
 
 	const targetProteinG =
 		weightKg != null &&
 		weightKg > 0 &&
-		profile?.bodyFatPercent != null &&
+		profile.bodyFatPercent != null &&
 		profile.bodyFatPercent >= 3 &&
 		profile.bodyFatPercent <= 70
 			? dailyProteinTargetG(weightKg, profile.bodyFatPercent)
 			: null;
 
-	const mealBudget = targetKcal != null ? Math.max(targetKcal - breadKcal, 0) : 0;
+	return {
+		mealBudget: targetKcal != null ? Math.max(targetKcal - breadKcal, 0) : 0,
+		targetProteinG
+	};
+}
 
+/** Contexte partagé — profil + poids déjà chargés, une seule requête recettes. */
+export async function loadBreakfastBackfillContextFromProfile(
+	userId: string,
+	profile: BreakfastProfileInput,
+	weightKg: number | null
+): Promise<BreakfastBackfillContext | null> {
+	const recipesRaw = (await prisma.recipe.findMany({
+		where: { isCustom: false, active: true, category: 'BREAKFAST' },
+		select: recipeCatalogSelect
+	})) as unknown as CatalogRecipe[];
+
+	const breakfastRecipes = filterBreakfastRecipes(profile, recipesRaw);
+	if (breakfastRecipes.length === 0) {
+		cadencierJeuneLog('ensureBreakfast:skip', {
+			userId,
+			reason: 'no_eligible_breakfast_recipes',
+			catalogActive: recipesRaw.length,
+			afterAllergenFilter: 0
+		});
+		return null;
+	}
+
+	const { mealBudget, targetProteinG } = computeMealBudget(profile, weightKg);
+	return { breakfastRecipes, mealBudget, targetProteinG };
+}
+
+/** Charge profil + poids + recettes en parallèle (toggle, appels isolés). */
+export async function loadBreakfastBackfillContext(userId: string): Promise<BreakfastBackfillContext | null> {
+	const [profile, lastMeasure] = await Promise.all([
+		prisma.userProfile.findUnique({
+			where: { userId },
+			select: {
+				allergens: true,
+				otherAllergens: true,
+				disgustingFoods: true,
+				activityLevel: true,
+				bodyFatPercent: true,
+				weightLossGoalKg: true,
+				breadDaily: true,
+				breadGramsPerDay: true,
+				breadType: true
+			}
+		}),
+		prisma.bodyMeasurement.findFirst({
+			where: { userId },
+			orderBy: { createdAt: 'desc' },
+			select: { weightKg: true }
+		})
+	]);
+
+	if (!profile) return null;
+	return loadBreakfastBackfillContextFromProfile(userId, profile, lastMeasure?.weightKg ?? null);
+}
+
+function buildBreakfastMealPayload(
+	userId: string,
+	dayIndex: number,
+	nutritionDayId: string,
+	ctx: BreakfastBackfillContext
+): MealCreatePayload | null {
 	const seed = catalogPickSeed(userId, dayIndex, 'BREAKFAST', 0);
-	const recipe = pickRandomFromPool(breakfastRecipes, seed);
-	if (!recipe) return false;
+	const recipe = pickRandomFromPool(ctx.breakfastRecipes, seed);
+	if (!recipe) return null;
 
 	const baseQ = mealQuantityG(recipe);
 	const baseKcal = scaledMacrosForQuantity(recipe, baseQ).calcCalories ?? 0;
@@ -229,28 +273,126 @@ export async function ensureBreakfastMealForDay(
 
 	let calorieScale = Number.POSITIVE_INFINITY;
 	let proteinScale = Number.POSITIVE_INFINITY;
-	if (targetKcal != null && mealBudget > 0 && baseKcal > 0) {
-		calorieScale = (mealBudget * BREAKFAST_FRAC) / baseKcal;
+	if (ctx.mealBudget > 0 && baseKcal > 0) {
+		calorieScale = (ctx.mealBudget * BREAKFAST_FRAC) / baseKcal;
 	}
-	if (targetProteinG != null && targetProteinG > 0 && baseProtein > 0) {
-		proteinScale = (targetProteinG * BREAKFAST_FRAC) / baseProtein;
+	if (ctx.targetProteinG != null && ctx.targetProteinG > 0 && baseProtein > 0) {
+		proteinScale = (ctx.targetProteinG * BREAKFAST_FRAC) / baseProtein;
 	}
 
 	const finiteScales = [calorieScale, proteinScale].filter(Number.isFinite);
 	const scale = clampScale(finiteScales.length > 0 ? Math.min(...finiteScales) : 1);
 	const quantityG = baseQ * scale;
-	const macros = scaledMacrosForQuantity(recipe, quantityG);
+
+	return {
+		nutritionDayId,
+		position: 'BREAKFAST',
+		recipeId: recipe.id,
+		quantityG,
+		...scaledMacrosForQuantity(recipe, quantityG)
+	};
+}
+
+async function regenerateShoppingListsForDayIndices(
+	userId: string,
+	dayIndices: number[]
+): Promise<void> {
+	if (dayIndices.length === 0) return;
+
+	const lists = await prisma.shoppingList.findMany({
+		where: {
+			userId,
+			OR: dayIndices.map((dayIndex) => ({
+				startDayIndex: { lte: dayIndex },
+				endDayIndex: { gte: dayIndex }
+			}))
+		},
+		select: { startDayIndex: true, endDayIndex: true }
+	});
+
+	const seen = new Set<string>();
+	for (const { startDayIndex, endDayIndex } of lists) {
+		const key = `${startDayIndex}-${endDayIndex}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		await generateShoppingListFromPlanning(userId, startDayIndex, endDayIndex, {
+			includeReportedFromPrevious: true
+		});
+	}
+}
+
+type DayForBackfill = {
+	id: string;
+	dayIndex: number;
+	meals: { position: string }[];
+};
+
+/**
+ * Crée les BREAKFAST manquants en batch (1 contexte, createMany, 1 regen courses max par période).
+ */
+export async function backfillMissingBreakfastMeals(
+	userId: string,
+	days: DayForBackfill[],
+	ctx: BreakfastBackfillContext
+): Promise<boolean> {
+	const needs = days.filter(
+		(d) => d.meals.length > 0 && !d.meals.some((m) => m.position === 'BREAKFAST')
+	);
+	if (needs.length === 0) return false;
+
+	const payloads: MealCreatePayload[] = [];
+	for (const day of needs) {
+		const payload = buildBreakfastMealPayload(userId, day.dayIndex, day.id, ctx);
+		if (payload) payloads.push(payload);
+	}
+	if (payloads.length === 0) return false;
 
 	try {
-		await prisma.meal.create({
-			data: {
-				nutritionDayId,
-				position: 'BREAKFAST',
-				recipeId: recipe.id,
-				quantityG,
-				...macros
-			}
+		await prisma.meal.createMany({ data: payloads });
+	} catch (e) {
+		cadencierJeuneLog('ensureBreakfast:error', {
+			userId,
+			dayIndices: needs.map((d) => d.dayIndex),
+			error: e instanceof Error ? e.message : String(e)
 		});
+		throw e;
+	}
+
+	await regenerateShoppingListsForDayIndices(
+		userId,
+		needs.map((d) => d.dayIndex)
+	);
+
+	cadencierJeuneLog('ensureBreakfast:batch', {
+		userId,
+		createdCount: payloads.length,
+		dayIndices: needs.map((d) => d.dayIndex)
+	});
+
+	return true;
+}
+
+/** Crée un BREAKFAST pour un seul jour (toggle jeûne off). */
+export async function ensureBreakfastMealForDay(
+	userId: string,
+	dayIndex: number,
+	nutritionDayId: string,
+	ctx?: BreakfastBackfillContext
+): Promise<boolean> {
+	const existing = await prisma.meal.findFirst({
+		where: { nutritionDayId, position: 'BREAKFAST' },
+		select: { id: true }
+	});
+	if (existing) return false;
+
+	const context = ctx ?? (await loadBreakfastBackfillContext(userId));
+	if (!context) return false;
+
+	const payload = buildBreakfastMealPayload(userId, dayIndex, nutritionDayId, context);
+	if (!payload) return false;
+
+	try {
+		await prisma.meal.create({ data: payload });
 	} catch (e) {
 		cadencierJeuneLog('ensureBreakfast:error', {
 			userId,
@@ -260,37 +402,14 @@ export async function ensureBreakfastMealForDay(
 		throw e;
 	}
 
-	await regenerateShoppingListsOverlappingDay(userId, dayIndex);
+	await regenerateShoppingListsForDayIndices(userId, [dayIndex]);
 
 	cadencierJeuneLog('ensureBreakfast:created', {
 		userId,
 		dayIndex,
-		recipeId: recipe.id,
-		recipeName: recipe.name,
-		quantityG: Math.round(quantityG * 10) / 10
+		recipeId: payload.recipeId,
+		quantityG: Math.round(payload.quantityG * 10) / 10
 	});
 
 	return true;
-}
-
-type DayForBackfill = {
-	id: string;
-	dayIndex: number;
-	meals: { position: string }[];
-};
-
-/** Crée les BREAKFAST manquants pour les jours déjà planifiés (jeûne = affichage seulement). */
-export async function backfillMissingBreakfastMeals(
-	userId: string,
-	days: DayForBackfill[]
-): Promise<boolean> {
-	let anyCreated = false;
-	for (const day of days) {
-		if (day.meals.length === 0) continue;
-		if (day.meals.some((m) => m.position === 'BREAKFAST')) continue;
-		if (await ensureBreakfastMealForDay(userId, day.dayIndex, day.id)) {
-			anyCreated = true;
-		}
-	}
-	return anyCreated;
 }

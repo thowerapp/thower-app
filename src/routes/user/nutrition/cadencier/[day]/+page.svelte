@@ -71,24 +71,6 @@
 		}));
 	});
 
-	$effect(() => {
-		const raw = data.meals;
-		console.log(
-			'[cadencier-jeune:client:day]',
-			JSON.stringify({
-				trigger: 'state-change',
-				dayIndex: data.dayIndex,
-				fastingActive,
-				serverIntermittentFasting: (data as { intermittentFasting?: boolean }).intermittentFasting,
-				rawMealCount: raw.length,
-				rawPositions: raw.map((m) => m.position),
-				hasBreakfastInDb: raw.some((m) => m.position === 'BREAKFAST'),
-				displayMealCount: displayMeals.length,
-				displayPositions: displayMeals.map((m) => m.position)
-			})
-		);
-	});
-
 	// Onglet actif — initialisé depuis le hash URL
 	let activeTab = $state('');
 	$effect(() => {

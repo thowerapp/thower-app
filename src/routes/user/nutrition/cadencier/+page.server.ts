@@ -15,7 +15,13 @@ import {
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
 import { cadencierJeuneLog } from '$lib/server/cadencierJeuneLog';
-import { ensureBreakfastMealForDay, backfillMissingBreakfastMeals } from '$lib/server/nutrition/ensureBreakfastMeal';
+import {
+	ensureBreakfastMealForDay,
+	backfillMissingBreakfastMeals,
+	loadBreakfastBackfillContextFromProfile,
+	loadBreakfastBackfillContext,
+	type BreakfastProfileInput
+} from '$lib/server/nutrition/ensureBreakfastMeal';
 
 const TOTAL_DAYS = TOTAL_PROGRAM_DAYS;
 const WEEKS = TOTAL_PROGRAM_WEEKS;
@@ -126,8 +132,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const weekStart = (selectedWeek - 1) * 7 + 1;
 	const weekEnd = Math.min(TOTAL_DAYS, weekStart + 6);
 
-	const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
 	const nutritionDayQuery = {
 		where: { userId, dayIndex: { gte: weekStart, lte: weekEnd } },
 		orderBy: { dayIndex: 'asc' as const },
@@ -140,18 +144,59 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	};
 
-	let rows = await prisma.nutritionDay.findMany(nutritionDayQuery);
+	const [profile, lastMeasure, rowsInitial] = await Promise.all([
+		prisma.userProfile.findUnique({
+			where: { userId },
+			select: {
+				allergens: true,
+				otherAllergens: true,
+				disgustingFoods: true,
+				activityLevel: true,
+				bodyFatPercent: true,
+				weightLossGoalKg: true,
+				breadDaily: true,
+				breadGramsPerDay: true,
+				breadType: true
+			}
+		}),
+		prisma.bodyMeasurement.findFirst({
+			where: { userId },
+			orderBy: { createdAt: 'desc' },
+			select: { weightKg: true }
+		}),
+		prisma.nutritionDay.findMany(nutritionDayQuery)
+	]);
 
-	const backfilled = await backfillMissingBreakfastMeals(
-		userId,
-		rows.map((r) => ({ id: r.id, dayIndex: r.dayIndex, meals: r.meals }))
+	let rows = rowsInitial;
+	const daysNeedingBreakfast = rows.filter(
+		(r) => r.meals.length > 0 && !r.meals.some((m) => m.position === 'BREAKFAST')
 	);
-	if (backfilled) {
-		cadencierJeuneLog('load:backfill', { userId, weekStart, weekEnd });
-		rows = await prisma.nutritionDay.findMany(nutritionDayQuery);
+
+	if (daysNeedingBreakfast.length > 0 && profile) {
+		const breakfastCtx = await loadBreakfastBackfillContextFromProfile(
+			userId,
+			profile as BreakfastProfileInput,
+			lastMeasure?.weightKg ?? null
+		);
+		if (breakfastCtx) {
+			const backfilled = await backfillMissingBreakfastMeals(
+				userId,
+				daysNeedingBreakfast.map((r) => ({
+					id: r.id,
+					dayIndex: r.dayIndex,
+					meals: r.meals
+				})),
+				breakfastCtx
+			);
+			if (backfilled) {
+				rows = await prisma.nutritionDay.findMany(nutritionDayQuery);
+			}
+		}
 	}
 
 	const byIndex = new Map(rows.map((d) => [d.dayIndex, d]));
+
+	const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 	const weekDays: CadencierDayDTO[] = [];
 	for (let dayIndex = weekStart; dayIndex <= weekEnd; dayIndex++) {
@@ -208,22 +253,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		defaultSelectedDay = weekStart;
 	}
 
-	const profile = await prisma.userProfile.findUnique({
-		where: { userId },
-		select: {
-			activityLevel: true,
-			bodyFatPercent: true,
-			weightLossGoalKg: true,
-			breadDaily: true,
-			breadGramsPerDay: true,
-			breadType: true
-		}
-	});
-	const lastMeasure = await prisma.bodyMeasurement.findFirst({
-		where: { userId },
-		orderBy: { createdAt: 'desc' },
-		select: { weightKg: true }
-	});
 	const weightKg = lastMeasure?.weightKg ?? null;
 
 	let breadKcal = 0;
@@ -326,7 +355,10 @@ export const actions: Actions = {
 
 			let breakfastCreated = false;
 			if (!active && before?.id) {
-				breakfastCreated = await ensureBreakfastMealForDay(userId, dayIndex, before.id);
+				const ctx = await loadBreakfastBackfillContext(userId);
+				if (ctx) {
+					breakfastCreated = await ensureBreakfastMealForDay(userId, dayIndex, before.id, ctx);
+				}
 			}
 
 			const after = await prisma.nutritionDay.findUnique({

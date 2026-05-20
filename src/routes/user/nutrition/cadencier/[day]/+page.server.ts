@@ -10,6 +10,7 @@ import {
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
 import { scaledIngredientGrams } from '$lib/nutrition/scaleMealIngredients';
+import { cadencierJeuneLog } from '$lib/server/cadencierJeuneLog';
 
 const TOTAL_DAYS = 91;
 
@@ -209,6 +210,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			? nutritionDay.intermittentFasting
 			: (profile?.intermittentFastingMorning ?? false);
 
+	cadencierJeuneLog('day-load', {
+		userId,
+		dayIndex,
+		hasPlan: !!nutritionDay,
+		intermittentFasting,
+		nutritionDayIntermittentFasting: nutritionDay?.intermittentFasting ?? null,
+		profileIntermittentFastingMorning: profile?.intermittentFastingMorning ?? null,
+		mealCount: nutritionDay?.meals.length ?? 0,
+		mealPositions: nutritionDay?.meals.map((m) => m.position) ?? [],
+		hasBreakfast: nutritionDay?.meals.some((m) => m.position === 'BREAKFAST') ?? false
+	});
+
 	if (!nutritionDay) {
 		return {
 			dayIndex,
@@ -284,6 +297,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			ingredients,
 			...macros
 		};
+	});
+
+	cadencierJeuneLog('day-load:meals-built', {
+		userId,
+		dayIndex,
+		intermittentFasting,
+		builtMealCount: meals.length,
+		builtPositions: meals.map((m) => m.position),
+		hasBreakfast: meals.some((m) => m.position === 'BREAKFAST')
 	});
 
 	return {

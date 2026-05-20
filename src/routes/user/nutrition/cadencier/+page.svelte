@@ -31,6 +31,25 @@
 		jeuneOverrideByDay[selectedDay] ?? selectedDayData?.intermittentFasting ?? false
 	);
 
+	function logJeuneState(trigger: string) {
+		const rawMeals = selectedDayData?.meals ?? [];
+		console.log(
+			'[cadencier-jeune:client]',
+			JSON.stringify({
+				trigger,
+				selectedDay,
+				jeuneActive,
+				override: jeuneOverrideByDay[selectedDay] ?? null,
+				serverIntermittentFasting: selectedDayData?.intermittentFasting ?? null,
+				rawMealCount: rawMeals.length,
+				rawPositions: rawMeals.map((m) => m.position),
+				hasBreakfastInDb: rawMeals.some((m) => m.position === 'BREAKFAST'),
+				displayMealCount: displayMeals.length,
+				displayPositions: displayMeals.map((m) => m.position)
+			})
+		);
+	}
+
 	const displayMeals = $derived(
 		!selectedDayData
 			? []
@@ -66,6 +85,10 @@
 						}));
 					})()
 	);
+
+	$effect(() => {
+		logJeuneState('state-change');
+	});
 
 	function selectDay(e: MouseEvent & { currentTarget: HTMLButtonElement }, dayIndex: number) {
 		userPickedDay = dayIndex;
@@ -128,8 +151,32 @@
 	action="?/toggleJeuneDay"
 	use:enhance={() => {
 		const day = selectedDay;
-		jeuneOverrideByDay = { ...jeuneOverrideByDay, [day]: !jeuneActive };
-		return async ({ update }) => { await update({ invalidateAll: false }); };
+		const nextActive = !jeuneActive;
+		console.log(
+			'[cadencier-jeune:client]',
+			JSON.stringify({
+				trigger: 'toggle-submit',
+				day,
+				fromJeuneActive: jeuneActive,
+				toJeuneActive: nextActive,
+				formActive: nextActive,
+				beforeOverride: jeuneOverrideByDay[day] ?? null
+			})
+		);
+		jeuneOverrideByDay = { ...jeuneOverrideByDay, [day]: nextActive };
+		return async ({ result, update }) => {
+			console.log(
+				'[cadencier-jeune:client]',
+				JSON.stringify({
+					trigger: 'toggle-result',
+					day,
+					resultType: result.type,
+					resultData: result.type === 'success' || result.type === 'failure' ? result.data : null
+				})
+			);
+			await update({ invalidateAll: false });
+			logJeuneState('after-update');
+		};
 	}}
 >
 	<input type="hidden" name="active" value={String(!jeuneActive)} />

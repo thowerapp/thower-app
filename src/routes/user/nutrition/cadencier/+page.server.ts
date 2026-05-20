@@ -15,6 +15,7 @@ import {
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
 import { cadencierJeuneLog } from '$lib/server/cadencierJeuneLog';
+import { ensureBreakfastMealForDay } from '$lib/server/nutrition/ensureBreakfastMeal';
 
 const TOTAL_DAYS = TOTAL_PROGRAM_DAYS;
 const WEEKS = TOTAL_PROGRAM_WEEKS;
@@ -287,6 +288,7 @@ export const actions: Actions = {
 		const before = await prisma.nutritionDay.findUnique({
 			where: { userId_dayIndex: { userId, dayIndex } },
 			select: {
+				id: true,
 				intermittentFasting: true,
 				meals: { select: { position: true } }
 			}
@@ -311,6 +313,11 @@ export const actions: Actions = {
 				return fail(404, { error: 'Aucun jour de nutrition trouvé pour ce jour' });
 			}
 
+			let breakfastCreated = false;
+			if (!active && before?.id) {
+				breakfastCreated = await ensureBreakfastMealForDay(userId, dayIndex, before.id);
+			}
+
 			const after = await prisma.nutritionDay.findUnique({
 				where: { userId_dayIndex: { userId, dayIndex } },
 				select: {
@@ -323,6 +330,7 @@ export const actions: Actions = {
 				userId,
 				dayIndex,
 				updatedCount: updated.count,
+				breakfastCreated,
 				afterIntermittentFasting: after?.intermittentFasting ?? null,
 				afterMealPositions: after?.meals.map((m) => m.position) ?? [],
 				afterHasBreakfast: after?.meals.some((m) => m.position === 'BREAKFAST') ?? false

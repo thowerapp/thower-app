@@ -174,7 +174,15 @@
 					resultData: result.type === 'success' || result.type === 'failure' ? result.data : null
 				})
 			);
-			await update({ invalidateAll: false });
+			if (result.type !== 'success') {
+				const { [day]: _removed, ...rest } = jeuneOverrideByDay;
+				jeuneOverrideByDay = rest;
+				await update({ invalidateAll: false });
+				return;
+			}
+			const { [day]: _removed, ...rest } = jeuneOverrideByDay;
+			jeuneOverrideByDay = rest;
+			await update({ invalidateAll: true });
 			logJeuneState('after-update');
 		};
 	}}

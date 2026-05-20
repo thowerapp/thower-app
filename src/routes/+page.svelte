@@ -282,7 +282,7 @@
 <div id="progress-line" style="width:{progressWidth}%"></div>
 
 <nav>
-  <a class="nav-logo" href="/">T<span>H</span>OWER</a>
+  <a class="nav-logo" href="/"><img src="/logo-app.png" alt="Thower" class="nav-logo-img" /></a>
   <div class="nav-btns">
     <a class="nav-btn outline" href="/auth/login">Se connecter</a>
     <button class="nav-btn fill" onclick={scrollToForm}>S'inscrire</button>
@@ -340,11 +340,9 @@
       <div class="stat-sep">✦</div>
       <div class="stat-item"><div class="stat-val">13</div><div class="stat-lbl">Semaines</div></div>
       <div class="stat-sep">✦</div>
-      <div class="stat-item"><div class="stat-val">6</div><div class="stat-lbl">Séances / semaine</div></div>
-      <div class="stat-sep">✦</div>
       <div class="stat-item"><div class="stat-val">1</div><div class="stat-lbl">Objectif · Toi</div></div>
     </div>
-    <div class="sec2-cta"><button class="nav-btn fill" onclick={scrollToSec3}>Comment faire →</button></div>
+    <div class="sec2-cta"><button class="nav-btn fill" onclick={scrollToSec3}>Commencer ma transformation</button></div>
   </section>
 
   <!-- SEC 3 — Formulaire -->
@@ -444,11 +442,19 @@
   </div>
 </section>
 
+<section id="contact-cta">
+  <div class="contact-cta-inner">
+    <p class="contact-cta-text">Tu as une question ou besoin d'un renseignement,<br>je te répondrai personnellement et avec plaisir.</p>
+    <a href="/contact" class="nav-btn outline contact-cta-btn">Me contacter</a>
+  </div>
+</section>
+
 <footer>
   <div class="footer-logo">T<span>H</span>OWER</div>
   <div class="footer-links">
     <a href="/mentions-legales" class="footer-legal">Mentions légales</a>
     <a href="/cgu" class="footer-legal">CGU</a>
+    <a href="/cgv" class="footer-legal">CGV</a>
     <a href="/politique-confidentialite" class="footer-legal">Politique de confidentialité</a>
   </div>
   <div class="footer-copy">© 2026 Thower · Tous droits réservés</div>
@@ -461,8 +467,8 @@
 
   /* ── Nav — au-dessus de tout ── */
   nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: flex-start; justify-content: space-between; padding: 24px 48px; gap: 24px; flex-wrap: wrap; }
-  .nav-logo { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 0.12em; color: var(--white); text-decoration: none; flex: 0 0 auto; }
-  .nav-logo span { color: var(--gold); }
+  .nav-logo { text-decoration: none; flex: 0 0 auto; display: flex; align-items: center; }
+  .nav-logo-img { height: 36px; width: auto; display: block; }
   .nav-btns { display: flex; gap: 12px; flex-direction: row; }
   .nav-btn {
     display: inline-flex;
@@ -581,6 +587,13 @@
   .social-link { color: rgba(240,237,232,0.3); transition: color 0.25s; display: flex; align-items: center; }
   .social-link:hover { color: var(--gold); }
 
+  /* ── Contact CTA ── */
+  #contact-cta { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 72px 48px; pointer-events: all; }
+  #contact-cta > .contact-cta-inner { background: rgba(10,10,10,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 52px 64px; display: flex; flex-direction: column; align-items: center; gap: 28px; max-width: 680px; width: 100%; }
+  .contact-cta-text { font-family: 'DM Sans', sans-serif; font-size: clamp(1rem, 2.2vw, 1.35rem); font-weight: 300; color: var(--teal); text-align: center; line-height: 1.75; letter-spacing: 0.02em; }
+  .contact-cta-btn { border-color: var(--teal) !important; color: var(--teal) !important; }
+  .contact-cta-btn:hover { background: rgba(58,184,184,0.08) !important; }
+
   /* ── Footer ── */
   footer { position: relative; z-index: 10; padding: 40px 48px; border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: space-between; pointer-events: all; }
   .footer-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 0.1em; color: rgba(240,237,232,0.25); }
@@ -596,7 +609,7 @@
 
   @media (max-width: 900px) {
     nav { padding: 20px 24px; }
-    .nav-logo { font-size: 1.6rem; }
+    .nav-logo-img { height: 28px; }
     .nav-btn { padding: 6px 14px; font-size: 0.68rem; }
     #sec1 { padding: 15vh 24px 8vh; }
     .hero-h1 { font-size: clamp(4rem, 12vw, 8rem); }
@@ -612,7 +625,8 @@
 
   @media (max-width: 640px) {
     nav { flex-direction: column; align-items: flex-start; padding: 16px 20px; gap: 12px; }
-    .nav-logo { font-size: 1.4rem; order: 1; }
+    .nav-logo { order: 1; }
+    .nav-logo-img { height: 24px; }
     .nav-btns { flex-direction: column; width: auto; gap: 8px; order: 2; }
     .nav-btn { padding: 8px 14px; font-size: 0.65rem; text-align: left; }
     #progress-line { height: 1px; }

@@ -1,4 +1,9 @@
 import { env } from '$env/dynamic/private';
+import {
+	QUARTERLY_OFFER_CENTS,
+	quarterlyCentsForOffers,
+	type OfferForPricing
+} from './subscription-offers';
 
 export type PlanId = 'quarterly';
 
@@ -12,7 +17,9 @@ export type SubscriptionPlan = {
 	description: string;
 };
 
-const defaultQuarterlyCents = Number(env.STRIPE_PLAN_QUARTERLY_CENTS ?? 50000);
+const defaultQuarterlyCents = Number(
+	env.STRIPE_PLAN_QUARTERLY_CENTS ?? QUARTERLY_OFFER_CENTS * 2
+);
 
 export const SUBSCRIPTION_PLANS: Record<PlanId, SubscriptionPlan> = {
 	quarterly: {
@@ -24,33 +31,32 @@ export const SUBSCRIPTION_PLANS: Record<PlanId, SubscriptionPlan> = {
 	}
 };
 
-export type OfferForPricing = {
-	slug: string;
-	/** Tarif mensuel (centimes) — le trimestriel est calculé comme amountCentsMonthly × 3 */
-	amountCentsMonthly: number;
-	amountCentsAnnual: number;
-};
+export type { OfferForPricing };
 
 /**
  * Retourne le plan trimestriel avec le montant = somme des offres sélectionnées (tarif mensuel × 3).
- * Si aucun slug valide ou liste vide, utilise le tarif par défaut (env).
+ * Sans sélection valide, montant 0 (le checkout doit refuser).
  */
 export function getPlansForOfferSlugs(
 	offers: OfferForPricing[],
 	selectedSlugs: string[]
 ): Record<PlanId, SubscriptionPlan> {
-	const slugsSet = new Set(selectedSlugs);
-	const selected = offers.filter((p) => slugsSet.has(p.slug));
-
 	const quarterlyCents =
-		selected.length > 0
-			? selected.reduce((sum, p) => sum + p.amountCentsMonthly * 3, 0)
-			: defaultQuarterlyCents;
+		selectedSlugs.length > 0 ? quarterlyCentsForOffers(offers, selectedSlugs) : 0;
+
+	const selectedLabels = offers
+		.filter((p) => selectedSlugs.includes(p.slug))
+		.map((p) => p.name)
+		.join(' + ');
 
 	return {
 		quarterly: {
 			...SUBSCRIPTION_PLANS.quarterly,
-			amountCents: quarterlyCents
+			amountCents: quarterlyCents,
+			description:
+				selectedLabels.length > 0
+					? `Accompagnement Thower — ${selectedLabels} — 3 mois.`
+					: SUBSCRIPTION_PLANS.quarterly.description
 		}
 	};
 }

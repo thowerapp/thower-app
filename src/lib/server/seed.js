@@ -33,11 +33,13 @@ const LUCAS_DEMO_DATA = JSON.parse(
 );
 
 // ─── CONFIG PRIX ────────────────────────────────────────────────────────────
-const defaultMonthly = Number(process.env.STRIPE_PLAN_MONTHLY_CENTS ?? 2900);
-const defaultAnnual = Number(process.env.STRIPE_PLAN_ANNUAL_CENTS ?? 9900);
-const nutritionMonthly = Number(process.env.STRIPE_PLAN_MONTHLY_NUTRITION_CENTS ?? defaultMonthly);
+const quarterlyOfferCents = Number(process.env.STRIPE_PLAN_QUARTERLY_OFFER_CENTS ?? 25000);
+const offerMonthlyCents = Math.round(quarterlyOfferCents / 3);
+const defaultMonthly = offerMonthlyCents;
+const defaultAnnual = quarterlyOfferCents * 4;
+const nutritionMonthly = Number(process.env.STRIPE_PLAN_MONTHLY_NUTRITION_CENTS ?? offerMonthlyCents);
 const nutritionAnnual = Number(process.env.STRIPE_PLAN_ANNUAL_NUTRITION_CENTS ?? defaultAnnual);
-const sportMonthly = Number(process.env.STRIPE_PLAN_MONTHLY_SPORT_CENTS ?? defaultMonthly);
+const sportMonthly = Number(process.env.STRIPE_PLAN_MONTHLY_SPORT_CENTS ?? offerMonthlyCents);
 const sportAnnual = Number(process.env.STRIPE_PLAN_ANNUAL_SPORT_CENTS ?? defaultAnnual);
 
 

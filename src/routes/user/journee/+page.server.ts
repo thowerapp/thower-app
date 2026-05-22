@@ -101,7 +101,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 				: null
 		}));
 
-	console.log('[journee/load] items visibles =', items.length);
+	if (tasks.length === 0) {
+		console.warn(
+			'[journee/load] Aucune DailyTask active en base — lancer `npm run seed` sur cette base (catalogue partagé).'
+		);
+	} else if (items.length === 0) {
+		console.warn(
+			'[journee/load] items visibles = 0 (filtre jour',
+			currentDayIndex,
+			'ou opt-out) — fallback UI activé'
+		);
+	}
+	console.log('[journee/load] items visibles =', items.length, '| fallback =', items.length === 0);
 	items.forEach((i) => {
 		console.log(`  item id=${i.id} label="${i.label}" type=${i.type} video=${i.video ? i.video.category + '/' + i.video.id : 'null'}`);
 	});

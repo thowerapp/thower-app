@@ -336,10 +336,11 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		mealPool: mealRecipes.length
 	});
 
-	// BREAKFAST inclus uniquement si activé ET qu'il existe au moins une recette éligible.
-	const positions: MealPosition[] = breakfastEnabled && breakfastRecipes.length > 0
-		? ['BREAKFAST', 'LUNCH', 'DINNER']
-		: ['LUNCH', 'DINNER'];
+	// BREAKFAST inclus si petit-déj activé OU jeûne intermittent (masqué à l'affichage, présent en BDD).
+	const positions: MealPosition[] =
+		breakfastRecipes.length > 0 && (breakfastEnabled || intermittentFastingDefault)
+			? ['BREAKFAST', 'LUNCH', 'DINNER']
+			: ['LUNCH', 'DINNER'];
 
 	programGenLog('N7/ Boucle jours — positions repas', {
 		userId,

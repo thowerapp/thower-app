@@ -10,6 +10,11 @@ import {
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
 import { scaledIngredientGrams } from '$lib/nutrition/scaleMealIngredients';
+import {
+	ensureBreakfastMealForDay,
+	loadBreakfastBackfillContextFromProfile,
+	type BreakfastProfileInput
+} from '$lib/server/nutrition/ensureBreakfastMeal';
 
 const TOTAL_DAYS = 91;
 
@@ -122,24 +127,44 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		throw error(404, 'Jour invalide');
 	}
 
-	const profile = await prisma.userProfile.findUnique({
-		where: { userId },
-		select: {
-			activityLevel: true,
-			bodyFatPercent: true,
-			weightLossGoalKg: true,
-			breadDaily: true,
-			breadGramsPerDay: true,
-			breadType: true,
-			intermittentFastingMorning: true
-		}
-	});
-	const lastMeasure = await prisma.bodyMeasurement.findFirst({
-		where: { userId },
-		orderBy: { createdAt: 'desc' },
-		select: { weightKg: true }
-	});
+	const [profile, lastMeasure, nutritionDayInitial] = await Promise.all([
+		prisma.userProfile.findUnique({
+			where: { userId },
+			select: {
+				allergens: true,
+				otherAllergens: true,
+				disgustingFoods: true,
+				activityLevel: true,
+				bodyFatPercent: true,
+				weightLossGoalKg: true,
+				breadDaily: true,
+				breadGramsPerDay: true,
+				breadType: true,
+				intermittentFastingMorning: true
+			}
+		}),
+		prisma.bodyMeasurement.findFirst({
+			where: { userId },
+			orderBy: { createdAt: 'desc' },
+			select: { weightKg: true }
+		}),
+		prisma.nutritionDay.findUnique({
+			where: { userId_dayIndex: { userId, dayIndex } },
+			include: {
+				meals: {
+					include: {
+						recipe: {
+							include: {
+								ingredients: { orderBy: { order: 'asc' } }
+							}
+						}
+					}
+				}
+			}
+		})
+	]);
 	const weightKg = lastMeasure?.weightKg ?? null;
+	let nutritionDay = nutritionDayInitial;
 
 	let breadKcal = 0;
 	if (
@@ -184,20 +209,35 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			? Math.round(dailyWaterLitersMin(weightKg, true) * 100) / 100
 			: null;
 
-	const nutritionDay = await prisma.nutritionDay.findUnique({
-		where: { userId_dayIndex: { userId, dayIndex } },
-		include: {
-			meals: {
+	if (
+		nutritionDay &&
+		nutritionDay.meals.length > 0 &&
+		!nutritionDay.meals.some((m) => m.position === 'BREAKFAST') &&
+		profile
+	) {
+		const breakfastCtx = await loadBreakfastBackfillContextFromProfile(
+			userId,
+			profile as BreakfastProfileInput,
+			weightKg
+		);
+		if (breakfastCtx) {
+			await ensureBreakfastMealForDay(userId, dayIndex, nutritionDay.id, breakfastCtx);
+			nutritionDay = await prisma.nutritionDay.findUnique({
+				where: { userId_dayIndex: { userId, dayIndex } },
 				include: {
-					recipe: {
+					meals: {
 						include: {
-							ingredients: { orderBy: { order: 'asc' } }
+							recipe: {
+								include: {
+									ingredients: { orderBy: { order: 'asc' } }
+								}
+							}
 						}
 					}
 				}
-			}
+			});
 		}
-	});
+	}
 
 	const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 	const dow = (dayIndex - 1) % 7;

@@ -14,6 +14,13 @@ import {
 	dailyFiberTargetG
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
+import {
+	ensureBreakfastMealForDay,
+	backfillMissingBreakfastMeals,
+	loadBreakfastBackfillContextFromProfile,
+	loadBreakfastBackfillContext,
+	type BreakfastProfileInput
+} from '$lib/server/nutrition/ensureBreakfastMeal';
 
 const TOTAL_DAYS = TOTAL_PROGRAM_DAYS;
 const WEEKS = TOTAL_PROGRAM_WEEKS;
@@ -124,11 +131,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const weekStart = (selectedWeek - 1) * 7 + 1;
 	const weekEnd = Math.min(TOTAL_DAYS, weekStart + 6);
 
-	const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
-	const rows = await prisma.nutritionDay.findMany({
+	const nutritionDayQuery = {
 		where: { userId, dayIndex: { gte: weekStart, lte: weekEnd } },
-		orderBy: { dayIndex: 'asc' },
+		orderBy: { dayIndex: 'asc' as const },
 		include: {
 			meals: {
 				include: {
@@ -136,9 +141,61 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				}
 			}
 		}
-	});
+	};
+
+	const [profile, lastMeasure, rowsInitial] = await Promise.all([
+		prisma.userProfile.findUnique({
+			where: { userId },
+			select: {
+				allergens: true,
+				otherAllergens: true,
+				disgustingFoods: true,
+				activityLevel: true,
+				bodyFatPercent: true,
+				weightLossGoalKg: true,
+				breadDaily: true,
+				breadGramsPerDay: true,
+				breadType: true
+			}
+		}),
+		prisma.bodyMeasurement.findFirst({
+			where: { userId },
+			orderBy: { createdAt: 'desc' },
+			select: { weightKg: true }
+		}),
+		prisma.nutritionDay.findMany(nutritionDayQuery)
+	]);
+
+	let rows = rowsInitial;
+	const daysNeedingBreakfast = rows.filter(
+		(r) => r.meals.length > 0 && !r.meals.some((m) => m.position === 'BREAKFAST')
+	);
+
+	if (daysNeedingBreakfast.length > 0 && profile) {
+		const breakfastCtx = await loadBreakfastBackfillContextFromProfile(
+			userId,
+			profile as BreakfastProfileInput,
+			lastMeasure?.weightKg ?? null
+		);
+		if (breakfastCtx) {
+			const backfilled = await backfillMissingBreakfastMeals(
+				userId,
+				daysNeedingBreakfast.map((r) => ({
+					id: r.id,
+					dayIndex: r.dayIndex,
+					meals: r.meals
+				})),
+				breakfastCtx
+			);
+			if (backfilled) {
+				rows = await prisma.nutritionDay.findMany(nutritionDayQuery);
+			}
+		}
+	}
 
 	const byIndex = new Map(rows.map((d) => [d.dayIndex, d]));
+
+	const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 	const weekDays: CadencierDayDTO[] = [];
 	for (let dayIndex = weekStart; dayIndex <= weekEnd; dayIndex++) {
@@ -195,22 +252,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		defaultSelectedDay = weekStart;
 	}
 
-	const profile = await prisma.userProfile.findUnique({
-		where: { userId },
-		select: {
-			activityLevel: true,
-			bodyFatPercent: true,
-			weightLossGoalKg: true,
-			breadDaily: true,
-			breadGramsPerDay: true,
-			breadType: true
-		}
-	});
-	const lastMeasure = await prisma.bodyMeasurement.findFirst({
-		where: { userId },
-		orderBy: { createdAt: 'desc' },
-		select: { weightKg: true }
-	});
 	const weightKg = lastMeasure?.weightKg ?? null;
 
 	let breadKcal = 0;
@@ -266,6 +307,16 @@ export const actions: Actions = {
 		if (!Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > TOTAL_DAYS) {
 			return fail(400, { error: 'Jour invalide' });
 		}
+
+		const before = await prisma.nutritionDay.findUnique({
+			where: { userId_dayIndex: { userId, dayIndex } },
+			select: {
+				id: true,
+				intermittentFasting: true,
+				meals: { select: { position: true } }
+			}
+		});
+
 		try {
 			const updated = await prisma.nutritionDay.updateMany({
 				where: { userId, dayIndex },
@@ -274,9 +325,16 @@ export const actions: Actions = {
 			if (updated.count === 0) {
 				return fail(404, { error: 'Aucun jour de nutrition trouvé pour ce jour' });
 			}
+
+			if (!active && before?.id) {
+				const ctx = await loadBreakfastBackfillContext(userId);
+				if (ctx) {
+					await ensureBreakfastMealForDay(userId, dayIndex, before.id, ctx);
+				}
+			}
+
 			return { success: true };
-		} catch (e) {
-			console.error('[cadencier toggleJeuneDay]', e);
+		} catch {
 			return fail(500, { error: 'Erreur serveur' });
 		}
 	},
@@ -294,8 +352,7 @@ export const actions: Actions = {
 				update: { intermittentFastingMorning: active },
 			});
 			return { success: true };
-		} catch (e) {
-			console.error('[cadencier toggleJeune]', e);
+		} catch {
 			return fail(500, { error: 'Erreur serveur' });
 		}
 	}

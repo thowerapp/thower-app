@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server';
+import { getProgramOfferEntitlements } from '$lib/prisma/transaction/getProgramOfferEntitlements';
 import { generateNutritionDaysForUser } from './nutrition/generateNutrition91Days';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/generateFromPlanning';
@@ -88,6 +89,28 @@ async function isNutritionPlanComplete(userId: string, targetDays: number): Prom
 	return true;
 }
 
+/** Initialise programStartDate si absente (sport seul ou nutrition + sport). */
+export async function ensureProgramStartDate(userId: string): Promise<void> {
+	const user = await prisma.user.findUnique({
+		where: { id: userId },
+		select: { programStartDate: true }
+	});
+	if (user?.programStartDate != null) {
+		programGenLog('8/ programStartDate inchangée (déjà définie)', {
+			userId,
+			programStartDate: user.programStartDate.toISOString?.() ?? user.programStartDate
+		});
+		return;
+	}
+	const start = new Date();
+	start.setUTCHours(0, 0, 0, 0);
+	await prisma.user.update({
+		where: { id: userId },
+		data: { programStartDate: start }
+	});
+	programGenLog('8/ programStartDate initialisée', { userId, programStartDate: start.toISOString() });
+}
+
 /**
  * Génère le planning nutrition sur la plage allouée (paiements cumulables).
  * Idempotent : ne refait pas les jours déjà complets.
@@ -100,6 +123,17 @@ export async function generateProgramForUser(
 	programGenLog('2/ generateProgramForUser — début', { userId, source });
 
 	try {
+		const entitlements = await getProgramOfferEntitlements(userId);
+		if (!entitlements.nutrition) {
+			programGenTrace('generate_skip_no_nutrition', { userId, source, entitlements });
+			programGenLog('2a/ Pas de droit nutrition — génération nutrition ignorée', { userId, entitlements });
+			if (entitlements.sport) {
+				await ensureProgramStartDate(userId);
+				await logProgramGenSummary(userId, 'skipped', { source, reason: 'sport_only_no_nutrition' });
+			}
+			return;
+		}
+
 		const targetDays = await resolveTargetNutritionDays(userId);
 
 		if (targetDays < 1) {
@@ -152,13 +186,7 @@ export async function generateProgramForUser(
 			select: { programStartDate: true }
 		});
 		if (user && user.programStartDate == null) {
-			const start = new Date();
-			start.setUTCHours(0, 0, 0, 0);
-			await prisma.user.update({
-				where: { id: userId },
-				data: { programStartDate: start }
-			});
-			programGenLog('8/ programStartDate initialisée', { userId, programStartDate: start.toISOString() });
+			await ensureProgramStartDate(userId);
 		} else {
 			programGenLog('8/ programStartDate inchangée (déjà définie)', {
 				userId,

@@ -128,8 +128,19 @@
 	action="?/toggleJeuneDay"
 	use:enhance={() => {
 		const day = selectedDay;
-		jeuneOverrideByDay = { ...jeuneOverrideByDay, [day]: !jeuneActive };
-		return async ({ update }) => { await update({ invalidateAll: false }); };
+		const nextActive = !jeuneActive;
+		jeuneOverrideByDay = { ...jeuneOverrideByDay, [day]: nextActive };
+		return async ({ result, update }) => {
+			if (result.type !== 'success') {
+				const { [day]: _removed, ...rest } = jeuneOverrideByDay;
+				jeuneOverrideByDay = rest;
+				await update({ invalidateAll: false });
+				return;
+			}
+			const { [day]: _removed, ...rest } = jeuneOverrideByDay;
+			jeuneOverrideByDay = rest;
+			await update({ invalidateAll: true });
+		};
 	}}
 >
 	<input type="hidden" name="active" value={String(!jeuneActive)} />

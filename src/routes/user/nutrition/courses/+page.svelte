@@ -7,6 +7,11 @@
 
 	let { data }: PageProps = $props();
 
+	type ShoppingItemSource = {
+		recipeName: string;
+		quantityG: number;
+	};
+
 	type ShoppingItem = {
 		id: string;
 		ingredientName: string;
@@ -15,6 +20,7 @@
 		unit: string | null;
 		isChecked: boolean;
 		isReported: boolean;
+		sources: ShoppingItemSource[];
 	};
 
 	type ShoppingList = {
@@ -172,6 +178,11 @@
 	function checkedCount(): number {
 		return Object.values(checkedMap).filter(Boolean).length;
 	}
+
+	function fmtQty(g: number): string {
+		const r = Math.round(g * 10) / 10;
+		return r % 1 === 0 ? String(Math.round(r)) : String(r);
+	}
 </script>
 
 <div class="u-back-row">
@@ -262,8 +273,18 @@
 								{#if item.isReported}<span class="reported-badge">report</span>{/if}
 							</div>
 							<div class="item-qty" class:done={checkedMap[item.id]}>
-								{Math.round(item.totalQuantityG)} {item.unit ?? 'g'}
+								{fmtQty(item.totalQuantityG)} {item.unit ?? 'g'} au total
 							</div>
+							{#if item.sources.length > 0}
+								<ul class="item-sources">
+									{#each item.sources as src (src.recipeName)}
+										<li class:done={checkedMap[item.id]}>
+											<span class="src-recipe">{src.recipeName}</span>
+											<span class="src-qty">{fmtQty(src.quantityG)} {item.unit ?? 'g'}</span>
+										</li>
+									{/each}
+								</ul>
+							{/if}
 						</div>
 					</div>
 				{/each}
@@ -288,8 +309,18 @@
 						{#if item.isReported}<span class="reported-badge">report</span>{/if}
 					</div>
 					<div class="item-qty" class:done={checkedMap[item.id]}>
-						{Math.round(item.totalQuantityG)} {item.unit ?? 'g'}
+						{fmtQty(item.totalQuantityG)} {item.unit ?? 'g'} au total
 					</div>
+					{#if item.sources.length > 0}
+						<ul class="item-sources">
+							{#each item.sources as src (src.recipeName)}
+								<li class:done={checkedMap[item.id]}>
+									<span class="src-recipe">{src.recipeName}</span>
+									<span class="src-qty">{fmtQty(src.quantityG)} {item.unit ?? 'g'}</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
 				</div>
 			</div>
 		{/each}
@@ -518,6 +549,35 @@
 }
 .item-qty.done {
 	text-decoration: line-through;
+}
+
+.item-sources {
+	margin: 6px 0 0;
+	padding: 0;
+	list-style: none;
+}
+.item-sources li {
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+	font-size: .5rem;
+	color: var(--txd);
+	padding: 3px 0;
+	font-family: var(--fb);
+	line-height: 1.35;
+}
+.item-sources li.done {
+	text-decoration: line-through;
+	opacity: .85;
+}
+.src-recipe {
+	flex: 1;
+	min-width: 0;
+}
+.src-qty {
+	color: var(--g);
+	font-weight: 600;
+	white-space: nowrap;
 }
 
 .reported-badge {

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const optionalInt1to10 = z.preprocess(
 	(val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
-	z.number().int().min(1).max(10)
+	z.number().int().min(1).max(10).optional()
 );
 
 /** Formulaire bien-être mensuel — curseurs 1-10 + addictions */

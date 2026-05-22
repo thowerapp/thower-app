@@ -4,7 +4,7 @@ import { programGenTrace } from './programGenerationLog';
 /** Résumé BDD après génération (ou abandon) — confirmé dans les logs `[program-gen]`. */
 export async function logProgramGenSummary(
 	userId: string,
-	status: 'created' | 'already_complete' | 'shopping_only' | 'aborted',
+	status: 'created' | 'already_complete' | 'shopping_only' | 'aborted' | 'skipped',
 	extra?: Record<string, unknown>
 ): Promise<void> {
 	const [nutritionDayCount, mealCount, shoppingList, user] = await Promise.all([

@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { toggleShoppingItemChecked } from '$lib/prisma/shoppingList/toggleItemChecked';
 import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/generateFromPlanning';
+import { parseShoppingItemSources, type ShoppingListWithItems } from '$lib/prisma/shoppingList/types';
 import { requireNutritionAccess } from '$lib/server/programAccessGuard';
 import { prisma } from '$lib/server';
 import {
@@ -44,34 +45,83 @@ function computeRange(
 	return { startDayIndex: start, endDayIndex: end };
 }
 
+function mapStoredList(row: {
+	id: string;
+	startDayIndex: number;
+	endDayIndex: number;
+	generatedAt: Date;
+	items: Array<{
+		id: string;
+		ingredientName: string;
+		category: string | null;
+		totalQuantityG: number;
+		unit: string | null;
+		isChecked: boolean;
+		isReported: boolean;
+		sources?: unknown;
+	}>;
+}): ShoppingListWithItems {
+	return {
+		id: row.id,
+		startDayIndex: row.startDayIndex,
+		endDayIndex: row.endDayIndex,
+		generatedAt: row.generatedAt,
+		items: row.items.map((item) => ({
+			id: item.id,
+			ingredientName: item.ingredientName,
+			category: item.category,
+			totalQuantityG: item.totalQuantityG,
+			unit: item.unit,
+			isChecked: item.isChecked,
+			isReported: item.isReported,
+			sources: parseShoppingItemSources(item.sources)
+		}))
+	};
+}
+
 async function getOrGenerateList(
 	userId: string,
 	startDayIndex: number,
 	endDayIndex: number
-) {
+): Promise<ShoppingListWithItems | null> {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const db = prisma as any;
 	if (!db.shoppingList) return null;
 
-	// Chercher une liste existante pour cette plage exacte
-	let list = await db.shoppingList.findFirst({
+	const existing = await db.shoppingList.findFirst({
 		where: { userId, startDayIndex, endDayIndex },
 		orderBy: { generatedAt: 'desc' },
-		include: { items: true }
+		select: {
+			id: true,
+			startDayIndex: true,
+			endDayIndex: true,
+			generatedAt: true,
+			items: {
+				select: {
+					id: true,
+					ingredientName: true,
+					category: true,
+					totalQuantityG: true,
+					unit: true,
+					isChecked: true,
+					isReported: true,
+					sources: true
+				}
+			}
+		}
 	});
 
-	// Si absente, générer à la volée
-	if (!list) {
-		const result = await generateShoppingListFromPlanning(userId, startDayIndex, endDayIndex, {
-			includeReportedFromPrevious: true
-		});
-		if (!result) return null;
-		list = await db.shoppingList.findUnique({
-			where: { id: result.listId },
-			include: { items: true }
-		});
+	if (existing) {
+		const mapped = mapStoredList(existing);
+		const needsRefresh =
+			mapped.items.length > 0 && mapped.items.every((item) => item.sources.length === 0);
+		if (!needsRefresh) return mapped;
 	}
-	return list;
+
+	const result = await generateShoppingListFromPlanning(userId, startDayIndex, endDayIndex, {
+		includeReportedFromPrevious: true
+	});
+	return result?.list ?? null;
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {

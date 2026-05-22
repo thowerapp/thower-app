@@ -35,19 +35,11 @@
   });
 
   function handleFormSubmit(e: Event) {
-    // Empêche le scroll vers le haut automatique
     const form = e.target as HTMLFormElement;
     const scrollPos = window.scrollY;
-    setTimeout(() => {
-      window.scrollTo(0, scrollPos);
-    }, 0);
+    setTimeout(() => { window.scrollTo(0, scrollPos); }, 0);
   }
 
-  function getErr(field: string) {
-    return ($signupData as any)?.errors?.[field]?.[0];
-  }
-
-  // ── Scroll helpers via SmoothScrollBar ──
   function scrollToEl(id: string) {
     const anchor = document.getElementById(id);
     if (!anchor) return;
@@ -61,16 +53,7 @@
   }
 
   const scrollToSec2 = () => scrollToEl('sec2');
-  const scrollToSec3 = () => scrollToEl('sec3');
   const scrollToForm = () => scrollToEl('form-anchor');
-
-  function validateBeforeSubmit(e: Event) {
-    const formEl = e.target as HTMLFormElement;
-    if (!formEl.checkValidity()) {
-      e.preventDefault();
-      toast.error('Veuillez remplir tous les champs du formulaire.');
-    }
-  }
 
   onMount(() => {
     // ── EYEBROW ──
@@ -102,7 +85,7 @@
       }
     });
 
-    // ── THREE.JS CANVAS — monté dans le slot du layout ──
+    // ── THREE.JS CANVAS ──
     const canvas = document.createElement('canvas');
     canvas.id = 'three-canvas';
     canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
@@ -136,10 +119,8 @@
       const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...p1), new THREE.Vector3(...p2)]);
       return new THREE.Line(geo, gridMat);
     }
-    // Floor grid
     for (let x = -2; x <= 2; x += 0.5) scene.add(makeLine([x, -CORRIDOR_H/2, 2], [x, -CORRIDOR_H/2, -CORRIDOR_LENGTH - 2]));
     for (let z = 0; z >= -CORRIDOR_LENGTH; z -= 2) scene.add(makeLine([-CORRIDOR_W/2, -CORRIDOR_H/2, z], [CORRIDOR_W/2, -CORRIDOR_H/2, z]));
-    // Ceiling grid (mirrored)
     for (let x = -2; x <= 2; x += 0.5) scene.add(makeLine([x, CORRIDOR_H/2, 2], [x, CORRIDOR_H/2, -CORRIDOR_LENGTH - 2]));
     for (let z = 0; z >= -CORRIDOR_LENGTH; z -= 2) scene.add(makeLine([-CORRIDOR_W/2, CORRIDOR_H/2, z], [CORRIDOR_W/2, CORRIDOR_H/2, z]));
 
@@ -148,12 +129,10 @@
       scene.add((() => { const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-CORRIDOR_W/2, -CORRIDOR_H/2, z), new THREE.Vector3(-CORRIDOR_W/2, CORRIDOR_H/2, z)]); return new THREE.Line(g, trimMat); })());
       scene.add((() => { const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(CORRIDOR_W/2, -CORRIDOR_H/2, z), new THREE.Vector3(CORRIDOR_W/2, CORRIDOR_H/2, z)]); return new THREE.Line(g, trimMat); })());
     }
-    // Horizontal wall lines (left & right)
     for (let y = -CORRIDOR_H/2 + 1; y < CORRIDOR_H/2; y += 1) {
       scene.add(makeLine([-CORRIDOR_W/2, y, 0], [-CORRIDOR_W/2, y, -CORRIDOR_LENGTH]));
       scene.add(makeLine([CORRIDOR_W/2, y, 0], [CORRIDOR_W/2, y, -CORRIDOR_LENGTH]));
     }
-    // Central ceiling ridge
     scene.add(makeLine([0, CORRIDOR_H/2, 2], [0, CORRIDOR_H/2, -CORRIDOR_LENGTH - 2]));
 
     const glowMat = new THREE.MeshBasicMaterial({ color: 0xc9a84c, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
@@ -176,13 +155,7 @@
       makeGlow(-CORRIDOR_LENGTH * 0.25, 0.14, CORRIDOR_W * 0.75, CORRIDOR_H * 0.75, 0xc9a84c),
     ];
 
-    // ── LOGO au fond du corridor ──
-    const logoMat = new THREE.MeshBasicMaterial({
-      transparent: true,
-      alphaTest: 0.05,
-      side: THREE.DoubleSide,
-      depthWrite: false
-    });
+    const logoMat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.05, side: THREE.DoubleSide, depthWrite: false });
     const logoPlane = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), logoMat);
     logoPlane.position.set(0, 0, -CORRIDOR_LENGTH + 7);
     scene.add(logoPlane);
@@ -208,7 +181,6 @@
     const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xc9a84c, size: 0.025, transparent: true, opacity: 0.55, sizeAttenuation: true }));
     scene.add(particles);
 
-    // ── SCROLL via SmoothScrollBar ──
     let sbListener: ((status: { offset: { x: number; y: number } }) => void) | null = null;
     let currentScrollbar: Scrollbar | null = null;
 
@@ -229,7 +201,6 @@
       sb.addListener(sbListener);
     });
 
-    // ── ANIMATION LOOP ──
     const clock = new THREE.Clock();
     let animId: number;
     const animate = () => {
@@ -290,7 +261,8 @@
 </nav>
 
 <div id="sections">
-  <!-- SEC 1 -->
+
+  <!-- ─── SEC 1 : LA MÉTHODE (inchangé) ─── -->
   <section id="sec1">
     <div class="hero-group">
       <div class="hero-eyebrow">· Programme 91 jours ·</div>
@@ -308,45 +280,227 @@
     </div>
   </section>
 
-  <!-- SEC 2 -->
+  <!-- ─── SEC 2 : LE HERO — La Révélation ─── -->
   <section id="sec2">
-    <div class="method-header">
-      <div class="method-eyebrow">— La méthode</div>
-      <h2 class="method-h2">91 JOURS.<br><span class="gold">3 PILIERS.</span></h2>
-      <p class="method-intro">Un programme complet, progressif et personnalisé. Sport, nutrition et mindset travaillent ensemble — pas séparément.</p>
-    </div>
-    <div class="pillars">
-      <div class="pillar">
-        <div class="pillar-symbol"><svg viewBox="0 0 40 40" fill="none" width="36" height="36"><circle cx="20" cy="20" r="18" stroke="#c9a84c" stroke-width="1"/><path d="M20 8 L20 32 M8 20 L32 20" stroke="#c9a84c" stroke-width="1" stroke-linecap="round"/><circle cx="20" cy="20" r="4" fill="#c9a84c" opacity="0.4"/></svg></div>
-        <div class="pillar-num">01</div><div class="pillar-title">Sport</div>
-        <p class="pillar-text">3 séances hebdomadaires à placer librement dans ta semaine. Séances progressives, vidéos guidées, déblocage au fil de ta progression.</p>
-        <div class="pillar-tags"><span class="ptag">▸ Séances A · B · C chaque semaine</span><span class="ptag">▸ Vidéos guidées YouTube</span><span class="ptag">▸ Déblocage progressif</span></div>
-      </div>
-      <div class="pillar pillar-center">
-        <div class="pillar-symbol"><svg viewBox="0 0 40 40" fill="none" width="36" height="36"><rect x="4" y="4" width="32" height="32" stroke="#3ab8b8" stroke-width="1"/><rect x="12" y="12" width="16" height="16" stroke="#3ab8b8" stroke-width="1" opacity="0.5"/><rect x="18" y="18" width="4" height="4" fill="#3ab8b8" opacity="0.6"/></svg></div>
-        <div class="pillar-num">02</div><div class="pillar-title">Nutrition</div>
-        <p class="pillar-text">Un cadencier sur 91 jours. Recettes calibrées selon tes objectifs, quantités calculées automatiquement, liste de courses générée.</p>
-        <div class="pillar-tags"><span class="ptag">▸ Recettes personnalisées</span><span class="ptag">▸ Macros calculés automatiquement</span><span class="ptag">▸ Liste de courses intégrée</span></div>
-      </div>
-      <div class="pillar">
-        <div class="pillar-symbol"><svg viewBox="0 0 40 40" fill="none" width="36" height="36"><polygon points="20,4 36,34 4,34" stroke="#c9a84c" stroke-width="1" fill="none"/><polygon points="20,14 28,28 12,28" stroke="#c9a84c" stroke-width="1" fill="none" opacity="0.4"/></svg></div>
-        <div class="pillar-num">03</div><div class="pillar-title">Mindset</div>
-        <p class="pillar-text">Méditation, breathwork, ligne directrice journalière. Un système de gamification pour rester motivé chaque jour des 91 jours.</p>
-        <div class="pillar-tags"><span class="ptag">▸ Méditation · Breathwork</span><span class="ptag">▸ Points · Statuts · Badges</span><span class="ptag">▸ Checklist journalière</span></div>
+    <div class="video-embed">
+      <!--
+        Quand la vidéo est prête, remplacer le bloc .video-ph par :
+        <iframe src="https://www.youtube.com/embed/VIDEO_ID?rel=0" frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen></iframe>
+      -->
+      <div class="video-ph">
+        <div class="video-ph-icon">
+          <svg viewBox="0 0 64 64" fill="none" width="64" height="64">
+            <circle cx="32" cy="32" r="30" stroke="#c9a84c" stroke-width="1" opacity="0.5"/>
+            <path d="M26 20 L48 32 L26 44 Z" fill="#c9a84c" opacity="0.75"/>
+          </svg>
+        </div>
+        <p class="video-ph-label">Vidéo de présentation — à venir</p>
       </div>
     </div>
-    <div class="stats-strip">
-      <div class="stat-item"><div class="stat-val">91</div><div class="stat-lbl">Jours</div></div>
-      <div class="stat-sep">✦</div>
-      <div class="stat-item"><div class="stat-val">13</div><div class="stat-lbl">Semaines</div></div>
-      <div class="stat-sep">✦</div>
-      <div class="stat-item"><div class="stat-val">1</div><div class="stat-lbl">Objectif · Toi</div></div>
+    <div class="reveal-content">
+      <h1 class="reveal-h1">Reprogramme ton corps<br>et ton mental en 3 mois.</h1>
+      <p class="reveal-sub">Oublie les régimes où tu cesses de vivre et où tu reprends tout par la suite. Découvre le système scientifique et concret conçu pour réactiver ton métabolisme et forger une discipline inébranlable.</p>
+      <button class="nav-btn fill reveal-cta" onclick={scrollToForm}>DÉMARRER MA TRANSFORMATION</button>
     </div>
-    <div class="sec2-cta"><button class="nav-btn fill" onclick={scrollToSec3}>Commencer ma transformation</button></div>
   </section>
 
-  <!-- SEC 3 — Formulaire -->
+  <!-- ─── SEC 3 : LE CHOC VISUEL — La Preuve ─── -->
   <section id="sec3">
+    <div class="sec-header">
+      <div class="sec-eyebrow">— La preuve par l'image</div>
+      <h2 class="sec-h2">La preuve en image</h2>
+      <p class="sec-text">Ce n'est pas de la magie, c'est de l'ingénierie corporelle.<br>Voici ce que 3 mois d'engagement produisent.<br><span class="gold-text">Zéro hasard, uniquement des résultats.</span></p>
+    </div>
+    <div class="video-embed compact">
+      <!--
+        Quand la vidéo time-lapse est prête :
+        <video src="/videos/timelapse.mp4" autoplay loop muted playsinline></video>
+      -->
+      <div class="video-ph teal-ph">
+        <div class="video-ph-icon">
+          <svg viewBox="0 0 64 64" fill="none" width="56" height="56">
+            <rect x="4" y="12" width="56" height="40" rx="3" stroke="#3ab8b8" stroke-width="1" opacity="0.5"/>
+            <path d="M22 24 L44 32 L22 40 Z" fill="#3ab8b8" opacity="0.75"/>
+          </svg>
+        </div>
+        <p class="video-ph-label teal-label">Vidéo time-lapse — à venir</p>
+      </div>
+    </div>
+    <button class="nav-btn outline proof-cta" onclick={scrollToForm}>JE VEUX CES RÉSULTATS</button>
+  </section>
+
+  <!-- ─── SEC 4 : L'AUTORITÉ — L'Expertise ─── -->
+  <section id="sec4">
+    <div class="authority-wrap">
+      <div class="sec-eyebrow">— L'expertise</div>
+      <h2 class="sec-h2">25 ans de recherche<br><span class="gold-text">condensés dans une méthode.</span></h2>
+      <p class="authority-text">J'ai condensé des milliers d'heures d'études en neurosciences, biologie cellulaire, nutrition, mécaniques sportives, systèmes hormonaux et physiologie pour créer une méthode redoutable. En alignant le corps, le mental et l'être, la <span class="gold-text">Méthode Thower</span> agit à la racine pour te transformer de l'intérieur.</p>
+      <div class="authority-disciplines">
+        <span class="discipline-tag">Neurosciences</span>
+        <span class="discipline-tag">Biologie cellulaire</span>
+        <span class="discipline-tag">Nutrition</span>
+        <span class="discipline-tag">Physiologie</span>
+        <span class="discipline-tag">Systèmes hormonaux</span>
+        <span class="discipline-tag">Mécaniques sportives</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SEC 5 : LA PROMESSE — La Projection ─── -->
+  <section id="sec5">
+    <div class="promise-wrap">
+      <div class="sec-eyebrow">— La promesse</div>
+      <h2 class="sec-h2">Atteins ta forme ultime,<br><span class="teal-text">sans sacrifier ta vie.</span></h2>
+      <p class="sec-text" style="margin-bottom: 8px;">Le programme s'adapte à ton quotidien, pas l'inverse.</p>
+      <ul class="promise-list">
+        <li><span class="promise-check">✦</span>Fondre et bâtir du muscle massif</li>
+        <li><span class="promise-check">✦</span>Décupler ta vitalité et ton énergie</li>
+        <li><span class="promise-check">✦</span>Retrouver un sommeil profond et réparateur</li>
+        <li><span class="promise-check">✦</span>Optimiser ta digestion</li>
+        <li><span class="promise-check">✦</span>Libido et confiance au plus haut</li>
+        <li><span class="promise-check">✦</span>Fini l'épuisement et les douleurs chroniques</li>
+      </ul>
+      <p class="promise-closing">Le chemin est tracé. Tu n'as qu'à le suivre.</p>
+    </div>
+  </section>
+
+  <!-- ─── SEC 6 : L'OFFRE — Le Programme Complet ─── -->
+  <section id="sec6">
+    <div class="sec-header">
+      <div class="sec-eyebrow">— L'offre irrésistible</div>
+      <h2 class="sec-h2">Voici le programme complet<br><span class="gold-text">pour ta transformation.</span></h2>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="fc-icon">
+          <svg viewBox="0 0 40 40" fill="none" width="36" height="36">
+            <line x1="6" y1="20" x2="34" y2="20" stroke="#c9a84c" stroke-width="2" stroke-linecap="round"/>
+            <rect x="2" y="16" width="6" height="8" rx="2" stroke="#c9a84c" stroke-width="1.2" fill="none"/>
+            <rect x="32" y="16" width="6" height="8" rx="2" stroke="#c9a84c" stroke-width="1.2" fill="none"/>
+            <line x1="13" y1="13" x2="13" y2="27" stroke="#c9a84c" stroke-width="1.2" stroke-linecap="round"/>
+            <line x1="27" y1="13" x2="27" y2="27" stroke="#c9a84c" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="fc-num">01</div>
+        <div class="fc-title">Le Protocole Sportif</div>
+        <p class="fc-text">3 sessions de 45 minutes par semaine. Ensemble, on s'adapte à ton niveau et ta progression. Tu les places quand tu veux dans ta semaine — haute efficacité garantie.</p>
+        <div class="fc-tags">
+          <span class="ptag">▸ Séances A · B · C chaque semaine</span>
+          <span class="ptag">▸ Adapté à ton niveau</span>
+          <span class="ptag">▸ Progression déblocable</span>
+        </div>
+      </div>
+
+      <div class="feature-card fc-teal">
+        <div class="fc-icon">
+          <svg viewBox="0 0 40 40" fill="none" width="36" height="36">
+            <path d="M20 8 C12 8 7 14 7 20 C7 28 14 34 20 34" stroke="#3ab8b8" stroke-width="1.2" stroke-linecap="round"/>
+            <path d="M20 8 C28 8 33 14 33 20 C33 28 26 34 20 34" stroke="#3ab8b8" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
+            <path d="M20 12 L20 20 L26 16" stroke="#3ab8b8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="fc-num fc-num-teal">02</div>
+        <div class="fc-title">L'Intelligence Nutritionnelle</div>
+        <p class="fc-text">Fini le casse-tête. Un planning de recettes faciles, tu n'auras pas faim et tu vas te régaler. Quantités calculées automatiquement, liste de courses générée en un clic.</p>
+        <div class="fc-tags">
+          <span class="ptag">▸ Recettes personnalisées & adaptables</span>
+          <span class="ptag">▸ Macros calculés automatiquement</span>
+          <span class="ptag">▸ Liste de courses intégrée</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="fc-icon">
+          <svg viewBox="0 0 40 40" fill="none" width="36" height="36">
+            <polygon points="20,4 36,32 4,32" stroke="#c9a84c" stroke-width="1.2" fill="none"/>
+            <polygon points="20,14 28,28 12,28" stroke="#c9a84c" stroke-width="1" fill="none" opacity="0.45"/>
+            <circle cx="20" cy="22" r="2" fill="#c9a84c" opacity="0.6"/>
+          </svg>
+        </div>
+        <div class="fc-num">03</div>
+        <div class="fc-title">L'Arsenal Mindset</div>
+        <p class="fc-text">Un reconditionnement quotidien. Nouvelles pratiques chaque semaine pour anéantir tes croyances limitantes et forger un mental d'acier. Check-list journalière avec points à gagner et surprises.</p>
+        <div class="fc-tags">
+          <span class="ptag">▸ Méditation · Breathwork</span>
+          <span class="ptag">▸ Points · Statuts · Cadeaux</span>
+          <span class="ptag">▸ Check-list journalière</span>
+        </div>
+      </div>
+
+      <div class="feature-card fc-teal">
+        <div class="fc-icon">
+          <svg viewBox="0 0 40 40" fill="none" width="36" height="36">
+            <rect x="4" y="12" width="24" height="16" rx="2" stroke="#3ab8b8" stroke-width="1.2" fill="none"/>
+            <path d="M28 17 L36 13 L36 27 L28 23 Z" stroke="#3ab8b8" stroke-width="1.2" fill="none" stroke-linejoin="round"/>
+            <circle cx="10" cy="20" r="2.5" stroke="#3ab8b8" stroke-width="1" fill="none"/>
+          </svg>
+        </div>
+        <div class="fc-num fc-num-teal">04</div>
+        <div class="fc-title">Le Coaching Live Exclusif</div>
+        <p class="fc-text">Un rendez-vous chaque semaine en direct avec moi. Je réponds à toutes tes questions, je débloque tes freins et te livre mes astuces de pointe pour accélérer tes résultats.</p>
+        <div class="fc-tags">
+          <span class="ptag">▸ Live hebdomadaire</span>
+          <span class="ptag">▸ Q&A en direct</span>
+          <span class="ptag">▸ Astuces exclusives</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="fc-icon">
+          <svg viewBox="0 0 40 40" fill="none" width="36" height="36">
+            <path d="M20 6 L22.5 14 L31 14 L24.5 19 L27 27 L20 22 L13 27 L15.5 19 L9 14 L17.5 14 Z" stroke="#c9a84c" stroke-width="1.2" fill="none" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="fc-num">05</div>
+        <div class="fc-title">Ton Boost Quotidien</div>
+        <p class="fc-text">Chaque jour, des vidéos pour te garder motivé, te donner des astuces, te faire marrer. Pour que tu vives cette transformation en prenant du plaisir, pas en souffrant.</p>
+        <div class="fc-tags">
+          <span class="ptag">▸ Vidéos motivationnelles quotidiennes</span>
+          <span class="ptag">▸ Astuces & humour</span>
+          <span class="ptag">▸ Progression ludique</span>
+        </div>
+      </div>
+
+      <div class="feature-card fc-teal">
+        <div class="fc-icon">
+          <svg viewBox="0 0 40 40" fill="none" width="36" height="36">
+            <circle cx="20" cy="20" r="14" stroke="#3ab8b8" stroke-width="1.2" fill="none"/>
+            <line x1="20" y1="6" x2="20" y2="34" stroke="#3ab8b8" stroke-width="0.7" opacity="0.35"/>
+            <line x1="6" y1="20" x2="34" y2="20" stroke="#3ab8b8" stroke-width="0.7" opacity="0.35"/>
+            <path d="M20 9 L21.8 17 L20 15.5 L18.2 17 Z" fill="#3ab8b8" opacity="0.85"/>
+            <circle cx="20" cy="20" r="2" fill="#3ab8b8" opacity="0.6"/>
+          </svg>
+        </div>
+        <div class="fc-num fc-num-teal">06</div>
+        <div class="fc-title">L'Ouverture & la Découverte</div>
+        <p class="fc-text">Chaque semaine, de nouvelles activités, de nouveaux sports, de nouvelles pratiques. Du temps pour toi, pour te découvrir. Il y a pas mal de bonnes surprises qui t'attendent.</p>
+        <div class="fc-tags">
+          <span class="ptag">▸ Nouvelles activités chaque semaine</span>
+          <span class="ptag">▸ Découverte de soi</span>
+          <span class="ptag">▸ Surprises & bonus exclusifs</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="price-block">
+      <div class="price-label">Accès complet au programme · 91 jours</div>
+      <div class="price-amount">[Prix à venir]</div>
+      <div class="price-installment">ou <strong>3× sans frais</strong> — paiement sécurisé</div>
+      <div class="price-perks">
+        <span class="perk">✦ Accès immédiat</span>
+        <span class="perk">✦ 91 jours de programme</span>
+        <span class="perk">✦ Coaching live inclus</span>
+      </div>
+    </div>
+
+    <button class="nav-btn fill offer-cta" onclick={scrollToForm}>REJOINDRE LA MÉTHODE THOWER MAINTENANT</button>
+  </section>
+
+  <!-- ─── SEC 7 : FORMULAIRE ─── -->
+  <section id="sec7">
     <div class="form-wrap" id="form-anchor">
       <h2 class="form-h2">Créer un <span class="highlight-word">compte</span></h2>
       <p class="form-sub">Inscris-toi pour accéder au programme et activer ton <span class="highlight-word">compte</span>.</p>
@@ -354,69 +508,38 @@
         <Form.Field name="username" form={signupForm}>
           <Form.Control>
             <Form.Label class="field-label">Nom d'utilisateur</Form.Label>
-            <Input
-              name="username"
-              type="text"
-              bind:value={$signupData.username}
-              placeholder="Jean Dupont"
-              required
-              class="field-input-custom"
-            />
+            <Input name="username" type="text" bind:value={$signupData.username} placeholder="Jean Dupont" required class="field-input-custom" />
           </Form.Control>
           <Form.FieldErrors class="field-error" />
         </Form.Field>
-
         <Form.Field name="email" form={signupForm}>
           <Form.Control>
             <Form.Label class="field-label">Email</Form.Label>
-            <Input
-              name="email"
-              type="email"
-              bind:value={$signupData.email}
-              placeholder="jean@email.com"
-              required
-              class="field-input-custom"
-            />
+            <Input name="email" type="email" bind:value={$signupData.email} placeholder="jean@email.com" required class="field-input-custom" />
             <Form.Description class="form-note">Nous ne partagerons jamais votre email.</Form.Description>
           </Form.Control>
           <Form.FieldErrors class="field-error" />
         </Form.Field>
-
         <Form.Field name="password" form={signupForm}>
           <Form.Control>
             <Form.Label class="field-label">Mot de passe</Form.Label>
-            <Input
-              name="password"
-              type="password"
-              bind:value={$signupData.password}
-              placeholder="••••••••"
-              required
-              class="field-input-custom"
-            />
+            <Input name="password" type="password" bind:value={$signupData.password} placeholder="••••••••" required class="field-input-custom" />
             <Form.Description class="form-note">Au moins 8 caractères, une majuscule et un chiffre.</Form.Description>
           </Form.Control>
           <Form.FieldErrors class="field-error" />
         </Form.Field>
-
         <Form.Field name="confirmPassword" form={signupForm}>
           <Form.Control>
             <Form.Label class="field-label">Confirmer le mot de passe</Form.Label>
-            <Input
-              name="confirmPassword"
-              type="password"
-              bind:value={$signupData.confirmPassword}
-              placeholder="••••••••"
-              required
-              class="field-input-custom"
-            />
+            <Input name="confirmPassword" type="password" bind:value={$signupData.confirmPassword} placeholder="••••••••" required class="field-input-custom" />
           </Form.Control>
           <Form.FieldErrors class="field-error" />
         </Form.Field>
-
         <Button type="submit" class="form-submit-custom">Créer mon compte</Button>
       </form>
     </div>
   </section>
+
 </div>
 
 <section id="social">
@@ -465,54 +588,30 @@
 
   #progress-line { position: fixed; top: 0; left: 0; height: 2px; background: var(--gold); z-index: 200; transition: width 0.1s linear; pointer-events: none; }
 
-  /* ── Nav — au-dessus de tout ── */
+  /* ── Nav ── */
   nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: flex-start; justify-content: space-between; padding: 24px 48px; gap: 24px; flex-wrap: wrap; }
   .nav-logo { text-decoration: none; flex: 0 0 auto; display: flex; align-items: center; }
   .nav-logo-img { height: 36px; width: auto; display: block; }
-  .nav-btns { display: flex; gap: 12px; flex-direction: row; }
+  .nav-btns { display: flex; gap: 12px; }
   .nav-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 22px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.75rem;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    text-decoration: none;
-    cursor: none;
-    border: none;
-    transition: all 0.2s;
-    white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 10px 26px; font-family: 'DM Sans', sans-serif; font-size: 0.82rem;
+    font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+    text-decoration: none; cursor: none; border: none; transition: all 0.2s; white-space: nowrap;
   }
   .nav-btn.outline { background: transparent; border: 1px solid rgba(240,237,232,0.3); color: var(--white); }
   .nav-btn.outline:hover { border-color: var(--gold); color: var(--gold); }
   .nav-btn.fill { background: var(--gold); color: var(--black); font-weight: 600; }
   .nav-btn.fill:hover { background: #e0bc62; }
 
-  /* ── Sections — colonne centrée, z-index au-dessus du canvas ── */
-  #sections {
-    position: relative;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-  }
+  /* ── Sections container ── */
+  #sections { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; width: 100%; }
+  #sections > section { width: 100%; display: flex; flex-direction: column; align-items: center; pointer-events: all; }
 
-  #sections > section {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    pointer-events: all;
-  }
-
-  /* ── SEC 1 ── */
+  /* ── SEC 1 : LA MÉTHODE ── */
   #sec1 { height: 100vh; justify-content: space-between; padding: 18vh 24px 10vh; }
   .hero-group { display: flex; flex-direction: column; align-items: center; gap: 1.2rem; }
-  .hero-eyebrow { font-size: 0.7rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--teal); text-align: center; opacity: 0; animation: fadeUp 1s 0.4s forwards; }
+  .hero-eyebrow { font-size: 0.75rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--teal); text-align: center; opacity: 0; animation: fadeUp 1s 0.4s forwards; }
   .hero-h1 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(6rem, 16vw, 14rem); line-height: 0.9; letter-spacing: 0.04em; text-align: center; opacity: 0; animation: fadeUp 1s 0.7s forwards; cursor: default; user-select: none; }
   .t-row1 { display: block; text-align: center; }
   .t-row2 { display: flex; justify-content: center; align-items: baseline; }
@@ -530,55 +629,100 @@
   .hero-h1:hover .t-tho { transform: translateX(-0.32em); }
   .hero-h1:hover .t-de { opacity: 0; transform: translateY(0.4em); }
   .hero-h1:hover .t-wer { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .hero-sub { font-size: 1rem; font-weight: 300; color: rgba(240,237,232,0.55); letter-spacing: 0.04em; text-align: center; max-width: 380px; line-height: 1.7; opacity: 0; animation: fadeUp 1s 1s forwards; }
+  .hero-sub { font-size: 1.05rem; font-weight: 300; color: rgba(240,237,232,0.55); letter-spacing: 0.04em; text-align: center; max-width: 420px; line-height: 1.75; opacity: 0; animation: fadeUp 1s 1s forwards; }
   #scroll-hint { display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: none; opacity: 0; animation: fadeUp 1s 1.4s forwards; }
   #scroll-hint:hover .hint-arrow { border-color: var(--gold); }
-  .hint-label { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(240,237,232,0.4); }
+  .hint-label { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(240,237,232,0.4); }
   .hint-arrow { width: 36px; height: 36px; border: 1px solid rgba(240,237,232,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: border-color 0.2s; animation: bounce 2.4s 2s infinite; }
 
-  /* ── SEC 2 ── */
-  #sec2 { min-height: 100vh; justify-content: center; padding: 100px 48px 80px; gap: 56px; }
-  .method-header { text-align: center; max-width: 600px; }
-  .method-eyebrow { font-size: 0.65rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--teal); margin-bottom: 16px; }
-  .method-h2 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3rem, 7vw, 6rem); line-height: 0.92; letter-spacing: 0.04em; color: var(--white); margin-bottom: 20px; }
-  .method-h2 .gold { color: var(--gold); }
-  .method-intro { font-size: 0.88rem; font-weight: 300; color: rgba(240,237,232,0.45); line-height: 1.8; }
-  .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; max-width: 960px; }
-  .pillar { background: rgba(10,10,10,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); padding: 36px 28px; transition: background 0.3s, border-color 0.3s; }
-  .pillar-center { border-color: rgba(58,184,184,0.3); }
-  .pillar:hover { background: rgba(6,6,6,0.95); border-color: rgba(201,168,76,0.35); }
-  .pillar-center:hover { border-color: rgba(58,184,184,0.5); }
-  .pillar-symbol { margin-bottom: 20px; opacity: 1; }
-  .pillar-num { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; color: var(--gold); opacity: 0.45; line-height: 1; margin-bottom: 10px; }
-  .pillar-center .pillar-num { color: var(--teal); }
-  .pillar-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.06em; color: var(--white); margin-bottom: 12px; }
-  .pillar-text { font-size: 0.8rem; font-weight: 300; color: rgba(240,237,232,0.78); line-height: 1.85; margin-bottom: 20px; }
-  .pillar-tags { display: flex; flex-direction: column; gap: 5px; }
-  .ptag { font-size: 0.65rem; color: rgba(240,237,232,0.55); letter-spacing: 0.06em; }
-  .stats-strip { display: flex; align-items: center; gap: 32px; padding: 28px 48px; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.02); width: 100%; max-width: 900px; justify-content: center; }
-  .stat-item { text-align: center; }
-  .stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem; color: var(--gold); letter-spacing: 0.06em; line-height: 1; }
-  .stat-lbl { font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(240,237,232,0.3); margin-top: 4px; }
-  .stat-sep { color: var(--gold); opacity: 0.25; font-size: 0.7rem; }
-  .sec2-cta { text-align: center; }
+  /* ── Styles partagés entre sections ── */
+  .sec-eyebrow { font-size: 0.78rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--teal); margin-bottom: 16px; }
+  .sec-h2 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.6rem, 5.5vw, 5rem); line-height: 0.95; letter-spacing: 0.04em; color: var(--white); margin-bottom: 24px; }
+  .sec-text { font-size: 1.05rem; font-weight: 300; color: rgba(240,237,232,0.62); line-height: 1.9; max-width: 640px; text-align: center; }
+  .sec-header { text-align: center; max-width: 720px; width: 100%; }
+  .gold-text { color: var(--gold); }
+  .teal-text { color: var(--teal); }
 
-  /* ── SEC 3 ── */
-  #sec3 { min-height: 100vh; justify-content: center; padding: 100px 48px 180px; }
+  /* ── Video placeholder ── */
+  .video-embed { width: 100%; max-width: 860px; position: relative; }
+  .video-embed::before { content: ''; display: block; padding-top: 56.25%; }
+  .video-embed iframe,
+  .video-embed video,
+  .video-embed .video-ph { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .video-embed.compact { max-width: 680px; }
+  .video-ph { background: rgba(10,10,10,0.85); border: 1px solid rgba(201,168,76,0.2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+  .video-ph.teal-ph { border-color: rgba(58,184,184,0.2); }
+  .video-ph-label { font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(240,237,232,0.3); }
+  .video-ph-label.teal-label { color: rgba(58,184,184,0.45); }
+
+  /* ── SEC 2 : La Révélation ── */
+  #sec2 { padding: 120px 48px 100px; gap: 56px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .reveal-content { text-align: center; max-width: 720px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+  .reveal-h1 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.8rem, 5.5vw, 5rem); line-height: 1.05; letter-spacing: 0.04em; color: var(--white); }
+  .reveal-sub { font-size: 1.1rem; font-weight: 300; color: rgba(240,237,232,0.6); line-height: 1.9; max-width: 600px; }
+  .reveal-cta { padding: 16px 40px; font-size: 0.9rem; }
+
+  /* ── SEC 3 : Le Choc Visuel ── */
+  #sec3 { padding: 100px 48px; gap: 48px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .proof-cta { padding: 12px 30px; font-size: 0.82rem; }
+
+  /* ── SEC 4 : L'Autorité ── */
+  #sec4 { padding: 100px 48px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .authority-wrap { max-width: 780px; width: 100%; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+  .authority-text { font-size: 1.1rem; font-weight: 300; color: rgba(240,237,232,0.68); line-height: 2; max-width: 680px; }
+  .authority-disciplines { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .discipline-tag { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); border: 1px solid rgba(201,168,76,0.3); padding: 7px 16px; }
+
+  /* ── SEC 5 : La Promesse ── */
+  #sec5 { padding: 100px 48px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .promise-wrap { max-width: 680px; width: 100%; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+  .promise-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; text-align: left; width: 100%; max-width: 520px; }
+  .promise-list li { font-size: 1.05rem; font-weight: 300; color: rgba(240,237,232,0.75); line-height: 1.5; display: flex; align-items: center; gap: 16px; }
+  .promise-check { color: var(--gold); font-size: 0.65rem; flex-shrink: 0; }
+  .promise-closing { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 0.1em; color: var(--gold); }
+
+  /* ── SEC 6 : L'Offre ── */
+  #sec6 { padding: 100px 48px 120px; gap: 60px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; max-width: 1100px; }
+  .feature-card { background: rgba(10,10,10,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); padding: 36px 28px; transition: background 0.3s, border-color 0.3s; display: flex; flex-direction: column; }
+  .fc-teal { border-color: rgba(58,184,184,0.14); }
+  .feature-card:hover { background: rgba(6,6,6,0.95); border-color: rgba(201,168,76,0.3); }
+  .fc-teal:hover { border-color: rgba(58,184,184,0.4); }
+  .fc-icon { margin-bottom: 20px; }
+  .fc-num { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; color: var(--gold); opacity: 0.38; line-height: 1; margin-bottom: 10px; }
+  .fc-num-teal { color: var(--teal); }
+  .fc-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.45rem; letter-spacing: 0.06em; color: var(--white); margin-bottom: 14px; }
+  .fc-text { font-size: 0.95rem; font-weight: 300; color: rgba(240,237,232,0.7); line-height: 1.9; margin-bottom: 20px; flex: 1; }
+  .fc-tags { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
+  .ptag { font-size: 0.7rem; color: rgba(240,237,232,0.42); letter-spacing: 0.06em; }
+
+  /* Prix */
+  .price-block { text-align: center; padding: 48px 60px; border: 1px solid rgba(201,168,76,0.25); background: rgba(10,10,10,0.7); backdrop-filter: blur(10px); max-width: 560px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .price-label { font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(240,237,232,0.38); }
+  .price-amount { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3rem, 6vw, 5rem); color: var(--gold); letter-spacing: 0.06em; line-height: 1; }
+  .price-installment { font-size: 1rem; font-weight: 300; color: rgba(240,237,232,0.5); }
+  .price-installment strong { color: var(--teal); font-weight: 500; }
+  .price-perks { display: flex; gap: 28px; margin-top: 6px; flex-wrap: wrap; justify-content: center; }
+  .perk { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(240,237,232,0.32); }
+  .offer-cta { padding: 18px 48px; font-size: 0.92rem; letter-spacing: 0.12em; }
+
+  /* ── SEC 7 : Formulaire ── */
+  #sec7 { min-height: 80vh; justify-content: center; padding: 100px 48px 160px; border-top: 1px solid rgba(255,255,255,0.05); }
   .form-wrap { width: 100%; max-width: 520px; text-align: center; background: rgba(10,10,10,0.7); backdrop-filter: blur(10px); padding: 48px; border-radius: 8px; border: 1px solid rgba(201,168,76,0.15); }
   .form-h2 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.4rem, 5vw, 4rem); letter-spacing: 0.06em; line-height: 1; margin-bottom: 8px; }
-  .form-sub { font-size: 0.82rem; font-weight: 300; color: rgba(240,237,232,0.45); margin-bottom: 36px; line-height: 1.7; }
+  .form-sub { font-size: 0.95rem; font-weight: 300; color: rgba(240,237,232,0.45); margin-bottom: 36px; line-height: 1.7; }
   .form-fields { display: flex; flex-direction: column; gap: 10px; text-align: left; width: 100%; }
-  :global(.field-input-custom) { background: rgba(255,255,255,0.04) !important; border: 1px solid rgba(255,255,255,0.1) !important; color: var(--white) !important; font-family: 'DM Sans', sans-serif !important; font-size: 0.9rem !important; padding: 12px 16px !important; border-radius: 4px !important; width: 100% !important; box-sizing: border-box !important; }
+  :global(.field-input-custom) { background: rgba(255,255,255,0.04) !important; border: 1px solid rgba(255,255,255,0.1) !important; color: var(--white) !important; font-family: 'DM Sans', sans-serif !important; font-size: 0.95rem !important; padding: 14px 16px !important; border-radius: 4px !important; width: 100% !important; box-sizing: border-box !important; }
   :global(.field-input-custom:focus) { border-color: var(--gold) !important; background: rgba(201,168,76,0.04) !important; box-shadow: 0 0 0 3px rgba(201,168,76,0.1) !important; outline: none !important; }
   :global(.field-input-custom::placeholder) { color: rgba(240,237,232,0.3) !important; }
-  :global(.field-error) { font-size: 0.75rem !important; color: #ff6b6b !important; margin-top: 4px !important; margin-bottom: 4px !important; display: flex !important; align-items: center !important; gap: 4px !important; }
-  :global(.form-submit-custom) { margin-top: 20px !important; width: 100% !important; padding: 16px !important; background: var(--gold) !important; color: var(--black) !important; font-family: 'Bebas Neue', sans-serif !important; font-size: 1.1rem !important; letter-spacing: 0.14em !important; border: none !important; cursor: none !important; transition: all 0.2s !important; border-radius: 4px !important; text-transform: uppercase !important; font-weight: 600 !important; }
+  :global(.field-error) { font-size: 0.8rem !important; color: #ff6b6b !important; margin-top: 4px !important; margin-bottom: 4px !important; display: flex !important; align-items: center !important; gap: 4px !important; }
+  :global(.form-submit-custom) { margin-top: 20px !important; width: 100% !important; padding: 18px !important; background: var(--gold) !important; color: var(--black) !important; font-family: 'Bebas Neue', sans-serif !important; font-size: 1.2rem !important; letter-spacing: 0.14em !important; border: none !important; cursor: none !important; transition: all 0.2s !important; border-radius: 4px !important; text-transform: uppercase !important; font-weight: 600 !important; }
   :global(.form-submit-custom:hover) { background: #e0bc62 !important; transform: translateY(-2px) !important; box-shadow: 0 8px 16px rgba(201,168,76,0.3) !important; }
   :global(.form-submit-custom:active) { transform: translateY(0px) !important; }
   .field-input { display: none; }
   .field-error { display: none; }
   .form-submit { display: none; }
-  .form-note { margin-top: 14px; font-size: 0.68rem; color: rgba(240,237,232,0.25); line-height: 1.6; }
+  .form-note { margin-top: 14px; font-size: 0.75rem; color: rgba(240,237,232,0.25); line-height: 1.6; }
   .highlight-word { color: var(--teal); }
 
   /* ── Social ── */
@@ -590,7 +734,7 @@
   /* ── Contact CTA ── */
   #contact-cta { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 72px 48px; pointer-events: all; }
   #contact-cta > .contact-cta-inner { background: rgba(10,10,10,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 52px 64px; display: flex; flex-direction: column; align-items: center; gap: 28px; max-width: 680px; width: 100%; }
-  .contact-cta-text { font-family: 'DM Sans', sans-serif; font-size: clamp(1rem, 2.2vw, 1.35rem); font-weight: 300; color: var(--teal); text-align: center; line-height: 1.75; letter-spacing: 0.02em; }
+  .contact-cta-text { font-family: 'DM Sans', sans-serif; font-size: clamp(1.05rem, 2.2vw, 1.4rem); font-weight: 300; color: var(--teal); text-align: center; line-height: 1.75; letter-spacing: 0.02em; }
   .contact-cta-btn { border-color: var(--teal) !important; color: var(--teal) !important; }
   .contact-cta-btn:hover { background: rgba(58,184,184,0.08) !important; }
 
@@ -599,68 +743,61 @@
   .footer-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 0.1em; color: rgba(240,237,232,0.25); }
   .footer-logo span { color: var(--gold); opacity: 0.5; }
   .footer-links { display: flex; gap: 20px; }
-  .footer-legal { font-size: 0.65rem; color: rgba(240,237,232,0.2); letter-spacing: 0.06em; text-decoration: none; transition: color 0.2s; }
+  .footer-legal { font-size: 0.7rem; color: rgba(240,237,232,0.2); letter-spacing: 0.06em; text-decoration: none; transition: color 0.2s; }
   .footer-legal:hover { color: rgba(240,237,232,0.5); }
-  .footer-copy { font-size: 0.65rem; color: rgba(240,237,232,0.2); letter-spacing: 0.06em; }
+  .footer-copy { font-size: 0.7rem; color: rgba(240,237,232,0.2); letter-spacing: 0.06em; }
 
   @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
-  @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
+  /* ── Tablette ── */
   @media (max-width: 900px) {
     nav { padding: 20px 24px; }
     .nav-logo-img { height: 28px; }
-    .nav-btn { padding: 6px 14px; font-size: 0.68rem; }
+    .nav-btn { padding: 8px 16px; font-size: 0.72rem; }
     #sec1 { padding: 15vh 24px 8vh; }
     .hero-h1 { font-size: clamp(4rem, 12vw, 8rem); }
-    #sec2 { padding: 60px 24px; gap: 40px; }
-    .pillars { grid-template-columns: 1fr; gap: 1px; }
-    .method-h2 { font-size: clamp(2rem, 6vw, 4rem); }
-    .stats-strip { flex-wrap: wrap; gap: 20px; padding: 20px 24px; }
+    #sec2, #sec3, #sec4, #sec5, #sec6, #sec7 { padding: 72px 24px; }
+    .features-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .sec-h2 { font-size: clamp(2rem, 5vw, 3.5rem); }
+    .reveal-h1 { font-size: clamp(2rem, 5vw, 3.5rem); }
+    .price-block { padding: 36px 32px; }
     footer { flex-direction: column; gap: 12px; text-align: center; padding: 24px; }
-    #sec3 { padding: 60px 24px; }
-    .form-wrap { padding: 36px 24px; }
-    .form-h2 { font-size: clamp(1.8rem, 5vw, 3rem); }
   }
 
+  /* ── Mobile ── */
   @media (max-width: 640px) {
     nav { flex-direction: column; align-items: flex-start; padding: 16px 20px; gap: 12px; }
-    .nav-logo { order: 1; }
     .nav-logo-img { height: 24px; }
-    .nav-btns { flex-direction: column; width: auto; gap: 8px; order: 2; }
-    .nav-btn { padding: 8px 14px; font-size: 0.65rem; text-align: left; }
+    .nav-btns { gap: 8px; }
+    .nav-btn { padding: 8px 14px; font-size: 0.68rem; }
     #progress-line { height: 1px; }
     #sec1 { height: auto; min-height: 100vh; padding: 140px 16px 60px; justify-content: flex-start; }
     .hero-group { gap: 2rem; margin-top: 40px; }
     .hero-h1 { font-size: clamp(5rem, 28vw, 9rem); letter-spacing: -0.02em; width: 100vw; max-width: 100%; line-height: 0.85; }
-    .hero-eyebrow { font-size: 0.6rem; }
-    .hero-sub { font-size: 0.85rem; max-width: 100%; padding: 0 8px; margin-top: 40px; }
+    .hero-sub { font-size: 0.95rem; max-width: 100%; padding: 0 8px; margin-top: 40px; }
     #scroll-hint { margin-top: 80px; }
-    #sec2 { min-height: auto; padding: 50px 16px; gap: 30px; }
-    .method-header { max-width: 100%; }
-    .method-h2 { font-size: clamp(1.8rem, 8vw, 2.8rem); margin-bottom: 16px; }
-    .method-eyebrow { font-size: 0.6rem; margin-bottom: 12px; }
-    .method-intro { font-size: 0.75rem; }
-    .pillars { max-width: 100%; }
-    .pillar { padding: 24px 16px; }
-    .pillar-num { font-size: 2.2rem; margin-bottom: 8px; }
-    .pillar-title { font-size: 1.2rem; margin-bottom: 10px; }
-    .pillar-text { font-size: 0.75rem; margin-bottom: 16px; }
-    .ptag { font-size: 0.6rem; }
-    .stats-strip { flex-direction: column; gap: 16px; max-width: 100%; padding: 20px 16px; }
-    .stat-item { }
-    .stat-val { font-size: 1.8rem; }
-    .stat-sep { display: none; }
-    .sec2-cta { width: 100%; }
-    #sec3 { min-height: auto; padding: 50px 16px; }
+    #sec2, #sec3, #sec4, #sec5, #sec6, #sec7 { padding: 60px 16px; gap: 36px; }
+    .sec-h2 { font-size: clamp(1.8rem, 7vw, 2.8rem); }
+    .reveal-h1 { font-size: clamp(1.8rem, 7vw, 2.8rem); }
+    .reveal-sub, .sec-text, .authority-text { font-size: 0.95rem; }
+    .promise-list li { font-size: 0.95rem; }
+    .features-grid { grid-template-columns: 1fr; gap: 8px; }
+    .feature-card { padding: 28px 20px; }
+    .fc-text { font-size: 0.88rem; }
+    .price-block { padding: 28px 20px; }
+    .price-amount { font-size: clamp(2.5rem, 8vw, 3.5rem); }
+    .offer-cta { padding: 16px 24px; font-size: 0.82rem; }
     .form-wrap { max-width: 100%; padding: 28px 16px; border-radius: 6px; }
-    .form-h2 { font-size: clamp(1.4rem, 6vw, 2.2rem); margin-bottom: 12px; }
-    .form-sub { font-size: 0.75rem; margin-bottom: 24px; }
-    .form-fields { gap: 8px; }
-    :global(.field-input-custom) { font-size: 0.85rem !important; padding: 10px 12px !important; }
-    :global(.form-submit-custom) { font-size: 0.95rem !important; padding: 14px !important; letter-spacing: 0.1em !important; }
-    .form-note { font-size: 0.65rem; margin-top: 12px; }
-    .footer-logo { font-size: 1rem; }
-    .footer-copy { font-size: 0.6rem; }
+    .form-h2 { font-size: clamp(1.6rem, 6vw, 2.2rem); }
+    .form-sub { font-size: 0.88rem; }
+    :global(.field-input-custom) { font-size: 0.9rem !important; padding: 12px !important; }
+    :global(.form-submit-custom) { font-size: 1rem !important; padding: 16px !important; }
+    .authority-disciplines { gap: 8px; }
+    .discipline-tag { font-size: 0.65rem; padding: 5px 10px; }
+    .price-perks { gap: 14px; }
+    .social-band { gap: 36px; padding: 28px 40px; }
+    .contact-cta-inner { padding: 36px 24px; }
+    .footer-copy, .footer-legal { font-size: 0.65rem; }
   }
 </style>

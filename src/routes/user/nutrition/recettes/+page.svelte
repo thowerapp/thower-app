@@ -92,13 +92,15 @@
 	{:else}
 		{#each recipesByTab as recipe (recipe.id)}
 			<div class="recipe-item">
-				<div class="recipe-icon"><div style="width:10px;height:10px;border:1.5px solid var(--g);opacity:.7"></div></div>
-				<div class="recipe-body">
-					<div class="recipe-name">{recipe.name}</div>
-					<div class="recipe-meta">
-						{categoryLabels[recipe.category] ?? recipe.category} • {recipeTimeLabel(recipe)}
+				<a href="/user/nutrition/recettes/{recipe.id}" class="recipe-link">
+					<div class="recipe-icon"><div style="width:10px;height:10px;border:1.5px solid var(--g);opacity:.7"></div></div>
+					<div class="recipe-body">
+						<div class="recipe-name">{recipe.name}</div>
+						<div class="recipe-meta">
+							{categoryLabels[recipe.category] ?? recipe.category} • {recipeTimeLabel(recipe)}
+						</div>
 					</div>
-				</div>
+				</a>
 				<form
 					method="POST"
 					action="?/toggleFavorite"
@@ -175,9 +177,19 @@
 	.recipe-item {
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		padding: 11px 18px;
+		gap: 0;
 		border-bottom: 1px solid var(--br);
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.recipe-link {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 11px 0 11px 18px;
+		text-decoration: none;
+		color: inherit;
 		-webkit-tap-highlight-color: transparent;
 	}
 

@@ -57,6 +57,74 @@
 	let stepDir = $state<1 | -1>(1);
 	const progress = $derived(((currentStep - 1) / (TOTAL_STEPS - 1)) * 100);
 
+	const requiredPhotoFields = [
+		{ field: 'frontUrl', label: 'Face' },
+		{ field: 'sideUrl', label: 'Profil' },
+		{ field: 'backUrl', label: 'Dos' }
+	] as const;
+
+	const requiredMorphologyFields = [
+		{ field: 'age', label: 'Âge' },
+		{ field: 'heightCm', label: 'Taille' },
+		{ field: 'weightKg', label: 'Poids' },
+		{ field: 'bodyFatPercent', label: 'Masse grasse' },
+		{ field: 'waistCm', label: 'Tour de taille' },
+		{ field: 'chestCm', label: 'Tour de torse' },
+		{ field: 'armCm', label: 'Tour de bras' }
+	] as const;
+
+	type BlockingValidationIssue = {
+		step: number;
+		message: string;
+	};
+
+	function isBlank(value: unknown) {
+		return value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+	}
+
+	function isMissingOrInvalidNumber(value: unknown) {
+		if (isBlank(value)) return true;
+
+		const numberValue = typeof value === 'number' ? value : Number(value);
+		return !Number.isFinite(numberValue) || numberValue <= 0;
+	}
+
+	function getBlockingValidationIssue(): BlockingValidationIssue | null {
+		const d = $measurementData;
+		const missingPhotos = requiredPhotoFields
+			.filter(({ field }) => isBlank(d[field]))
+			.map(({ label }) => label);
+
+		if (missingPhotos.length > 0) {
+			return {
+				step: 3,
+				message: `Photos obligatoires manquantes : ${missingPhotos.join(', ')}. Merci de les ajouter avant d'enregistrer.`
+			};
+		}
+
+		const invalidMorphologyFields = requiredMorphologyFields
+			.filter(({ field }) => isMissingOrInvalidNumber(d[field]))
+			.map(({ label }) => label);
+
+		if (invalidMorphologyFields.length > 0) {
+			return {
+				step: 5,
+				message: `Champs de morphologie manquants ou invalides : ${invalidMorphologyFields.join(', ')}. Merci de les renseigner avant d'enregistrer.`
+			};
+		}
+
+		return null;
+	}
+
+	function handleSubmit(event: SubmitEvent) {
+		const issue = getBlockingValidationIssue();
+		if (!issue) return;
+
+		event.preventDefault();
+		toast.error(issue.message);
+		goToStep(issue.step);
+	}
+
 	function next() {
 		if (currentStep === 5) {
 			const d = $measurementData;
@@ -154,7 +222,13 @@
 	</div>
 
 	{#if activeTab === 'wizard'}
-		<form method="POST" action="?/save" use:measurementEnhance class="space-y-4 sm:space-y-6">
+		<form
+			method="POST"
+			action="?/save"
+			use:measurementEnhance
+			onsubmit={handleSubmit}
+			class="space-y-4 sm:space-y-6"
+		>
 			<div class="overflow-hidden rounded-lg bg-black">
 				{#key currentStep}
 					<div in:wizardStepIn={{ stepDir }} out:wizardStepOut={{ stepDir }} class="p-4 sm:p-6">

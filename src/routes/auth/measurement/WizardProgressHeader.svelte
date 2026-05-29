@@ -2,12 +2,14 @@
 	let {
 		currentStep,
 		TOTAL_STEPS,
-		stepLabels
+		stepLabels,
+		onstepselect
 	}: {
 		currentStep: number;
 		TOTAL_STEPS: number;
 		progress?: number;
 		stepLabels: string[];
+		onstepselect?: (step: number) => void;
 	} = $props();
 
 	const n = $derived(TOTAL_STEPS);
@@ -25,7 +27,13 @@
 			{@const stepNum = i + 1}
 			{@const isDone = stepNum < currentStep}
 			{@const isActive = stepNum === currentStep}
-			<div class="timeline-step">
+			<button
+				type="button"
+				class="timeline-step"
+				aria-current={isActive ? 'step' : undefined}
+				aria-label={`Aller à l'étape ${stepNum}: ${label}`}
+				onclick={() => onstepselect?.(stepNum)}
+			>
 				<div class="timeline-dot" class:dot-done={isDone} class:dot-active={isActive}>
 					{#if isDone}
 						<svg viewBox="0 0 12 12" width="9" height="9" aria-hidden="true">
@@ -34,7 +42,7 @@
 					{/if}
 				</div>
 				<span class="timeline-label" class:label-active={isActive} class:label-done={isDone}>{label}</span>
-			</div>
+			</button>
 		{/each}
 	</div>
 </div>
@@ -82,6 +90,20 @@
 		position: relative;
 		z-index: 2;
 		gap: 0.3rem;
+		appearance: none;
+		background: transparent;
+		border: 0;
+		color: inherit;
+		cursor: pointer;
+		font: inherit;
+		padding: 0;
+		text-align: center;
+	}
+
+	.timeline-step:focus-visible {
+		outline: 2px solid #c9a84c;
+		outline-offset: 0.35rem;
+		border-radius: 0.75rem;
 	}
 
 	.timeline-dot {

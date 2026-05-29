@@ -71,11 +71,11 @@ export const load = async (event: RequestEvent) => {
 		getProgramOfferEntitlements(event.locals.user.id)
 	]);
 
-	// Retour Stripe : repartir sur le wizard measurement pour afficher les vidéos d'onboarding.
+	// Retour Stripe : revenir au tableau d'onboarding.
 	if (success) {
 		const { role } = event.locals.user;
 		const isAdmin = role === 'ADMIN';
-		const redirectTo = '/auth/measurement?new=1';
+		const redirectTo = '/auth/';
 
 		if (hasMeasurements && (hasValidPayment || isAdmin)) {
 			const dispatchMode = await dispatchProgramGeneration(event, () =>

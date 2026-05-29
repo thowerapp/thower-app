@@ -86,6 +86,13 @@
 		}
 	}
 
+	function goToStep(step: number) {
+		if (step < 1 || step > TOTAL_STEPS) return;
+
+		stepDir = step >= currentStep ? 1 : -1;
+		currentStep = step;
+	}
+
 	const stepLabels = [
 		'Présentation 1',
 		'Présentation 2',
@@ -200,7 +207,7 @@
 				{/key}
 			</div>
 
-			<WizardProgressHeader {currentStep} {TOTAL_STEPS} {stepLabels} />
+			<WizardProgressHeader {currentStep} {TOTAL_STEPS} {stepLabels} onstepselect={goToStep} />
 
 			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-between sm:items-center mt-4 sm:mt-6">
 				{#if currentStep > 1}

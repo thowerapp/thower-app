@@ -19,7 +19,6 @@ import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-gener
 import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
 import { programGenTrace } from '$lib/server/program-generation/programGenerationLog';
 import { syncRecentPaidCheckoutSessionsForUser } from '$lib/server/stripe/reconcileCheckoutSession';
-import { checkAccess } from '$lib/server/access';
 import { logPaymentStatus, onboardingTrace } from '$lib/server/onboarding/onboardingLog';
 import type { PhotoAngle } from '@prisma/client';
 
@@ -79,7 +78,30 @@ export const load = async (event: RequestEvent) => {
 		getBodyMeasurementsByUserId(event.locals.user.id)
 	]);
 
-	checkAccess(event.locals);
+	const userId = event.locals.user.id;
+	const isAdmin = event.locals.user.role === 'ADMIN';
+	const paymentBeforeLoad = await logPaymentStatus(userId, 'measurement', 'measurement_load');
+	let hasValidPayment = paymentBeforeLoad.hasValidPayment;
+	let syncedFromStripe = false;
+
+	if (!hasValidPayment && !isAdmin) {
+		hasValidPayment = await syncRecentPaidCheckoutSessionsForUser(userId);
+		syncedFromStripe = hasValidPayment;
+		if (syncedFromStripe) {
+			await logPaymentStatus(userId, 'measurement', 'after_stripe_sync_load');
+		}
+	}
+
+	if (!hasValidPayment && !isAdmin) {
+		onboardingTrace('measurement_load', {
+			userId,
+			source: 'measurement',
+			outcome: 'redirect_subscription',
+			reason: 'no_valid_payment_after_sync',
+			redirectTo: '/auth/subscription'
+		});
+		throw redirect(302, '/auth/subscription');
+	}
 
 	const lastBody: BodyMeasurementSnapshot | null = bodyMeasurements[0] ?? null;
 
@@ -136,15 +158,13 @@ export const load = async (event: RequestEvent) => {
 		createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt
 	}));
 
-	const userId = event.locals.user.id;
-	const paymentBeforeLoad = await logPaymentStatus(userId, 'measurement', 'measurement_load');
-
 	onboardingTrace('measurement_load', {
 		userId,
 		source: 'measurement',
 		measurementCount: bodyMeasurements.length,
 		hasWellBeing: !!(profile as { stressLevel?: number | null } | null)?.stressLevel,
-		hasValidPayment: paymentBeforeLoad.hasValidPayment
+		hasValidPayment,
+		syncedFromStripe
 	});
 
 	return {

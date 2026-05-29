@@ -19,7 +19,7 @@ import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-gener
 import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
 import { programGenTrace } from '$lib/server/program-generation/programGenerationLog';
 import { syncRecentPaidCheckoutSessionsForUser } from '$lib/server/stripe/reconcileCheckoutSession';
-import { checkWellBeingCompleted } from '$lib/server/access';
+import { checkAccess } from '$lib/server/access';
 import { logPaymentStatus, onboardingTrace } from '$lib/server/onboarding/onboardingLog';
 import type { PhotoAngle } from '@prisma/client';
 
@@ -79,8 +79,7 @@ export const load = async (event: RequestEvent) => {
 		getBodyMeasurementsByUserId(event.locals.user.id)
 	]);
 
-	// Check bien-être complété (redirige vers /auth/well-being si manquant)
-	checkWellBeingCompleted(event.locals, profile);
+	checkAccess(event.locals);
 
 	const lastBody: BodyMeasurementSnapshot | null = bodyMeasurements[0] ?? null;
 

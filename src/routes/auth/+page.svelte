@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import * as THREE from 'three';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import * as Card from '$shadcn/card';
 	import { Button } from '$shadcn/button';
 	import { toast } from 'svelte-sonner';
@@ -76,6 +77,8 @@
 			: null
 	);
 	const isGoogleUser = $derived(!!data?.user?.googleId);
+	const measurementOnboardingHref = resolve('/auth/measurement?new=1');
+	const measurementHref = resolve('/auth/measurement');
 
 	$effect(() => {
 		if (typeof window === 'undefined') return;
@@ -229,16 +232,16 @@
 					<span class="step-label">Paiement</span>
 				</a>
 				<div class="step-line {hasValidPayment ? 'step-line-done' : ''}"></div>
-				<a href="/auth/photos" class="step {hasPhotos ? 'step-done' : hasValidPayment ? 'step-active' : 'step-pending'}">
+				<a href={measurementOnboardingHref} class="step {hasPhotos ? 'step-done' : hasValidPayment ? 'step-active' : 'step-pending'}">
 					<span class="step-dot">
 						{#if hasPhotos}
 							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
 						{:else}2{/if}
 					</span>
-					<span class="step-label">Photos</span>
+					<span class="step-label">Vidéos & photos</span>
 				</a>
 				<div class="step-line {hasPhotos ? 'step-line-done' : ''}"></div>
-				<a href="/auth/measurement" class="step {hasMeasurements ? 'step-done' : hasValidPayment && hasPhotos ? 'step-active' : 'step-pending'}">
+				<a href={measurementHref} class="step {hasMeasurements ? 'step-done' : hasValidPayment && hasPhotos ? 'step-active' : 'step-pending'}">
 					<span class="step-dot">
 						{#if hasMeasurements}
 							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
@@ -277,22 +280,22 @@
 					</div>
 				</div>
 
-				<!-- Photos — Étape 2, visible si paiement OK -->
+				<!-- Vidéos + photos — Étape 2, visible si paiement OK -->
 				{#if hasValidPayment}
 					<div class="card {!hasPhotos ? 'card-alert' : ''}">
 						<div class="card-head">
 							<span class="card-icon"><UserCircle size={15} /></span>
 							<div>
 								<div class="card-title">
-									Photos de référence
+									Vidéos de présentation
 									{#if !hasPhotos}<span class="badge-alert">Obligatoire</span>{/if}
 								</div>
-								<div class="card-desc">Face, profil et dos pour suivre votre évolution</div>
+								<div class="card-desc">À regarder avant d'arriver aux photos de référence</div>
 							</div>
 						</div>
 						<div class="card-foot">
-							<a href="/auth/photos" class="btn {!hasPhotos ? 'btn-gold' : 'btn-outline'} w-full">
-								{!hasPhotos ? 'Ajouter mes photos' : 'Modifier'}
+							<a href={measurementOnboardingHref} class="btn {!hasPhotos ? 'btn-gold' : 'btn-outline'} w-full">
+								{!hasPhotos ? 'Commencer les vidéos' : 'Revoir le parcours'}
 							</a>
 						</div>
 					</div>
@@ -312,7 +315,7 @@
 							</div>
 						</div>
 						<div class="card-foot">
-							<a href="/auth/measurement" class="btn {!hasMeasurements ? 'btn-gold' : 'btn-outline'} w-full">
+							<a href={measurementHref} class="btn {!hasMeasurements ? 'btn-gold' : 'btn-outline'} w-full">
 								{!hasMeasurements ? 'Remplir mon profil' : 'Modifier'}
 							</a>
 						</div>

@@ -43,17 +43,22 @@
 		if ($measurementMessage) toast.success($measurementMessage);
 	});
 
-	const INTRO_VIDEO_UID = '';
+	// TODO: remplacer par l'UUID Cloudflare Stream quand la vidéo sera disponible.
+	const INTRO_VIDEO_1_UID = 'thower-method-placeholder-uuid';
+	const INTRO_VIDEO_2_UID = '48445c089ede375420a5c60225c92716';
 	const introVideoEmbedUrl = $derived(
-		INTRO_VIDEO_UID ? `https://iframe.cloudflarestream.com/${INTRO_VIDEO_UID}` : null
+		INTRO_VIDEO_1_UID ? `https://iframe.cloudflarestream.com/${INTRO_VIDEO_1_UID}` : null
 	);
-	const TOTAL_STEPS = 9;
+	const secondIntroVideoEmbedUrl = $derived(
+		INTRO_VIDEO_2_UID ? `https://iframe.cloudflarestream.com/${INTRO_VIDEO_2_UID}` : null
+	);
+	const TOTAL_STEPS = 10;
 	let currentStep = $state(1);
 	let stepDir = $state<1 | -1>(1);
 	const progress = $derived(((currentStep - 1) / (TOTAL_STEPS - 1)) * 100);
 
 	function next() {
-		if (currentStep === 4) {
+		if (currentStep === 5) {
 			const d = $measurementData;
 			if (
 				!d.age ||
@@ -82,7 +87,8 @@
 	}
 
 	const stepLabels = [
-		'Présentation',
+		'Présentation 1',
+		'Présentation 2',
 		'Photos',
 		'Bienvenue',
 		'Morphologie',
@@ -146,26 +152,48 @@
 				{#key currentStep}
 					<div in:wizardStepIn={{ stepDir }} out:wizardStepOut={{ stepDir }} class="p-4 sm:p-6">
 						{#if currentStep === 1}
-							<StepVideoPresentation videoUrl={introVideoEmbedUrl ?? ''} onnext={next} />
+							<StepVideoPresentation
+								videoUrl={introVideoEmbedUrl ?? ''}
+								eyebrow="Étape 1 sur 2"
+								title="Présentation de la Méthode Thower"
+								copy="Découvre les principes de la Méthode Thower avant de préparer tes exercices et tes photos de référence."
+								buttonLabel="Voir la deuxième vidéo"
+								placeholder="Première vidéo de présentation à configurer avec l'UUID Cloudflare Stream."
+								iframeTitle="Première vidéo de présentation Thower"
+								onnext={next}
+							/>
 						{:else if currentStep === 2}
-							<StepPhotosReference formData={measurementData} onnext={next} />
+							<StepVideoPresentation
+								videoUrl={secondIntroVideoEmbedUrl ?? ''}
+								eyebrow="Étape 2 sur 2"
+								title="Préparer tes exercices et tes photos"
+								copy="Regarde cette vidéo pour savoir comment te préparer aux exercices et réaliser tes photos de référence dans de bonnes conditions."
+								materialDescription="Prévois ce kit d'élastiques pour réaliser les exercices dans de bonnes conditions."
+								materialUrl="https://www.decathlon.fr/p/lot-de-3-elastiques-de-musculation-10-20-30-kg-avec-3-mois-offerts-freeletics/_/R-p-375268?mc=8972196&c=vert_orange_jaune"
+								materialLinkLabel="Voir le kit Decathlon"
+								buttonLabel="Passer aux photos"
+								iframeTitle="Deuxième vidéo de présentation Thower"
+								onnext={next}
+							/>
 						{:else if currentStep === 3}
+							<StepPhotosReference formData={measurementData} onnext={next} />
+						{:else if currentStep === 4}
 							<StepBienvenue
 								bodyMeasurements={data.bodyMeasurements}
 								{stepLabels}
 								onnext={next}
 							/>
-						{:else if currentStep === 4}
-							<StepMorphologie form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 5}
-							<StepLifestyle form={measurementForm} formData={measurementData} />
+							<StepMorphologie form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 6}
-							<StepSante form={measurementForm} formData={measurementData} />
+							<StepLifestyle form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 7}
-							<StepObjectifs form={measurementForm} formData={measurementData} />
+							<StepSante form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 8}
-							<StepAlimentation form={measurementForm} formData={measurementData} />
+							<StepObjectifs form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 9}
+							<StepAlimentation form={measurementForm} formData={measurementData} />
+						{:else if currentStep === 10}
 							<StepSportContexte form={measurementForm} formData={measurementData} />
 						{/if}
 					</div>
@@ -190,7 +218,7 @@
 					<div class="hidden sm:block"></div>
 				{/if}
 
-				{#if currentStep < TOTAL_STEPS && currentStep > 3}
+				{#if currentStep < TOTAL_STEPS && currentStep > 4}
 					<Button
 						type="button"
 						onclick={next}

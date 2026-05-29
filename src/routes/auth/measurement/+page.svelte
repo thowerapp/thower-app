@@ -10,6 +10,8 @@
 	import { page } from '$app/stores';
 
 	import WizardProgressHeader from './WizardProgressHeader.svelte';
+	import StepVideoPresentation from './StepVideoPresentation.svelte';
+	import StepPhotosReference from './StepPhotosReference.svelte';
 	import StepBienvenue from './StepBienvenue.svelte';
 	import StepMorphologie from './StepMorphologie.svelte';
 	import StepLifestyle from './StepLifestyle.svelte';
@@ -41,15 +43,27 @@
 		if ($measurementMessage) toast.success($measurementMessage);
 	});
 
-	const TOTAL_STEPS = 7;
+	const INTRO_VIDEO_UID = '';
+	const introVideoEmbedUrl = $derived(
+		INTRO_VIDEO_UID ? `https://iframe.cloudflarestream.com/${INTRO_VIDEO_UID}` : null
+	);
+	const TOTAL_STEPS = 9;
 	let currentStep = $state(1);
 	let stepDir = $state<1 | -1>(1);
 	const progress = $derived(((currentStep - 1) / (TOTAL_STEPS - 1)) * 100);
 
 	function next() {
-		if (currentStep === 2) {
+		if (currentStep === 4) {
 			const d = $measurementData;
-			if (!d.age || !d.heightCm || !d.weightKg || !d.waistCm || !d.chestCm || !d.armCm || !d.bodyFatPercent) {
+			if (
+				!d.age ||
+				!d.heightCm ||
+				!d.weightKg ||
+				!d.waistCm ||
+				!d.chestCm ||
+				!d.armCm ||
+				!d.bodyFatPercent
+			) {
 				toast.error('Merci de remplir toutes les mensurations obligatoires avant de continuer.');
 				return;
 			}
@@ -68,6 +82,8 @@
 	}
 
 	const stepLabels = [
+		'Présentation',
+		'Photos',
 		'Bienvenue',
 		'Morphologie',
 		'Lifestyle',
@@ -126,26 +142,30 @@
 
 	{#if activeTab === 'wizard'}
 		<form method="POST" action="?/save" use:measurementEnhance class="space-y-4 sm:space-y-6">
-		<div class="overflow-hidden rounded-lg bg-black">
+			<div class="overflow-hidden rounded-lg bg-black">
 				{#key currentStep}
 					<div in:wizardStepIn={{ stepDir }} out:wizardStepOut={{ stepDir }} class="p-4 sm:p-6">
 						{#if currentStep === 1}
+							<StepVideoPresentation videoUrl={introVideoEmbedUrl ?? ''} onnext={next} />
+						{:else if currentStep === 2}
+							<StepPhotosReference formData={measurementData} onnext={next} />
+						{:else if currentStep === 3}
 							<StepBienvenue
 								bodyMeasurements={data.bodyMeasurements}
 								{stepLabels}
 								onnext={next}
 							/>
-						{:else if currentStep === 2}
-							<StepMorphologie form={measurementForm} formData={measurementData} />
-						{:else if currentStep === 3}
-							<StepLifestyle form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 4}
-							<StepSante form={measurementForm} formData={measurementData} />
+							<StepMorphologie form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 5}
-							<StepObjectifs form={measurementForm} formData={measurementData} />
+							<StepLifestyle form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 6}
-							<StepAlimentation form={measurementForm} formData={measurementData} />
+							<StepSante form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 7}
+							<StepObjectifs form={measurementForm} formData={measurementData} />
+						{:else if currentStep === 8}
+							<StepAlimentation form={measurementForm} formData={measurementData} />
+						{:else if currentStep === 9}
 							<StepSportContexte form={measurementForm} formData={measurementData} />
 						{/if}
 					</div>
@@ -170,7 +190,7 @@
 					<div class="hidden sm:block"></div>
 				{/if}
 
-				{#if currentStep < TOTAL_STEPS && currentStep > 1}
+				{#if currentStep < TOTAL_STEPS && currentStep > 3}
 					<Button
 						type="button"
 						onclick={next}

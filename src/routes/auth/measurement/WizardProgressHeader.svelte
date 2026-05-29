@@ -10,11 +10,10 @@
 		stepLabels: string[];
 	} = $props();
 
-	const formSteps = $derived(stepLabels.slice(1));
-	const n = $derived(formSteps.length);
+	const n = $derived(TOTAL_STEPS);
 	const trackStart = $derived(n > 0 ? 50 / n : 0);
 	const fillWidth = $derived(
-		n > 1 ? Math.max(0, ((currentStep - 2) / (n - 1)) * (100 - 100 / n)) : 0
+		n > 1 ? Math.max(0, ((currentStep - 1) / (n - 1)) * (100 - 100 / n)) : 0
 	);
 </script>
 
@@ -22,8 +21,8 @@
 	<div class="timeline">
 		<div class="timeline-track" style="left: {trackStart}%; right: {trackStart}%;"></div>
 		<div class="timeline-fill" style="left: {trackStart}%; width: {fillWidth}%;"></div>
-		{#each formSteps as label, i}
-			{@const stepNum = i + 2}
+		{#each stepLabels as label, i (label)}
+			{@const stepNum = i + 1}
 			{@const isDone = stepNum < currentStep}
 			{@const isActive = stepNum === currentStep}
 			<div class="timeline-step">

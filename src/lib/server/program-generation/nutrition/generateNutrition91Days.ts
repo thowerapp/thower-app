@@ -1,5 +1,5 @@
 import { prisma } from '$lib/server';
-import type { ActivityLevel, MealPosition, Prisma, RecipeCategory } from '@prisma/client';
+import type { MealPosition, Prisma, RecipeCategory } from '@prisma/client';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { dailyProteinTargetG, targetCaloriesPerDay } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
@@ -14,11 +14,16 @@ const SCALE_MAX = 2.5;
 const SCALE_PROTEIN_TOLERANCE = 0.25;
 
 /**
- * Répartition équilibrée du budget alimentaire pour chaque créneau repas.
- * Applique les mêmes fractions aux calories, protéines ET fibres.
- * - Distribution planning: petit-déj 30%, déj. 35%, dîner 35%
+ * Fraction du budget calorique journalier pour chaque créneau repas.
+ * Sans jeûne : BREAKFAST 30 %, LUNCH 35 %, DINNER 35 %.
+ * Avec jeûne : BREAKFAST reste en BDD à 30 % (masqué côté UI) ; LUNCH et DINNER
+ * absorbent chacun 50 % du budget visible.
  */
-function mealBudgetFractionForPosition(position: MealPosition): number {
+function mealBudgetFractionForPosition(position: MealPosition, intermittentFasting: boolean): number {
+	if (intermittentFasting) {
+		if (position === 'BREAKFAST') return 0.3;
+		return 0.5; // LUNCH et DINNER
+	}
 	switch (position) {
 		case 'BREAKFAST':
 			return 0.3;
@@ -40,7 +45,7 @@ type NutritionGenProfileRow = {
 	breakfastEnabled: boolean;
 	intermittentFastingMorning: boolean | null;
 	allergens: string[];
-	activityLevel: ActivityLevel | null;
+	activityLevel: string | null;
 	bodyFatPercent: number | null;
 	weightLossGoalKg: number | null;
 	breadDaily: boolean;
@@ -254,9 +259,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		weightKg != null && weightKg > 0
 			? targetCaloriesPerDay({
 					weightKg,
-					bodyFatPercent: profile?.bodyFatPercent,
-					activityLevel: profile?.activityLevel as ActivityLevel | null | undefined,
-					weightLossGoalKg: profile?.weightLossGoalKg
+					bodyFatPercent: profile?.bodyFatPercent
 				})
 			: null;
 
@@ -345,7 +348,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 	programGenLog('N7/ Boucle jours — positions repas', {
 		userId,
 		positions,
-		budgetFractions: '30% / 35% / 35% (PD / déj. / dîner)',
+		budgetFractions: intermittentFastingDefault ? '30% PD (masqué) / 50% déj. / 50% dîner' : '30% / 35% / 35% (PD / déj. / dîner)',
 		macrosDistributed: 'Calories, Protéines, Fibres répartis proportionnellement',
 		recipeSelection: 'pseudo-aléatoire (graine userId+jour+créneau, Mulberry32)'
 	});
@@ -397,7 +400,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		const scalesForLog: number[] = [];
 
 		for (const { position, recipe: firstRecipe } of toCreate) {
-			const frac = mealBudgetFractionForPosition(position);
+			const frac = mealBudgetFractionForPosition(position, intermittentFastingDefault);
 			const pool = position === 'BREAKFAST' ? breakfastRecipes : mealRecipes;
 			const seed = catalogPickSeed(userId, dayIndex, position, toCreate.findIndex((t) => t.position === position));
 			const targetSlotProtein = targetProteinG != null ? targetProteinG * frac : null;

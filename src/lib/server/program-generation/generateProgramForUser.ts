@@ -6,6 +6,7 @@ import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/generateFromPlanning';
 import { logProgramGenSummary } from './logProgramGenSummary';
 import { programGenLog, programGenTrace, programGenWarn, type ProgramGenSource } from './programGenerationLog';
+import { rescaleFutureMeals } from '$lib/server/nutrition/rescaleFutureMeals';
 
 /** Contourne un UserSelect Prisma parfois désynchronisé dans l’IDE (champ absent des types générés en cache). */
 type UserNutritionAllocatedRow = { nutritionDaysAllocated: number };
@@ -153,7 +154,12 @@ export async function generateProgramForUser(
 
 		if (await isNutritionPlanComplete(userId, targetDays)) {
 			programGenTrace('generate_skip_complete', { userId, source, targetDays });
-			programGenLog('5/ Planning déjà complet — vérification liste de courses', { userId, targetDays });
+			programGenLog('5/ Planning déjà complet — recalage portions + vérification liste de courses', { userId, targetDays });
+
+			// Recalage des portions futures sur le nouveau TDEE (nouveau poids / % MG).
+			programGenLog('5a/ Rescale repas futurs', { userId });
+			await rescaleFutureMeals(userId);
+
 			// Le plan est complet mais la liste de courses n'existe peut-être pas encore
 			// (cas : programme généré avant l'ajout de la fonctionnalité).
 			const existingList = await (prisma as any).shoppingList?.findFirst({ where: { userId } });
@@ -170,6 +176,10 @@ export async function generateProgramForUser(
 			}
 			return;
 		}
+
+		// Recalage des portions futures sur le nouveau TDEE avant de compléter les jours manquants.
+		programGenLog('5d/ Rescale repas futurs (plan partiel)', { userId });
+		await rescaleFutureMeals(userId);
 
 		programGenLog('6/ Appel generateNutritionDaysForUser', { userId, targetDays });
 		await generateNutritionDaysForUser(userId, targetDays);

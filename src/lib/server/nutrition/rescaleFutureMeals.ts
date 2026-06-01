@@ -34,6 +34,7 @@ export async function rescaleFutureMeals(userId: string): Promise<void> {
 			where: { userId },
 			select: {
 				bodyFatPercent: true,
+				activityLevel: true,
 				breadDaily: true,
 				breadGramsPerDay: true,
 				breadType: true,
@@ -54,7 +55,7 @@ export async function rescaleFutureMeals(userId: string): Promise<void> {
 	const weightKg = lastMeasure?.weightKg ?? null;
 	if (!weightKg || !profile?.bodyFatPercent) return;
 
-	const newTargetKcal = targetCaloriesPerDay({ weightKg, bodyFatPercent: profile.bodyFatPercent });
+	const newTargetKcal = targetCaloriesPerDay({ weightKg, bodyFatPercent: profile.bodyFatPercent, activityLevel: profile.activityLevel as import('@prisma/client').ActivityLevel | null });
 	if (!newTargetKcal) return;
 
 	let breadKcal = 0;

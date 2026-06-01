@@ -47,12 +47,13 @@ export function tdeeFromProfile(params: {
 }
 
 /**
- * Calories cibles journalières = MB × coeff masse grasse.
+ * Calories cibles journalières = MB × activityCoefficient × bodyFatCoefficient.
  * Retourne null si données insuffisantes pour un calcul fiable.
  */
 export function targetCaloriesPerDay(params: {
 	weightKg: number;
 	bodyFatPercent: number | null | undefined;
+	activityLevel?: ActivityLevel | null;
 }): number | null {
 	if (
 		params.weightKg <= 0 ||
@@ -64,7 +65,8 @@ export function targetCaloriesPerDay(params: {
 	}
 	const mm = leanMassKg(params.weightKg, params.bodyFatPercent);
 	const mb = metabolicBasalKcalCrossed(mm);
-	return Math.round(Math.max(mb * bodyFatCoefficient(params.bodyFatPercent), MIN_TARGET_KCAL));
+	const ac = activityCoefficient(params.activityLevel);
+	return Math.round(Math.max(mb * ac * bodyFatCoefficient(params.bodyFatPercent), MIN_TARGET_KCAL));
 }
 
 /** Besoins protéiques (g/j) : masse maigre × 1,8. */

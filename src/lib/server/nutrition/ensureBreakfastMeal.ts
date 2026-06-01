@@ -44,6 +44,7 @@ export type BreakfastProfileInput = {
 	otherAllergens: string | null;
 	disgustingFoods: string | null;
 	bodyFatPercent: number | null;
+	activityLevel: string | null;
 	breadDaily: boolean;
 	breadGramsPerDay: number | null;
 	breadType: string | null;
@@ -179,7 +180,8 @@ function computeMealBudget(profile: BreakfastProfileInput, weightKg: number | nu
 		weightKg != null && weightKg > 0
 			? targetCaloriesPerDay({
 					weightKg,
-					bodyFatPercent: profile.bodyFatPercent
+					bodyFatPercent: profile.bodyFatPercent,
+					activityLevel: profile.activityLevel as import('@prisma/client').ActivityLevel | null
 				})
 			: null;
 
@@ -228,6 +230,7 @@ export async function loadBreakfastBackfillContext(userId: string): Promise<Brea
 				otherAllergens: true,
 				disgustingFoods: true,
 				bodyFatPercent: true,
+				activityLevel: true,
 				breadDaily: true,
 				breadGramsPerDay: true,
 				breadType: true

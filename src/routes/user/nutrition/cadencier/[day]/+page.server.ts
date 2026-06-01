@@ -135,6 +135,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				otherAllergens: true,
 				disgustingFoods: true,
 				bodyFatPercent: true,
+				activityLevel: true,
 				breadDaily: true,
 				breadGramsPerDay: true,
 				breadType: true,
@@ -178,7 +179,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		weightKg != null && weightKg > 0
 			? targetCaloriesPerDay({
 					weightKg,
-					bodyFatPercent: profile?.bodyFatPercent
+					bodyFatPercent: profile?.bodyFatPercent,
+					activityLevel: profile?.activityLevel as import('@prisma/client').ActivityLevel | null
 				})
 			: null;
 

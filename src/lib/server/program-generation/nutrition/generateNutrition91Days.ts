@@ -259,7 +259,8 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		weightKg != null && weightKg > 0
 			? targetCaloriesPerDay({
 					weightKg,
-					bodyFatPercent: profile?.bodyFatPercent
+					bodyFatPercent: profile?.bodyFatPercent,
+					activityLevel: profile?.activityLevel as import('@prisma/client').ActivityLevel | null
 				})
 			: null;
 

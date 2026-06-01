@@ -119,6 +119,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		where: { userId },
 		select: {
 			bodyFatPercent: true,
+			activityLevel: true,
 			breadDaily: true,
 			breadGramsPerDay: true,
 			breadType: true
@@ -139,7 +140,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		weightKg != null && weightKg > 0
 			? targetCaloriesPerDay({
 					weightKg,
-					bodyFatPercent: profile?.bodyFatPercent
+					bodyFatPercent: profile?.bodyFatPercent,
+					activityLevel: profile?.activityLevel as import('@prisma/client').ActivityLevel | null
 				})
 			: null;
 	const mealBudgetKcal = targetKcal != null ? Math.max(0, targetKcal - breadKcal) : null;

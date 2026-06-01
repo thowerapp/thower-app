@@ -317,15 +317,13 @@
         Quand la vidéo time-lapse est prête :
         <video src="/videos/timelapse.mp4" autoplay loop muted playsinline></video>
       -->
-      <div class="video-ph teal-ph">
-        <div class="video-ph-icon">
-          <svg viewBox="0 0 64 64" fill="none" width="56" height="56">
-            <rect x="4" y="12" width="56" height="40" rx="3" stroke="#3ab8b8" stroke-width="1" opacity="0.5"/>
-            <path d="M22 24 L44 32 L22 40 Z" fill="#3ab8b8" opacity="0.75"/>
-          </svg>
-        </div>
-        <p class="video-ph-label teal-label">Vidéo time-lapse — à venir</p>
-      </div>
+      <iframe
+        src="https://iframe.cloudflarestream.com/0ff341bca0feaaec9d558e34ad964ba7"
+        title="Vidéo time-lapse Thower"
+        loading="lazy"
+        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+        allowfullscreen
+      ></iframe>
     </div>
     <button class="nav-btn outline proof-cta" onclick={scrollToForm}>JE VEUX CES RÉSULTATS</button>
   </section>

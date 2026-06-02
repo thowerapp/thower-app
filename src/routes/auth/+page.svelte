@@ -185,169 +185,121 @@
 	<!-- Contenu principal -->
 	<main class="page-main">
 
-		<!-- ── PROCÉDURE (clients, y compris OAuth, hors admin) ── -->
-		{#if data.user.role !== 'ADMIN'}
+		<!-- ── ACCÈS À L'APPLICATION (tous les rôles) ── -->
 		<section class="section">
 			<h2 class="section-title">
 				<Smartphone size={16} />
 				Accès à l'application
 			</h2>
 
-			<!-- ✅ Application prête d'emploi -->
-			{#if false}
-				<div class="card" style="border-color: #4ade80; background: rgba(74, 222, 128, 0.05);">
-					<div class="card-head">
-						<span class="card-icon" style="color: #4ade80;">
-							<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-							</svg>
+			<!-- Stepper + onboarding — clients uniquement -->
+			{#if data.user.role !== 'ADMIN'}
+				<!-- Stepper -->
+				<div class="stepper">
+					<a href="/auth/subscription" class="step {hasValidPayment ? 'step-done' : 'step-active'}">
+						<span class="step-dot">
+							{#if hasValidPayment}
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+							{:else}1{/if}
 						</span>
-						<div>
-							<div class="card-title" style="color: #4ade80;">Accès à l'application déverrouillé</div>
-							<div class="card-desc">Tu as complété tous les étapes. Tu peux maintenant commencer ton accompagnement.</div>
-						</div>
-					</div>
-					<div class="card-foot">
-						<a href="/user/" class="btn" style="background: #4ade80; color: black; hover: #22c55e; font-weight: bold;">
-							<LayoutDashboard size={14} />
-							Accéder à l'application
-						</a>
-					</div>
-				</div>
-			{/if}
-
-			<!-- Stepper -->
-			<div class="stepper">
-				<a href="/auth/subscription" class="step {hasValidPayment ? 'step-done' : 'step-active'}">
-					<span class="step-dot">
-						{#if hasValidPayment}
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-						{:else}1{/if}
+						<span class="step-label">Paiement</span>
+					</a>
+					<div class="step-line {hasValidPayment ? 'step-line-done' : ''}"></div>
+					<a href="/auth/measurement" class="step {hasMeasurements ? 'step-done' : hasValidPayment ? 'step-active' : 'step-pending'}">
+						<span class="step-dot">
+							{#if hasMeasurements}
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+							{:else}2{/if}
+						</span>
+						<span class="step-label">Profil physique</span>
+					</a>
+					<div class="step-line {hasMeasurements ? 'step-line-done' : ''}"></div>
+					<span class="step {hasMeasurements ? 'step-active' : 'step-pending'}">
+						<span class="step-dot">3</span>
+						<span class="step-label">Application</span>
 					</span>
-					<span class="step-label">Paiement</span>
-				</a>
-				<div class="step-line {hasValidPayment ? 'step-line-done' : ''}"></div>
-				<a href="/auth/measurement" class="step {hasMeasurements ? 'step-done' : hasValidPayment ? 'step-active' : 'step-pending'}">
-					<span class="step-dot">
-						{#if hasMeasurements}
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-						{:else}2{/if}
-					</span>
-					<span class="step-label">Profil physique</span>
-				</a>
-				<div class="step-line {hasMeasurements ? 'step-line-done' : ''}"></div>
-				<span class="step {hasMeasurements ? 'step-active' : 'step-pending'}">
-					<span class="step-dot">3</span>
-					<span class="step-label">Application</span>
-				</span>
-			</div>
-
-			<div class="cards-col">
-
-				<!-- Souscription (Paiement) — Étape 1 -->
-				<div class="card">
-					<div class="card-head">
-						<span class="card-icon"><CreditCard size={15} /></span>
-						<div>
-							<div class="card-title">Souscription</div>
-							<div class="card-desc">
-								{#if hasValidPayment}
-									{subscriptionLabel ? `Valide jusqu'au ${subscriptionLabel}` : 'Accès à vie'}
-								{:else}
-									Paiement sécurisé Stripe
-								{/if}
-							</div>
-						</div>
-					</div>
-					<div class="card-foot">
-						<a href="/auth/subscription" class="btn btn-gold w-full">
-							{hasValidPayment ? 'Voir / Renouveler' : 'Procéder au paiement'}
-						</a>
-					</div>
 				</div>
 
-				<!-- Mesures (Profil) — Étape 2, visible si paiement OK -->
-				{#if hasValidPayment}
-					<div class="card {!hasMeasurements ? 'card-alert' : ''}">
+				<div class="cards-col">
+					<!-- Souscription (Paiement) — Étape 1 -->
+					<div class="card">
 						<div class="card-head">
-							<span class="card-icon"><Ruler size={15} /></span>
+							<span class="card-icon"><CreditCard size={15} /></span>
 							<div>
-								<div class="card-title">
-									Profil physique
-									{#if !hasMeasurements}<span class="badge-alert">À remplir</span>{/if}
+								<div class="card-title">Souscription</div>
+								<div class="card-desc">
+									{#if hasValidPayment}
+										{subscriptionLabel ? `Valide jusqu'au ${subscriptionLabel}` : 'Accès à vie'}
+									{:else}
+										Paiement sécurisé Stripe
+									{/if}
 								</div>
-								<div class="card-desc">Mensurations et objectifs corporels</div>
 							</div>
 						</div>
 						<div class="card-foot">
-							<a href={!hasMeasurements ? '/auth/photos' : '/auth/measurement'} class="btn {!hasMeasurements ? 'btn-gold' : 'btn-outline'} w-full">
-								{!hasMeasurements ? 'Remplir mon profil' : 'Modifier'}
+							<a href="/auth/subscription" class="btn btn-gold w-full">
+								{hasValidPayment ? 'Voir / Renouveler' : 'Procéder au paiement'}
 							</a>
 						</div>
 					</div>
-				{/if}
 
-				<!-- PWA Install — Étape 3, visible si paiement ET profil OK -->
-				{#if hasValidPayment && hasMeasurements}
-					<div class="card">
-						<div class="card-head">
-							<span class="card-icon"><Download size={15} /></span>
-							<div>
-								<div class="card-title">Installer l'application</div>
-								<div class="card-desc">Disponible sur tous vos appareils</div>
-							</div>
-						</div>
-						<div class="card-body">
-							<button type="button" class="btn btn-teal w-full" onclick={handlePwaInstall}>
-								<Download size={14} />
-								{$pwaInstallPrompt ? "Installer l'app" : "Ouvrir l'app"}
-							</button>
-							<button
-								type="button"
-								class="btn-ghost"
-								onclick={() => (pwaStepsExpanded = !pwaStepsExpanded)}
-							>
-								{#if pwaStepsExpanded}<ChevronUp size={13} />{:else}<ChevronDown size={13} />{/if}
-								Instructions selon l'appareil
-							</button>
-							{#if pwaStepsExpanded}
-								<ul class="install-steps">
-									<li><strong>Chrome / Edge (PC)</strong> — menu ⋮ → Installer l'application</li>
-									<li><strong>Chrome (Android)</strong> — menu ⋮ → Ajouter à l'écran d'accueil</li>
-									<li><strong>Safari (iPhone/iPad)</strong> — Partager → Sur l'écran d'accueil</li>
-								</ul>
-							{/if}
-						</div>
-					</div>
-
-					<!-- Notifications — visible si app complète -->
-					{#if false}
-						<div class="card">
+					<!-- Mesures (Profil) — Étape 2, visible si paiement OK -->
+					{#if hasValidPayment}
+						<div class="card {!hasMeasurements ? 'card-alert' : ''}">
 							<div class="card-head">
-								<span class="card-icon"><Bell size={15} /></span>
+								<span class="card-icon"><Ruler size={15} /></span>
 								<div>
-									<div class="card-title">Notifications</div>
-									<div class="card-desc">Rappel quotidien à 20h40</div>
+									<div class="card-title">
+										Profil physique
+										{#if !hasMeasurements}<span class="badge-alert">À remplir</span>{/if}
+									</div>
+									<div class="card-desc">Mensurations et objectifs corporels</div>
 								</div>
 							</div>
-							<div class="card-body">
-								{#if notificationPermission === 'denied'}
-									<div class="alert-box">{NOTIFICATION_DENIED_HELP}</div>
-								{/if}
-								<button type="button" class="btn btn-outline w-full" onclick={handleTestNotification}>
-									<Bell size={14} />
-									Notification de test
-								</button>
+							<div class="card-foot">
+								<a href={!hasMeasurements ? '/auth/photos' : '/auth/measurement'} class="btn {!hasMeasurements ? 'btn-gold' : 'btn-outline'} w-full">
+									{!hasMeasurements ? 'Remplir mon profil' : 'Modifier'}
+								</a>
 							</div>
 						</div>
 					{/if}
-				{/if}
+				</div>
+			{/if}
 
+			<!-- Carte install/ouvrir — toujours visible -->
+			<div class="cards-col">
+				<div class="card">
+					<div class="card-head">
+						<span class="card-icon"><Download size={15} /></span>
+						<div>
+							<div class="card-title">Installer l'application</div>
+							<div class="card-desc">Disponible sur tous vos appareils</div>
+						</div>
+					</div>
+					<div class="card-body">
+						<button type="button" class="btn btn-teal w-full" onclick={handlePwaInstall}>
+							<Download size={14} />
+							{$pwaInstallPrompt ? "Installer l'app" : "Ouvrir l'app"}
+						</button>
+						<button
+							type="button"
+							class="btn-ghost"
+							onclick={() => (pwaStepsExpanded = !pwaStepsExpanded)}
+						>
+							{#if pwaStepsExpanded}<ChevronUp size={13} />{:else}<ChevronDown size={13} />{/if}
+							Instructions selon l'appareil
+						</button>
+						{#if pwaStepsExpanded}
+							<ul class="install-steps">
+								<li><strong>Chrome / Edge (PC)</strong> — menu ⋮ → Installer l'application</li>
+								<li><strong>Chrome (Android)</strong> — menu ⋮ → Ajouter à l'écran d'accueil</li>
+								<li><strong>Safari (iPhone/iPad)</strong> — Partager → Sur l'écran d'accueil</li>
+							</ul>
+						{/if}
+					</div>
+				</div>
 			</div>
 		</section>
-
-
-		{/if}
 
 		<!-- ── MON COMPTE ── -->
 		<section class="section">

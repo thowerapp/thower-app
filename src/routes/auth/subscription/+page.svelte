@@ -92,9 +92,9 @@
 				</Card.Description>
 			</Card.Header>
 			<Card.Content>
-				<Button href="/user" class="w-full gap-2">
+				<Button href="/auth" class="w-full gap-2">
 					<LayoutDashboard class="w-4 h-4" />
-					Accéder à l'application
+					Continuer →
 				</Button>
 			</Card.Content>
 		</Card.Root>

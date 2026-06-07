@@ -5,10 +5,11 @@
  * - `[program-generation]` : détail (dev ou `PROGRAM_GENERATION_LOG=1` en prod).
  */
 
-export type ProgramGenSource = 'measurement' | 'subscription' | 'webhook' | 'internal';
+export type ProgramGenSource = 'measurement' | 'subscription' | 'webhook' | 'internal' | 'admin';
 
 export type ProgramGenStep =
 	| 'trigger'
+	| 'dispatch'
 	| 'schedule_start'
 	| 'schedule_denied'
 	| 'schedule_ok'
@@ -16,8 +17,11 @@ export type ProgramGenStep =
 	| 'generate_start'
 	| 'generate_abort'
 	| 'generate_skip_complete'
+	| 'generate_skip_no_nutrition'
 	| 'generate_done'
-	| 'generate_error';
+	| 'generate_error'
+	| 'admin_future_regen_start'
+	| 'admin_future_regen_complete';
 
 export function programGenLogEnabled(): boolean {
 	return (

@@ -89,7 +89,7 @@ export const load = async (event: PageServerLoadEvent) => {
 
 	const bodyMeasurements = await getBodyMeasurementsByUserId(userId, 1);
 	const hasMeasurements = bodyMeasurements.length > 0;
-	const [hasValidPayment, userRow, hasAnyTransaction, nutritionAgg, mealCount] = await Promise.all([
+	const [hasValidPayment, userRow, hasAnyTransaction, nutritionAgg, mealCount, onboardingPhotos] = await Promise.all([
 		getHasValidPaymentByUserId(userId),
 		prisma.user.findUnique({
 			where: { id: userId },
@@ -103,8 +103,17 @@ export const load = async (event: PageServerLoadEvent) => {
 			_max: { dayIndex: true },
 			_count: { _all: true }
 		}),
-		prisma.meal.count({ where: { nutritionDay: { userId } } })
+		prisma.meal.count({ where: { nutritionDay: { userId } } }),
+		prisma.progressPhoto.findMany({
+			where: {
+				userId,
+				month: 0,
+				angle: { in: ['FRONT', 'SIDE', 'BACK'] }
+			},
+			select: { angle: true }
+		})
 	]);
+	const hasPhotos = new Set(onboardingPhotos.map((photo) => photo.angle)).size === 3;
 
 	if (isClient) {
 		logAuth('programme nutrition (état DB)', {
@@ -126,6 +135,7 @@ export const load = async (event: PageServerLoadEvent) => {
 		userId,
 		role: event.locals.user.role,
 		hasMeasurements,
+		hasPhotos,
 		hasValidPayment,
 		hasAnyTransaction,
 		subscriptionEndsAt: userRow?.subscriptionEndsAt ?? null
@@ -133,9 +143,11 @@ export const load = async (event: PageServerLoadEvent) => {
 
 	// Calcul de l'étape d'onboarding client
 	let onboardingStep = 'payment';
-	if (hasValidPayment && !hasMeasurements) {
+	if (hasValidPayment && !hasPhotos) {
+		onboardingStep = 'photos';
+	} else if (hasValidPayment && hasPhotos && !hasMeasurements) {
 		onboardingStep = 'measurement';
-	} else if (hasValidPayment && hasMeasurements) {
+	} else if (hasValidPayment && hasPhotos && hasMeasurements) {
 		onboardingStep = 'app_ready';
 	}
 
@@ -143,6 +155,7 @@ export const load = async (event: PageServerLoadEvent) => {
 		user: event.locals.user,
 		recoveryCode,
 		hasMeasurements,
+		hasPhotos,
 		hasValidPayment,
 		hasAnyTransaction,
 		subscriptionEndsAt: userRow?.subscriptionEndsAt ?? null,

@@ -10,6 +10,8 @@
 	import { page } from '$app/stores';
 
 	import WizardProgressHeader from './WizardProgressHeader.svelte';
+	import StepVideoPresentation from './StepVideoPresentation.svelte';
+	import StepPhotosReference from './StepPhotosReference.svelte';
 	import StepBienvenue from './StepBienvenue.svelte';
 	import StepMorphologie from './StepMorphologie.svelte';
 	import StepLifestyle from './StepLifestyle.svelte';
@@ -41,15 +43,100 @@
 		if ($measurementMessage) toast.success($measurementMessage);
 	});
 
-	const TOTAL_STEPS = 7;
+	// TODO: remplacer par l'UUID Cloudflare Stream quand la vidéo sera disponible.
+	const INTRO_VIDEO_1_UID = 'thower-method-placeholder-uuid';
+	const INTRO_VIDEO_2_UID = '48445c089ede375420a5c60225c92716';
+	const introVideoEmbedUrl = $derived(
+		INTRO_VIDEO_1_UID ? `https://iframe.cloudflarestream.com/${INTRO_VIDEO_1_UID}` : null
+	);
+	const secondIntroVideoEmbedUrl = $derived(
+		INTRO_VIDEO_2_UID ? `https://iframe.cloudflarestream.com/${INTRO_VIDEO_2_UID}` : null
+	);
+	const TOTAL_STEPS = 10;
 	let currentStep = $state(1);
 	let stepDir = $state<1 | -1>(1);
 	const progress = $derived(((currentStep - 1) / (TOTAL_STEPS - 1)) * 100);
 
+	const requiredPhotoFields = [
+		{ field: 'frontUrl', label: 'Face' },
+		{ field: 'sideUrl', label: 'Profil' },
+		{ field: 'backUrl', label: 'Dos' }
+	] as const;
+
+	const requiredMorphologyFields = [
+		{ field: 'age', label: 'Âge' },
+		{ field: 'heightCm', label: 'Taille' },
+		{ field: 'weightKg', label: 'Poids' },
+		{ field: 'bodyFatPercent', label: 'Masse grasse' },
+		{ field: 'waistCm', label: 'Tour de taille' },
+		{ field: 'chestCm', label: 'Tour de torse' },
+		{ field: 'armCm', label: 'Tour de bras' }
+	] as const;
+
+	type BlockingValidationIssue = {
+		step: number;
+		message: string;
+	};
+
+	function isBlank(value: unknown) {
+		return value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+	}
+
+	function isMissingOrInvalidNumber(value: unknown) {
+		if (isBlank(value)) return true;
+
+		const numberValue = typeof value === 'number' ? value : Number(value);
+		return !Number.isFinite(numberValue) || numberValue <= 0;
+	}
+
+	function getBlockingValidationIssue(): BlockingValidationIssue | null {
+		const d = $measurementData;
+		const missingPhotos = requiredPhotoFields
+			.filter(({ field }) => isBlank(d[field]))
+			.map(({ label }) => label);
+
+		if (missingPhotos.length > 0) {
+			return {
+				step: 3,
+				message: `Photos obligatoires manquantes : ${missingPhotos.join(', ')}. Merci de les ajouter avant d'enregistrer.`
+			};
+		}
+
+		const invalidMorphologyFields = requiredMorphologyFields
+			.filter(({ field }) => isMissingOrInvalidNumber(d[field]))
+			.map(({ label }) => label);
+
+		if (invalidMorphologyFields.length > 0) {
+			return {
+				step: 5,
+				message: `Champs de morphologie manquants ou invalides : ${invalidMorphologyFields.join(', ')}. Merci de les renseigner avant d'enregistrer.`
+			};
+		}
+
+		return null;
+	}
+
+	function handleSubmit(event: SubmitEvent) {
+		const issue = getBlockingValidationIssue();
+		if (!issue) return;
+
+		event.preventDefault();
+		toast.error(issue.message);
+		goToStep(issue.step);
+	}
+
 	function next() {
-		if (currentStep === 2) {
+		if (currentStep === 5) {
 			const d = $measurementData;
-			if (!d.age || !d.heightCm || !d.weightKg || !d.waistCm || !d.chestCm || !d.armCm || !d.bodyFatPercent) {
+			if (
+				!d.age ||
+				!d.heightCm ||
+				!d.weightKg ||
+				!d.waistCm ||
+				!d.chestCm ||
+				!d.armCm ||
+				!d.bodyFatPercent
+			) {
 				toast.error('Merci de remplir toutes les mensurations obligatoires avant de continuer.');
 				return;
 			}
@@ -67,7 +154,17 @@
 		}
 	}
 
+	function goToStep(step: number) {
+		if (step < 1 || step > TOTAL_STEPS) return;
+
+		stepDir = step >= currentStep ? 1 : -1;
+		currentStep = step;
+	}
+
 	const stepLabels = [
+		'Présentation 1',
+		'Présentation 2',
+		'Photos',
 		'Bienvenue',
 		'Morphologie',
 		'Lifestyle',
@@ -125,34 +222,66 @@
 	</div>
 
 	{#if activeTab === 'wizard'}
-		<form method="POST" action="?/save" use:measurementEnhance class="space-y-4 sm:space-y-6">
-		<div class="overflow-hidden rounded-lg bg-black">
+		<form
+			method="POST"
+			action="?/save"
+			use:measurementEnhance
+			onsubmit={handleSubmit}
+			class="space-y-4 sm:space-y-6"
+		>
+			<div class="overflow-hidden rounded-lg bg-black">
 				{#key currentStep}
 					<div in:wizardStepIn={{ stepDir }} out:wizardStepOut={{ stepDir }} class="p-4 sm:p-6">
 						{#if currentStep === 1}
+							<StepVideoPresentation
+								videoUrl={introVideoEmbedUrl ?? ''}
+								eyebrow="Étape 1 sur 2"
+								title="Présentation de la Méthode Thower"
+								copy="Découvre les principes de la Méthode Thower avant de préparer tes exercices et tes photos de référence."
+								buttonLabel="Voir la deuxième vidéo"
+								placeholder="Première vidéo de présentation à configurer avec l'UUID Cloudflare Stream."
+								iframeTitle="Première vidéo de présentation Thower"
+								onnext={next}
+							/>
+						{:else if currentStep === 2}
+							<StepVideoPresentation
+								videoUrl={secondIntroVideoEmbedUrl ?? ''}
+								eyebrow="Étape 2 sur 2"
+								title="Préparer tes exercices et tes photos"
+								copy="Regarde cette vidéo pour savoir comment te préparer aux exercices et réaliser tes photos de référence dans de bonnes conditions."
+								materialDescription="Prévois ce kit d'élastiques pour réaliser les exercices dans de bonnes conditions."
+								materialUrl="https://www.decathlon.fr/p/lot-de-3-elastiques-de-musculation-10-20-30-kg-avec-3-mois-offerts-freeletics/_/R-p-375268?mc=8972196&c=vert_orange_jaune"
+								materialLinkLabel="Voir le kit Decathlon"
+								buttonLabel="Passer aux photos"
+								iframeTitle="Deuxième vidéo de présentation Thower"
+								onnext={next}
+							/>
+						{:else if currentStep === 3}
+							<StepPhotosReference formData={measurementData} onnext={next} />
+						{:else if currentStep === 4}
 							<StepBienvenue
 								bodyMeasurements={data.bodyMeasurements}
 								{stepLabels}
 								onnext={next}
 							/>
-						{:else if currentStep === 2}
-							<StepMorphologie form={measurementForm} formData={measurementData} />
-						{:else if currentStep === 3}
-							<StepLifestyle form={measurementForm} formData={measurementData} />
-						{:else if currentStep === 4}
-							<StepSante form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 5}
-							<StepObjectifs form={measurementForm} formData={measurementData} />
+							<StepMorphologie form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 6}
-							<StepAlimentation form={measurementForm} formData={measurementData} />
+							<StepLifestyle form={measurementForm} formData={measurementData} />
 						{:else if currentStep === 7}
+							<StepSante form={measurementForm} formData={measurementData} />
+						{:else if currentStep === 8}
+							<StepObjectifs form={measurementForm} formData={measurementData} />
+						{:else if currentStep === 9}
+							<StepAlimentation form={measurementForm} formData={measurementData} />
+						{:else if currentStep === 10}
 							<StepSportContexte form={measurementForm} formData={measurementData} />
 						{/if}
 					</div>
 				{/key}
 			</div>
 
-			<WizardProgressHeader {currentStep} {TOTAL_STEPS} {stepLabels} />
+			<WizardProgressHeader {currentStep} {TOTAL_STEPS} {stepLabels} onstepselect={goToStep} />
 
 			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-between sm:items-center mt-4 sm:mt-6">
 				{#if currentStep > 1}
@@ -170,7 +299,7 @@
 					<div class="hidden sm:block"></div>
 				{/if}
 
-				{#if currentStep < TOTAL_STEPS && currentStep > 1}
+				{#if currentStep < TOTAL_STEPS && currentStep > 4}
 					<Button
 						type="button"
 						onclick={next}

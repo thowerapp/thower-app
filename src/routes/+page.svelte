@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import * as THREE from 'three';
+  import { resolve } from '$app/paths';
   import { superForm } from 'sveltekit-superforms/client';
   import { signupSchema } from '$lib/schema/auth/signupSchema';
   import { toast } from 'svelte-sonner';
@@ -316,15 +317,13 @@
         Quand la vidéo time-lapse est prête :
         <video src="/videos/timelapse.mp4" autoplay loop muted playsinline></video>
       -->
-      <div class="video-ph teal-ph">
-        <div class="video-ph-icon">
-          <svg viewBox="0 0 64 64" fill="none" width="56" height="56">
-            <rect x="4" y="12" width="56" height="40" rx="3" stroke="#3ab8b8" stroke-width="1" opacity="0.5"/>
-            <path d="M22 24 L44 32 L22 40 Z" fill="#3ab8b8" opacity="0.75"/>
-          </svg>
-        </div>
-        <p class="video-ph-label teal-label">Vidéo time-lapse — à venir</p>
-      </div>
+      <iframe
+        src="https://iframe.cloudflarestream.com/0ff341bca0feaaec9d558e34ad964ba7"
+        title="Vidéo time-lapse Thower"
+        loading="lazy"
+        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+        allowfullscreen
+      ></iframe>
     </div>
     <button class="nav-btn outline proof-cta" onclick={scrollToForm}>JE VEUX CES RÉSULTATS</button>
   </section>
@@ -514,6 +513,24 @@
     <div class="form-wrap" id="form-anchor">
       <h2 class="form-h2">Créer un <span class="highlight-word">compte</span></h2>
       <p class="form-sub">Inscris-toi pour accéder au programme et activer ton <span class="highlight-word">compte</span>.</p>
+
+      <a href={resolve('/auth/login/google')} class="google-link">
+        <Button type="button" variant="outline" class="google-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="google-icon">
+            <path
+              d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
+              fill="currentColor"
+            />
+          </svg>
+          S'inscrire avec Google
+        </Button>
+      </a>
+
+      <div class="divider">
+        <div class="divider-line"></div>
+        <span class="divider-text">ou</span>
+      </div>
+
       <form method="POST" use:signupEnhance action="?/signup" class="form-fields" bind:this={formElement} onsubmit={handleFormSubmit}>
         <Form.Field name="username" form={signupForm}>
           <Form.Control>
@@ -737,6 +754,13 @@
   :global(.form-submit-custom) { margin-top: 20px !important; width: 100% !important; padding: 18px !important; background: var(--gold) !important; color: var(--black) !important; font-family: 'Bebas Neue', sans-serif !important; font-size: 1.2rem !important; letter-spacing: 0.14em !important; border: none !important; cursor: none !important; transition: all 0.2s !important; border-radius: 4px !important; text-transform: uppercase !important; font-weight: 600 !important; }
   :global(.form-submit-custom:hover) { background: #e0bc62 !important; transform: translateY(-2px) !important; box-shadow: 0 8px 16px rgba(201,168,76,0.3) !important; }
   :global(.form-submit-custom:active) { transform: translateY(0px) !important; }
+  .divider { position: relative; margin: 20px 0; display: flex; align-items: center; width: 100%; }
+  .divider-line { flex: 1; height: 1px; background: rgba(201,168,76,0.18); }
+  .divider-text { padding: 0 12px; font-size: 0.75rem; color: rgba(240,237,232,0.4); text-transform: uppercase; letter-spacing: 0.1em; }
+  .google-link { display: block; text-decoration: none; }
+  :global(.google-btn) { width: 100% !important; border: 1px solid rgba(58,184,184,0.2) !important; color: rgba(240,237,232,0.7) !important; font-family: 'DM Sans', sans-serif !important; transition: all 0.2s !important; cursor: none !important; }
+  :global(.google-btn:hover) { border-color: var(--teal) !important; color: var(--teal) !important; background: rgba(58,184,184,0.05) !important; }
+  .google-icon { width: 18px; height: 18px; margin-right: 8px; }
   .field-input { display: none; }
   .field-error { display: none; }
   .form-submit { display: none; }

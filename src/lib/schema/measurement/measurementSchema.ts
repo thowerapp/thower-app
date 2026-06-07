@@ -28,6 +28,10 @@ const optionalInt1to10 = z.preprocess(
 
 const parseStringArray = (val: unknown): string[] => normalizeStringList(val);
 
+const progressPhotoUrl = z
+	.string()
+	.startsWith('/api/cloudflare/r2/image/photos/', 'Photo obligatoire invalide');
+
 /** Champs communs profil (objectifs, habitudes) — utilisables dans le formulaire combiné onboarding */
 const profileFieldsSchema = z.object({
 	activityLevel: activityLevelEnum.optional(),
@@ -126,7 +130,10 @@ export const measurementSchema = z
 		weightKg: optionalNumber(30, 300),
 		waistCm: optionalNumber(50, 200),
 		chestCm: optionalNumber(50, 200),
-		armCm: optionalNumber(15, 80)
+		armCm: optionalNumber(15, 80),
+		frontUrl: progressPhotoUrl,
+		sideUrl: progressPhotoUrl,
+		backUrl: progressPhotoUrl
 	})
 	.merge(profileFieldsSchema);
 

@@ -9,16 +9,18 @@ import { normalizeStringList } from '$lib/schema/measurement/normalizeStringList
 import { getProfileByUserId } from '$lib/prisma/profile/getProfileByUserId';
 import { upsertProfile } from '$lib/prisma/profile/upsertProfile';
 import { createBodyMeasurement } from '$lib/prisma/bodyMeasurement/createBodyMeasurement';
+import { createProgressPhoto } from '$lib/prisma/progressPhoto/createProgressPhoto';
 import {
 	getBodyMeasurementsByUserId,
 	type BodyMeasurementSnapshot
 } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
+import { prisma } from '$lib/server';
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
 import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
 import { programGenTrace } from '$lib/server/program-generation/programGenerationLog';
 import { syncRecentPaidCheckoutSessionsForUser } from '$lib/server/stripe/reconcileCheckoutSession';
-import { checkWellBeingCompleted } from '$lib/server/access';
 import { logPaymentStatus, onboardingTrace } from '$lib/server/onboarding/onboardingLog';
+import type { PhotoAngle } from '@prisma/client';
 
 import type { Actions, RequestEvent } from './$types';
 
@@ -26,6 +28,41 @@ import type { Actions, RequestEvent } from './$types';
 export const config = {
 	maxDuration: 300
 };
+
+async function replaceInitialProgressPhotos(userId: string, data: MeasurementSchema) {
+	const photos: { angle: PhotoAngle; url: string }[] = [
+		{ angle: 'FRONT', url: data.frontUrl },
+		{ angle: 'SIDE', url: data.sideUrl },
+		{ angle: 'BACK', url: data.backUrl }
+	];
+	const angles = photos.map((photo) => photo.angle);
+	const client = prisma as {
+		progressPhoto?: {
+			deleteMany: (args: {
+				where: { userId: string; month: number; angle: { in: PhotoAngle[] } };
+			}) => Promise<unknown>;
+		};
+	};
+
+	await client.progressPhoto?.deleteMany({
+		where: {
+			userId,
+			month: 0,
+			angle: { in: angles }
+		}
+	});
+
+	await Promise.all(
+		photos.map((photo) =>
+			createProgressPhoto({
+				userId,
+				angle: photo.angle,
+				url: photo.url,
+				month: 0
+			})
+		)
+	);
+}
 
 export const load = async (event: RequestEvent) => {
 	if (event.locals.session === null || event.locals.user === null) {
@@ -41,12 +78,37 @@ export const load = async (event: RequestEvent) => {
 		getBodyMeasurementsByUserId(event.locals.user.id)
 	]);
 
-	// Check bien-être complété (redirige vers /auth/well-being si manquant)
-	checkWellBeingCompleted(event.locals, profile);
+	const userId = event.locals.user.id;
+	const isAdmin = event.locals.user.role === 'ADMIN';
+	const paymentBeforeLoad = await logPaymentStatus(userId, 'measurement', 'measurement_load');
+	let hasValidPayment = paymentBeforeLoad.hasValidPayment;
+	let syncedFromStripe = false;
+
+	if (!hasValidPayment && !isAdmin) {
+		hasValidPayment = await syncRecentPaidCheckoutSessionsForUser(userId);
+		syncedFromStripe = hasValidPayment;
+		if (syncedFromStripe) {
+			await logPaymentStatus(userId, 'measurement', 'after_stripe_sync_load');
+		}
+	}
+
+	if (!hasValidPayment && !isAdmin) {
+		onboardingTrace('measurement_load', {
+			userId,
+			source: 'measurement',
+			outcome: 'redirect_subscription',
+			reason: 'no_valid_payment_after_sync',
+			redirectTo: '/auth/subscription'
+		});
+		throw redirect(302, '/auth/subscription');
+	}
 
 	const lastBody: BodyMeasurementSnapshot | null = bodyMeasurements[0] ?? null;
 
 	const initialData: MeasurementSchema = {
+		frontUrl: '',
+		sideUrl: '',
+		backUrl: '',
 		allergens: profile?.allergens ?? [],
 		breakfastEnabled: false,
 		age: lastBody?.age ?? undefined,
@@ -96,15 +158,13 @@ export const load = async (event: RequestEvent) => {
 		createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt
 	}));
 
-	const userId = event.locals.user.id;
-	const paymentBeforeLoad = await logPaymentStatus(userId, 'measurement', 'measurement_load');
-
 	onboardingTrace('measurement_load', {
 		userId,
 		source: 'measurement',
 		measurementCount: bodyMeasurements.length,
 		hasWellBeing: !!(profile as { stressLevel?: number | null } | null)?.stressLevel,
-		hasValidPayment: paymentBeforeLoad.hasValidPayment
+		hasValidPayment,
+		syncedFromStripe
 	});
 
 	return {
@@ -171,6 +231,7 @@ export const actions: Actions = {
 			chestCm: data.chestCm,
 			armCm: data.armCm
 		});
+		await replaceInitialProgressPhotos(event.locals.user.id, data);
 
 		// Génération uniquement ici (plus depuis le webhook) : transaction `paid` + abo actif, ou compte ADMIN.
 		const { id: userId, role } = event.locals.user;

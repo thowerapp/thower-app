@@ -8,22 +8,33 @@ export interface UserSelected {
 	role?: string;
 	createdAt?: string;
 	googleId?: string | null;
+	emailVerified?: boolean;
+	isMfaEnabled?: boolean;
 	subscriptionEndsAt?: string | null;
 	nutritionDaysAllocated?: number;
 	programStartDate?: string | null;
 	programPausedAt?: string | null;
 	programPausedReason?: string | null;
+	photoValidationStatus?: 'PENDING' | 'VALIDATED';
+	photoValidatedAt?: string | null;
 	profile?: UserProfileSelected | null;
 	bodyMeasurements?: BodyMeasurementSelected[];
 	transactions?: TransactionSelected[];
+	sessions?: SessionSelected[];
 	workoutDays?: WorkoutDaySelected[];
 	pointEvents?: PointEventSelected[];
 	progressPhotos?: ProgressPhotoSelected[];
 	userBadges?: UserBadgeSelected[];
+	favoriteRecipes?: UserFavoriteRecipeSelected[];
 	recipes?: RecipeSelected[];
 	nutritionDays?: NutritionDaySelected[];
 	shoppingLists?: ShoppingListSelected[];
 	dailyTaskCompletions?: DailyTaskCompletionSelected[];
+	dailyTaskOptOuts?: DailyTaskOptOutSelected[];
+	videoProgress?: UserVideoProgressSelected[];
+	monthlyCheckIns?: MonthlyCheckInSelected[];
+	programDayItemCompletions?: ProgramDayItemCompletionSelected[];
+	pushSubscriptions?: PushSubscriptionSelected[];
 	challenges?: UserChallengeSelected[];
 }
 
@@ -47,6 +58,18 @@ export interface UserProfileSelected {
 	sportActivity?: string | null;
 	familyCoefficients?: Array<{ label: string; coefficient: number }> | null;
 	shoppingListSortOrder?: string | null;
+	stressLevel?: number | null;
+	sleepQuality?: number | null;
+	bodyConfidence?: number | null;
+	digestionQuality?: number | null;
+	happinessLevel?: number | null;
+	readinessToChange?: number | null;
+	kitchenEquipment?: string[];
+	disgustingFoods?: string | null;
+	otherAllergens?: string | null;
+	physicalObjective?: string | null;
+	eventMotivation?: string | null;
+	addictionsText?: string | null;
 	updatedAt?: string;
 }
 
@@ -69,6 +92,13 @@ export interface TransactionSelected {
 	status: string;
 	offerSlugs?: string[];
 	createdAt: string;
+}
+
+export interface SessionSelected {
+	id: string;
+	expiresAt: string;
+	twoFactorVerified?: boolean;
+	oauthProvider?: string | null;
 }
 
 export interface WorkoutDaySelected {
@@ -103,6 +133,13 @@ export interface UserBadgeSelected {
 	badge?: { name: string; slug: string; description?: string | null };
 }
 
+export interface UserFavoriteRecipeSelected {
+	id: string;
+	recipeId: string;
+	createdAt: string;
+	recipe?: { id: string; name: string } | null;
+}
+
 export interface RecipeSelected {
 	id: string;
 	name: string;
@@ -115,9 +152,20 @@ export interface NutritionDaySelected {
 	meals?: Array<{
 		id: string;
 		position: string;
+		recipeId?: string | null;
 		eatenAt?: string | null;
 		quantityG?: number | null;
+		calcProteinG?: number | null;
+		calcCarbsG?: number | null;
+		calcFatG?: number | null;
 		calcCalories?: number | null;
+		calcFiberG?: number | null;
+		isManual?: boolean;
+		manualProteinG?: number | null;
+		manualCarbsG?: number | null;
+		manualFatG?: number | null;
+		manualCalories?: number | null;
+		manualFiberG?: number | null;
 		recipe?: { name: string } | null;
 	}>;
 }
@@ -127,12 +175,71 @@ export interface ShoppingListSelected {
 	startDayIndex: number;
 	endDayIndex: number;
 	generatedAt: string;
+	items?: ShoppingItemSelected[];
+}
+
+export interface ShoppingItemSelected {
+	id: string;
+	ingredientName: string;
+	category?: string | null;
+	totalQuantityG: number;
+	unit?: string | null;
+	isChecked?: boolean;
+	isReported?: boolean;
+	sources?: unknown;
 }
 
 export interface DailyTaskCompletionSelected {
 	id: string;
+	taskId?: string;
 	date: string;
 	completedAt: string;
+	task?: { label: string } | null;
+}
+
+export interface DailyTaskOptOutSelected {
+	id: string;
+	taskId: string;
+	task?: { label: string } | null;
+}
+
+export interface UserVideoProgressSelected {
+	id: string;
+	workoutVideoId?: string | null;
+	discoveryContentId?: string | null;
+	maxPositionSec: number;
+	lastHeartbeatAt: string;
+	completedAt?: string | null;
+	workoutVideo?: { title?: string | null } | null;
+	discoveryContent?: { title?: string | null } | null;
+}
+
+export interface MonthlyCheckInSelected {
+	id: string;
+	month: number;
+	stressLevel?: number | null;
+	sleepQuality?: number | null;
+	bodyConfidence?: number | null;
+	digestionQuality?: number | null;
+	happinessLevel?: number | null;
+	readinessToChange?: number | null;
+	pointsAwarded?: boolean;
+	nutritionRecalibrated?: boolean;
+	submittedAt: string;
+}
+
+export interface ProgramDayItemCompletionSelected {
+	id: string;
+	programDayItemId: string;
+	completedAt: string;
+	stepsValue?: number | null;
+	item?: { label?: string | null; type?: string; points?: number; order?: number } | null;
+}
+
+export interface PushSubscriptionSelected {
+	id: string;
+	endpoint: string;
+	createdAt: string;
 }
 
 export interface UserChallengeSelected {
@@ -148,6 +255,14 @@ export interface UserChallengeSelected {
 		endAt: string;
 		active: boolean;
 	};
+}
+
+export interface AdminUserOptions {
+	recipeCatalog?: Array<{ id: string; name: string; category?: string; isCustom?: boolean }>;
+	dailyTasks?: Array<{ id: string; label: string; points?: number; active?: boolean }>;
+	badges?: Array<{ id: string; name: string; slug: string }>;
+	programDayItems?: Array<{ id: string; type?: string; label?: string | null; points?: number; order?: number }>;
+	adminChallenges?: Array<{ id: string; name: string; active?: boolean }>;
 }
 
 export const MONTH_NAMES = [

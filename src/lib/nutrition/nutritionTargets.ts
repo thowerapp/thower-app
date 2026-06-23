@@ -1,11 +1,5 @@
 import type { ActivityLevel } from '@prisma/client';
 
-/** Dépense musculation moyenne (450 kcal × 3 séances / 7 j). */
-export const STRENGTH_TRAINING_KCAL_PER_DAY = 193;
-
-/** Nombre de jours pour étaler le déficit lié à l’objectif de perte (méthode Thower). */
-export const DEFICIT_SPREAD_DAYS = 91;
-
 const MIN_TARGET_KCAL = 1200;
 
 export function activityCoefficient(level: ActivityLevel | null | undefined): number {
@@ -18,6 +12,16 @@ export function activityCoefficient(level: ActivityLevel | null | undefined): nu
 		default:
 			return 1.2;
 	}
+}
+
+/**
+ * Coefficient calorique basé sur le % masse grasse (recomposition Thower).
+ * ATHLETE (< 15 % MG) : léger surplus — ACTIVE (15–22 %) : entretien — SEDENTARY (> 22 %) : déficit modéré.
+ */
+export function bodyFatCoefficient(bodyFatPercent: number): number {
+	if (bodyFatPercent < 15) return 1.03;
+	if (bodyFatPercent <= 22) return 0.97;
+	return 0.91;
 }
 
 export function leanMassKg(weightKg: number, bodyFatPercent: number): number {
@@ -39,19 +43,17 @@ export function tdeeFromProfile(params: {
 	const mm = leanMassKg(params.weightKg, params.bodyFatPercent);
 	const mb = metabolicBasalKcalCrossed(mm);
 	const c = activityCoefficient(params.activityLevel);
-	return mb * c + STRENGTH_TRAINING_KCAL_PER_DAY;
+	return mb * c;
 }
 
 /**
- * Calories cibles journalières (TDEE − déficit).
+ * Calories cibles journalières = MB × activityCoefficient × bodyFatCoefficient.
  * Retourne null si données insuffisantes pour un calcul fiable.
  */
 export function targetCaloriesPerDay(params: {
 	weightKg: number;
 	bodyFatPercent: number | null | undefined;
-	activityLevel: ActivityLevel | null | undefined;
-	weightLossGoalKg: number | null | undefined;
-	deficitSpreadDays?: number;
+	activityLevel?: ActivityLevel | null;
 }): number | null {
 	if (
 		params.weightKg <= 0 ||
@@ -61,16 +63,10 @@ export function targetCaloriesPerDay(params: {
 	) {
 		return null;
 	}
-	const tdee = tdeeFromProfile({
-		weightKg: params.weightKg,
-		bodyFatPercent: params.bodyFatPercent,
-		activityLevel: params.activityLevel
-	});
-	const spread = params.deficitSpreadDays ?? DEFICIT_SPREAD_DAYS;
-	const lossKg = Math.max(0, params.weightLossGoalKg ?? 0);
-	const deficitPerDay = lossKg > 0 ? (lossKg * 7700) / spread : 0;
-	const raw = tdee - deficitPerDay;
-	return Math.round(Math.max(raw, MIN_TARGET_KCAL));
+	const mm = leanMassKg(params.weightKg, params.bodyFatPercent);
+	const mb = metabolicBasalKcalCrossed(mm);
+	const ac = activityCoefficient(params.activityLevel);
+	return Math.round(Math.max(mb * ac * bodyFatCoefficient(params.bodyFatPercent), MIN_TARGET_KCAL));
 }
 
 /** Besoins protéiques (g/j) : masse maigre × 1,8. */

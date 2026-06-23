@@ -71,11 +71,11 @@ export const load = async (event: RequestEvent) => {
 		getProgramOfferEntitlements(event.locals.user.id)
 	]);
 
-	// Retour Stripe : mensurations déjà faites avant paiement → relancer la génération ici.
+	// Retour Stripe : revenir au tableau d'onboarding.
 	if (success) {
 		const { role } = event.locals.user;
 		const isAdmin = role === 'ADMIN';
-		const redirectTo = hasMeasurements ? '/user' : '/auth/measurement';
+		const redirectTo = '/auth/';
 
 		if (hasMeasurements && (hasValidPayment || isAdmin)) {
 			const dispatchMode = await dispatchProgramGeneration(event, () =>

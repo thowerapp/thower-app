@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import * as THREE from 'three';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import * as Card from '$shadcn/card';
 	import { Button } from '$shadcn/button';
 	import { toast } from 'svelte-sonner';
@@ -65,6 +66,7 @@
 	});
 
 	const hasMeasurements   = $derived(data?.hasMeasurements ?? false);
+	const hasPhotos         = $derived((data as { hasPhotos?: boolean } | null)?.hasPhotos ?? false);
 	const hasValidPayment   = $derived(data?.hasValidPayment ?? false);
 	const hasAnyTransaction = $derived((data as { hasAnyTransaction?: boolean } | null)?.hasAnyTransaction ?? false);
 	const onboardingStep    = $derived((data as { onboardingStep?: string } | null)?.onboardingStep ?? 'payment');
@@ -75,6 +77,8 @@
 			: null
 	);
 	const isGoogleUser = $derived(!!data?.user?.googleId);
+	const measurementOnboardingHref = resolve('/auth/measurement?new=1');
+	const measurementHref = resolve('/auth/measurement');
 
 	$effect(() => {
 		if (typeof window === 'undefined') return;
@@ -85,6 +89,7 @@
 			googleId: data?.user?.googleId ?? null,
 			isGoogleUser: !!data?.user?.googleId,
 			hasMeasurements: !!(data?.hasMeasurements ?? false),
+			hasPhotos: !!((data as { hasPhotos?: boolean } | null)?.hasPhotos ?? false),
 			hasValidPayment: !!(data?.hasValidPayment ?? false),
 			hasAnyTransaction: !!((data as { hasAnyTransaction?: boolean } | null)?.hasAnyTransaction ?? false),
 			subscriptionEndsAt: data?.subscriptionEndsAt ?? null
@@ -227,17 +232,26 @@
 					<span class="step-label">Paiement</span>
 				</a>
 				<div class="step-line {hasValidPayment ? 'step-line-done' : ''}"></div>
-				<a href="/auth/measurement" class="step {hasMeasurements ? 'step-done' : hasValidPayment ? 'step-active' : 'step-pending'}">
+				<a href={measurementOnboardingHref} class="step {hasPhotos ? 'step-done' : hasValidPayment ? 'step-active' : 'step-pending'}">
+					<span class="step-dot">
+						{#if hasPhotos}
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+						{:else}2{/if}
+					</span>
+					<span class="step-label">Vidéos & photos</span>
+				</a>
+				<div class="step-line {hasPhotos ? 'step-line-done' : ''}"></div>
+				<a href={measurementHref} class="step {hasMeasurements ? 'step-done' : hasValidPayment && hasPhotos ? 'step-active' : 'step-pending'}">
 					<span class="step-dot">
 						{#if hasMeasurements}
 							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-						{:else}2{/if}
+						{:else}3{/if}
 					</span>
 					<span class="step-label">Profil physique</span>
 				</a>
 				<div class="step-line {hasMeasurements ? 'step-line-done' : ''}"></div>
-				<span class="step {hasMeasurements ? 'step-active' : 'step-pending'}">
-					<span class="step-dot">3</span>
+				<span class="step {hasValidPayment && hasPhotos && hasMeasurements ? 'step-active' : 'step-pending'}">
+					<span class="step-dot">4</span>
 					<span class="step-label">Application</span>
 				</span>
 			</div>
@@ -266,8 +280,29 @@
 					</div>
 				</div>
 
-				<!-- Mesures (Profil) — Étape 2, visible si paiement OK -->
+				<!-- Vidéos + photos — Étape 2, visible si paiement OK -->
 				{#if hasValidPayment}
+					<div class="card {!hasPhotos ? 'card-alert' : ''}">
+						<div class="card-head">
+							<span class="card-icon"><UserCircle size={15} /></span>
+							<div>
+								<div class="card-title">
+									Vidéos de présentation
+									{#if !hasPhotos}<span class="badge-alert">Obligatoire</span>{/if}
+								</div>
+								<div class="card-desc">À regarder avant d'arriver aux photos de référence</div>
+							</div>
+						</div>
+						<div class="card-foot">
+							<a href={measurementOnboardingHref} class="btn {!hasPhotos ? 'btn-gold' : 'btn-outline'} w-full">
+								{!hasPhotos ? 'Commencer les vidéos' : 'Revoir le parcours'}
+							</a>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Mesures (Profil) — Étape 3, visible si paiement et photos OK -->
+				{#if hasValidPayment && hasPhotos}
 					<div class="card {!hasMeasurements ? 'card-alert' : ''}">
 						<div class="card-head">
 							<span class="card-icon"><Ruler size={15} /></span>
@@ -280,15 +315,15 @@
 							</div>
 						</div>
 						<div class="card-foot">
-							<a href={!hasMeasurements ? '/auth/photos' : '/auth/measurement'} class="btn {!hasMeasurements ? 'btn-gold' : 'btn-outline'} w-full">
+							<a href={measurementHref} class="btn {!hasMeasurements ? 'btn-gold' : 'btn-outline'} w-full">
 								{!hasMeasurements ? 'Remplir mon profil' : 'Modifier'}
 							</a>
 						</div>
 					</div>
 				{/if}
 
-				<!-- PWA Install — Étape 3, visible si paiement ET profil OK -->
-				{#if hasValidPayment && hasMeasurements}
+				<!-- PWA Install — Étape 4, visible si paiement, photos et profil OK -->
+				{#if hasValidPayment && hasPhotos && hasMeasurements}
 					<div class="card">
 						<div class="card-head">
 							<span class="card-icon"><Download size={15} /></span>

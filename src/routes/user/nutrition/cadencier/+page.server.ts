@@ -2,7 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { requireNutritionAccess } from '$lib/server/programAccessGuard';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
-import type { ActivityLevel, MealPosition, Prisma } from '@prisma/client';
+import type { MealPosition, Prisma } from '@prisma/client';
 import {
 	currentProgramDayIndex,
 	TOTAL_PROGRAM_DAYS,
@@ -150,9 +150,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				allergens: true,
 				otherAllergens: true,
 				disgustingFoods: true,
-				activityLevel: true,
 				bodyFatPercent: true,
-				weightLossGoalKg: true,
+				activityLevel: true,
 				breadDaily: true,
 				breadGramsPerDay: true,
 				breadType: true
@@ -264,8 +263,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			? targetCaloriesPerDay({
 					weightKg,
 					bodyFatPercent: profile?.bodyFatPercent,
-					activityLevel: profile?.activityLevel as ActivityLevel | null | undefined,
-					weightLossGoalKg: profile?.weightLossGoalKg
+					activityLevel: profile?.activityLevel as import('@prisma/client').ActivityLevel | null
 				})
 			: null;
 

@@ -1,5 +1,5 @@
 import { prisma } from '$lib/server';
-import type { ActivityLevel, Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/generateFromPlanning';
 import {
 	dailyProteinTargetG,
@@ -43,9 +43,8 @@ export type BreakfastProfileInput = {
 	allergens: string[];
 	otherAllergens: string | null;
 	disgustingFoods: string | null;
-	activityLevel: ActivityLevel | null;
 	bodyFatPercent: number | null;
-	weightLossGoalKg: number | null;
+	activityLevel: string | null;
 	breadDaily: boolean;
 	breadGramsPerDay: number | null;
 	breadType: string | null;
@@ -182,8 +181,7 @@ function computeMealBudget(profile: BreakfastProfileInput, weightKg: number | nu
 			? targetCaloriesPerDay({
 					weightKg,
 					bodyFatPercent: profile.bodyFatPercent,
-					activityLevel: profile.activityLevel,
-					weightLossGoalKg: profile.weightLossGoalKg
+					activityLevel: profile.activityLevel as import('@prisma/client').ActivityLevel | null
 				})
 			: null;
 
@@ -231,9 +229,8 @@ export async function loadBreakfastBackfillContext(userId: string): Promise<Brea
 				allergens: true,
 				otherAllergens: true,
 				disgustingFoods: true,
-				activityLevel: true,
 				bodyFatPercent: true,
-				weightLossGoalKg: true,
+				activityLevel: true,
 				breadDaily: true,
 				breadGramsPerDay: true,
 				breadType: true
@@ -247,7 +244,7 @@ export async function loadBreakfastBackfillContext(userId: string): Promise<Brea
 	]);
 
 	if (!profile) return null;
-	return loadBreakfastBackfillContextFromProfile(userId, profile, lastMeasure?.weightKg ?? null);
+	return loadBreakfastBackfillContextFromProfile(userId, profile as BreakfastProfileInput, lastMeasure?.weightKg ?? null);
 }
 
 function buildBreakfastMealPayload(

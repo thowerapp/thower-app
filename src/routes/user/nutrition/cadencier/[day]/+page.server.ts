@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server';
-import type { ActivityLevel, MealPosition } from '@prisma/client';
+import type { MealPosition } from '@prisma/client';
 import {
 	targetCaloriesPerDay,
 	dailyProteinTargetG,
@@ -134,9 +134,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				allergens: true,
 				otherAllergens: true,
 				disgustingFoods: true,
-				activityLevel: true,
 				bodyFatPercent: true,
-				weightLossGoalKg: true,
+				activityLevel: true,
 				breadDaily: true,
 				breadGramsPerDay: true,
 				breadType: true,
@@ -181,8 +180,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			? targetCaloriesPerDay({
 					weightKg,
 					bodyFatPercent: profile?.bodyFatPercent,
-					activityLevel: profile?.activityLevel as ActivityLevel | null | undefined,
-					weightLossGoalKg: profile?.weightLossGoalKg
+					activityLevel: profile?.activityLevel as import('@prisma/client').ActivityLevel | null
 				})
 			: null;
 

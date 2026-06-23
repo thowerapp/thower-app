@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import * as THREE from 'three';
+  import { resolve } from '$app/paths';
   import { superForm } from 'sveltekit-superforms/client';
   import { signupSchema } from '$lib/schema/auth/signupSchema';
   import { toast } from 'svelte-sonner';
@@ -56,7 +57,6 @@
   const scrollToForm = () => scrollToEl('form-anchor');
 
   onMount(() => {
-    // ── EYEBROW ──
     const eyebrowEl = document.querySelector('.hero-eyebrow') as HTMLElement | null;
     const heroTitleEl = document.getElementById('hero-title');
     setTimeout(() => {
@@ -80,12 +80,11 @@
       if (eyebrowEl) {
         eyebrowEl.style.opacity = '0';
         setTimeout(() => {
-          if (eyebrowEl) { eyebrowEl.textContent = '· Programme 91 jours ·'; eyebrowEl.style.transform = 'translateY(0)'; eyebrowEl.style.opacity = '1'; }
+          if (eyebrowEl) { eyebrowEl.textContent = '· Programme 3 mois ·'; eyebrowEl.style.transform = 'translateY(0)'; eyebrowEl.style.opacity = '1'; }
         }, 140);
       }
     });
 
-    // ── THREE.JS CANVAS ──
     const canvas = document.createElement('canvas');
     canvas.id = 'three-canvas';
     canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
@@ -253,7 +252,7 @@
 <div id="progress-line" style="width:{progressWidth}%"></div>
 
 <nav>
-  <a class="nav-logo" href="/"><img src="/logo-app.png" alt="Thower" class="nav-logo-img" /></a>
+  <a class="nav-logo" href="/"><img src="/full_transparent_sans-reflets.png" alt="Thower" class="nav-logo-img" /></a>
   <div class="nav-btns">
     <a class="nav-btn outline" href="/auth/login">Se connecter</a>
     <button class="nav-btn fill" onclick={scrollToForm}>S'inscrire</button>
@@ -265,13 +264,13 @@
   <!-- ─── SEC 1 : LA MÉTHODE (inchangé) ─── -->
   <section id="sec1">
     <div class="hero-group">
-      <div class="hero-eyebrow">· Programme 91 jours ·</div>
+      <div class="hero-eyebrow">· Programme 3 mois ·</div>
       <div class="hero-h1" id="hero-title">
         <div class="t-row1"><span class="t-la">LA</span><span class="t-space">&nbsp;</span><span class="t-me">MÉ</span></div>
         <div class="t-row2"><span class="t-tho">THO</span><span class="t-swap"><span class="t-de">DE</span><span class="t-wer-ghost">WER</span><span class="t-wer">WER</span></span></div>
       </div>
     </div>
-    <p class="hero-sub">Un programme complet pour transformer ton corps et ton mental en 91 jours.</p>
+    <p class="hero-sub">Un programme complet pour transformer ton corps et ton mental en 3 mois.</p>
     <div id="scroll-hint" role="button" tabindex="0" onclick={scrollToSec2} onkeydown={(e) => e.key==='Enter' && scrollToSec2()}>
       <span class="hint-label">Découvrir</span>
       <div class="hint-arrow">
@@ -318,15 +317,13 @@
         Quand la vidéo time-lapse est prête :
         <video src="/videos/timelapse.mp4" autoplay loop muted playsinline></video>
       -->
-      <div class="video-ph teal-ph">
-        <div class="video-ph-icon">
-          <svg viewBox="0 0 64 64" fill="none" width="56" height="56">
-            <rect x="4" y="12" width="56" height="40" rx="3" stroke="#3ab8b8" stroke-width="1" opacity="0.5"/>
-            <path d="M22 24 L44 32 L22 40 Z" fill="#3ab8b8" opacity="0.75"/>
-          </svg>
-        </div>
-        <p class="video-ph-label teal-label">Vidéo time-lapse — à venir</p>
-      </div>
+      <iframe
+        src="https://iframe.cloudflarestream.com/0ff341bca0feaaec9d558e34ad964ba7"
+        title="Vidéo time-lapse Thower"
+        loading="lazy"
+        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+        allowfullscreen
+      ></iframe>
     </div>
     <button class="nav-btn outline proof-cta" onclick={scrollToForm}>JE VEUX CES RÉSULTATS</button>
   </section>
@@ -355,7 +352,8 @@
       <h2 class="sec-h2">Atteins ta forme ultime,<br><span class="teal-text">sans sacrifier ta vie.</span></h2>
       <p class="sec-text" style="margin-bottom: 8px;">Le programme s'adapte à ton quotidien, pas l'inverse.</p>
       <ul class="promise-list">
-        <li><span class="promise-check">✦</span>Fondre et bâtir du muscle massif</li>
+        <li><span class="promise-check">✦</span>Tu vas perdre ton gras</li>
+        <li><span class="promise-check">✦</span>Bâtir du muscle massif</li>
         <li><span class="promise-check">✦</span>Décupler ta vitalité et ton énergie</li>
         <li><span class="promise-check">✦</span>Retrouver un sommeil profond et réparateur</li>
         <li><span class="promise-check">✦</span>Optimiser ta digestion</li>
@@ -404,7 +402,7 @@
         </div>
         <div class="fc-num fc-num-teal">02</div>
         <div class="fc-title">L'Intelligence Nutritionnelle</div>
-        <p class="fc-text">Fini le casse-tête. Un planning de recettes faciles, tu n'auras pas faim et tu vas te régaler. Quantités calculées automatiquement, liste de courses générée en un clic.</p>
+        <p class="fc-text">Fini le casse-tête. Tu auras un planning de recettes faciles à faire, sans avoir faim et en te régalant. Quantités calculées automatiquement, liste de courses générée en un clic.</p>
         <div class="fc-tags">
           <span class="ptag">▸ Recettes personnalisées & adaptables</span>
           <span class="ptag">▸ Macros calculés automatiquement</span>
@@ -485,13 +483,24 @@
       </div>
     </div>
 
+    <div class="value-stack">
+      <p class="value-stack-title">En résumé, tu obtiens :</p>
+      <ul class="value-stack-list">
+        <li><span class="vs-check">✓</span> Le Protocole Sportif <span class="vs-detail">(3 sessions / semaine)</span></li>
+        <li><span class="vs-check">✓</span> L'Intelligence Nutritionnelle &amp; Listes de courses automatiques</li>
+        <li><span class="vs-check">✓</span> L'Arsenal Mindset &amp; Système de Gamification</li>
+        <li><span class="vs-check">✓</span> Ton Coaching Live Hebdomadaire avec Tom</li>
+        <li><span class="vs-check">✓</span> Tes Vidéos Boost Quotidiennes &amp; Nouvelles activités chaque semaine</li>
+      </ul>
+    </div>
+
     <div class="price-block">
-      <div class="price-label">Accès complet au programme · 91 jours</div>
+      <div class="price-label">Accès complet au programme · 3 mois</div>
       <div class="price-amount">[Prix à venir]</div>
       <div class="price-installment">ou <strong>3× sans frais</strong> — paiement sécurisé</div>
       <div class="price-perks">
         <span class="perk">✦ Accès immédiat</span>
-        <span class="perk">✦ 91 jours de programme</span>
+        <span class="perk">✦ 3 mois de programme</span>
         <span class="perk">✦ Coaching live inclus</span>
       </div>
     </div>
@@ -504,6 +513,24 @@
     <div class="form-wrap" id="form-anchor">
       <h2 class="form-h2">Créer un <span class="highlight-word">compte</span></h2>
       <p class="form-sub">Inscris-toi pour accéder au programme et activer ton <span class="highlight-word">compte</span>.</p>
+
+      <a href={resolve('/auth/login/google')} class="google-link">
+        <Button type="button" variant="outline" class="google-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="google-icon">
+            <path
+              d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
+              fill="currentColor"
+            />
+          </svg>
+          S'inscrire avec Google
+        </Button>
+      </a>
+
+      <div class="divider">
+        <div class="divider-line"></div>
+        <span class="divider-text">ou</span>
+      </div>
+
       <form method="POST" use:signupEnhance action="?/signup" class="form-fields" bind:this={formElement} onsubmit={handleFormSubmit}>
         <Form.Field name="username" form={signupForm}>
           <Form.Control>
@@ -591,7 +618,7 @@
   /* ── Nav ── */
   nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: flex-start; justify-content: space-between; padding: 24px 48px; gap: 24px; flex-wrap: wrap; }
   .nav-logo { text-decoration: none; flex: 0 0 auto; display: flex; align-items: center; }
-  .nav-logo-img { height: 36px; width: auto; display: block; }
+  .nav-logo-img { height: 72px; width: auto; display: block; }
   .nav-btns { display: flex; gap: 12px; }
   .nav-btn {
     display: inline-flex; align-items: center; justify-content: center;
@@ -635,7 +662,7 @@
   .hint-label { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(240,237,232,0.4); }
   .hint-arrow { width: 36px; height: 36px; border: 1px solid rgba(240,237,232,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: border-color 0.2s; animation: bounce 2.4s 2s infinite; }
 
-  /* ── Styles partagés entre sections ── */
+  /* ── Styles partagés ── */
   .sec-eyebrow { font-size: 0.78rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--teal); margin-bottom: 16px; }
   .sec-h2 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.6rem, 5.5vw, 5rem); line-height: 0.95; letter-spacing: 0.04em; color: var(--white); margin-bottom: 24px; }
   .sec-text { font-size: 1.05rem; font-weight: 300; color: rgba(240,237,232,0.62); line-height: 1.9; max-width: 640px; text-align: center; }
@@ -676,10 +703,18 @@
   /* ── SEC 5 : La Promesse ── */
   #sec5 { padding: 100px 48px; border-top: 1px solid rgba(255,255,255,0.05); }
   .promise-wrap { max-width: 680px; width: 100%; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 28px; }
-  .promise-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; text-align: left; width: 100%; max-width: 520px; }
-  .promise-list li { font-size: 1.05rem; font-weight: 300; color: rgba(240,237,232,0.75); line-height: 1.5; display: flex; align-items: center; gap: 16px; }
+  .promise-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; text-align: center; width: 100%; max-width: 520px; }
+  .promise-list li { font-size: 1.05rem; font-weight: 300; color: rgba(240,237,232,0.85); line-height: 1.5; display: flex; align-items: center; gap: 16px; justify-content: center; }
   .promise-check { color: var(--gold); font-size: 0.65rem; flex-shrink: 0; }
   .promise-closing { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 0.1em; color: var(--gold); }
+
+  /* ── Value Stack ── */
+  .value-stack { max-width: 620px; width: 100%; padding: 36px 40px; border: 1px solid rgba(201,168,76,0.25); background: rgba(10,10,10,0.7); backdrop-filter: blur(10px); }
+  .value-stack-title { font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(240,237,232,0.45); margin-bottom: 20px; text-align: center; }
+  .value-stack-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
+  .value-stack-list li { display: flex; align-items: baseline; gap: 14px; font-size: 1rem; font-weight: 300; color: rgba(240,237,232,0.85); line-height: 1.5; }
+  .vs-check { color: var(--gold); font-size: 1rem; font-weight: 600; flex-shrink: 0; }
+  .vs-detail { color: rgba(240,237,232,0.4); font-size: 0.85rem; }
 
   /* ── SEC 6 : L'Offre ── */
   #sec6 { padding: 100px 48px 120px; gap: 60px; border-top: 1px solid rgba(255,255,255,0.05); }
@@ -719,6 +754,13 @@
   :global(.form-submit-custom) { margin-top: 20px !important; width: 100% !important; padding: 18px !important; background: var(--gold) !important; color: var(--black) !important; font-family: 'Bebas Neue', sans-serif !important; font-size: 1.2rem !important; letter-spacing: 0.14em !important; border: none !important; cursor: none !important; transition: all 0.2s !important; border-radius: 4px !important; text-transform: uppercase !important; font-weight: 600 !important; }
   :global(.form-submit-custom:hover) { background: #e0bc62 !important; transform: translateY(-2px) !important; box-shadow: 0 8px 16px rgba(201,168,76,0.3) !important; }
   :global(.form-submit-custom:active) { transform: translateY(0px) !important; }
+  .divider { position: relative; margin: 20px 0; display: flex; align-items: center; width: 100%; }
+  .divider-line { flex: 1; height: 1px; background: rgba(201,168,76,0.18); }
+  .divider-text { padding: 0 12px; font-size: 0.75rem; color: rgba(240,237,232,0.4); text-transform: uppercase; letter-spacing: 0.1em; }
+  .google-link { display: block; text-decoration: none; }
+  :global(.google-btn) { width: 100% !important; border: 1px solid rgba(58,184,184,0.2) !important; color: rgba(240,237,232,0.7) !important; font-family: 'DM Sans', sans-serif !important; transition: all 0.2s !important; cursor: none !important; }
+  :global(.google-btn:hover) { border-color: var(--teal) !important; color: var(--teal) !important; background: rgba(58,184,184,0.05) !important; }
+  .google-icon { width: 18px; height: 18px; margin-right: 8px; }
   .field-input { display: none; }
   .field-error { display: none; }
   .form-submit { display: none; }
@@ -753,7 +795,7 @@
   /* ── Tablette ── */
   @media (max-width: 900px) {
     nav { padding: 20px 24px; }
-    .nav-logo-img { height: 28px; }
+    .nav-logo-img { height: 56px; }
     .nav-btn { padding: 8px 16px; font-size: 0.72rem; }
     #sec1 { padding: 15vh 24px 8vh; }
     .hero-h1 { font-size: clamp(4rem, 12vw, 8rem); }
@@ -768,30 +810,33 @@
   /* ── Mobile ── */
   @media (max-width: 640px) {
     nav { flex-direction: column; align-items: flex-start; padding: 16px 20px; gap: 12px; }
-    .nav-logo-img { height: 24px; }
+    .nav-logo-img { height: 44px; }
     .nav-btns { gap: 8px; }
     .nav-btn { padding: 8px 14px; font-size: 0.68rem; }
     #progress-line { height: 1px; }
-    #sec1 { height: auto; min-height: 100vh; padding: 140px 16px 60px; justify-content: flex-start; }
+    #sec1 { height: auto; min-height: 100vh; padding: 165px 16px 60px; justify-content: flex-start; }
     .hero-group { gap: 2rem; margin-top: 40px; }
     .hero-h1 { font-size: clamp(5rem, 28vw, 9rem); letter-spacing: -0.02em; width: 100vw; max-width: 100%; line-height: 0.85; }
-    .hero-sub { font-size: 0.95rem; max-width: 100%; padding: 0 8px; margin-top: 40px; }
+    .hero-sub { font-size: 1rem; max-width: 100%; padding: 0 8px; margin-top: 40px; }
     #scroll-hint { margin-top: 80px; }
     #sec2, #sec3, #sec4, #sec5, #sec6, #sec7 { padding: 60px 16px; gap: 36px; }
     .sec-h2 { font-size: clamp(1.8rem, 7vw, 2.8rem); }
     .reveal-h1 { font-size: clamp(1.8rem, 7vw, 2.8rem); }
-    .reveal-sub, .sec-text, .authority-text { font-size: 0.95rem; }
-    .promise-list li { font-size: 0.95rem; }
+    .reveal-sub, .sec-text, .authority-text { font-size: 1rem; }
+    .promise-wrap { background: rgba(8,8,8,0.48); border-radius: 8px; padding: 28px 20px; }
+    .promise-list li { font-size: 1rem; }
     .features-grid { grid-template-columns: 1fr; gap: 8px; }
-    .feature-card { padding: 28px 20px; }
-    .fc-text { font-size: 0.88rem; }
+    .feature-card { padding: 28px 20px; background: rgba(8,8,8,0.88); }
+    .fc-text { font-size: 1rem; }
+    .value-stack { padding: 24px 16px; }
+    .value-stack-list li { font-size: 1rem; }
     .price-block { padding: 28px 20px; }
     .price-amount { font-size: clamp(2.5rem, 8vw, 3.5rem); }
     .offer-cta { padding: 16px 24px; font-size: 0.82rem; }
     .form-wrap { max-width: 100%; padding: 28px 16px; border-radius: 6px; }
     .form-h2 { font-size: clamp(1.6rem, 6vw, 2.2rem); }
-    .form-sub { font-size: 0.88rem; }
-    :global(.field-input-custom) { font-size: 0.9rem !important; padding: 12px !important; }
+    .form-sub { font-size: 1rem; }
+    :global(.field-input-custom) { font-size: 1rem !important; padding: 12px !important; }
     :global(.form-submit-custom) { font-size: 1rem !important; padding: 16px !important; }
     .authority-disciplines { gap: 8px; }
     .discipline-tag { font-size: 0.65rem; padding: 5px 10px; }

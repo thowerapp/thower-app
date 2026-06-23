@@ -69,8 +69,8 @@
 	<div class="auth-card">
 		<h1>Photos de référence</h1>
 		<p class="subtitle">
-			Ces photos sont facultatives mais recommandées pour suivre votre évolution. Prenez-les en
-			sous-vêtements, de face, de profil et de dos.
+			Ces photos sont obligatoires pour suivre votre évolution. Prenez-les en sous-vêtements,
+			de face, de profil et de dos.
 		</p>
 
 		{#if uploadError}
@@ -190,7 +190,6 @@
 		<p class="help-text">
 			Vos photos sont stockées de façon sécurisée et ne sont accessibles que par vous.
 		</p>
-		<a href="/auth/well-being" class="skip-link">Passer cette étape →</a>
 	</div>
 </div>
 
@@ -226,19 +225,6 @@
 		color: var(--txd);
 		margin: 0 0 24px 0;
 		line-height: 1.5;
-	}
-
-	.skip-link {
-		display: inline-block;
-		font-size: 0.75rem;
-		font-family: var(--fb);
-		color: var(--cy);
-		text-decoration: none;
-		margin: -8px 0 8px;
-	}
-
-	.skip-link:hover {
-		opacity: 0.85;
 	}
 
 	.error-banner {
@@ -361,13 +347,4 @@
 		margin: 0;
 		line-height: 1.4;
 	}
-	.skip-link {
-		display: block;
-		text-align: center;
-		margin-top: 16px;
-		font-size: 0.75rem;
-		color: var(--txd);
-		text-decoration: none;
-	}
-	.skip-link:hover { color: var(--tx); }
 </style>

@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
-import type { ActivityLevel, MealPosition } from '@prisma/client';
+import type { MealPosition } from '@prisma/client';
 import { upsertMeal } from '$lib/prisma/nutritionDay/upsertMeal';
 import {
 	targetCaloriesPerDay,
@@ -30,7 +30,11 @@ function positionLabel(p: MealPosition): string {
 	}
 }
 
-function mealBudgetFraction(p: MealPosition): number {
+function mealBudgetFraction(p: MealPosition, intermittentFasting: boolean): number {
+	if (intermittentFasting) {
+		if (p === 'BREAKFAST') return 0.3;
+		return 0.5; // LUNCH et DINNER
+	}
 	return p === 'BREAKFAST' ? 0.3 : 0.35;
 }
 
@@ -96,6 +100,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		where: { userId_dayIndex: { userId, dayIndex } },
 		select: {
 			id: true,
+			intermittentFasting: true,
 			meals: {
 				where: { position },
 				select: {
@@ -113,9 +118,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const profile = await prisma.userProfile.findUnique({
 		where: { userId },
 		select: {
-			activityLevel: true,
 			bodyFatPercent: true,
-			weightLossGoalKg: true,
+			activityLevel: true,
 			breadDaily: true,
 			breadGramsPerDay: true,
 			breadType: true
@@ -137,8 +141,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			? targetCaloriesPerDay({
 					weightKg,
 					bodyFatPercent: profile?.bodyFatPercent,
-					activityLevel: profile?.activityLevel as ActivityLevel | null | undefined,
-					weightLossGoalKg: profile?.weightLossGoalKg
+					activityLevel: profile?.activityLevel as import('@prisma/client').ActivityLevel | null
 				})
 			: null;
 	const mealBudgetKcal = targetKcal != null ? Math.max(0, targetKcal - breadKcal) : null;
@@ -164,7 +167,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		orderBy: { name: 'asc' }
 	});
 
-	const frac = mealBudgetFraction(position);
+	const frac = mealBudgetFraction(position, nutritionDay?.intermittentFasting ?? false);
 	const recipesWithOptimalQ = recipes.map((r) => ({
 		...r,
 		optimalQuantityG: optimalQuantityG(r, mealBudgetKcal, targetProteinG, frac)

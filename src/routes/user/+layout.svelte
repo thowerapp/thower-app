@@ -147,7 +147,7 @@ onMount(() => {
     {@render children()}
   </div>
   {#if backInfo}
-    <a href="/user" class="home-btn" onclick={handleNavClick} aria-label="Accueil">
+    <a href="/user" class="home-btn" onclick={handleNavClick} aria-label="Accueil" data-sveltekit-preload-code="eager" data-sveltekit-preload-data="tap">
       <svg width="16" height="15" viewBox="0 0 20 18" fill="none">
         <polygon points="10,1 19,9 16,9 16,17 12,17 12,12 8,12 8,17 4,17 4,9 1,9" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="none"/>
       </svg>
@@ -155,23 +155,23 @@ onMount(() => {
   {/if}
 
   <nav class="bottom-nav">
-    <a href="/user/decouverte" class="ni" class:on={currentTab === 'decouverte'} onclick={handleNavClick}>
+    <a href="/user/decouverte" class="ni" class:on={currentTab === 'decouverte'} onclick={handleNavClick} data-sveltekit-preload-code="eager" data-sveltekit-preload-data="tap">
       <div class="ndot"></div>
       <div class="nlbl">Découverte</div>
       <div class="nbar"></div>
     </a>
-    <a href="/user/journee" class="ni" class:on={currentTab === 'journee'} onclick={handleNavClick}>
+    <a href="/user/journee" class="ni" class:on={currentTab === 'journee'} onclick={handleNavClick} data-sveltekit-preload-code="eager" data-sveltekit-preload-data="tap">
       <!-- pin-dot quand des tâches ou la séance sont en attente -->
       <div class="ndot" class:pin-dot={pending.journee}></div>
       <div class="nlbl" class:nlbl-pending={pending.journee && currentTab !== 'journee'}>Journée</div>
       <div class="nbar"></div>
     </a>
-    <a href="/user/progression" class="ni" class:on={currentTab === 'progression'} onclick={handleNavClick}>
+    <a href="/user/progression" class="ni" class:on={currentTab === 'progression'} onclick={handleNavClick} data-sveltekit-preload-code="eager" data-sveltekit-preload-data="tap">
       <div class="ndot" class:pin-dot={pending.photos}></div>
       <div class="nlbl">Progression</div>
       <div class="nbar"></div>
     </a>
-    <a href="/user/parametres" class="ni" class:on={currentTab === 'parametres'} onclick={handleNavClick}>
+    <a href="/user/parametres" class="ni" class:on={currentTab === 'parametres'} onclick={handleNavClick} data-sveltekit-preload-code="eager" data-sveltekit-preload-data="tap">
       <div class="ndot"></div>
       <div class="nlbl">Paramètres</div>
       <div class="nbar"></div>

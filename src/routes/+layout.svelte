@@ -6,7 +6,7 @@
   import '../app.css';
   import '$lib/styles/shadcn-thower-harmony.css';
 
-  import { initializeLayoutState, setupNavigationEffect, isClient } from './layout.svelte';
+  import { initializeLayoutState, setupNavigationEffect, isClient, isNavigating } from './layout.svelte';
 
   import { ModeWatcher } from 'mode-watcher';
   import Toaster from '$lib/components/shadcn/ui/sonner/sonner.svelte';
@@ -133,6 +133,11 @@
     <GlobalCursor />
     <!-- <Navigation user={data?.user ?? null} /> -->
     <div class="container">
+      {#if $isNavigating}
+        <div class="navigation-loader" role="status" aria-label="Chargement" aria-live="polite">
+          <span class="navigation-loader-spinner"></span>
+        </div>
+      {/if}
       <div class="wrapperScroll">
         <SmoothScrollBar>
           <main class="mainLayout">
@@ -216,6 +221,34 @@
     width: 100%;
     overflow: hidden;
     background: transparent;
+  }
+
+  .navigation-loader {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    z-index: 1000;
+    display: grid;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    border: 1px solid rgba(240, 237, 232, 0.2);
+    border-radius: 50%;
+    background: rgba(10, 10, 10, 0.78);
+    pointer-events: none;
+  }
+
+  .navigation-loader-spinner {
+    width: 15px;
+    height: 15px;
+    border: 2px solid rgba(240, 237, 232, 0.3);
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: navigation-spin 0.7s linear infinite;
+  }
+
+  @keyframes navigation-spin {
+    to { transform: rotate(360deg); }
   }
 
   #three-canvas-slot {

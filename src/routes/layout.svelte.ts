@@ -2,13 +2,14 @@
 
 import { writable } from 'svelte/store';
 import pageTransitionStore from '$lib/store/pageTransition';
-import { onNavigate } from '$app/navigation';
+import { afterNavigate, onNavigate } from '$app/navigation';
 import SmoothScrollBarStore from '$lib/store/SmoothScrollBarStore';
 
 export const isClient = writable(false);
 export const loading = writable(true);
 export const progressValue = writable(0);
 export const previousRouteId = writable<string | null>(null);
+export const isNavigating = writable(false);
 
 export function initializeLayoutState(currentPage: { route: { id: string | null } }) {
 	const currentData = {
@@ -48,11 +49,16 @@ export function setupNavigationEffect() {
 		const toData = navigation.to ? { routeId: navigation.to.route.id } : null;
 
 		if (fromData && toData && fromData.routeId !== toData.routeId) {
+			isNavigating.set(true);
 			pageTransitionStore.set({
 				from: fromData,
 				to: toData
 			});
 			previousRouteId.set(toData.routeId as string | null);
 		}
+	});
+
+	afterNavigate(() => {
+		isNavigating.set(false);
 	});
 }

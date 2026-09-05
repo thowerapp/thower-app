@@ -10,10 +10,14 @@ export async function updateVideo(id: string, data: VideoFormCoreInput) {
 		if (!data.position) {
 			throw new Error('position est requise pour une vidéo sport.');
 		}
+		if (!data.sessionType) {
+			throw new Error('sessionType est requis pour une vidéo sport.');
+		}
 		return db.workoutVideo.update({
 			where: { id },
 			data: {
 				title: data.title,
+				sessionType: data.sessionType,
 				position: data.position,
 				isOptional: data.isOptional ?? false
 			}

@@ -517,6 +517,8 @@ model WorkoutVideo {
   /// UID Cloudflare Stream — le même asset peut être référencé sur plusieurs fiches
   cloudflareUid   String
   title       String
+  /// Séance à laquelle la vidéo est rattachée (MAIN_A/B/C/DISCOVERY) — choisi dans le formulaire admin
+  sessionType WorkoutSessionType?
   position    WorkoutVideoPosition
   isOptional  Boolean              @default(false)
   /// Durée en secondes — renseignée par le webhook Cloudflare quand la vidéo est ready
@@ -531,6 +533,7 @@ model WorkoutVideo {
   programDayItems ProgramDayItem[]
 
   @@index([cloudflareUid])
+  @@index([sessionType])
   @@map("workout_videos")
 }
 

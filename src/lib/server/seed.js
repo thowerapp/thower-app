@@ -381,10 +381,16 @@ async function main() {
 					data: {
 						cloudflareUid,
 						title: `${sdef.name} — ${slot.title}`,
+						sessionType: sdef.type,
 						position: slot.position,
 						isOptional: slot.isOptional,
 						status: 'pending'
 					}
+				});
+			} else if (vid.sessionType !== sdef.type) {
+				vid = await db.workoutVideo.update({
+					where: { id: vid.id },
+					data: { sessionType: sdef.type }
 				});
 			}
 			if (slot.position === 'VID1') mainVideoId = vid.id;

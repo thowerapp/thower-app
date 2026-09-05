@@ -38,6 +38,13 @@
 		VID2: 'Vidéo 2'
 	};
 
+	const sessionTypeLabels: Record<string, string> = {
+		MAIN_A: 'Séance A',
+		MAIN_B: 'Séance B',
+		MAIN_C: 'Séance C',
+		DISCOVERY: 'Découverte'
+	};
+
 	const statusLabels: Record<string, string> = {
 		pending: 'En attente',
 		pendingupload: 'À uploader',
@@ -99,14 +106,17 @@
 		id: string;
 		realId: string;
 		kind: 'workout' | 'discovery';
-		sessionName?: string | null;
+		sessionType?: string | null;
 		category?: string | null;
 		[key: string]: unknown;
 	};
 	const tableData = $derived(
 		((data?.videos ?? []) as VideoRow[]).map((v) => ({
 			...v,
-			sessionName: v.kind === 'workout' ? (v.sessionName ?? '—') : (v.category ?? '—')
+			sessionName:
+				v.kind === 'workout'
+					? (sessionTypeLabels[String(v.sessionType)] ?? '—')
+					: (v.category ?? '—')
 		}))
 	);
 

@@ -60,6 +60,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 					kind: 'workout',
 					cloudflareUid: row.cloudflareUid,
 					title: row.title,
+					sessionType: row.sessionType ?? null,
 					position: row.position,
 					isOptional: row.isOptional ?? false,
 					category: null,

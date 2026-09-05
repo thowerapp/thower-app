@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { workoutVideoPositionEnum } from '$lib/schema/workout/workoutVideoSchema';
+import { workoutSessionTypeEnum } from '$lib/schema/workout/workoutSessionSchema';
 import { discoveryCategoryEnum } from '$lib/schema/discovery/discoveryContentSchema';
 import { attachDaySchema } from '$lib/schema/video/attachDaySchema';
 
@@ -18,6 +19,7 @@ const videoFormCoreBaseSchema = z.object({
 	...baseVideoFields,
 
 		// Workout-only
+		sessionType: workoutSessionTypeEnum.optional().nullable(),
 		position: workoutVideoPositionEnum.optional().nullable(),
 		isOptional: z.boolean().default(false),
 
@@ -36,6 +38,13 @@ export const videoFormCoreSchema = videoFormCoreBaseSchema.superRefine((d, ctx) 
 			code: z.ZodIssueCode.custom,
 			message: 'Position requise (PRE, VID1 ou VID2).',
 			path: ['position']
+		});
+	}
+	if (d.kind === 'workout' && !d.sessionType) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Séance requise (MAIN_A, MAIN_B, MAIN_C ou DISCOVERY).',
+			path: ['sessionType']
 		});
 	}
 	if (d.kind === 'discovery' && !d.category) {

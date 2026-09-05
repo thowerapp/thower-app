@@ -19,14 +19,20 @@ export type SessionWorkoutVideoRow = {
 };
 
 /**
- * Les vidéos sport ne sont plus liées par FK à WorkoutSession.
- * En seed : UID `cf_seed_{slot}_{MAIN_A|MAIN_B|MAIN_C|DISCOVERY}`.
+ * Les vidéos sport ne sont plus liées par FK à WorkoutSession : le champ `sessionType`,
+ * choisi dans le formulaire admin, fait le lien. Fallback pour les fiches historiques
+ * (seed) qui n'ont que la convention d'UID `cf_seed_{slot}_{MAIN_A|MAIN_B|MAIN_C|DISCOVERY}`.
  */
 export async function getWorkoutVideosForSessionType(
 	sessionType: WorkoutSessionType
 ): Promise<SessionWorkoutVideoRow[]> {
 	const videos = await prisma.workoutVideo.findMany({
-		where: { cloudflareUid: { endsWith: `_${sessionType}` } }
+		where: {
+			OR: [
+				{ sessionType },
+				{ sessionType: null, cloudflareUid: { endsWith: `_${sessionType}` } }
+			]
+		}
 	});
 
 	return [...videos]

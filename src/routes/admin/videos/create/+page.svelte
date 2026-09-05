@@ -19,6 +19,7 @@
 		discoveryCategoryEnum
 	} from '$lib/schema/discovery/discoveryContentSchema';
 	import { workoutVideoPositionEnum } from '$lib/schema/workout/workoutVideoSchema';
+	import { workoutSessionTypeEnum } from '$lib/schema/workout/workoutSessionSchema';
 	import ArrowLeft from 'lucide-svelte/icons/arrow-left';
 	import Video from 'lucide-svelte/icons/video';
 	import UploadCloud from 'lucide-svelte/icons/upload-cloud';
@@ -59,6 +60,16 @@
 	const positionOptions = workoutVideoPositionEnum.options.map((v) => ({
 		value: v,
 		label: ({ PRE: 'Pré-séance (facultative)', VID1: 'Vidéo 1', VID2: 'Vidéo 2' })[v]
+	}));
+
+	const sessionTypeOptions = workoutSessionTypeEnum.options.map((v) => ({
+		value: v,
+		label: ({
+			MAIN_A: 'Séance A',
+			MAIN_B: 'Séance B',
+			MAIN_C: 'Séance C',
+			DISCOVERY: 'Découverte'
+		})[v]
 	}));
 
 	let selectedFile = $state<File | null>(null);
@@ -204,6 +215,23 @@
 	{#if $form.kind === 'workout'}
 		<fieldset class="rounded-lg border p-4 space-y-4">
 			<legend class="px-2 text-sm font-semibold">Paramètres séance sport</legend>
+
+			<Form.Field name="sessionType" form={videoForm}>
+				<Form.Control>
+					<Form.Label>Séance *</Form.Label>
+					<select
+						name="sessionType"
+						bind:value={$form.sessionType}
+						class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm"
+					>
+						<option value="" disabled selected>Choisir…</option>
+						{#each sessionTypeOptions as opt}
+							<option value={opt.value}>{opt.label}</option>
+						{/each}
+					</select>
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
 
 			<Form.Field name="position" form={videoForm}>
 				<Form.Control>

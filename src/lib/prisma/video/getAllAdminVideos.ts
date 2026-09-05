@@ -80,6 +80,7 @@ export type AdminVideoRow = {
 	updatedAt: Date;
 
 	// Workout-specific
+	sessionType?: string | null;
 	position?: string | null;
 	isOptional?: boolean | null;
 
@@ -121,6 +122,7 @@ export async function getAllAdminVideos(): Promise<AdminVideoRow[]> {
 			thumbnailUrl: v.thumbnailUrl ?? null,
 			createdAt: null,
 			updatedAt: v.updatedAt,
+			sessionType: v.sessionType ?? null,
 			position: v.position,
 			isOptional: v.isOptional ?? false
 		});

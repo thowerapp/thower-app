@@ -25,7 +25,8 @@
 		"seed:admin": "node src/lib/server/seedAdmin.js",
 		"reset": "node src/lib/server/resetDb.js",
 		"stream:register-webhook": "node scripts/register-stream-webhook.mjs",
-		"migrate:measurements": "tsx scripts/migrate-measurements-to-profile-and-body.ts"
+		"migrate:measurements": "tsx scripts/migrate-measurements-to-profile-and-body.ts",
+		"reset:all-programs": "tsx scripts/reset-all-programs.ts"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.11.0",

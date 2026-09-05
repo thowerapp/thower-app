@@ -13,10 +13,14 @@ export async function createVideo(data: VideoFormCoreInput) {
 		if (!data.position) {
 			throw new Error('position est requise pour une vidéo sport.');
 		}
+		if (!data.sessionType) {
+			throw new Error('sessionType est requis pour une vidéo sport.');
+		}
 		return db.workoutVideo.create({
 			data: {
 				cloudflareUid: data.cloudflareUid,
 				title: data.title,
+				sessionType: data.sessionType,
 				position: data.position,
 				isOptional: data.isOptional ?? false,
 				status: 'pending'

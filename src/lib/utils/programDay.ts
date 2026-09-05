@@ -22,7 +22,7 @@ const WEEKDAY_SHORT_EN: Record<string, number> = {
 	Sat: 6
 };
 
-export function startOfUtcDay(d: Date): Date {
+export function startOfUtcDay(d: Date = new Date()): Date {
 	const x = new Date(d);
 	x.setUTCHours(0, 0, 0, 0);
 	return x;

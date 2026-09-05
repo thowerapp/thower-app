@@ -6,8 +6,18 @@ import {
 	isProgramAwaitingStart,
 	nextMondayStartParis,
 	remainingUntil,
-	shortWeekdayFrUtc
+	shortWeekdayFrUtc,
+	startOfUtcDay
 } from './programDay';
+
+describe('startOfUtcDay', () => {
+	it('accepte un appel sans argument', () => {
+		const d = startOfUtcDay();
+		expect(Number.isNaN(d.getTime())).toBe(false);
+		expect(d.getUTCHours()).toBe(0);
+		expect(d.getUTCMinutes()).toBe(0);
+	});
+});
 
 describe('nextMondayStartParis', () => {
 	it('garde le lundi en cours (été CEST)', () => {

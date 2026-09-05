@@ -3,33 +3,21 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import { z } from 'zod';
+import { currentProgramDayIndex } from '$lib/utils/programDay';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
 
 	const userId = locals.user.id;
 
-	function startOfUtcDay(d: Date = new Date()): Date {
-		const r = new Date(d);
-		r.setUTCHours(0, 0, 0, 0);
-		return r;
-	}
-
 	const user = await prisma.user.findUnique({
 		where: { id: userId },
 		select: { programStartDate: true }
 	});
 
-	let currentDayIndex = 1;
-	let currentWeek = 1;
-	const programStart = user?.programStartDate;
-	if (programStart) {
-		const diff = Math.floor(
-			(startOfUtcDay().getTime() - startOfUtcDay(programStart).getTime()) / 86_400_000
-		);
-		currentDayIndex = Math.min(Math.max(diff + 1, 1), 91);
-		currentWeek = Math.ceil(currentDayIndex / 7);
-	}
+	const programStart = user?.programStartDate ?? null;
+	const currentDayIndex = currentProgramDayIndex(programStart);
+	const currentWeek = currentDayIndex > 0 ? Math.ceil(currentDayIndex / 7) : 1;
 
 	// ─── Points totaux ───────────────────────────────────────────────────────
 	const pointEvents = await prisma.pointEvent.findMany({
@@ -197,16 +185,10 @@ export const actions: Actions = {
 				return fail(400, { message: 'Programme non démarré' });
 			}
 
-			// Calculer le mois actuel
-			function startOfUtcDay(d: Date = new Date()): Date {
-				const r = new Date(d);
-				r.setUTCHours(0, 0, 0, 0);
-				return r;
+			const currentDayIndex = currentProgramDayIndex(user.programStartDate);
+			if (currentDayIndex < 1) {
+				return fail(400, { message: 'Programme pas encore démarré' });
 			}
-			const diff = Math.floor(
-				(startOfUtcDay().getTime() - startOfUtcDay(user.programStartDate).getTime()) / 86_400_000
-			);
-			const currentDayIndex = Math.min(Math.max(diff + 1, 1), 91);
 			const currentMonth = Math.ceil(currentDayIndex / 30);
 
 			// Vérifier qu'un check-in n'existe pas pour ce mois

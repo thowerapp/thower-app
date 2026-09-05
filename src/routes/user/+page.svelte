@@ -2,6 +2,7 @@
 import type { PageData, LayoutData } from './$types';
 import EmberCanvas from '$lib/components/EmberCanvas.svelte';
 import DailyChecklist from '$lib/components/DailyChecklist.svelte';
+import ProgramStartCountdown from '$lib/components/ProgramStartCountdown.svelte';
 import { fireElement } from '$lib/utils/particles';
 import { page } from '$app/stores';
 
@@ -14,9 +15,11 @@ const access = $derived(data.programAccess ?? { nutrition: true, sport: true });
 const checklistValidated = $derived(data.validated);
 const totalPointsValue = $derived(data.totalPoints ?? 0);
 const levelPercentValue = $derived(data.levelPercent ?? 0);
+const programAwaitingStart = $derived(data.programAwaitingStart === true);
+const programStartsAt = $derived(data.programStartsAt ?? null);
 
 const currentDayIndex = $derived(
-	($page.data as { currentDayIndex?: number }).currentDayIndex ?? 1
+	($page.data as { currentDayIndex?: number }).currentDayIndex ?? 0
 );
 const currentWeekNum = $derived(Math.min(13, Math.max(1, Math.ceil(currentDayIndex / 7))));
 
@@ -122,7 +125,7 @@ $effect(() => {
 
 <!-- Hero immersif -->
 <div class="home-hero">
-  <EmberCanvas active={dailyCtaActive} />
+  <EmberCanvas active={!programAwaitingStart && dailyCtaActive} />
   <!-- Logo centré en background avec glow doré -->
   <div class="hh-depth" aria-hidden="true">
     <img class="hh-logo" src="/logo-app.png" alt="" style={logoStyle} />
@@ -131,9 +134,13 @@ $effect(() => {
   <div class="hh-inner">
     <div class="hh-top">
       <div>
-        <div class="hh-eyebrow">Jour {currentDayIndex} / 91</div>
-        <div class="hh-title">Tho<span class="hh-title-white">wer</span></div>
-        <div class="hh-sub">Semaine {currentWeekNum} · Programme Méthode</div>
+        {#if programAwaitingStart && programStartsAt}
+          <ProgramStartCountdown startsAt={programStartsAt} />
+        {:else}
+          <div class="hh-eyebrow">Jour {currentDayIndex} / 91</div>
+          <div class="hh-title">Tho<span class="hh-title-white">wer</span></div>
+          <div class="hh-sub">Semaine {currentWeekNum} · Programme Méthode</div>
+        {/if}
       </div>
       <a href="/user/parametres/profil" class="pbtn" aria-label="Ouvrir le profil">
         <div class="pbtn-sq"></div>
@@ -144,6 +151,15 @@ $effect(() => {
 </div>
 
 <!-- CTA quotidien piloté par sport + checklist -->
+{#if programAwaitingStart}
+<div class="u-notif-banner daily-cta daily-cta-wait">
+  <div class="u-ndot" style:background="var(--g)" style:animation="none" style:opacity=".4"></div>
+  <div class="u-nb">
+    <div class="u-nb-t">Le programme démarre lundi</div>
+    <div class="u-nb-s">Tu peux déjà explorer le sport, la nutrition et la méthode</div>
+  </div>
+</div>
+{:else}
 <a
   href={!access.sport && !checklistPending ? '/auth/subscription' : dailyCtaHref}
   class="u-notif-banner daily-cta"
@@ -161,8 +177,12 @@ $effect(() => {
   </div>
   <div class="u-ncta" style:color={!dailyCtaActive ? 'var(--g)' : undefined}>{dailyCtaLabel}</div>
 </a>
+{/if}
 
-<div class="u-sh"><div class="u-sh-t">Mon programme</div><div class="u-sh-s">Jour {currentDayIndex} / 91</div></div>
+<div class="u-sh">
+  <div class="u-sh-t">Mon programme</div>
+  <div class="u-sh-s">{programAwaitingStart ? 'Démarre lundi' : `Jour ${currentDayIndex} / 91`}</div>
+</div>
 
 <div class="u-split-cards">
   <a
@@ -307,7 +327,8 @@ $effect(() => {
   filter: blur(20px);
 }
 .hh-inner { position: relative; z-index: 4; }
-.hh-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.hh-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; gap: 12px; }
+.hh-top > div:first-child { flex: 1; min-width: 0; }
 .hh-eyebrow { font-size: .4375rem; color: var(--txd); letter-spacing: .14em; text-transform: uppercase; font-family: var(--fb); margin-bottom: 4px; }
 .hh-title {
   font-family: var(--fh);

@@ -8,12 +8,11 @@ import { prisma } from '$lib/server';
 import { getProgramOfferEntitlements } from '$lib/prisma';
 import { checkUserAppAccess } from '$lib/server/access';
 import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
-
-function startOfUtcDay(d: Date = new Date()): Date {
-	const r = new Date(d);
-	r.setUTCHours(0, 0, 0, 0);
-	return r;
-}
+import {
+	currentProgramDayIndex,
+	isProgramAwaitingStart,
+	startOfUtcDay
+} from '$lib/utils/programDay';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
@@ -39,13 +38,24 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			select: { programStartDate: true }
 		});
 
-		let currentDayIndex = 1;
-		const programStart = user?.programStartDate;
-		if (programStart) {
-			const diff = Math.floor(
-				(todayStart.getTime() - startOfUtcDay(programStart).getTime()) / 86_400_000
-			);
-			currentDayIndex = Math.min(Math.max(diff + 1, 1), 91);
+		const programStart = user?.programStartDate ?? null;
+		const currentDayIndex = currentProgramDayIndex(programStart);
+		const programAwaitingStart = isProgramAwaitingStart(programStart);
+
+		if (programAwaitingStart || currentDayIndex < 1) {
+			return {
+				pending: {
+					seance: false,
+					tasks: 0,
+					repas: false,
+					photos: false,
+					journee: false
+				},
+				currentDayIndex: 0,
+				programStartDate: programStart?.toISOString() ?? null,
+				programAwaitingStart,
+				programAccess
+			};
 		}
 
 		// Y a-t-il une séance validée aujourd'hui pour ce dayIndex ?
@@ -113,6 +123,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			},
 			currentDayIndex,
 			programStartDate: programStart?.toISOString() ?? null,
+			programAwaitingStart: false,
 			programAccess
 		};
 	} catch {
@@ -125,8 +136,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 				photos: false,
 				journee: false
 			},
-			currentDayIndex: 1,
+			currentDayIndex: 0,
 			programStartDate: null,
+			programAwaitingStart: false,
 			programAccess
 		};
 	}

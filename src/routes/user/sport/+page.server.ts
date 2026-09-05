@@ -12,6 +12,7 @@ import {
 } from '$lib/utils/programDay';
 import { serializeData } from '$lib/utils/serializeData';
 import { requireSportAccess } from '$lib/server/programAccessGuard';
+import { ensureProgramStartDate } from '$lib/server/program-generation/generateProgramForUser';
 
 const PLANNER_SESSION_TYPES = ['MAIN_A', 'MAIN_B', 'MAIN_C', 'DISCOVERY'] as const;
 
@@ -547,10 +548,7 @@ export const actions: Actions = {
 			return fail(409, { message: 'Programme déjà démarré.' });
 		}
 
-		await prisma.user.update({
-			where: { id: userId },
-			data: { programStartDate: new Date() }
-		});
+		await ensureProgramStartDate(userId);
 
 		return { success: true };
 	}

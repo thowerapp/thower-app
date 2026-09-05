@@ -32,7 +32,7 @@ function handleNavClick(_e: MouseEvent) {
 // Les données de pending viennent du layout server
 const pending = $derived(data?.pending ?? { seance: false, tasks: 0, repas: false, photos: false, journee: false });
 
-const currentDayIndex = $derived(($page.data as { currentDayIndex?: number })?.currentDayIndex ?? 1);
+const currentDayIndex = $derived(($page.data as { currentDayIndex?: number })?.currentDayIndex ?? 0);
 const themeStyle = $derived(computeThemeVars(currentDayIndex));
 
 // ── Bouton retour bas de page, calculé depuis l'URL ──

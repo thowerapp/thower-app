@@ -1,12 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server';
 import type { PageServerLoad, Actions } from './$types';
-
-function startOfUtcDay(d: Date = new Date()): Date {
-	const r = new Date(d);
-	r.setUTCHours(0, 0, 0, 0);
-	return r;
-}
+import {
+	currentProgramDayIndex,
+	isProgramAwaitingStart,
+	startOfUtcDay
+} from '$lib/utils/programDay';
 
 const LEVELS = [
 	{ min: 0,    num: 1, name: 'Bambou en herbe',    nextMin: 200  },
@@ -74,14 +73,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true } })
 	]);
 
-	// Jour courant du programme
-	let currentDayIndex = 1;
-	if (userData?.programStartDate) {
-		const diff = Math.floor(
-			(todayStart.getTime() - startOfUtcDay(userData.programStartDate).getTime()) / 86_400_000
-		);
-		currentDayIndex = Math.min(Math.max(diff + 1, 1), 91);
-	}
+	const programStart = userData?.programStartDate ?? null;
+	const currentDayIndex = currentProgramDayIndex(programStart);
+	const programAwaitingStart = isProgramAwaitingStart(programStart);
 
 	const isVisible = (t: { showFromDay: number | null; showUntilDay: number | null }) => {
 		if (t.showFromDay != null && currentDayIndex < t.showFromDay) return false;
@@ -122,13 +116,15 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 	return {
 		user: locals.user,
-		tasks,
+		tasks: programAwaitingStart ? [] : tasks,
 		validated,
 		pointsEarned,
 		totalPoints,
 		levelData,
 		levelPercent,
-		programAccess
+		programAccess,
+		programAwaitingStart,
+		programStartsAt: programStart?.toISOString() ?? null
 	};
 };
 

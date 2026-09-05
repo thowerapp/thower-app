@@ -4,12 +4,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
-
-function startOfUtcDay(d: Date = new Date()): Date {
-	const r = new Date(d);
-	r.setUTCHours(0, 0, 0, 0);
-	return r;
-}
+import { currentProgramDayIndex, startOfUtcDay } from '$lib/utils/programDay';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
@@ -59,13 +54,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		where: { id: userId },
 		select: { programStartDate: true }
 	});
-	let currentDayIndex = 1;
-	if (user?.programStartDate) {
-		const diff = Math.floor(
-			(todayStart.getTime() - startOfUtcDay(user.programStartDate).getTime()) / 86_400_000
-		);
-		currentDayIndex = Math.min(Math.max(diff + 1, 1), 91);
-	}
+	const currentDayIndex = currentProgramDayIndex(user?.programStartDate ?? null);
 
 	const isVisible = (t: { showFromDay: number | null; showUntilDay: number | null }) => {
 		if (t.showFromDay != null && currentDayIndex < t.showFromDay) return false;

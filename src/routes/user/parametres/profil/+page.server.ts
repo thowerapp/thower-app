@@ -2,6 +2,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
+import { currentProgramDayIndex } from '$lib/utils/programDay';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
@@ -83,11 +84,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		prisma.dailyTaskCompletion.count({ where: { userId } })
 	]);
 	const programStart = user?.programStartDate;
-	let currentDayIndex = 1;
-	if (programStart) {
-		const diff = Math.floor((Date.now() - new Date(programStart).setUTCHours(0,0,0,0)) / 86_400_000);
-		currentDayIndex = Math.min(Math.max(diff + 1, 1), 91);
-	}
+	const currentDayIndex = currentProgramDayIndex(programStart ?? null);
 	const expectedCompletions = activeTasks * currentDayIndex;
 	const scorePercent = expectedCompletions > 0 ? Math.round((completions / expectedCompletions) * 100) : 0;
 

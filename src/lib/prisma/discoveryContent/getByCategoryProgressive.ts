@@ -47,24 +47,22 @@ export async function getDiscoveryContentByCategoryProgressive(
 		.filter((id): id is string => id != null);
 
 	// 3. IDs débloqués via une DailyTask active et visible aujourd'hui.
-	//    Garantit la cohérence avec la checklist : si la tâche VIDEO est affichée,
-	//    la vidéo doit aussi apparaître dans la section découverte.
-	//    On utilise Math.max(currentDayIndex, 1) pour aligner avec journee/+page.server.ts
-	//    qui default à 1 quand programStartDate est absent (getCurrentDayIndex retourne 0).
-	const effectiveDayIndex = Math.max(currentDayIndex, 1);
+	//    Jour 0 (attente du lundi) : aucun déblocage via tâche.
 	const visibleTaskLinked: { discoveryContentId: string | null }[] =
-		await db.dailyTask.findMany({
-			where: {
-				active: true,
-				discoveryContentId: { not: null },
-				AND: [
-					{ OR: [{ showFromDay: null }, { showFromDay: { lte: effectiveDayIndex } }] },
-					{ OR: [{ showUntilDay: null }, { showUntilDay: { gte: effectiveDayIndex } }] }
-				]
-			},
-			select: { discoveryContentId: true },
-			distinct: ['discoveryContentId']
-		});
+		currentDayIndex < 1
+			? []
+			: await db.dailyTask.findMany({
+					where: {
+						active: true,
+						discoveryContentId: { not: null },
+						AND: [
+							{ OR: [{ showFromDay: null }, { showFromDay: { lte: currentDayIndex } }] },
+							{ OR: [{ showUntilDay: null }, { showUntilDay: { gte: currentDayIndex } }] }
+						]
+					},
+					select: { discoveryContentId: true },
+					distinct: ['discoveryContentId']
+				});
 	const taskUnlockedIds = visibleTaskLinked
 		.map((r) => r.discoveryContentId)
 		.filter((id): id is string => id != null);

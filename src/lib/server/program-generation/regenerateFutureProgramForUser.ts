@@ -1,14 +1,7 @@
 import { prisma } from '$lib/server';
+import { currentProgramDayIndex } from '$lib/utils/programDay';
 import { generateProgramForUser } from './generateProgramForUser';
 import { programGenLog, programGenTrace, type ProgramGenSource } from './programGenerationLog';
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-function startOfUtcDay(date: Date): Date {
-	const d = new Date(date);
-	d.setUTCHours(0, 0, 0, 0);
-	return d;
-}
 
 async function resolveFirstFutureDayIndex(userId: string): Promise<number> {
 	const user = await prisma.user.findUnique({
@@ -16,13 +9,7 @@ async function resolveFirstFutureDayIndex(userId: string): Promise<number> {
 		select: { programStartDate: true }
 	});
 
-	if (!user?.programStartDate) return 1;
-
-	const start = startOfUtcDay(user.programStartDate);
-	const today = startOfUtcDay(new Date());
-	const dayIndex = Math.floor((today.getTime() - start.getTime()) / MS_PER_DAY) + 1;
-
-	return Math.max(1, dayIndex);
+	return Math.max(1, currentProgramDayIndex(user?.programStartDate ?? null));
 }
 
 export async function regenerateFutureProgramForUser(

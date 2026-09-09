@@ -1,11 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server';
 import type { PageServerLoad, Actions } from './$types';
-import {
-	currentProgramDayIndex,
-	isProgramAwaitingStart,
-	startOfUtcDay
-} from '$lib/utils/programDay';
+import { startOfUtcDay } from '$lib/utils/programDay';
 import { computeLevel } from '$lib/utils/levels';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
@@ -14,15 +10,21 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 	const parentData = await parent();
 	type PA = { nutrition: boolean; sport: boolean };
-	const programAccess: PA =
-		(parentData as { programAccess?: PA }).programAccess ?? {
-			nutrition: true,
-			sport: true
-		};
+	type ParentShape = {
+		programAccess?: PA;
+		currentDayIndex?: number;
+		programAwaitingStart?: boolean;
+		programStartDate?: string | null;
+		optOutTaskIds?: string[];
+		completedTaskIds?: string[];
+	};
+	const p = parentData as ParentShape;
+	const programAccess: PA = p.programAccess ?? { nutrition: true, sport: true };
+	const currentDayIndex = p.currentDayIndex ?? 0;
+	const programAwaitingStart = p.programAwaitingStart ?? false;
+	const programStart = p.programStartDate ?? null;
 
-	const todayStart = startOfUtcDay();
-
-	const [activeTasks, optOuts, todayCompletions, pointEvents, userData] = await Promise.all([
+	const [activeTasks, pointEvents] = await Promise.all([
 		prisma.dailyTask.findMany({
 			where: { active: true },
 			select: {
@@ -46,21 +48,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			},
 			orderBy: { order: 'asc' }
 		}),
-		prisma.userDailyTaskOptOut.findMany({
-			where: { userId },
-			select: { taskId: true }
-		}),
-		prisma.dailyTaskCompletion.findMany({
-			where: { userId, date: todayStart },
-			select: { taskId: true }
-		}),
-		prisma.pointEvent.findMany({ where: { userId }, select: { amount: true } }),
-		prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true } })
+		prisma.pointEvent.findMany({ where: { userId }, select: { amount: true } })
 	]);
-
-	const programStart = userData?.programStartDate ?? null;
-	const currentDayIndex = currentProgramDayIndex(programStart);
-	const programAwaitingStart = isProgramAwaitingStart(programStart);
 
 	const isVisible = (t: { showFromDay: number | null; showUntilDay: number | null }) => {
 		if (t.showFromDay != null && currentDayIndex < t.showFromDay) return false;
@@ -68,8 +57,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		return true;
 	};
 
-	const optOutIds = new Set(optOuts.map((o) => o.taskId));
-	const completedIds = new Set(todayCompletions.map((c) => c.taskId));
+	const optOutIds = new Set(p.optOutTaskIds ?? []);
+	const completedIds = new Set(p.completedTaskIds ?? []);
 	const tasks = activeTasks
 		.filter((t) => !optOutIds.has(t.id) && isVisible(t))
 		.map((t) => ({
@@ -91,7 +80,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 				: null
 		}));
 
-	const validated = todayCompletions.length > 0;
+	const validated = completedIds.size > 0;
 	const pointsEarned = validated
 		? tasks.filter((t) => t.completed).reduce((sum, t) => sum + t.points, 0)
 		: 0;
@@ -109,7 +98,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		levelPercent,
 		programAccess,
 		programAwaitingStart,
-		programStartsAt: programStart?.toISOString() ?? null
+		programStartsAt: programStart
 	};
 };
 

@@ -63,7 +63,7 @@ $effect(() => {
 <div class="profil-hero">
   <EmberCanvas active={true} />
   <div class="ph-depth" aria-hidden="true">
-    <img class="ph-logo" src="/logo-app.png" alt="" />
+    <img loading="lazy" class="ph-logo" src="/logo-app.png" alt="" />
     <div class="ph-logo-glow"></div>
   </div>
   <div class="ph-inner">

@@ -176,7 +176,7 @@
 					{#each userSelected.progressPhotos as p (p.id)}
 						<form method="POST" action="?/upsertProgressPhoto" class="space-y-2 rounded-lg border p-2">
 							<input type="hidden" name="id" value={p.id} />
-							<img src={p.url} alt={p.angle} class="w-full h-32 object-cover rounded" />
+							<img loading="lazy" src={p.url} alt={p.angle} class="w-full h-32 object-cover rounded" />
 							<div class="grid gap-2 sm:grid-cols-2">
 								<label class="space-y-1 text-xs">
 									<span class="font-medium">Mois</span>

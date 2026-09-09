@@ -92,7 +92,7 @@
 					<div class="photo-label">Face</div>
 					<div class="upload-area">
 						{#if frontUrl}
-							<img src={frontUrl} alt="Vue avant" />
+							<img loading="lazy" src={frontUrl} alt="Vue avant" />
 							<div class="uploaded-badge">✓ Uploadée</div>
 						{:else}
 							<label for="front-input" class="upload-label">
@@ -122,7 +122,7 @@
 					<div class="photo-label">Profil</div>
 					<div class="upload-area">
 						{#if sideUrl}
-							<img src={sideUrl} alt="Vue profil" />
+							<img loading="lazy" src={sideUrl} alt="Vue profil" />
 							<div class="uploaded-badge">✓ Uploadée</div>
 						{:else}
 							<label for="side-input" class="upload-label">
@@ -152,7 +152,7 @@
 					<div class="photo-label">Dos</div>
 					<div class="upload-area">
 						{#if backUrl}
-							<img src={backUrl} alt="Vue arriere" />
+							<img loading="lazy" src={backUrl} alt="Vue arriere" />
 							<div class="uploaded-badge">✓ Uploadée</div>
 						{:else}
 							<label for="back-input" class="upload-label">

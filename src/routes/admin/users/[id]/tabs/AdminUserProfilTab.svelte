@@ -243,7 +243,7 @@
 								<Badge variant="outline" class="text-xs">{angle}</Badge>
 							</div>
 							{#if photoByAngle[angle]}
-								<img src={photoByAngle[angle]} alt={angle} class="aspect-[3/4] w-full rounded-md border object-cover" />
+								<img loading="lazy" src={photoByAngle[angle]} alt={angle} class="aspect-[3/4] w-full rounded-md border object-cover" />
 							{:else}
 								<div class="flex aspect-[3/4] w-full items-center justify-center rounded-md border border-dashed bg-muted text-muted-foreground">
 									<Camera class="size-6 opacity-40" />

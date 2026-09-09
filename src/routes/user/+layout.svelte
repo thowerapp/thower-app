@@ -202,7 +202,7 @@ onMount(() => {
   /* Texte & hiérarchie */
   --tx:  #EAEAEA; /* Texte principal (blanc cassé) */
   --tx2: rgba(234, 234, 234, 0.8);  /* Texte secondaire */
-  --txd: rgba(255, 255, 255, 0.4);  /* Texte désactivé/label */
+  --txd: rgba(255, 255, 255, 0.64);  /* Texte désactivé/label */
   --txm: #808080; /* Texte très discret */
   
   /* Typo */
@@ -707,7 +707,7 @@ onMount(() => {
   animation: cyPulse 1.5s ease-in-out infinite !important;
 }
 .nlbl {
-  font-size: .5625rem;
+  font-size: .6875rem;
   color: var(--txd);
   text-transform: uppercase;
   letter-spacing: .06em;
@@ -726,7 +726,7 @@ onMount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px; height: 38px;
+  width: 44px; height: 44px;
   border-radius: 8px;
   background: var(--s2);
   border: 1px solid var(--br2);

@@ -26,7 +26,7 @@ const videos = $derived((data.videos ?? []) as Video[]);
 		<a href="/user/decouverte/explication/{video.id}" class="vcell" class:done={video.completed}>
 			<div class="vcell-thumb">
 				{#if video.thumbnailUrl}
-					<img src={video.thumbnailUrl} alt="" class="vcell-img" />
+					<img loading="lazy" src={video.thumbnailUrl} alt="" class="vcell-img" />
 				{:else}
 					<div class="vcell-img vcell-img-empty"></div>
 				{/if}

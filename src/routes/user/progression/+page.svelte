@@ -345,7 +345,7 @@ const checkInMetricsComplete = $derived(
                 {#if photoUploading[ph.angle]}
                   <span class="pu-state">...</span>
                 {:else if checkInPhotos[ph.urlKey]}
-                  <img src={checkInPhotos[ph.urlKey]} alt={ph.label} class="pu-preview" />
+                  <img loading="lazy" src={checkInPhotos[ph.urlKey]} alt={ph.label} class="pu-preview" />
                   <span class="pu-badge">✓</span>
                 {:else}
                   <span class="pu-state">{ph.label}</span>
@@ -374,7 +374,7 @@ const checkInMetricsComplete = $derived(
     {#each photoLabels as ph}
       <div class="pcell" class:filled={!!data.photoMap[ph.key]}>
         {#if data.photoMap[ph.key]}
-          <img src={data.photoMap[ph.key]} alt={ph.label} class="pc-img" />
+          <img loading="lazy" src={data.photoMap[ph.key]} alt={ph.label} class="pc-img" />
           <div class="pc-lbl" style="color:var(--g)">{ph.label}</div>
         {:else}
           <div class="pc-plus" style="color:var(--txd)">—</div>
@@ -398,7 +398,7 @@ const checkInMetricsComplete = $derived(
     {#each photoLabels as ph}
       <div class="pcell filled">
         {#if data.inscriptionPhotoMap[ph.key]}
-          <img src={data.inscriptionPhotoMap[ph.key]} alt={ph.label} class="pc-img" />
+          <img loading="lazy" src={data.inscriptionPhotoMap[ph.key]} alt={ph.label} class="pc-img" />
           <div class="pc-lbl" style="color:var(--g)">{ph.label}</div>
         {:else}
           <div class="pc-plus" style="color:var(--txd)">—</div>

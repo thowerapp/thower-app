@@ -143,7 +143,7 @@
           <div class="dl-vid-link dl-vid-link-done">
             {#if item.video?.thumbnailUrl}
               <div class="dl-vid-thumb">
-                <img src={item.video.thumbnailUrl} alt="" class="dl-vid-img" />
+                <img loading="lazy" src={item.video.thumbnailUrl} alt="" class="dl-vid-img" />
                 <div class="dl-vid-overlay">
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                     <path d="M1.5 5l2.5 2.5 5-5" stroke="var(--g)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -167,7 +167,7 @@
           >
             <div class="dl-vid-thumb">
               {#if item.video.thumbnailUrl}
-                <img src={item.video.thumbnailUrl} alt="" class="dl-vid-img" />
+                <img loading="lazy" src={item.video.thumbnailUrl} alt="" class="dl-vid-img" />
               {:else}
                 <div class="dl-vid-img-empty"></div>
               {/if}

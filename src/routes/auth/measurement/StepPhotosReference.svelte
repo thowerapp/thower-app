@@ -145,7 +145,7 @@
 
 						<div class:has-photo={Boolean(photoUrl)} class="upload-area">
 							{#if photoUrl}
-								<img src={photoUrl} alt={slot.alt} />
+								<img loading="lazy" src={photoUrl} alt={slot.alt} />
 								<label class="replace-photo" for={`${slot.position}-photo-input`}>
 									Remplacer
 								</label>

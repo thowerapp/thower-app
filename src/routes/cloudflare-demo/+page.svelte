@@ -263,6 +263,7 @@
 								src={secureImageUrl}
 								alt="Fichier uploadé sur R2"
 								class="max-h-80 w-full object-contain"
+								loading="lazy"
 							/>
 						</div>
 					</div>

@@ -11,6 +11,7 @@ import { requireSportAccess } from '$lib/server/programAccessGuard';
 import { VIDEO_COMPLETION_THRESHOLD } from '$lib/prisma/userVideoProgress/upsertProgress';
 import { createPointEvent } from '$lib/prisma/pointEvent/createEvent';
 import { getWorkoutVideosForSessionType } from '$lib/prisma/workoutSession/getWorkoutVideosForSessionType';
+import { computeLevel } from '$lib/utils/levels';
 import type { WorkoutSessionType } from '@prisma/client';
 
 const OID = /^[a-f\d]{24}$/i;
@@ -26,14 +27,6 @@ type SessionCatalogRow = {
 	weekNumber: number | null;
 	order: number;
 };
-
-const levels = [
-	{ min: 0, num: 1, name: 'Bambou en herbe', nextMin: 200 },
-	{ min: 200, num: 2, name: 'Bambou Furieux', nextMin: 500 },
-	{ min: 500, num: 3, name: 'Guerrier en devenir', nextMin: 1000 },
-	{ min: 1000, num: 4, name: 'Guerrier Thower', nextMin: 2000 },
-	{ min: 2000, num: 5, name: 'Maître Thower', nextMin: null }
-] as const;
 
 type VideoProgressState = 'preparing' | 'not_started' | 'in_progress' | 'validated';
 
@@ -330,11 +323,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		(v) => progressByVideoId.get(v.id)?.completedAt != null
 	).length;
 	const totalPoints = pointEvents.reduce((sum, event) => sum + event.amount, 0);
-	const levelData = levels.slice().reverse().find((level) => totalPoints >= level.min) ?? levels[0];
-	const levelPercent =
-		levelData.nextMin != null
-			? Math.round(((totalPoints - levelData.min) / (levelData.nextMin - levelData.min)) * 100)
-			: 100;
+	const { levelData, levelPercent } = computeLevel(totalPoints);
 	const canWatchSession = dayIndex <= currentUnlockedDayIndex;
 
 	// Ordre A→B→C : vérifier que la séance prérequise est validée

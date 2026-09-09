@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import jsPDF from 'jspdf';
 
 	let { data } = $props();
 
@@ -10,8 +9,9 @@
 		}
 	});
 
-	function generatePDF() {
+	async function generatePDF() {
 		const transaction = data.transaction;
+		const { default: jsPDF } = await import('jspdf');
 		const doc = new jsPDF();
 
 		doc.setFontSize(16);

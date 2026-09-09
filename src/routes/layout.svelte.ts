@@ -5,21 +5,31 @@ import SmoothScrollBarStore from '$lib/store/SmoothScrollBarStore';
 export const isClient = writable(false);
 export const isNavigating = writable(false);
 
+/** Le glyphe n'apparaît que si la navigation dure réellement — pas de flash sur un changement instantané. */
+const NAVIGATION_SPINNER_DELAY_MS = 200;
+let showSpinnerTimer: ReturnType<typeof setTimeout> | null = null;
+
 export function markClientMounted() {
 	isClient.set(true);
 }
 
 export function setupNavigationEffect() {
 	onNavigate((navigation) => {
-		const fromRouteId = navigation.from?.route.id ?? null;
-		const toRouteId = navigation.to?.route.id ?? null;
+		const fromUrl = navigation.from?.url.href ?? null;
+		const toUrl = navigation.to?.url.href ?? null;
 
-		if (fromRouteId !== null && toRouteId !== null && fromRouteId !== toRouteId) {
-			isNavigating.set(true);
+		// Comparer l'URL réelle (pas navigation.route.id) : deux séances/jours différents
+		// partagent le même pattern de route ([sessionId], [day]…) mais sont bien une navigation.
+		if (fromUrl !== null && toUrl !== null && fromUrl !== toUrl) {
+			showSpinnerTimer = setTimeout(() => isNavigating.set(true), NAVIGATION_SPINNER_DELAY_MS);
 		}
 	});
 
 	afterNavigate(() => {
+		if (showSpinnerTimer) {
+			clearTimeout(showSpinnerTimer);
+			showSpinnerTimer = null;
+		}
 		isNavigating.set(false);
 
 		SmoothScrollBarStore.update((state) => {

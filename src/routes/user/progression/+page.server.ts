@@ -9,72 +9,62 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
 
 	const userId = locals.user.id;
-
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { programStartDate: true }
-	});
-
-	const programStart = user?.programStartDate ?? null;
-	const currentDayIndex = currentProgramDayIndex(programStart);
-	const currentWeek = currentDayIndex > 0 ? Math.ceil(currentDayIndex / 7) : 1;
-
-	// ─── Points totaux ───────────────────────────────────────────────────────
-	const pointEvents = await prisma.pointEvent.findMany({
-		where: { userId },
-		select: { amount: true }
-	});
-	const totalPoints = pointEvents.reduce((s, e) => s + e.amount, 0);
-
-	// ─── Séances validées ────────────────────────────────────────────────────
-	const workoutCount = await prisma.userWorkoutDay.count({
-		where: { userId, completedAt: { not: null } }
-	});
-
-	// ─── Badges ─────────────────────────────────────────────────────────────
-	const userBadges = await prisma.userBadge.findMany({
-		where: { userId },
-		include: { badge: true },
-		orderBy: { unlockedAt: 'desc' }
-	});
-
-	// ─── Score du jour (% tâches validées aujourd'hui / tâches actives) ────────
 	const todayStartProg = new Date();
 	todayStartProg.setUTCHours(0, 0, 0, 0);
-	const [activeTaskDetails, todayCompletions] = await Promise.all([
+
+	// Aucune de ces requêtes ne dépend d'une autre (seule photosByAngle, ci-dessous,
+	// a besoin de currentMonth qui vient de `user`) : une seule vague.
+	const [
+		user,
+		pointEvents,
+		workoutCount,
+		userBadges,
+		activeTaskDetails,
+		todayCompletions,
+		inscriptionPhotosByAngle,
+		monthlyCheckIns
+	] = await Promise.all([
+		prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true } }),
+		prisma.pointEvent.findMany({ where: { userId }, select: { amount: true } }),
+		prisma.userWorkoutDay.count({ where: { userId, completedAt: { not: null } } }),
+		prisma.userBadge.findMany({
+			where: { userId },
+			include: { badge: true },
+			orderBy: { unlockedAt: 'desc' }
+		}),
 		prisma.dailyTask.findMany({
 			where: { active: true },
 			select: { points: true, showFromDay: true, showUntilDay: true }
 		}),
-		prisma.dailyTaskCompletion.count({ where: { userId, date: todayStartProg } })
+		prisma.dailyTaskCompletion.count({ where: { userId, date: todayStartProg } }),
+		prisma.progressPhoto.findMany({
+			where: { userId, month: 0 },
+			select: { angle: true, url: true }
+		}),
+		prisma.monthlyCheckIn.findMany({ where: { userId }, orderBy: { month: 'asc' } })
 	]);
+
+	const programStart = user?.programStartDate ?? null;
+	const currentDayIndex = currentProgramDayIndex(programStart);
+	const currentWeek = currentDayIndex > 0 ? Math.ceil(currentDayIndex / 7) : 1;
+	const totalPoints = pointEvents.reduce((s, e) => s + e.amount, 0);
+
 	const activeTasks = activeTaskDetails.length;
 	const scorePercent =
 		activeTasks > 0 ? Math.min(100, Math.round((todayCompletions / activeTasks) * 100)) : 0;
 
-	// ─── Photos du mois + photos d'inscription ──────────────────────────────
+	// ─── Photos du mois (dépend de currentMonth, donc requête séparée) ──────
 	const currentMonth = Math.ceil(currentDayIndex / 30);
-	const [photosByAngle, inscriptionPhotosByAngle] = await Promise.all([
-		prisma.progressPhoto.findMany({
-			where: { userId, month: currentMonth },
-			select: { angle: true, url: true }
-		}),
-		prisma.progressPhoto.findMany({
-			where: { userId, month: 0 },
-			select: { angle: true, url: true }
-		})
-	]);
+	const photosByAngle = await prisma.progressPhoto.findMany({
+		where: { userId, month: currentMonth },
+		select: { angle: true, url: true }
+	});
 	const photoMap: Record<string, string | null> = { FRONT: null, SIDE: null, BACK: null };
 	for (const p of photosByAngle) photoMap[p.angle] = p.url;
 
 	const inscriptionPhotoMap: Record<string, string | null> = { FRONT: null, SIDE: null, BACK: null };
 	for (const p of inscriptionPhotosByAngle) inscriptionPhotoMap[p.angle] = p.url;
 
-	// ─── Check-in mensuel ────────────────────────────────────────────────────
-	const monthlyCheckIns = await prisma.monthlyCheckIn.findMany({
-		where: { userId },
-		orderBy: { month: 'asc' }
-	});
 	const currentMonthCheckIn = monthlyCheckIns.find((c) => c.month === currentMonth);
 	const checkInDue = currentMonth >= 2 && !currentMonthCheckIn;
 

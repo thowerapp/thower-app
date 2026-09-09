@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user.id;
 	const todayStart = startOfUtcDay();
 
-	const [tasks, optOuts, completions] = await Promise.all([
+	const [tasks, optOuts, completions, user] = await Promise.all([
 		prisma.dailyTask.findMany({
 			where: { active: true },
 			orderBy: { order: 'asc' },
@@ -43,17 +43,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		prisma.dailyTaskCompletion.findMany({
 			where: { userId, date: todayStart },
 			select: { taskId: true }
+		}),
+		prisma.user.findUnique({
+			where: { id: userId },
+			select: { programStartDate: true }
 		})
 	]);
 
 	const optOutIds = new Set(optOuts.map((o) => o.taskId));
 	const completedIds = new Set(completions.map((c) => c.taskId));
-
-	// ── Jour courant du programme ──────────────────────────────────────────
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { programStartDate: true }
-	});
 	const currentDayIndex = currentProgramDayIndex(user?.programStartDate ?? null);
 
 	const isVisible = (t: { showFromDay: number | null; showUntilDay: number | null }) => {
@@ -61,14 +59,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		if (t.showUntilDay != null && currentDayIndex > t.showUntilDay) return false;
 		return true;
 	};
-
-	console.log('[journee/load] currentDayIndex =', currentDayIndex, '| tasks en DB =', tasks.length);
-	tasks.forEach((t) => {
-		const visible = isVisible(t);
-		console.log(
-			`  task id=${t.id} label="${t.label}" type=${t.type ?? 'NULL'} discoveryContentId=${(t as any).discoveryContentId ?? 'none'} showFrom=${t.showFromDay} showUntil=${t.showUntilDay} visible=${visible}`
-		);
-	});
 
 	const items = tasks
 		.filter((t) => !optOutIds.has(t.id) && isVisible(t))
@@ -101,10 +91,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 			'ou opt-out) — fallback UI activé'
 		);
 	}
-	console.log('[journee/load] items visibles =', items.length, '| fallback =', items.length === 0);
-	items.forEach((i) => {
-		console.log(`  item id=${i.id} label="${i.label}" type=${i.type} video=${i.video ? i.video.category + '/' + i.video.id : 'null'}`);
-	});
 
 	// validated = les tâches STANDARD ont été soumises manuellement aujourd'hui
 	const standardItems = items.filter((i) => i.type === 'STANDARD');

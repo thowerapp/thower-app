@@ -180,10 +180,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 	const userId = locals.user.id;
 
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { programStartDate: true }
-	});
+	// `program` ne dépend pas de `user` : on les lance ensemble.
+	const [user, program] = await Promise.all([
+		prisma.user.findUnique({
+			where: { id: userId },
+			select: { programStartDate: true }
+		}),
+		prisma.program.findFirst({ where: { active: true }, select: { id: true } })
+	]);
 
 	const programStart = user?.programStartDate ?? null;
 	const currentDayIndex = currentProgramDayIndex(programStart);
@@ -206,11 +210,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const weekStart = (selectedWeek - 1) * 7 + 1;
 	const weekEnd = Math.min(TOTAL_PROGRAM_DAYS, weekStart + 6);
-
-	const program = await prisma.program.findFirst({
-		where: { active: true },
-		select: { id: true }
-	});
 
 	if (!program) {
 		return serializeData({
@@ -389,12 +388,12 @@ export const actions: Actions = {
 
 		const userId = locals.user.id;
 
-		const user = await prisma.user.findUnique({
-			where: { id: userId },
-			select: { programStartDate: true }
-		});
-
-		const [sessionCatalog, userRows] = await Promise.all([
+		// Les 3 requêtes sont indépendantes (aucune ne dépend des autres).
+		const [user, sessionCatalog, userRows] = await Promise.all([
+			prisma.user.findUnique({
+				where: { id: userId },
+				select: { programStartDate: true }
+			}),
 			prisma.workoutSession.findMany({
 				where: {
 					active: true,

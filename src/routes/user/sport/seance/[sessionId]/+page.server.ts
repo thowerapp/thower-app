@@ -173,14 +173,16 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 	const userId = locals.user.id;
 
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { programStartDate: true }
-	});
-	const pointEvents = await prisma.pointEvent.findMany({
-		where: { userId },
-		select: { amount: true }
-	});
+	const [user, pointEvents] = await Promise.all([
+		prisma.user.findUnique({
+			where: { id: userId },
+			select: { programStartDate: true }
+		}),
+		prisma.pointEvent.findMany({
+			where: { userId },
+			select: { amount: true }
+		})
+	]);
 
 	const rawDay = url.searchParams.get('day');
 	const currentUnlockedDayIndex = currentProgramDayIndex(user?.programStartDate ?? null);

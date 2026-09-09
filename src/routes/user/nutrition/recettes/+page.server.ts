@@ -11,10 +11,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 	const userId = locals.user.id;
 
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { nutritionDaysAllocated: true }
-	});
+	// customRecipes et favoriteRecipes ne dépendent que de userId : en vol avec le reste.
+	const [user, customRecipes, favoriteRecipes] = await Promise.all([
+		prisma.user.findUnique({
+			where: { id: userId },
+			select: { nutritionDaysAllocated: true }
+		}),
+		prisma.recipe.findMany({
+			where: { userId, isCustom: true, active: true },
+			orderBy: { updatedAt: 'desc' },
+			select: { id: true, name: true, category: true, totalTimeMin: true }
+		}),
+		prisma.userFavoriteRecipe.findMany({
+			where: { userId },
+			include: { recipe: { include: { ingredients: true } } }
+		})
+	]);
 	const programDays = Math.max(user?.nutritionDaysAllocated ?? 0, NUTRITION_SEGMENT_DAYS);
 
 	const plannedMeals = await prisma.meal.findMany({
@@ -49,31 +61,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const breakfastRecipes = plannedRecipes.filter((r) => r.category === 'BREAKFAST' && !r.isCustom);
 	const mealRecipes = plannedRecipes.filter((r) => r.category === 'MEAL' && !r.isCustom);
 	const dessertRecipes = plannedRecipes.filter((r) => r.category === 'DESSERT' && !r.isCustom);
-	const customRecipes = await prisma.recipe.findMany({
-		where: {
-			userId,
-			isCustom: true,
-			active: true
-		},
-		orderBy: { updatedAt: 'desc' },
-		select: {
-			id: true,
-			name: true,
-			category: true,
-			totalTimeMin: true
-		}
-	});
-
-	const favoriteRecipes = await prisma.userFavoriteRecipe.findMany({
-		where: { userId },
-		include: {
-			recipe: {
-				include: {
-					ingredients: true
-				}
-			}
-		}
-	});
 
 	return {
 		breakfastRecipes,

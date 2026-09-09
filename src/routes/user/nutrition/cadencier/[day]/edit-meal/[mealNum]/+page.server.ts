@@ -96,40 +96,62 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const position = positionFromParam(params.mealNum ?? '');
 	if (!position) throw error(404, 'Créneau invalide');
 
-	const nutritionDay = await prisma.nutritionDay.findUnique({
-		where: { userId_dayIndex: { userId, dayIndex } },
-		select: {
-			id: true,
-			intermittentFasting: true,
-			meals: {
-				where: { position },
-				select: {
-					id: true,
-					recipeId: true,
-					quantityG: true,
-					recipe: { select: { id: true, name: true } }
+	const category = recipeCategory(position);
+
+	// Aucune de ces requêtes ne dépend d'une autre : une seule vague.
+	const [nutritionDay, profile, lastMeasure, recipes, favoriteIds] = await Promise.all([
+		prisma.nutritionDay.findUnique({
+			where: { userId_dayIndex: { userId, dayIndex } },
+			select: {
+				id: true,
+				intermittentFasting: true,
+				meals: {
+					where: { position },
+					select: {
+						id: true,
+						recipeId: true,
+						quantityG: true,
+						recipe: { select: { id: true, name: true } }
+					}
 				}
 			}
-		}
-	});
+		}),
+		prisma.userProfile.findUnique({
+			where: { userId },
+			select: {
+				bodyFatPercent: true,
+				activityLevel: true,
+				breadDaily: true,
+				breadGramsPerDay: true,
+				breadType: true
+			}
+		}),
+		prisma.bodyMeasurement.findFirst({
+			where: { userId },
+			orderBy: { createdAt: 'desc' },
+			select: { weightKg: true }
+		}),
+		prisma.recipe.findMany({
+			where: { active: true, isCustom: false, category: category as 'BREAKFAST' | 'MEAL' | 'DESSERT' },
+			select: {
+				id: true,
+				name: true,
+				totalTimeMin: true,
+				nutritionKcal: true,
+				nutritionProteinG: true,
+				nutritionCarbsG: true,
+				nutritionFatG: true,
+				nutritionFiberG: true,
+				referenceYieldG: true
+			},
+			orderBy: { name: 'asc' }
+		}),
+		prisma.userFavoriteRecipe
+			.findMany({ where: { userId }, select: { recipeId: true } })
+			.then((rows) => rows.map((r) => r.recipeId))
+	]);
 
 	const currentMeal = nutritionDay?.meals[0] ?? null;
-
-	const profile = await prisma.userProfile.findUnique({
-		where: { userId },
-		select: {
-			bodyFatPercent: true,
-			activityLevel: true,
-			breadDaily: true,
-			breadGramsPerDay: true,
-			breadType: true
-		}
-	});
-	const lastMeasure = await prisma.bodyMeasurement.findFirst({
-		where: { userId },
-		orderBy: { createdAt: 'desc' },
-		select: { weightKg: true }
-	});
 	const weightKg = lastMeasure?.weightKg ?? null;
 
 	let breadKcal = 0;
@@ -150,32 +172,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			? dailyProteinTargetG(weightKg, profile.bodyFatPercent)
 			: null;
 
-	const category = recipeCategory(position);
-	const recipes = await prisma.recipe.findMany({
-		where: { active: true, isCustom: false, category: category as 'BREAKFAST' | 'MEAL' | 'DESSERT' },
-		select: {
-			id: true,
-			name: true,
-			totalTimeMin: true,
-			nutritionKcal: true,
-			nutritionProteinG: true,
-			nutritionCarbsG: true,
-			nutritionFatG: true,
-			nutritionFiberG: true,
-			referenceYieldG: true
-		},
-		orderBy: { name: 'asc' }
-	});
-
 	const frac = mealBudgetFraction(position, nutritionDay?.intermittentFasting ?? false);
 	const recipesWithOptimalQ = recipes.map((r) => ({
 		...r,
 		optimalQuantityG: optimalQuantityG(r, mealBudgetKcal, targetProteinG, frac)
 	}));
-
-	const favoriteIds = await prisma.userFavoriteRecipe
-		.findMany({ where: { userId }, select: { recipeId: true } })
-		.then((rows) => rows.map((r) => r.recipeId));
 
 	return {
 		dayIndex,

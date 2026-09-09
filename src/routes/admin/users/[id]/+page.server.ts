@@ -170,17 +170,6 @@ export const load: PageServerLoad = async ({ params }) => {
 		}))
 	})) ?? [];
 
-	// Logs serveur : vérification des données envoyées au calendrier
-	const nutritionDays = userSelected.nutritionDays as Array<{ dayIndex?: number; meals?: Array<{ position?: string; recipe?: { name?: string } | null }> }> | undefined;
-	const ndCount = nutritionDays?.length ?? 0;
-	const ndWithMeals = nutritionDays?.filter((nd: { meals?: unknown[] }) => (nd?.meals?.length ?? 0) > 0).length ?? 0;
-	const sampleNd = nutritionDays?.[0];
-	const sampleMeals = sampleNd?.meals?.map((m: { position?: string; recipe?: { name?: string } | null }) => ({ position: m?.position, recipeName: m?.recipe?.name })) ?? [];
-	console.log('[admin/user load] workoutDays:', (userSelected.workoutDays as unknown[] | undefined)?.length ?? 0);
-	console.log('[admin/user load] nutritionDays:', ndCount, '| avec repas:', ndWithMeals);
-	if (sampleNd) {
-		console.log('[admin/user load] exemple J' + sampleNd.dayIndex + ' repas:', sampleMeals);
-	}
 	userSelected.shoppingLists = raw.shoppingLists ?? [];
 	userSelected.dailyTaskCompletions = raw.dailyTaskCompletions ?? [];
 	userSelected.dailyTaskOptOuts = raw.dailyTaskOptOuts ?? [];

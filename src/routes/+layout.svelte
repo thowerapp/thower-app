@@ -1,22 +1,16 @@
 <script lang="ts">
-  import Navigation from './../lib/components/Navigation.svelte';
   import GlobalCursor from '$lib/components/GlobalCursor.svelte';
   import '@fontsource-variable/open-sans';
   import '@fontsource-variable/raleway';
   import '../app.css';
   import '$lib/styles/shadcn-thower-harmony.css';
 
-  import { initializeLayoutState, setupNavigationEffect, isClient, isNavigating } from './layout.svelte';
+  import { markClientMounted, setupNavigationEffect, isClient, isNavigating } from './layout.svelte';
 
   import { ModeWatcher } from 'mode-watcher';
   import Toaster from '$lib/components/shadcn/ui/sonner/sonner.svelte';
 
   import SmoothScrollBar from '$lib/components/smoothScrollBar/SmoothScrollBar.svelte';
-  import {
-    firstLoadComplete,
-    setFirstOpen,
-    setRessourceToValide
-  } from '$lib/store/initialLoaderStore';
   import { page } from '$app/stores';
   import { pwaInstallPrompt } from '$lib/store/pwaInstallStore';
 
@@ -25,7 +19,7 @@
   import PersistentParticleCanvas from '$lib/components/PersistentParticleCanvas.svelte';
   import { registerSources } from '$lib/utils/particles';
 
-  let { data, children } = $props();
+  let { children } = $props();
 
   let pwaNeedRefresh = $state(false);
   let pwaOfflineReady = $state(false);
@@ -76,13 +70,8 @@
 	});
 	
 	$effect(() => {
-		const unsubscribe = page.subscribe((currentPage) => {
-			initializeLayoutState(currentPage);
-		});
+		markClientMounted();
 		setupNavigationEffect();
-		setFirstOpen(true);
-		setRessourceToValide(true);
-		return unsubscribe;
 	});
 
   // Re-scan les sources de particules à chaque changement de route
@@ -122,16 +111,12 @@
   <meta name="theme-color" content="#4285f4" />
 </svelte:head>
 
-{#if !$firstLoadComplete}
-  <!-- <Loader /> -->
-{/if}
 {#if $isClient}
   <div class="wrapper">
     <div id="three-canvas-slot"></div>
     <PersistentParticleCanvas />
     <ModeWatcher />
     <GlobalCursor />
-    <!-- <Navigation user={data?.user ?? null} /> -->
     <div class="container">
       {#if $isNavigating}
         <div class="navigation-loader" role="status" aria-label="Chargement" aria-live="polite">

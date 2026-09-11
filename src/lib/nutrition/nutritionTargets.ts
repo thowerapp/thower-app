@@ -2,52 +2,72 @@ import type { ActivityLevel } from '@prisma/client';
 
 const MIN_TARGET_KCAL = 1200;
 
+/**
+ * Coefficient NAP (Niveau d'Activité Physique), Méthode Thower.
+ *
+ * Le spec MT calcule le NAP comme BASE_NEAT (paliers de pas quotidiens) +
+ * SOCLE_MT (musculation obligatoire, +0.10 fixe pour tous) + BONUS_SPORT_SUPP
+ * (0 à +0.20 selon séances additionnelles/semaine). Le schéma actuel n'a ni
+ * champ "pas quotidiens" ni "séances sport supplémentaires" — seul l'enum
+ * ActivityLevel (3 paliers) existe. En attendant ces champs, chaque palier
+ * sert de proxy pour une combinaison plausible pas + sport supp., socle inclus :
+ *   SEDENTARY ≈ <4000 pas/j (NEAT 1.2) + socle (0.10) + 0 séance supp.        = 1.30
+ *   ACTIVE    ≈ 8-11 000 pas/j (NEAT 1.4) + socle (0.10) + 1 séance supp.     = 1.55
+ *   ATHLETE   ≈ ≥12 000 pas/j (NEAT 1.5) + socle (0.10) + 4 séances supp.+    = 1.80
+ */
 export function activityCoefficient(level: ActivityLevel | null | undefined): number {
 	switch (level) {
 		case 'ACTIVE':
-			return 1.35;
+			return 1.55;
 		case 'ATHLETE':
-			return 1.5;
+			return 1.8;
 		case 'SEDENTARY':
 		default:
-			return 1.2;
+			return 1.3;
 	}
 }
 
 /**
- * Coefficient calorique basé sur le % masse grasse (recomposition Thower).
- * ATHLETE (< 15 % MG) : léger surplus — ACTIVE (15–22 %) : entretien — SEDENTARY (> 22 %) : déficit modéré.
+ * Palier de déficit calorique Méthode Thower, indexé sur le % de masse grasse.
+ * Le spec MT distingue une table Homme et une table Femme ; le schéma actuel
+ * n'a pas de champ sexe. Décision produit (2026-09-11) : appliquer la table
+ * Homme à tous les profils en attendant ce champ.
  */
-export function bodyFatCoefficient(bodyFatPercent: number): number {
-	if (bodyFatPercent < 15) return 1.03;
-	if (bodyFatPercent <= 22) return 0.97;
-	return 0.91;
+export function calorieDeficitPercent(bodyFatPercent: number): number {
+	if (bodyFatPercent < 14) return 0.1;
+	if (bodyFatPercent <= 18) return 0.15;
+	if (bodyFatPercent <= 24) return 0.2;
+	if (bodyFatPercent <= 31) return 0.23;
+	if (bodyFatPercent <= 39) return 0.26;
+	return 0.3;
 }
 
 export function leanMassKg(weightKg: number, bodyFatPercent: number): number {
 	return weightKg * (1 - bodyFatPercent / 100);
 }
 
-/** Moyenne Katch–McArdle et Cunningham (kcal/j). */
-export function metabolicBasalKcalCrossed(leanKg: number): number {
-	const mb1 = 370 + 21.6 * leanKg;
-	const mb2 = 500 + 22.0 * leanKg;
-	return (mb1 + mb2) / 2;
+/** Métabolisme de base — Katch-McArdle, sur la masse sèche uniquement. */
+export function metabolicBasalKcal(leanKg: number): number {
+	return 370 + 21.6 * leanKg;
 }
 
+/** DEJ (maintenance) = MB × NAP. */
 export function tdeeFromProfile(params: {
 	weightKg: number;
 	bodyFatPercent: number;
 	activityLevel: ActivityLevel | null | undefined;
 }): number {
 	const mm = leanMassKg(params.weightKg, params.bodyFatPercent);
-	const mb = metabolicBasalKcalCrossed(mm);
+	const mb = metabolicBasalKcal(mm);
 	const c = activityCoefficient(params.activityLevel);
 	return mb * c;
 }
 
 /**
- * Calories cibles journalières = MB × activityCoefficient × bodyFatCoefficient.
+ * Cible calorique journalière = DEJ × (1 − déficit), avec garde-fous Méthode Thower :
+ *  - jamais sous le métabolisme de base (MB) ;
+ *  - déficit journalier jamais supérieur à 1000 kcal ;
+ *  - plancher absolu 1200 kcal (sécurité supplémentaire, hors spec).
  * Retourne null si données insuffisantes pour un calcul fiable.
  */
 export function targetCaloriesPerDay(params: {
@@ -64,15 +84,33 @@ export function targetCaloriesPerDay(params: {
 		return null;
 	}
 	const mm = leanMassKg(params.weightKg, params.bodyFatPercent);
-	const mb = metabolicBasalKcalCrossed(mm);
-	const ac = activityCoefficient(params.activityLevel);
-	return Math.round(Math.max(mb * ac * bodyFatCoefficient(params.bodyFatPercent), MIN_TARGET_KCAL));
+	const mb = metabolicBasalKcal(mm);
+	const dej = mb * activityCoefficient(params.activityLevel);
+	const deficit = calorieDeficitPercent(params.bodyFatPercent);
+
+	let cible = dej * (1 - deficit);
+	cible = Math.max(cible, mb);
+	if (dej - cible > 1000) cible = dej - 1000;
+	cible = Math.max(cible, MIN_TARGET_KCAL);
+
+	return Math.round(cible);
 }
 
-/** Besoins protéiques (g/j) : masse maigre × 1,8. */
+/** Besoins protéiques (g/j) — Méthode Thower : masse maigre × 2.0. */
 export function dailyProteinTargetG(weightKg: number, bodyFatPercent: number): number {
 	const mm = leanMassKg(weightKg, bodyFatPercent);
-	return mm * 1.8;
+	return mm * 2.0;
+}
+
+/** Lipides (g/j) — Méthode Thower : poids total × 0.8. */
+export function dailyFatTargetG(weightKg: number): number {
+	return weightKg * 0.8;
+}
+
+/** Glucides (g/j) — Méthode Thower : solde calorique restant après protéines + lipides. */
+export function dailyCarbTargetG(targetKcal: number, proteinG: number, fatG: number): number {
+	const remainingKcal = targetKcal - (proteinG * 4 + fatG * 9);
+	return Math.max(0, remainingKcal / 4);
 }
 
 /** Fibres minimales (g/j) : 15 g / 1000 kcal. */

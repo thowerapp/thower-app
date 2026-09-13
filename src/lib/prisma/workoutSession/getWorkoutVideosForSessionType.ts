@@ -48,3 +48,45 @@ export async function getWorkoutVideosForSessionType(
 			isOptional: v.isOptional
 		}));
 }
+
+/**
+ * Vidéos d'une séance pour un jour précis du programme (1..91), avec surcharge
+ * par jour : l'admin peut rattacher une vidéo à un jour exact via le panneau
+ * "Rattacher à un jour" (type SPORT_SESSION) — cette vidéo remplace alors celle
+ * du même créneau (PRE/VID1/VID2) dans le set générique de `sessionType`.
+ * Sans surcharge pour ce jour, retombe sur `getWorkoutVideosForSessionType`.
+ */
+export async function getWorkoutVideosForDay(
+	dayIndex: number,
+	sessionType: WorkoutSessionType
+): Promise<SessionWorkoutVideoRow[]> {
+	const generic = await getWorkoutVideosForSessionType(sessionType);
+
+	const dayOverrides = await prisma.programDayItem.findMany({
+		where: {
+			type: 'SPORT_SESSION',
+			workoutVideoId: { not: null },
+			programDay: { dayIndex, program: { active: true } }
+		},
+		select: { workoutVideo: true }
+	});
+
+	if (dayOverrides.length === 0) return generic;
+
+	const byPosition = new Map(generic.map((v) => [v.position, v]));
+	for (const { workoutVideo: v } of dayOverrides) {
+		if (!v) continue;
+		byPosition.set(v.position, {
+			id: v.id,
+			title: v.title,
+			position: v.position,
+			order: POSITION_ORDER[v.position] ?? 0,
+			status: v.status,
+			cloudflareUid: v.cloudflareUid,
+			durationSeconds: v.durationSeconds,
+			isOptional: v.isOptional
+		});
+	}
+
+	return [...byPosition.values()].sort((a, b) => a.order - b.order);
+}

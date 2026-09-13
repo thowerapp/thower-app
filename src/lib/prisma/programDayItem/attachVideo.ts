@@ -37,9 +37,9 @@ export async function attachVideoToDay(
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const db = prisma as any;
 
-	const program = await db.program.findFirst({ where: { active: true }, select: { id: true } });
+	let program = await db.program.findFirst({ where: { active: true }, select: { id: true } });
 	if (!program) {
-		throw new Error('Aucun programme actif trouvé.');
+		program = await db.program.create({ data: {}, select: { id: true } });
 	}
 
 	let programDay = await db.programDay.findFirst({

@@ -10,7 +10,7 @@ import { serializeData } from '$lib/utils/serializeData';
 import { requireSportAccess } from '$lib/server/programAccessGuard';
 import { VIDEO_COMPLETION_THRESHOLD } from '$lib/prisma/userVideoProgress/upsertProgress';
 import { createPointEvent } from '$lib/prisma/pointEvent/createEvent';
-import { getWorkoutVideosForSessionType } from '$lib/prisma/workoutSession/getWorkoutVideosForSessionType';
+import { getWorkoutVideosForDay } from '$lib/prisma/workoutSession/getWorkoutVideosForSessionType';
 import { computeLevel } from '$lib/utils/levels';
 import type { WorkoutSessionType } from '@prisma/client';
 
@@ -214,7 +214,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		throw error(404, 'Séance introuvable.');
 	}
 
-	const sessionVideos = await getWorkoutVideosForSessionType(session.type);
+	const sessionVideos = await getWorkoutVideosForDay(dayIndex, session.type);
 	const videoIds = sessionVideos.map((v) => v.id);
 	const progressDelegate = getUserVideoProgressDelegate();
 
@@ -401,7 +401,7 @@ export const actions: Actions = {
 		});
 		if (!session?.active) return fail(404, { message: 'Séance introuvable.' });
 
-		const sessionVideos = await getWorkoutVideosForSessionType(session.type);
+		const sessionVideos = await getWorkoutVideosForDay(dayIdx, session.type);
 
 		const existingWorkoutDay = await prisma.userWorkoutDay.findFirst({
 			where: { userId, sessionId, dayIndex: dayIdx },

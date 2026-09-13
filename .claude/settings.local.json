@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep -E \"\\\\.\\(ts|svelte\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|svelte\\)$\")",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(node scripts/dev-mongo.mjs)"
     ]
   }
 }

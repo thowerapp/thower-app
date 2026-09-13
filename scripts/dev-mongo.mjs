@@ -18,7 +18,7 @@ process.env.LD_LIBRARY_PATH = [libsslDir, process.env.LD_LIBRARY_PATH].filter(Bo
 
 const replSet = await MongoMemoryReplSet.create({
 	binary: { version: '4.4.29' },
-	instanceOpts: [{ port: 27019, dbPath, storageEngine: 'wiredTiger' }],
+	instanceOpts: [{ port: 27019, dbPath, storageEngine: 'wiredTiger', launchTimeout: 60000 }],
 	replSet: { count: 1, storageEngine: 'wiredTiger', dbName: 'thowerapp' }
 });
 

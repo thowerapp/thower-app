@@ -4,7 +4,7 @@ import { prisma } from '$lib/server';
 function log(level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR', context: string, ...args: unknown[]) {
 	const timestamp = new Date().toISOString();
 	const prefix = `[${timestamp}] [${level}] [${context}]`;
-	
+
 	switch (level) {
 		case 'ERROR':
 			console.error(prefix, ...args);
@@ -29,6 +29,7 @@ export const getAllTransactionsDashboard = async () => {
 				id: true,
 				createdAt: true,
 				amount: true,
+				currency: true,
 				status: true,
 				customer_details_email: true,
 				customer_details_name: true,
@@ -45,7 +46,7 @@ export const getAllTransactionsDashboard = async () => {
 		});
 
 		// Transformer les données pour correspondre au format attendu par le frontend
-		const formattedTransactions = transactions.map(transaction => ({
+		const formattedTransactions = transactions.map((transaction) => ({
 			...transaction,
 			app_user_email: transaction.user?.email,
 			app_user_name: transaction.user?.name,

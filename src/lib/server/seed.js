@@ -350,9 +350,9 @@ async function main() {
 	console.log('4/10 — WorkoutSessions + Videos…');
 	// 3 séances A/B/C + vidéos placeholder (remplaçables via admin / Cloudflare). Ordre = sessionIdx 0,1,2.
 	const sessionDefs = [
-		{ type: 'MAIN_A', name: 'Séance A — Haut du corps', weekNumber: 1, order: 0 },
-		{ type: 'MAIN_B', name: 'Séance B — Bas du corps', weekNumber: 1, order: 1 },
-		{ type: 'MAIN_C', name: 'Séance C — Full body', weekNumber: 1, order: 2 }
+		{ type: 'MAIN_A', name: 'A', weekNumber: 1, order: 0 },
+		{ type: 'MAIN_B', name: 'B', weekNumber: 1, order: 1 },
+		{ type: 'MAIN_C', name: 'C', weekNumber: 1, order: 2 }
 	];
 	const videoSlots = [
 		{ position: 'PRE', title: 'Pré-séance', isOptional: true, order: 0, uidKey: 'pre' },

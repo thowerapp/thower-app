@@ -58,6 +58,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 	});
 
+	// Bibliothèque : tout le catalogue statique, indépendamment de ce qui a déjà
+	// été planifié dans le programme de l'utilisateur (le programme peut être
+	// vide/pas encore généré sans que la bibliothèque de recettes le soit).
+	const catalogRecipes = await prisma.recipe.findMany({
+		where: { isCustom: false, active: true },
+		orderBy: { name: 'asc' },
+		select: { id: true, name: true, category: true, totalTimeMin: true }
+	});
+
 	const breakfastRecipes = plannedRecipes.filter((r) => r.category === 'BREAKFAST' && !r.isCustom);
 	const mealRecipes = plannedRecipes.filter((r) => r.category === 'MEAL' && !r.isCustom);
 	const dessertRecipes = plannedRecipes.filter((r) => r.category === 'DESSERT' && !r.isCustom);
@@ -67,10 +76,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		mealRecipes,
 		dessertRecipes,
 		customRecipes,
+		catalogRecipes,
 		programRecipes: plannedRecipes,
-		favoriteRecipes: favoriteRecipes
-			.map((f) => f.recipe)
-			.filter((r) => plannedRecipeIds.includes(r.id)),
+		favoriteRecipes: favoriteRecipes.map((f) => f.recipe),
 		canCreateRecipe: true,
 		programDays,
 		user: locals.user

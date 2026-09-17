@@ -114,6 +114,12 @@ export function nextMondayStartParis(from: Date = new Date()): Date {
 	return zonedMidnightUtc(target.year, target.month, target.day);
 }
 
+/** Minuit Europe/Paris du jour de `from` : le programme démarre le jour même. */
+export function todayStartParis(from: Date = new Date()): Date {
+	const civil = civilDateInTimeZone(from);
+	return zonedMidnightUtc(civil.year, civil.month, civil.day);
+}
+
 /**
  * Jour courant du programme (1..TOTAL_PROGRAM_DAYS) depuis `programStartDate`
  * (calendrier Europe/Paris).

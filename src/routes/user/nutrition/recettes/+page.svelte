@@ -6,12 +6,13 @@
 		favoriteRecipes?: Array<{ id: string; name: string; category: string; totalTimeMin: number | null }>;
 		customRecipes?: Array<{ id: string; name: string; category: string; totalTimeMin: number | null }>;
 		programRecipes?: Array<{ id: string; name: string; category: string; totalTimeMin: number | null }>;
+		catalogRecipes?: Array<{ id: string; name: string; category: string; totalTimeMin: number | null }>;
 		programDays?: number;
 		canCreateRecipe?: boolean;
 	});
 
-	type TabKey = 'programme' | 'favoris' | 'mes' | 'nouvelles';
-	let activeTab = $state<TabKey>('programme');
+	type TabKey = 'catalogue' | 'programme' | 'favoris' | 'mes' | 'nouvelles';
+	let activeTab = $state<TabKey>('catalogue');
 	let favorites = $state(new Set<string>());
 
 	$effect(() => {
@@ -31,10 +32,12 @@
 				return (pageData.favoriteRecipes ?? []).filter((r) => favorites.has(r.id));
 			case 'mes':
 				return pageData.customRecipes ?? [];
-				case 'nouvelles':
-					return [];
-			default:
+			case 'nouvelles':
+				return [];
+			case 'programme':
 				return pageData.programRecipes ?? [];
+			default:
+				return pageData.catalogRecipes ?? [];
 		}
 	});
 
@@ -59,6 +62,9 @@
 </div>
 
 <div class="tabs-section">
+	<button class="tab-btn" class:active={activeTab === 'catalogue'} onclick={() => (activeTab = 'catalogue')}>
+		Catalogue ({pageData.catalogRecipes?.length ?? 0})
+	</button>
 	<button class="tab-btn" class:active={activeTab === 'programme'} onclick={() => (activeTab = 'programme')}>
 		Programme ({pageData.programRecipes?.length ?? 0})
 	</button>

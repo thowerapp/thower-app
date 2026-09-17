@@ -155,7 +155,7 @@ $effect(() => {
 <div class="u-notif-banner daily-cta daily-cta-wait">
   <div class="u-ndot" style:background="var(--g)" style:animation="none" style:opacity=".4"></div>
   <div class="u-nb">
-    <div class="u-nb-t">Le programme démarre lundi</div>
+    <div class="u-nb-t">Le programme démarre bientôt</div>
     <div class="u-nb-s">Tu peux déjà explorer le sport, la nutrition et la méthode</div>
   </div>
 </div>
@@ -181,7 +181,7 @@ $effect(() => {
 
 <div class="u-sh">
   <div class="u-sh-t">Mon programme</div>
-  <div class="u-sh-s">{programAwaitingStart ? 'Démarre lundi' : `Jour ${currentDayIndex} / 91`}</div>
+  <div class="u-sh-s">{programAwaitingStart ? 'Démarre bientôt' : `Jour ${currentDayIndex} / 91`}</div>
 </div>
 
 <div class="u-split-cards">

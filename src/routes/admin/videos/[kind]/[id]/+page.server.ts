@@ -18,6 +18,10 @@ import { attachDaySchema, detachDaySchema, type DetachDaySchema } from '$lib/sch
 import { listProgramDayItemsForVideo } from '$lib/prisma/programDayItem/listForVideo';
 import { attachVideoToDay } from '$lib/prisma/programDayItem/attachVideo';
 import { detachProgramDayItem } from '$lib/prisma/programDayItem/detach';
+import { prisma } from '$lib/server';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = prisma as any;
 
 export const load: PageServerLoad = async ({ params, locals, depends }) => {
 	if (!locals.user || locals.role !== 'ADMIN') {
@@ -37,6 +41,27 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 			cloudflareDetails = await getVideoDetails(row.cloudflareUid);
 		} catch (err) {
 			console.error('[admin/videos/[kind]/[id]] getVideoDetails error', err);
+		}
+
+		// Le webhook Cloudflare peut rater ou arriver en retard : si le statut réel
+		// diverge de celui en DB, on le persiste ici pour ne pas laisser l'utilisateur
+		// bloqué sur "transcodage en cours" alors que la vidéo est prête.
+		if (cloudflareDetails && cloudflareDetails.status !== row.status) {
+			const syncData = {
+				durationSeconds: cloudflareDetails.duration ?? null,
+				status: cloudflareDetails.status === 'ready' ? 'ready' : cloudflareDetails.status,
+				thumbnailUrl: cloudflareDetails.thumbnail ?? null
+			};
+			try {
+				if (kind === 'workout') {
+					await db.workoutVideo.update({ where: { id: params.id }, data: syncData });
+				} else {
+					await db.discoveryContent.update({ where: { id: params.id }, data: syncData });
+				}
+				Object.assign(row, syncData);
+			} catch (err) {
+				console.error('[admin/videos/[kind]/[id]] opportunistic sync error', err);
+			}
 		}
 	}
 
@@ -150,8 +175,6 @@ export const actions: Actions = {
 			const details = await getVideoDetails(row.cloudflareUid);
 			if (!details) return fail(404, { message: 'Vidéo absente côté Cloudflare.' });
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const db = (await import('$lib/server')).prisma as any;
 		const syncData = {
 			durationSeconds: details.duration ?? null,
 			status: details.status === 'ready' ? 'ready' : details.status,

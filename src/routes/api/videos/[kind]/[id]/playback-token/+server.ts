@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 import { videoKindEnum } from '$lib/schema/video/videoAdminSchema';
-import { createSignedPlaybackToken, getStreamEmbedUrl } from '$lib/server/cloudflare-stream';
+import { createSignedPlaybackToken, getStreamEmbedUrl, getVideoDetails } from '$lib/server/cloudflare-stream';
 import { prisma } from '$lib/server';
 
 /**
@@ -34,7 +34,30 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		throw error(409, 'Vidéo de seed — uploader le fichier sur Cloudflare avant de la jouer.');
 	}
 	if (row.status !== 'ready') {
-		throw error(409, 'Vidéo non encore prête (transcodage en cours côté Cloudflare).');
+		// Le webhook Cloudflare peut rater ou arriver en retard : avant de bloquer
+		// l'utilisateur, on vérifie l'état réel côté Cloudflare et on se resynchronise.
+		let details = null;
+		try {
+			details = await getVideoDetails(row.cloudflareUid);
+		} catch (err) {
+			console.error('[playback-token] getVideoDetails fallback error', err);
+		}
+
+		if (details?.status === 'ready') {
+			const syncData = {
+				status: 'ready',
+				durationSeconds: details.duration ?? null,
+				thumbnailUrl: details.thumbnail ?? null
+			};
+			if (kind === 'workout') {
+				await db.workoutVideo.update({ where: { id: params.id }, data: syncData });
+			} else {
+				await db.discoveryContent.update({ where: { id: params.id }, data: syncData });
+			}
+			row.status = 'ready';
+		} else {
+			throw error(409, 'Vidéo non encore prête (transcodage en cours côté Cloudflare).');
+		}
 	}
 	if (kind === 'discovery' && row.active === false) {
 		throw error(403, 'Vidéo désactivée.');

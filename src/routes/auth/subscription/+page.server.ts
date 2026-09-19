@@ -2,6 +2,7 @@ import { fail, redirect, isRedirect } from '@sveltejs/kit';
 import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
 import { getProgramOfferEntitlements } from '$lib/prisma/transaction/getProgramOfferEntitlements';
+import { redeemCode } from '$lib/prisma/redemptionCode/redeemCode';
 import { prisma } from '$lib/server';
 import { stripe } from '$lib/server/stripe';
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
@@ -152,6 +153,55 @@ export const load = async (event: RequestEvent) => {
 };
 
 export const actions: Actions = {
+	redeemCode: async (event: RequestEvent) => {
+		if (event.locals.session === null || event.locals.user === null) {
+			return fail(401, { message: 'Non authentifié' });
+		}
+
+		const userId = event.locals.user.id;
+		const formData = await event.request.formData();
+		const code = String(formData.get('code') ?? '').trim();
+
+		if (!code) {
+			return fail(400, { message: 'Merci de saisir un code.' });
+		}
+
+		const result = await redeemCode(code, userId);
+		if (!result.success) {
+			onboardingTrace('subscription_redeem_code', {
+				userId,
+				source: 'subscription',
+				outcome: 'invalid_or_used'
+			});
+			return fail(400, { message: 'Ce code est invalide ou a déjà été utilisé.' });
+		}
+
+		onboardingTrace('subscription_redeem_code', {
+			userId,
+			source: 'subscription',
+			outcome: 'redeemed'
+		});
+
+		const bodyMeasurements = await getBodyMeasurementsByUserId(userId, 1);
+		if (bodyMeasurements.length > 0) {
+			const { role } = event.locals.user;
+			const dispatchMode = await dispatchProgramGeneration(event, () =>
+				scheduleProgramGenerationAfterPayment(userId, { role, source: 'subscription' })
+			);
+			programGenTrace('trigger', {
+				userId,
+				source: 'subscription',
+				isAdmin: role === 'ADMIN',
+				hasValidPayment: true,
+				hasMeasurements: true,
+				action: 'schedule_generation_after_code_redemption',
+				dispatchMode
+			});
+		}
+
+		return redirect(303, '/auth/');
+	},
+
 	createCheckout: async (event: RequestEvent) => {
 		if (event.locals.session === null || event.locals.user === null) {
 			return fail(401, { message: 'Non authentifié' });

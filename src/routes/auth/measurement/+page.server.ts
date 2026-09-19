@@ -30,11 +30,16 @@ export const config = {
 };
 
 async function replaceInitialProgressPhotos(userId: string, data: MeasurementSchema) {
-	const photos: { angle: PhotoAngle; url: string }[] = [
-		{ angle: 'FRONT', url: data.frontUrl },
-		{ angle: 'SIDE', url: data.sideUrl },
-		{ angle: 'BACK', url: data.backUrl }
-	];
+	const photos = (
+		[
+			{ angle: 'FRONT' as const, url: data.frontUrl },
+			{ angle: 'SIDE' as const, url: data.sideUrl },
+			{ angle: 'BACK' as const, url: data.backUrl }
+		] satisfies { angle: PhotoAngle; url: string | undefined }[]
+	).filter((photo): photo is { angle: PhotoAngle; url: string } => Boolean(photo.url));
+
+	if (photos.length === 0) return;
+
 	const angles = photos.map((photo) => photo.angle);
 	const client = prisma as {
 		progressPhoto?: {

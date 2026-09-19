@@ -43,6 +43,7 @@
   let checked = $state<Set<string>>(new Set());
   let submitting = $state(false);
   let earnedFeedback = $state<number | null>(null);
+  let errorMessage = $state<string | null>(null);
 
   // Points des tâches STANDARD cochées (soumises via le bouton)
   const ptsStandard = $derived(
@@ -109,6 +110,7 @@
   action={formAction}
   use:enhance={() => {
     submitting = true;
+    errorMessage = null;
     return async ({ result, update }) => {
       submitting = false;
       if (result.type === 'success' && result.data && 'pointsEarned' in result.data) {
@@ -121,6 +123,13 @@
           setTimeout(() => { earnedFeedback = null; }, 2800);
         }
       } else {
+        if (result.type === 'failure' && result.data && 'message' in result.data) {
+          errorMessage = String(result.data.message ?? 'Une erreur est survenue.');
+          setTimeout(() => { errorMessage = null; }, 4000);
+        } else if (result.type === 'error') {
+          errorMessage = 'Une erreur est survenue.';
+          setTimeout(() => { errorMessage = null; }, 4000);
+        }
         await update({ invalidateAll: true });
       }
     };
@@ -249,6 +258,10 @@
 
 {#if earnedFeedback !== null}
   <div class="dl-earned">+{earnedFeedback} pts gagnés !</div>
+{/if}
+
+{#if errorMessage !== null}
+  <div class="dl-error">{errorMessage}</div>
 {/if}
 
 {#if resetAction && import.meta.env.DEV}
@@ -386,6 +399,18 @@
   color: var(--g);
   border: 1px solid rgba(201, 168, 78, 0.35);
   background: rgba(201, 168, 78, 0.08);
+  border-radius: 8px;
+  font-family: var(--fb);
+}
+
+.dl-error {
+  margin: 8px 14px 4px;
+  padding: 8px 12px;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  color: rgba(255, 90, 90, 0.9);
+  border: 1px solid rgba(255, 80, 80, 0.35);
+  background: rgba(255, 80, 80, 0.08);
   border-radius: 8px;
   font-family: var(--fb);
 }

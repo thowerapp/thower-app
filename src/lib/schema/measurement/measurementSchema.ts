@@ -28,9 +28,10 @@ const optionalInt1to10 = z.preprocess(
 
 const parseStringArray = (val: unknown): string[] => normalizeStringList(val);
 
-const progressPhotoUrl = z
-	.string()
-	.startsWith('/api/cloudflare/r2/image/photos/', 'Photo obligatoire invalide');
+const progressPhotoUrl = z.preprocess(
+	(val) => (val === '' || val === undefined || val === null ? undefined : val),
+	z.string().startsWith('/api/cloudflare/r2/image/photos/', 'Photo invalide').optional()
+);
 
 /** Champs communs profil (objectifs, habitudes) — utilisables dans le formulaire combiné onboarding */
 const profileFieldsSchema = z.object({
@@ -94,7 +95,7 @@ const profileFieldsSchema = z.object({
 
 	bodyFatPercent: z.preprocess(
 		(val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
-		z.number().min(3).max(70)
+		z.number().min(3).max(70).optional()
 	),
 	weightLossGoalKg: z.preprocess(
 		(val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),

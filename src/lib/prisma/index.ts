@@ -111,3 +111,8 @@ export { getHasValidPaymentByUserId } from './transaction/getHasValidPaymentByUs
 export { getProgramOfferEntitlements } from './transaction/getProgramOfferEntitlements';
 export { getAllTransactions } from './transaction/getAllTransactions';
 export { getAllTransactionsDashboard } from './transaction/getAllTransactionsDashboard';
+
+// Redemption codes (accès accordé sans Stripe pour les paiements IRL)
+export { createRedemptionCodes, type CreateRedemptionCodesData } from './redemptionCode/createRedemptionCodes';
+export { listRedemptionCodes, type RedemptionCodeRow } from './redemptionCode/listRedemptionCodes';
+export { redeemCode, type RedeemCodeResult } from './redemptionCode/redeemCode';

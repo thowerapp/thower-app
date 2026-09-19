@@ -57,9 +57,9 @@
 				</Form.Field>
 				<Form.Field name="bodyFatPercent" {form}>
 					<Form.Control>
-						<Form.Label class="meas-label">Masse grasse (%)</Form.Label>
+						<Form.Label class="meas-label">Masse grasse (%) <span class="text-muted-foreground font-normal">(optionnel)</span></Form.Label>
 						<p class="text-xs text-muted-foreground mb-2">
-							Ce chiffre est important pour personnaliser le programme nutrition. Il est obligatoire pour continuer.
+							Ce chiffre aide à personnaliser le programme nutrition, mais n'est pas obligatoire — vous pouvez continuer sans le renseigner.
 						</p>
 						<div class="input-unit-wrap">
 							<Input

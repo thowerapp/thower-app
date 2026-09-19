@@ -8,6 +8,7 @@ export type OnboardingStep =
 	| 'measurement_save'
 	| 'subscription_load'
 	| 'subscription_checkout'
+	| 'subscription_redeem_code'
 	| 'stripe_reconcile'
 	| 'payment_check';
 

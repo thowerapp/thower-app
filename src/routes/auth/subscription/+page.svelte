@@ -9,10 +9,12 @@
 		XCircle,
 		LayoutDashboard,
 		UtensilsCrossed,
-		Dumbbell
+		Dumbbell,
+		KeyRound
 	} from 'lucide-svelte';
 	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
+	import { Input } from '$shadcn/input';
 
 	let { data }: PageProps = $props();
 
@@ -233,6 +235,28 @@
 				</form>
 			</Card.Content>
 		</Card.Root>
+
+		{#if !hasValidPayment}
+			<Card.Root class="mt-4">
+				<Card.Header>
+					<Card.Title class="flex items-center gap-2 text-sm font-medium">
+						<KeyRound class="w-4 h-4 text-primary" />
+						<span>Vous avez déjà payé ?</span>
+					</Card.Title>
+					<Card.Description>
+						Si vous avez réglé votre accompagnement directement avec l'équipe Thower, entrez le code qui vous a été remis pour débloquer l'accès.
+					</Card.Description>
+				</Card.Header>
+				<Card.Content>
+					<form method="POST" action="?/redeemCode" use:enhance class="flex flex-col sm:flex-row gap-2">
+						<Input type="text" name="code" placeholder="THOWER-XXXX-XXXX-XXXX" class="flex-1 uppercase" autocomplete="off" required />
+						<Button type="submit" variant="outline" class="gap-2 shrink-0">
+							Valider le code
+						</Button>
+					</form>
+				</Card.Content>
+			</Card.Root>
+		{/if}
 	{/if}
 </div>
 

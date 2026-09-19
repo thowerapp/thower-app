@@ -57,17 +57,10 @@
 	let stepDir = $state<1 | -1>(1);
 	const progress = $derived(((currentStep - 1) / (TOTAL_STEPS - 1)) * 100);
 
-	const requiredPhotoFields = [
-		{ field: 'frontUrl', label: 'Face' },
-		{ field: 'sideUrl', label: 'Profil' },
-		{ field: 'backUrl', label: 'Dos' }
-	] as const;
-
 	const requiredMorphologyFields = [
 		{ field: 'age', label: 'Âge' },
 		{ field: 'heightCm', label: 'Taille' },
 		{ field: 'weightKg', label: 'Poids' },
-		{ field: 'bodyFatPercent', label: 'Masse grasse' },
 		{ field: 'waistCm', label: 'Tour de taille' },
 		{ field: 'chestCm', label: 'Tour de torse' },
 		{ field: 'armCm', label: 'Tour de bras' }
@@ -91,17 +84,6 @@
 
 	function getBlockingValidationIssue(): BlockingValidationIssue | null {
 		const d = $measurementData;
-		const missingPhotos = requiredPhotoFields
-			.filter(({ field }) => isBlank(d[field]))
-			.map(({ label }) => label);
-
-		if (missingPhotos.length > 0) {
-			return {
-				step: 3,
-				message: `Photos obligatoires manquantes : ${missingPhotos.join(', ')}. Merci de les ajouter avant d'enregistrer.`
-			};
-		}
-
 		const invalidMorphologyFields = requiredMorphologyFields
 			.filter(({ field }) => isMissingOrInvalidNumber(d[field]))
 			.map(({ label }) => label);
@@ -134,8 +116,7 @@
 				!d.weightKg ||
 				!d.waistCm ||
 				!d.chestCm ||
-				!d.armCm ||
-				!d.bodyFatPercent
+				!d.armCm
 			) {
 				toast.error('Merci de remplir toutes les mensurations obligatoires avant de continuer.');
 				return;

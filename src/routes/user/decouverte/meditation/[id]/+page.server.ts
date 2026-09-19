@@ -57,7 +57,16 @@ export const actions: Actions = {
 			});
 
 			if (result.completedNow) {
-				const taskPts = await autoCompleteVideoTask(userId, id);
+				const linkedTask = await (prisma as any).dailyTask.findFirst({
+					where: { type: 'VIDEO', active: true, discoveryContentId: id },
+					select: { id: true }
+				});
+
+				if (linkedTask) {
+					const taskPts = await autoCompleteVideoTask(userId, id);
+					return { success: true, pointsEarned: taskPts };
+				}
+
 				await (prisma as any).pointEvent?.create({
 					data: {
 						userId,
@@ -66,7 +75,7 @@ export const actions: Actions = {
 						metadata: { discoveryContentId: id, source: 'meditation' }
 					}
 				});
-				return { success: true, pointsEarned: 10 + taskPts };
+				return { success: true, pointsEarned: 10 };
 			}
 			return { success: true, pointsEarned: 0 };
 		} catch {

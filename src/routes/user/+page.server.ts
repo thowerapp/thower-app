@@ -80,9 +80,10 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 				: null
 		}));
 
-	const validated = completedIds.size > 0;
+	const standardTasks = tasks.filter((t) => t.type === 'STANDARD');
+	const validated = standardTasks.some((t) => t.completed);
 	const pointsEarned = validated
-		? tasks.filter((t) => t.completed).reduce((sum, t) => sum + t.points, 0)
+		? standardTasks.filter((t) => t.completed).reduce((sum, t) => sum + t.points, 0)
 		: 0;
 
 	const totalPoints = pointEvents.reduce((s, e) => s + e.amount, 0);
@@ -104,16 +105,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 export const actions: Actions = {
 	validateChecklist: async ({ request, locals }) => {
-		if (!locals.user) return fail(401);
+		if (!locals.user) return fail(401, { message: 'Non authentifié.' });
 		const userId = locals.user.id;
 		const todayStart = startOfUtcDay();
-
-		const existing = await prisma.dailyTaskCompletion.count({
-			where: { userId, date: todayStart }
-		});
-		if (existing > 0) {
-			return fail(409, { message: 'Checklist déjà validée pour aujourd\'hui.' });
-		}
 
 		const data = await request.formData();
 		const checkedIds = data.getAll('taskIds') as string[];
@@ -126,6 +120,20 @@ export const actions: Actions = {
 			where: { id: { in: checkedIds }, active: true, type: 'STANDARD' },
 			select: { id: true, points: true }
 		});
+
+		if (tasks.length === 0) {
+			return fail(400, { message: 'Aucune tâche valide sélectionnée.' });
+		}
+
+		// Garde 409 : uniquement sur les tâches STANDARD soumises (pas sur les tâches
+		// VIDEO auto-complétées, sinon avoir regardé la vidéo bloquerait la checklist).
+		const taskIds = tasks.map((t) => t.id);
+		const existing = await prisma.dailyTaskCompletion.count({
+			where: { userId, date: todayStart, taskId: { in: taskIds } }
+		});
+		if (existing > 0) {
+			return fail(409, { message: 'Checklist déjà validée pour aujourd\'hui.' });
+		}
 
 		const totalPoints = tasks.reduce((sum, t) => sum + t.points, 0);
 

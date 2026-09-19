@@ -110,8 +110,8 @@
 		<div>
 			<h2 class="step-title">Photos de reference</h2>
 			<p class="step-desc">
-				Face, profil et dos sont obligatoires pour suivre ton evolution avec un point de depart
-				fiable.
+				Face, profil et dos sont optionnelles, mais recommandees pour suivre ton evolution avec un
+				point de depart fiable. Tu peux passer cette etape si tu preferes.
 			</p>
 		</div>
 	</div>
@@ -181,16 +181,29 @@
 		</Card.Content>
 	</Card.Root>
 
-	<Button
-		type="button"
-		size="lg"
-		class="w-full gap-2 meas-btn-primary"
-		onclick={onnext}
-		disabled={!isComplete || isUploading}
-	>
-		{isUploading ? 'Upload en cours...' : 'Continuer'}
-		<ArrowRight class="h-4 w-4" />
-	</Button>
+	<div class="step-actions">
+		{#if !isComplete}
+			<Button
+				type="button"
+				size="lg"
+				class="w-full gap-2 meas-btn-secondary"
+				onclick={onnext}
+				disabled={isUploading}
+			>
+				Passer cette etape
+			</Button>
+		{/if}
+		<Button
+			type="button"
+			size="lg"
+			class="w-full gap-2 meas-btn-primary"
+			onclick={onnext}
+			disabled={isUploading}
+		>
+			{isUploading ? 'Upload en cours...' : 'Continuer'}
+			<ArrowRight class="h-4 w-4" />
+		</Button>
+	</div>
 </div>
 
 <style lang="scss">
@@ -198,6 +211,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
+	}
+
+	.step-actions {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
 
 	.step-heading {

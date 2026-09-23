@@ -1,7 +1,8 @@
 import { error, json } from '@sveltejs/kit';
 import {
 	CloudflareStreamRequestError,
-	createDirectUploadUrl
+	createDirectUploadUrl,
+	createTusDirectUpload
 } from '$lib/server/cloudflare-stream';
 import type { RequestHandler } from './$types';
 
@@ -17,13 +18,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const formData = await request.formData();
 	const maxDurationSeconds = Number(formData.get('maxDurationSeconds') ?? 7200);
 	const filename = String(formData.get('filename') ?? 'video');
+	// Présent pour les fichiers > 200 Mio : upload tus créé côté serveur (direct_user).
+	const uploadLength = Number(formData.get('uploadLength') ?? 0);
 
 	try {
-		const { uploadURL, uid } = await createDirectUploadUrl({
+		const opts = {
 			maxDurationSeconds: Math.max(60, Math.min(21600, maxDurationSeconds)),
-			requireSignedURLs: true,
-			meta: { name: filename, uploadedBy: locals.user.id }
-		});
+			requireSignedURLs: true
+		};
+		const { uploadURL, uid } =
+			uploadLength > 0
+				? await createTusDirectUpload(uploadLength, { ...opts, name: filename })
+				: await createDirectUploadUrl({
+						...opts,
+						meta: { name: filename, uploadedBy: locals.user.id }
+					});
 		return json({ uploadURL, uid });
 	} catch (err) {
 		console.error('[api/admin/cloudflare-stream/upload-url]', err);

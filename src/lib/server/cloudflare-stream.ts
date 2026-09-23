@@ -122,6 +122,46 @@ export async function createDirectUploadUrl(
 	};
 }
 
+const b64 = (s: string) => Buffer.from(s, 'utf8').toString('base64');
+
+/**
+ * Crée un upload tus « direct creator » (`POST /stream?direct_user=true`) pour les fichiers
+ * > 200 Mio. L’URL `direct_upload` ne gère que le Basic POST : un HEAD/PATCH tus dessus
+ * renvoie 400. Ici Cloudflare renvoie une URL tus (`Location`) prête pour HEAD + PATCH.
+ * @see https://developers.cloudflare.com/stream/uploading-videos/direct-creator-uploads/#using-tus-recommended-for-videos-over-200mb
+ */
+export async function createTusDirectUpload(
+	uploadLength: number,
+	options: CreateDirectUploadOptions & { name?: string } = {}
+): Promise<{ uploadURL: string; uid: string }> {
+	const base = getStreamBaseUrl();
+	const maxDurationSeconds = clampDirectUploadMaxSeconds(options.maxDurationSeconds);
+	const metadata = [`maxDurationSeconds ${b64(String(maxDurationSeconds))}`];
+	if (options.requireSignedURLs ?? true) metadata.push('requiresignedurls');
+	if (options.name) metadata.push(`name ${b64(options.name)}`);
+
+	const res = await fetch(`${base}?direct_user=true`, {
+		method: 'POST',
+		headers: {
+			Authorization: streamAuthHeaders().Authorization,
+			'Tus-Resumable': '1.0.0',
+			'Upload-Length': String(uploadLength),
+			'Upload-Metadata': metadata.join(',')
+		}
+	});
+
+	const uploadURL = res.headers.get('location');
+	const uid = res.headers.get('stream-media-id');
+	if (!res.ok || !uploadURL || !uid) {
+		const bodyText = await res.text();
+		throw new CloudflareStreamRequestError(
+			formatCloudflareApiFailure(res.status, bodyText),
+			res.ok ? 502 : res.status
+		);
+	}
+	return { uploadURL, uid };
+}
+
 /* ─── 2. Détails vidéo ──────────────────────────────────────────────────── */
 
 export type StreamVideoDetails = {

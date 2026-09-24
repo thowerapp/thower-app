@@ -5,6 +5,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import { currentProgramDayIndex, startOfUtcDay } from '$lib/utils/programDay';
+import { isSeedCloudflareUid } from '$lib/prisma/video/seedVideo';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
@@ -62,6 +63,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const items = tasks
 		.filter((t) => !optOutIds.has(t.id) && isVisible(t))
+		// Tâche vidéo pointant sur une fiche de seed (pas de vraie vidéo) : inutile côté utilisateur
+		.filter((t) => !(t.type === 'VIDEO' && isSeedCloudflareUid(t.discoveryContent?.cloudflareUid)))
 		.map((t) => ({
 			id: t.id,
 			label: t.label,

@@ -3,6 +3,7 @@ import { prisma } from '$lib/server';
 import type { PageServerLoad, Actions } from './$types';
 import { startOfUtcDay } from '$lib/utils/programDay';
 import { computeLevel } from '$lib/utils/levels';
+import { isSeedCloudflareUid } from '$lib/prisma/video/seedVideo';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
@@ -61,6 +62,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 	const completedIds = new Set(p.completedTaskIds ?? []);
 	const tasks = activeTasks
 		.filter((t) => !optOutIds.has(t.id) && isVisible(t))
+		// Tâche vidéo pointant sur une fiche de seed (pas de vraie vidéo) : inutile côté utilisateur
+		.filter((t) => !(t.type === 'VIDEO' && isSeedCloudflareUid(t.discoveryContent?.cloudflareUid)))
 		.map((t) => ({
 			id: t.id,
 			label: t.label,

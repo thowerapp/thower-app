@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server';
 import type { DiscoveryCategory } from '@prisma/client';
+import { notSeedVideo } from '$lib/prisma/video/seedVideo';
 
 export type DiscoveryItemWithLock = {
 	id: string;
@@ -54,7 +55,7 @@ export async function getAllDiscoveryWithLockState(
 			distinct: ['discoveryContentId']
 		}),
 		db.discoveryContent.findMany({
-			where: { category, active: true },
+			where: { category, active: true, ...notSeedVideo },
 			orderBy: { order: 'asc' },
 			select: {
 				id: true, title: true, order: true,

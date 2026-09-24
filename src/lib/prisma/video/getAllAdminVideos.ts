@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server';
 import { repairVideoCloudflareBsonFields } from '$lib/server/mongo/repairVideoCloudflareBsonFields';
+import { isSeedCloudflareUid } from './seedVideo';
 
 /** BSON / EJSON → chaîne ObjectId hex (évite de passer par Prisma sur des docs legacy `youtubeId`). */
 function bsonIdToString(id: unknown): string {
@@ -74,11 +75,6 @@ export type AdminVideoDayLink =
 	| { source: 'day'; dayIndex: number }
 	/** `DailyTask` VIDEO : plage de jours (bornes null = ouvertes) */
 	| { source: 'task'; from: number | null; until: number | null };
-
-/** Fiches de seed : pas de vraie vidéo Cloudflare derrière (cf. deleteVideo / playback-token). */
-export function isSeedCloudflareUid(uid: string | null | undefined): boolean {
-	return !!uid && (uid.startsWith('cf_seed_') || uid.startsWith('cf_seeded_'));
-}
 
 export type AdminVideoRow = {
 	id: string;

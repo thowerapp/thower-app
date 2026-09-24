@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server';
 import type { WorkoutSessionType, WorkoutVideoPosition } from '@prisma/client';
+import { isSeedCloudflareUid, notSeedVideo } from '$lib/prisma/video/seedVideo';
 
 const POSITION_ORDER: Record<WorkoutVideoPosition, number> = {
 	PRE: 0,
@@ -21,13 +22,15 @@ export type SessionWorkoutVideoRow = {
 /**
  * Les vidéos sport ne sont plus liées par FK à WorkoutSession : le champ `sessionType`,
  * choisi dans le formulaire admin, fait le lien. Fallback pour les fiches historiques
- * (seed) qui n'ont que la convention d'UID `cf_seed_{slot}_{MAIN_A|MAIN_B|MAIN_C|DISCOVERY}`.
+ * sans `sessionType` qui n'ont que la convention d'UID `…_{MAIN_A|MAIN_B|MAIN_C|DISCOVERY}`.
+ * Les fiches de seed (`cf_seed_*`, sans vraie vidéo) sont exclues.
  */
 export async function getWorkoutVideosForSessionType(
 	sessionType: WorkoutSessionType
 ): Promise<SessionWorkoutVideoRow[]> {
 	const videos = await prisma.workoutVideo.findMany({
 		where: {
+			...notSeedVideo,
 			OR: [
 				{ sessionType },
 				{ sessionType: null, cloudflareUid: { endsWith: `_${sessionType}` } }
@@ -75,7 +78,7 @@ export async function getWorkoutVideosForDay(
 
 	const byPosition = new Map(generic.map((v) => [v.position, v]));
 	for (const { workoutVideo: v } of dayOverrides) {
-		if (!v) continue;
+		if (!v || isSeedCloudflareUid(v.cloudflareUid)) continue;
 		byPosition.set(v.position, {
 			id: v.id,
 			title: v.title,

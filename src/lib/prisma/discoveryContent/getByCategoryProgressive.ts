@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server';
 import type { DiscoveryCategory } from '@prisma/client';
+import { notSeedVideo } from '$lib/prisma/video/seedVideo';
 
 /**
  * Retourne les vidéos de découverte accessibles pour l'utilisateur à son jour courant.
@@ -80,6 +81,7 @@ export async function getDiscoveryContentByCategoryProgressive(
 		where: {
 			category,
 			active: true,
+			...notSeedVideo,
 			OR: [
 				{ id: { notIn: programManagedIds } },
 				...(allUnlockedIds.length > 0 ? [{ id: { in: allUnlockedIds } }] : [])

@@ -60,11 +60,7 @@
 	}
 
 	const videoColumns = $state([
-		{
-			key: 'kind',
-			label: 'Type',
-			formatter: (v: unknown) => kindLabels[String(v)] ?? String(v)
-		},
+		{ key: 'kindLabel', label: 'Type' },
 		{ key: 'title', label: 'Titre' },
 		{
 			key: 'sessionName',
@@ -124,7 +120,11 @@
 					v.kind === 'workout'
 						? (SESSION_TYPE_LABELS[String(v.sessionType)] ?? '—')
 						: (v.category ?? '—'),
-				daysLabel: formatVideoDays(v)
+				daysLabel: formatVideoDays(v),
+				// Vidéo Découverte liée à une tâche quotidienne → remonte dans la checklist
+				kindLabel: v.days.some((l) => l.source === 'task')
+					? 'Checklist'
+					: (kindLabels[v.kind] ?? v.kind)
 			}))
 	);
 

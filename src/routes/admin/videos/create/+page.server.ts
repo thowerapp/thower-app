@@ -34,7 +34,7 @@ export const actions: Actions = {
 		const d = form.data as CreateVideoSchema;
 
 		try {
-			const row = await createVideo(d);
+			const row = await createVideo(d, d.addToChecklist ? d.checklist : undefined);
 
 			throw redirect(302, `/admin/videos/${d.kind}/${row.id}`);
 		} catch (err) {

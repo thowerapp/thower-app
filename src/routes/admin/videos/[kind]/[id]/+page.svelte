@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zodClient } from '$lib/superforms-zod';
 	import * as Form from '$shadcn/form';
@@ -348,6 +349,11 @@
 			class="mt-4 border-t pt-4 space-y-3"
 		>
 			<p class="text-xs font-medium text-muted-foreground">Rattacher à un jour du programme</p>
+			<p class="text-xs text-muted-foreground">
+				Débloque la vidéo ce jour-là (ou remplace la vidéo de la séance ce jour-là) mais ne l’ajoute
+				pas à la checklist : pour ça, crée une tâche « Vidéo à consulter » dans
+				<a href={resolve('/admin/daily-tasks/create')} class="underline">Tâches quotidiennes</a>.
+			</p>
 			<div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
 				<div>
 					<label for="qa-day" class="mb-1 block text-xs text-muted-foreground">Jour (1-91) *</label>

@@ -78,12 +78,57 @@ const refineProgramDayAttachIfEnabled = (
 	}
 };
 
+/** Tâche « vidéo à regarder » créée dans la checklist quotidienne en même temps que la vidéo. */
+export const checklistTaskSchema = z.object({
+	fromDay: z.coerce.number().int().min(1).max(91),
+	untilDay: z.coerce.number().int().min(1).max(91),
+	points: z.coerce.number().int().min(0).max(1000).default(20),
+	label: z.string().max(120).optional().nullable()
+});
+export type ChecklistTaskSchema = z.infer<typeof checklistTaskSchema>;
+
+const optionalChecklistFields = z.object({
+	addToChecklist: z.boolean().default(false),
+	checklist: checklistTaskSchema.optional()
+});
+
+const refineChecklistIfEnabled = (
+	d: VideoFormCoreInput & z.infer<typeof optionalChecklistFields>,
+	ctx: z.RefinementCtx
+) => {
+	if (!d.addToChecklist) return;
+	if (d.kind !== 'discovery') {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Seule une vidéo Découverte peut apparaître dans la checklist.',
+			path: ['addToChecklist']
+		});
+	}
+	if (!d.checklist) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Indique les jours et les points de la tâche checklist.',
+			path: ['checklist']
+		});
+		return;
+	}
+	if (d.checklist.fromDay > d.checklist.untilDay) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Le jour de début doit être ≤ au jour de fin.',
+			path: ['checklist', 'untilDay']
+		});
+	}
+};
+
 /**
- * Création : position + catégorie requises, rattachement programme optionnel.
+ * Création : position + catégorie requises, rattachement programme et tâche checklist optionnels.
  */
 export const createVideoSchema = videoFormCoreSchema
 	.and(optionalProgramDayAttachFields)
-	.superRefine(refineProgramDayAttachIfEnabled);
+	.and(optionalChecklistFields)
+	.superRefine(refineProgramDayAttachIfEnabled)
+	.superRefine(refineChecklistIfEnabled);
 
 export type CreateVideoSchema = z.infer<typeof createVideoSchema>;
 

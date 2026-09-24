@@ -13,8 +13,10 @@
 	} from '$lib/client/cloudflareStreamDirectUpload';
 	import {
 		createVideoSchema,
+		type ChecklistTaskSchema,
 		type CreateVideoSchema
 	} from '$lib/schema/video/videoAdminSchema';
+	import type { Readable, Writable } from 'svelte/store';
 	import {
 		discoveryCategoryEnum
 	} from '$lib/schema/discovery/discoveryContentSchema';
@@ -35,16 +37,52 @@
 	};
 
 	const videoForm = $derived.by(() => superForm(data.form, formOptions));
-	const { form, enhance, message: formMessage } = $derived(videoForm);
+	const { form, errors, enhance, message: formMessage } = $derived(videoForm);
+
+	/** superforms infère mal les champs imbriqués de l'intersection zod (`checklist` → `{}`). */
+	type ChecklistErrors = { fromDay?: string[]; untilDay?: string[]; _errors?: string[] };
+	const checklistForm = $derived(
+		form as unknown as Writable<{ checklist?: ChecklistTaskSchema }>
+	);
+	const checklistErrors = $derived(
+		errors as unknown as Readable<{ checklist?: ChecklistErrors }>
+	);
 
 	$effect(() => {
 		if ($formMessage) toast.success($formMessage as string);
 	});
 
-	const kindOptions = [
-		{ value: 'workout', label: 'Vidéo de séance sport' },
-		{ value: 'discovery', label: 'Vidéo Découverte (méditation, mindset…)' }
+	type Placement = 'workout' | 'discovery' | 'checklist';
+	const placementOptions: { value: Placement; label: string; hint: string }[] = [
+		{
+			value: 'workout',
+			label: 'Séance sport',
+			hint: 'Dans la séance choisie (A, B, C…), chaque semaine.'
+		},
+		{
+			value: 'discovery',
+			label: 'Hub Découverte',
+			hint: 'Dans l’onglet Découverte (méditation, mindset, breathwork…).'
+		},
+		{
+			value: 'checklist',
+			label: 'Checklist d’un jour',
+			hint: 'Tâche à cocher dans la journée de l’utilisateur, cochée seule quand la vidéo est regardée.'
+		}
 	];
+
+	const placement = $derived<Placement | ''>(
+		$form.addToChecklist ? 'checklist' : (($form.kind as Placement | undefined) ?? '')
+	);
+
+	/** « Checklist » = vidéo Découverte + tâche quotidienne VIDEO créée avec elle. */
+	function choosePlacement(p: Placement) {
+		$form.kind = p === 'workout' ? 'workout' : 'discovery';
+		$form.addToChecklist = p === 'checklist';
+		if (p === 'checklist' && !$checklistForm.checklist) {
+			$checklistForm.checklist = { fromDay: 1, untilDay: 1, points: 20, label: '' };
+		}
+	}
 
 	const categoryOptions = discoveryCategoryEnum.options.map((v) => ({
 		value: v,
@@ -194,22 +232,35 @@
 	</div>
 
 	<form method="POST" action="?/createVideo" use:enhance class="space-y-6">
-		<Form.Field name="kind" form={videoForm}>
-			<Form.Control>
-				<Form.Label>Type de vidéo *</Form.Label>
-				<select
-					name="kind"
-					bind:value={$form.kind}
-					class="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1"
-				>
-					<option value="" disabled>Choisir…</option>
-					{#each kindOptions as opt}
-						<option value={opt.value}>{opt.label}</option>
-					{/each}
-				</select>
-			</Form.Control>
-			<Form.FieldErrors />
-		</Form.Field>
+		<fieldset class="space-y-2">
+			<legend class="mb-2 text-sm font-medium">Où doit apparaître cette vidéo ? *</legend>
+			<div class="grid gap-2 sm:grid-cols-3">
+				{#each placementOptions as opt (opt.value)}
+					<label
+						class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 text-sm transition-colors hover:bg-muted/50 {placement ===
+						opt.value
+							? 'border-primary bg-primary/5'
+							: ''}"
+					>
+						<span class="flex items-center gap-2 font-medium">
+							<input
+								type="radio"
+								name="placement"
+								value={opt.value}
+								checked={placement === opt.value}
+								onchange={() => choosePlacement(opt.value)}
+								class="size-4"
+							/>
+							{opt.label}
+						</span>
+						<span class="text-xs text-muted-foreground">{opt.hint}</span>
+					</label>
+				{/each}
+			</div>
+			<Form.Field name="kind" form={videoForm}>
+				<Form.FieldErrors />
+			</Form.Field>
+		</fieldset>
 
 		<Form.Field name="title" form={videoForm}>
 			<Form.Control>
@@ -269,9 +320,56 @@
 		</fieldset>
 	{/if}
 
+		{#if placement === 'checklist' && $checklistForm.checklist}
+			<fieldset class="rounded-lg border p-4 space-y-4">
+				<legend class="px-2 text-sm font-semibold">Tâche dans la checklist</legend>
+				<div class="grid grid-cols-3 gap-3">
+					<div>
+						<label for="cl-from" class="mb-1 block text-xs text-muted-foreground">Du jour (1-91) *</label>
+						<Input
+							id="cl-from"
+							type="number"
+							min={1}
+							max={91}
+							bind:value={$checklistForm.checklist.fromDay}
+							oninput={() => {
+								if ($checklistForm.checklist && $checklistForm.checklist.untilDay < $checklistForm.checklist.fromDay)
+									$checklistForm.checklist.untilDay = $checklistForm.checklist.fromDay;
+							}}
+						/>
+					</div>
+					<div>
+						<label for="cl-until" class="mb-1 block text-xs text-muted-foreground">Au jour (1-91) *</label>
+						<Input id="cl-until" type="number" min={1} max={91} bind:value={$checklistForm.checklist.untilDay} />
+					</div>
+					<div>
+						<label for="cl-points" class="mb-1 block text-xs text-muted-foreground">Points *</label>
+						<Input id="cl-points" type="number" min={0} bind:value={$checklistForm.checklist.points} />
+					</div>
+				</div>
+				<div>
+					<label for="cl-label" class="mb-1 block text-xs text-muted-foreground">
+						Texte de la tâche (facultatif)
+					</label>
+					<Input
+						id="cl-label"
+						bind:value={$checklistForm.checklist.label}
+						placeholder={`Regarde la vidéo : ${$form.title || '…'}`}
+					/>
+				</div>
+				{#if $checklistErrors.checklist?.untilDay || $checklistErrors.checklist?._errors}
+					<p class="text-sm text-destructive">
+						{$checklistErrors.checklist?.untilDay?.[0] ?? $checklistErrors.checklist?._errors?.[0]}
+					</p>
+				{/if}
+			</fieldset>
+		{/if}
+
 		{#if $form.kind === 'discovery'}
 			<fieldset class="rounded-lg border p-4 space-y-4">
-				<legend class="px-2 text-sm font-semibold">Paramètres Découverte</legend>
+				<legend class="px-2 text-sm font-semibold">
+					{placement === 'checklist' ? 'Catégorie (où la retrouver dans Découverte)' : 'Paramètres Découverte'}
+				</legend>
 
 			<Form.Field name="category" form={videoForm}>
 				<Form.Control>

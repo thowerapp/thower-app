@@ -10,9 +10,8 @@
 	import Trash from 'lucide-svelte/icons/trash';
 	import RefreshCw from 'lucide-svelte/icons/refresh-cw';
 	import { Checkbox } from '$shadcn/checkbox';
-	import { formatVideoDays, SESSION_TYPE_LABELS } from '$lib/utils/adminVideoCoverage';
+	import { formatVideoDays, SESSION_TYPE_LABELS } from '$lib/utils/adminVideoDays';
 	import type { AdminVideoDayLink } from '$lib/prisma/video/getAllAdminVideos';
-	import ProgramCoverage from './ProgramCoverage.svelte';
 
 	let { data } = $props();
 
@@ -178,7 +177,6 @@
 			</Button>
 		</div>
 	</div>
-	<ProgramCoverage days={data.coverage.days} sessions={data.coverage.sessions} />
 	{#if seedCount > 0}
 		<label class="flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground">
 			<Checkbox bind:checked={showSeeds} />

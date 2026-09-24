@@ -5,18 +5,19 @@ import { deleteVideoSchema, parseCompositeVideoId } from '$lib/schema/video/vide
 import { getAllAdminVideos } from '$lib/prisma/video/getAllAdminVideos';
 import { deleteVideo } from '$lib/prisma/video/deleteVideo';
 import { serializeData } from '$lib/utils/serializeData';
+import { buildVideoCoverage } from '$lib/utils/adminVideoCoverage';
 
 export const load: PageServerLoad = async () => {
 	const deleteVideoForm = await superValidate(zod(deleteVideoSchema));
 	const rawVideos = await getAllAdminVideos();
 	// id composite `${kind}:${id}` pour permettre au Table partagé (qui ne passe que `id` au form)
 	// de transporter le type vers l'action delete.
-	const videos = serializeData(
-		rawVideos.map((v) => ({ ...v, realId: v.id, id: `${v.kind}:${v.id}` }))
-	);
+	const withIds = rawVideos.map((v) => ({ ...v, realId: v.id, id: `${v.kind}:${v.id}` }));
+	const videos = serializeData(withIds);
 	return {
 		deleteVideoForm,
-		videos
+		videos,
+		coverage: buildVideoCoverage(withIds)
 	};
 };
 

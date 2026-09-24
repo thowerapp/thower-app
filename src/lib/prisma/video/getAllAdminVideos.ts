@@ -68,6 +68,18 @@ async function fetchDiscoveryContentsMongoRaw(): Promise<RawDiscoveryDoc[]> {
 	return res.cursor?.firstBatch ?? [];
 }
 
+/** Rattachement d'une vidéo à des jours du programme (J1–J91). */
+export type AdminVideoDayLink =
+	/** `ProgramDayItem` du programme actif : jour précis */
+	| { source: 'day'; dayIndex: number }
+	/** `DailyTask` VIDEO : plage de jours (bornes null = ouvertes) */
+	| { source: 'task'; from: number | null; until: number | null };
+
+/** Fiches de seed : pas de vraie vidéo Cloudflare derrière (cf. deleteVideo / playback-token). */
+export function isSeedCloudflareUid(uid: string | null | undefined): boolean {
+	return !!uid && (uid.startsWith('cf_seed_') || uid.startsWith('cf_seeded_'));
+}
+
 export type AdminVideoRow = {
 	id: string;
 	kind: 'workout' | 'discovery';
@@ -78,6 +90,8 @@ export type AdminVideoRow = {
 	thumbnailUrl: string | null;
 	createdAt: Date | null;
 	updatedAt: Date;
+	isSeed: boolean;
+	days: AdminVideoDayLink[];
 
 	// Workout-specific
 	sessionType?: string | null;
@@ -89,6 +103,55 @@ export type AdminVideoRow = {
 	order?: number | null;
 	active?: boolean | null;
 };
+
+function pushLink(map: Map<string, AdminVideoDayLink[]>, id: string, link: AdminVideoDayLink) {
+	const list = map.get(id);
+	if (list) list.push(link);
+	else map.set(id, [link]);
+}
+
+/** Tous les rattachements vidéo ↔ jour en 2 requêtes (pas de N+1 sur la liste admin). */
+async function fetchDayLinks(): Promise<{
+	byWorkout: Map<string, AdminVideoDayLink[]>;
+	byDiscovery: Map<string, AdminVideoDayLink[]>;
+}> {
+	const byWorkout = new Map<string, AdminVideoDayLink[]>();
+	const byDiscovery = new Map<string, AdminVideoDayLink[]>();
+
+	const [items, tasks] = await Promise.all([
+		prisma.programDayItem.findMany({
+			where: {
+				OR: [{ discoveryContentId: { not: null } }, { workoutVideoId: { not: null } }],
+				programDay: { program: { active: true } }
+			},
+			select: {
+				discoveryContentId: true,
+				workoutVideoId: true,
+				programDay: { select: { dayIndex: true } }
+			}
+		}),
+		prisma.dailyTask.findMany({
+			where: { active: true, discoveryContentId: { not: null } },
+			select: { discoveryContentId: true, showFromDay: true, showUntilDay: true }
+		})
+	]);
+
+	for (const it of items) {
+		const link: AdminVideoDayLink = { source: 'day', dayIndex: it.programDay.dayIndex };
+		if (it.workoutVideoId) pushLink(byWorkout, it.workoutVideoId, link);
+		if (it.discoveryContentId) pushLink(byDiscovery, it.discoveryContentId, link);
+	}
+	for (const t of tasks) {
+		if (!t.discoveryContentId) continue;
+		pushLink(byDiscovery, t.discoveryContentId, {
+			source: 'task',
+			from: t.showFromDay ?? null,
+			until: t.showUntilDay ?? null
+		});
+	}
+
+	return { byWorkout, byDiscovery };
+}
 
 /** Liste unifiée pour l'écran admin /admin/videos (séances + découverte). */
 export async function getAllAdminVideos(): Promise<AdminVideoRow[]> {
@@ -109,6 +172,8 @@ export async function getAllAdminVideos(): Promise<AdminVideoRow[]> {
 		return (a.order ?? 0) - (b.order ?? 0);
 	});
 
+	const { byWorkout, byDiscovery } = await fetchDayLinks();
+
 	const rows: AdminVideoRow[] = [];
 
 	for (const v of workoutVideos) {
@@ -122,6 +187,8 @@ export async function getAllAdminVideos(): Promise<AdminVideoRow[]> {
 			thumbnailUrl: v.thumbnailUrl ?? null,
 			createdAt: null,
 			updatedAt: v.updatedAt,
+			isSeed: isSeedCloudflareUid(v.cloudflareUid),
+			days: byWorkout.get(v.id) ?? [],
 			sessionType: v.sessionType ?? null,
 			position: v.position,
 			isOptional: v.isOptional ?? false
@@ -145,6 +212,8 @@ export async function getAllAdminVideos(): Promise<AdminVideoRow[]> {
 			order: d.order ?? 0,
 			createdAt: bsonDateToDate(d.createdAt),
 			updatedAt: bsonDateToDate(d.updatedAt) ?? new Date(),
+			isSeed: isSeedCloudflareUid(uid),
+			days: byDiscovery.get(id) ?? [],
 			category: d.category,
 			active: d.active ?? true
 		});

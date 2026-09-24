@@ -9,6 +9,10 @@
 	import Plus from 'lucide-svelte/icons/plus';
 	import Trash from 'lucide-svelte/icons/trash';
 	import RefreshCw from 'lucide-svelte/icons/refresh-cw';
+	import { Checkbox } from '$shadcn/checkbox';
+	import { formatVideoDays, SESSION_TYPE_LABELS } from '$lib/utils/adminVideoCoverage';
+	import type { AdminVideoDayLink } from '$lib/prisma/video/getAllAdminVideos';
+	import ProgramCoverage from './ProgramCoverage.svelte';
 
 	let { data } = $props();
 
@@ -36,13 +40,6 @@
 		PRE: 'Pré-séance',
 		VID1: 'Vidéo 1',
 		VID2: 'Vidéo 2'
-	};
-
-	const sessionTypeLabels: Record<string, string> = {
-		MAIN_A: 'Séance A',
-		MAIN_B: 'Séance B',
-		MAIN_C: 'Séance C',
-		DISCOVERY: 'Découverte'
 	};
 
 	const statusLabels: Record<string, string> = {
@@ -85,6 +82,7 @@
 			formatter: (v: unknown) =>
 				v == null || v === '' ? '—' : (positionLabels[String(v)] ?? String(v))
 		},
+		{ key: 'daysLabel', label: 'Journées' },
 		{
 			key: 'durationSeconds',
 			label: 'Durée',
@@ -108,16 +106,27 @@
 		kind: 'workout' | 'discovery';
 		sessionType?: string | null;
 		category?: string | null;
+		isSeed: boolean;
+		days: AdminVideoDayLink[];
 		[key: string]: unknown;
 	};
+
+	/** Les fiches de seed n'ont pas de vraie vidéo : masquées par défaut, à remplacer. */
+	let showSeeds = $state(false);
+	const allVideos = $derived((data?.videos ?? []) as VideoRow[]);
+	const seedCount = $derived(allVideos.filter((v) => v.isSeed).length);
+
 	const tableData = $derived(
-		((data?.videos ?? []) as VideoRow[]).map((v) => ({
-			...v,
-			sessionName:
-				v.kind === 'workout'
-					? (sessionTypeLabels[String(v.sessionType)] ?? '—')
-					: (v.category ?? '—')
-		}))
+		allVideos
+			.filter((v) => showSeeds || !v.isSeed)
+			.map((v) => ({
+				...v,
+				sessionName:
+					v.kind === 'workout'
+						? (SESSION_TYPE_LABELS[String(v.sessionType)] ?? '—')
+						: (v.category ?? '—'),
+				daysLabel: formatVideoDays(v)
+			}))
 	);
 
 	const videoActions = $derived.by(() => [
@@ -169,6 +178,13 @@
 			</Button>
 		</div>
 	</div>
+	<ProgramCoverage days={data.coverage.days} sessions={data.coverage.sessions} />
+	{#if seedCount > 0}
+		<label class="flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+			<Checkbox bind:checked={showSeeds} />
+			Afficher les vidéos de seed ({seedCount})
+		</label>
+	{/if}
 	<Table
 		name="Vidéos Cloudflare Stream"
 		columns={videoColumns}

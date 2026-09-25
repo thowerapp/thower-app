@@ -5,7 +5,13 @@ import {
 	currentProgramDayIndex,
 	isProgramAwaitingStart,
 	nextMondayStartParis,
+	programDayDateISO,
+	programDayUtcDate,
 	remainingUntil,
+	sportWeekBounds,
+	sportWeekCount,
+	sportWeekNumberForDay,
+	todayStartParis,
 	shortWeekdayFrUtc,
 	startOfUtcDay
 } from './programDay';
@@ -153,5 +159,36 @@ describe('calendarDateForProgramDay', () => {
 		expect(shortWeekdayFrUtc(j2)).toBe('Mar');
 		expect(civilDateInTimeZone(j1)).toMatchObject({ year: 2026, month: 9, day: 14 });
 		expect(civilDateInTimeZone(j2)).toMatchObject({ year: 2026, month: 9, day: 15 });
+	});
+});
+
+describe('dates et semaines sport (lundi → dimanche)', () => {
+	// Programme démarré le jeudi 24 septembre 2026 (Paris).
+	const start = todayStartParis(new Date('2026-09-24T10:00:00Z'));
+
+	it('date civile Paris sans décalage UTC', () => {
+		expect(programDayDateISO(start, 1)).toBe('2026-09-24');
+		expect(programDayDateISO(start, 2)).toBe('2026-09-25');
+		expect(programDayDateISO(start, -2)).toBe('2026-09-21');
+		expect(programDayUtcDate(start, 2).toISOString()).toBe('2026-09-25T00:00:00.000Z');
+		expect(shortWeekdayFrUtc(calendarDateForProgramDay(start, 2))).toBe('Ven');
+	});
+
+	it('semaine 1 = semaine civile de J1, partielle', () => {
+		expect(sportWeekBounds(start, 1)).toEqual({ mondayDayIndex: -2, weekStart: 1, weekEnd: 4 });
+		expect(programDayDateISO(start, -2)).toBe('2026-09-21');
+		expect(sportWeekBounds(start, 2)).toEqual({ mondayDayIndex: 5, weekStart: 5, weekEnd: 11 });
+		expect(programDayDateISO(start, 5)).toBe('2026-09-28');
+		expect(sportWeekNumberForDay(start, 2)).toBe(1);
+		expect(sportWeekNumberForDay(start, 5)).toBe(2);
+		expect(sportWeekCount(start)).toBe(14);
+		expect(sportWeekBounds(start, 14)).toEqual({ mondayDayIndex: 89, weekStart: 89, weekEnd: 91 });
+	});
+
+	it('démarrage un lundi : 13 semaines pleines', () => {
+		const monday = todayStartParis(new Date('2026-09-21T10:00:00Z'));
+		expect(sportWeekCount(monday)).toBe(13);
+		expect(sportWeekBounds(monday, 1)).toEqual({ mondayDayIndex: 1, weekStart: 1, weekEnd: 7 });
+		expect(sportWeekNumberForDay(monday, 8)).toBe(2);
 	});
 });

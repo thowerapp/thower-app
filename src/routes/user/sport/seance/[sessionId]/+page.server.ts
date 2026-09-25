@@ -2,9 +2,12 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { prisma } from '$lib/server';
 import {
-	calendarDateForProgramDay,
 	currentProgramDayIndex,
-	startOfUtcDay
+	programDayDateISO,
+	programDayUtcDate,
+	sportWeekBounds,
+	sportWeekNumberForDay,
+	TOTAL_PROGRAM_WEEKS
 } from '$lib/utils/programDay';
 import { serializeData } from '$lib/utils/serializeData';
 import { requireSportAccess } from '$lib/server/programAccessGuard';
@@ -65,10 +68,14 @@ function pickSessionForType(
 	);
 }
 
-async function resolveSessionIdForDay(userId: string, dayIndex: number): Promise<string | null> {
-	const selectedWeek = Math.max(1, Math.min(13, Math.ceil(dayIndex / 7)));
-	const weekStart = (selectedWeek - 1) * 7 + 1;
-	const weekEnd = Math.min(91, weekStart + 6);
+async function resolveSessionIdForDay(
+	userId: string,
+	dayIndex: number,
+	programStart: Date | null
+): Promise<string | null> {
+	const sportWeek = sportWeekNumberForDay(programStart, dayIndex);
+	const { weekStart, weekEnd } = sportWeekBounds(programStart, sportWeek);
+	const selectedWeek = Math.min(TOTAL_PROGRAM_WEEKS, sportWeek);
 
 	const sessionCatalog = await prisma.workoutSession.findMany({
 		where: {
@@ -185,6 +192,10 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	]);
 
 	const rawDay = url.searchParams.get('day');
+	// Semaine consultée sur le planning avant d'ouvrir la séance : le bouton retour y ramène.
+	const rawSemaine = url.searchParams.get('semaine');
+	const fromWeek = rawSemaine != null && /^\d{1,2}$/.test(rawSemaine) ? rawSemaine : null;
+	const backHref = fromWeek ? `/user/sport?semaine=${fromWeek}` : '/user/sport';
 	const currentUnlockedDayIndex = currentProgramDayIndex(user?.programStartDate ?? null);
 	let dayIndex =
 		rawDay != null && rawDay !== ''
@@ -200,9 +211,14 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		: null;
 
 	if (!session || !session.active) {
-		const fallbackSessionId = await resolveSessionIdForDay(userId, dayIndex);
+		const fallbackSessionId = await resolveSessionIdForDay(
+			userId,
+			dayIndex,
+			user?.programStartDate ?? null
+		);
 		if (fallbackSessionId && fallbackSessionId !== requestedSessionId) {
-			throw redirect(302, `/user/sport/seance/${fallbackSessionId}?day=${dayIndex}`);
+			const weekParam = fromWeek ? `&semaine=${fromWeek}` : '';
+			throw redirect(302, `/user/sport/seance/${fallbackSessionId}?day=${dayIndex}${weekParam}`);
 		}
 		if (fallbackSessionId && OID.test(fallbackSessionId)) {
 			sessionId = fallbackSessionId;
@@ -262,7 +278,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	let scheduledISO: string | null = null;
 	const ps = user?.programStartDate;
 	if (ps) {
-		scheduledISO = calendarDateForProgramDay(ps, dayIndex).toISOString();
+		scheduledISO = programDayDateISO(ps, dayIndex);
 	}
 
 	const orderedSessionVideos = sessionVideos;
@@ -356,6 +372,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		prerequisiteBlocked,
 		prerequisiteMessage,
 		scheduledDateISO: scheduledISO,
+		backHref,
 		seanceCompletedAt: userDay?.completedAt?.toISOString() ?? null,
 		seanceLocked: userDay?.isLocked ?? false,
 		userDayExists: !!userDay,
@@ -464,8 +481,7 @@ export const actions: Actions = {
 
 		let scheduledDate: Date | undefined;
 		if (user?.programStartDate) {
-			const d = calendarDateForProgramDay(user.programStartDate, dayIdx);
-			scheduledDate = startOfUtcDay(d);
+			scheduledDate = programDayUtcDate(user.programStartDate, dayIdx);
 		}
 
 		await prisma.userWorkoutDay.upsert({

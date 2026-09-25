@@ -53,7 +53,7 @@
 </script>
 
 <div class="u-back-row">
-	<a href="/user/sport" class="u-back-lnk" onclick={fire}>
+	<a href={data.backHref} class="u-back-lnk" onclick={fire}>
 		<svg width="12" height="12" viewBox="0 0 14 14"
 			><path d="M9 2L4 7l5 5" stroke="var(--txd)" stroke-width="1.5" stroke-linecap="round"></path></svg
 		>

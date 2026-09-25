@@ -29,6 +29,7 @@
 
 	const strip = $derived(data.weekStrip ?? []);
 	const rows = $derived(data.sessionRows ?? []);
+	const totalWeeks = $derived(data.totalWeeks ?? 13);
 
 	let dragSourceDayIndex = $state<number | null>(null);
 	let hoveredDayIndex = $state<number | null>(null);
@@ -54,11 +55,11 @@
 	}
 
 	function isMovableCell(cell: SessionRow): boolean {
-		return cell.sessionId != null && cell.completedAtISO == null;
+		return !cell.outOfProgram && cell.sessionId != null && cell.completedAtISO == null;
 	}
 
 	function isFreeDropCell(cell: SessionRow): boolean {
-		return cell.sessionId == null && cell.completedAtISO == null && cell.sessionLetter !== 'D';
+		return !cell.outOfProgram && cell.sessionId == null && cell.completedAtISO == null && cell.sessionLetter !== 'D';
 	}
 
 	function updateHoveredDay(clientX: number, clientY: number) {
@@ -196,7 +197,7 @@
 <div class="week-info">
 	<div class="week-header-row">
 		<span class="week-header">
-			Semaine {data.selectedWeek ?? data.currentWeek} / 13{#if data.totalProgramDays}
+			Semaine {data.selectedWeek ?? data.currentWeek} / {totalWeeks}{#if data.totalProgramDays}
 				<span class="week-header-sub"> · Jour programme {data.currentDayIndex} / {data.totalProgramDays}</span>
 			{/if}
 		</span>
@@ -208,7 +209,7 @@
 				onchange={(e) => changeWeek(Number.parseInt(e.currentTarget.value, 10))}
 				aria-label="Choisir la semaine du programme"
 			>
-				{#each Array(13) as _, i}
+				{#each Array(totalWeeks) as _, i}
 					<option value={String(i + 1)}>
 						S. {i + 1}
 						{i + 1 === data.currentWeek ? ' (en cours)' : ''}
@@ -263,12 +264,14 @@
 			class:drag-source={dragSourceDayIndex === cell.dayIndex}
 			class:move-target={hoveredDayIndex === cell.dayIndex}
 			class:free-slot={isFreeDropCell(cell)}
+			class:out-of-program={cell.outOfProgram}
 			class:movable-slot={isMovableCell(cell)}
 			data-day-slot={String(cell.dayIndex)}
 			onpointerdown={(event) => handleDayPointerDown(cell, event)}
 			onpointercancel={clearLongPressTimer}
 			onclick={(event) => handleDayClick(cell, event)}
-			disabled={movingSession}
+			disabled={movingSession || cell.outOfProgram}
+			aria-label={cell.outOfProgram ? 'Hors programme' : undefined}
 		>
 			<div class="u-sd-n" style:color={cell.isToday && cell.completedAtISO == null ? 'var(--txd)' : undefined}>{cell.weekdayShort}</div>
 			<div class="u-sd-d" style:color={isFreeDropCell(cell) ? 'var(--txd)' : undefined}>{dayNumFromISO(cell.dateISO)}</div>
@@ -452,6 +455,10 @@
 	}
 	.u-sport-week .u-sd.free-slot {
 		opacity: 0.72;
+	}
+	.u-sport-week .u-sd.out-of-program {
+		opacity: 0.3;
+		cursor: default;
 	}
 	.li-cta {
 		border-left: 2px solid var(--g);

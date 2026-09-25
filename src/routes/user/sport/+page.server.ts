@@ -5,8 +5,12 @@ import type { WorkoutSessionType } from '@prisma/client';
 import {
 	calendarDateForProgramDay,
 	currentProgramDayIndex,
-	startOfUtcDay,
+	programDayDateISO,
+	programDayUtcDate,
 	shortWeekdayFrUtc,
+	sportWeekBounds,
+	sportWeekCount,
+	sportWeekNumberForDay,
 	TOTAL_PROGRAM_DAYS,
 	TOTAL_PROGRAM_WEEKS
 } from '$lib/utils/programDay';
@@ -52,6 +56,8 @@ function pickSessionForType(
 ): SessionCatalogRow | null {
 	const candidates = sessions.filter((session) => session.type === type);
 	if (candidates.length === 0) return null;
+	// Semaines calées sur le lundi : une 14e semaine partielle peut exister.
+	selectedWeek = Math.min(TOTAL_PROGRAM_WEEKS, selectedWeek);
 
 	return (
 		candidates.find((session) => session.weekNumber === selectedWeek) ??
@@ -156,8 +162,11 @@ function buildResolvedWeekSlots(params: {
 }
 
 export type SportWeekStripEntry = {
+	/** Peut être ≤ 0 ou > 91 pour les jours hors programme affichés en début/fin de semaine */
 	dayIndex: number;
-	/** yyyy-mm-dd (UTC) pour afficher le numéro du jour civil */
+	/** Jour hors du programme (avant J1 ou après J91) : affiché grisé, non interactif */
+	outOfProgram: boolean;
+	/** yyyy-mm-dd (calendrier Europe/Paris) pour afficher le numéro du jour civil */
 	dateISO: string | null;
 	weekdayShort: string;
 	/** Si le programme prévoit une séance sport ce jour-là */
@@ -191,15 +200,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const programStart = user?.programStartDate ?? null;
 	const currentDayIndex = currentProgramDayIndex(programStart);
-	const currentWeek = Math.min(
-		TOTAL_PROGRAM_WEEKS,
-		Math.max(1, Math.ceil(currentDayIndex / 7))
-	);
+	const totalWeeks = sportWeekCount(programStart);
+	const currentWeek = sportWeekNumberForDay(programStart, currentDayIndex);
 
 	const rawSemaine = url.searchParams.get('semaine');
 	let selectedWeek =
 		rawSemaine != null && rawSemaine !== '' ? Number.parseInt(rawSemaine, 10) : NaN;
-	if (!Number.isInteger(selectedWeek) || selectedWeek < 1 || selectedWeek > TOTAL_PROGRAM_WEEKS) {
+	if (!Number.isInteger(selectedWeek) || selectedWeek < 1 || selectedWeek > totalWeeks) {
 		selectedWeek = currentWeek;
 	}
 	if (rawSemaine !== String(selectedWeek)) {
@@ -208,8 +215,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw redirect(302, next.pathname + next.search);
 	}
 
-	const weekStart = (selectedWeek - 1) * 7 + 1;
-	const weekEnd = Math.min(TOTAL_PROGRAM_DAYS, weekStart + 6);
+	const { mondayDayIndex, weekStart, weekEnd } = sportWeekBounds(programStart, selectedWeek);
 
 	if (!program) {
 		return serializeData({
@@ -217,6 +223,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			hasProgramStart: false,
 			currentDayIndex,
 			currentWeek,
+			totalWeeks,
 			selectedWeek,
 			weekStart,
 			weekEnd,
@@ -269,8 +276,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const weekStrip: SportWeekStripEntry[] = [];
 
-	for (let dayIndex = weekStart; dayIndex <= weekEnd; dayIndex++) {
-		const slot = resolvedSlots.get(dayIndex) ?? { session: null, completedAt: null, isLocked: false };
+	for (let dayIndex = mondayDayIndex; dayIndex <= mondayDayIndex + 6; dayIndex++) {
+		const outOfProgram = dayIndex < weekStart || dayIndex > weekEnd;
+		const slot = resolvedSlots.get(dayIndex) ?? {
+			session: null,
+			completedAt: null,
+			isLocked: false
+		};
 		const sessionId = slot.session?.id ?? null;
 		const completedAt = slot.completedAt;
 		const letter = sessionTypeToLetter(slot.session?.type);
@@ -280,16 +292,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		let dateISO: string | null = null;
 		let weekdayShort = '—';
 		if (programStart) {
-			const cal = calendarDateForProgramDay(programStart, dayIndex);
-			dateISO = cal.toISOString().slice(0, 10);
-			weekdayShort = shortWeekdayFrUtc(cal);
+			dateISO = programDayDateISO(programStart, dayIndex);
+			weekdayShort = shortWeekdayFrUtc(calendarDateForProgramDay(programStart, dayIndex));
 		}
 
 		const hrefSeance =
-			sessionId != null ? `/user/sport/seance/${sessionId}?day=${dayIndex}` : null;
+			sessionId != null
+				? `/user/sport/seance/${sessionId}?day=${dayIndex}&semaine=${selectedWeek}`
+				: null;
 
 		weekStrip.push({
 			dayIndex,
+			outOfProgram,
 			dateISO,
 			weekdayShort,
 			hasProgramSession,
@@ -298,7 +312,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			sessionName,
 			points: sessionId ? 50 : 0,
 			completedAtISO: completedAt?.toISOString() ?? null,
-			isToday: dayIndex === currentDayIndex,
+			isToday: !outOfProgram && dayIndex === currentDayIndex,
 			hrefSeance
 		});
 	}
@@ -316,30 +330,32 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				break;
 			}
 		}
-		// Fallback: last day of week even if occupied (shouldn't happen with 3 sessions / 7 days)
-		if (virtualDDay == null) virtualDDay = weekEnd;
+		// Semaine partielle (début/fin de programme) sans jour libre : pas de créneau D.
+		if (virtualDDay != null) {
+			let virtualDateISO: string | null = null;
+			let virtualWeekdayShort = '—';
+			if (programStart) {
+				virtualDateISO = programDayDateISO(programStart, virtualDDay);
+				virtualWeekdayShort = shortWeekdayFrUtc(
+					calendarDateForProgramDay(programStart, virtualDDay)
+				);
+			}
 
-		let virtualDateISO: string | null = null;
-		let virtualWeekdayShort = '—';
-		if (programStart) {
-			const cal = calendarDateForProgramDay(programStart, virtualDDay);
-			virtualDateISO = cal.toISOString().slice(0, 10);
-			virtualWeekdayShort = shortWeekdayFrUtc(cal);
+			sessionRows.push({
+				dayIndex: virtualDDay,
+				outOfProgram: false,
+				dateISO: virtualDateISO,
+				weekdayShort: virtualWeekdayShort,
+				hasProgramSession: true,
+				sessionId: null,
+				sessionLetter: 'D',
+				sessionName: 'Découverte',
+				points: 0,
+				completedAtISO: null,
+				isToday: virtualDDay === currentDayIndex,
+				hrefSeance: '/user/decouverte'
+			});
 		}
-
-		sessionRows.push({
-			dayIndex: virtualDDay,
-			dateISO: virtualDateISO,
-			weekdayShort: virtualWeekdayShort,
-			hasProgramSession: true,
-			sessionId: null,
-			sessionLetter: 'D',
-			sessionName: 'Découverte',
-			points: 0,
-			completedAtISO: null,
-			isToday: virtualDDay === currentDayIndex,
-			hrefSeance: '/user/decouverte'
-		});
 	}
 
 	return serializeData({
@@ -347,6 +363,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		hasProgramStart: programStart !== null,
 		currentDayIndex,
 		currentWeek,
+		totalWeeks,
 		selectedWeek,
 		weekStart,
 		weekEnd,
@@ -375,25 +392,25 @@ export const actions: Actions = {
 			return fail(400, { message: 'Choisis un jour cible différent.' });
 		}
 
-		const sourceWeek = Math.ceil(sourceDayIndex / 7);
-		const targetWeek = Math.ceil(targetDayIndex / 7);
+		const userId = locals.user.id;
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { programStartDate: true }
+		});
+		const programStart = user?.programStartDate ?? null;
+
+		const sourceWeek = sportWeekNumberForDay(programStart, sourceDayIndex);
+		const targetWeek = sportWeekNumberForDay(programStart, targetDayIndex);
 		if (sourceWeek !== targetWeek) {
 			return fail(400, {
 				message: 'Déplace les séances à l’intérieur de la même semaine.'
 			});
 		}
 
-		const weekStart = (sourceWeek - 1) * 7 + 1;
-		const weekEnd = Math.min(TOTAL_PROGRAM_DAYS, weekStart + 6);
+		const { weekStart, weekEnd } = sportWeekBounds(programStart, sourceWeek);
 
-		const userId = locals.user.id;
-
-		// Les 3 requêtes sont indépendantes (aucune ne dépend des autres).
-		const [user, sessionCatalog, userRows] = await Promise.all([
-			prisma.user.findUnique({
-				where: { id: userId },
-				select: { programStartDate: true }
-			}),
+		// Les 2 requêtes sont indépendantes.
+		const [sessionCatalog, userRows] = await Promise.all([
 			prisma.workoutSession.findMany({
 				where: {
 					active: true,
@@ -455,8 +472,8 @@ export const actions: Actions = {
 		}
 
 		const scheduledDateForDay = (dayIndex: number): Date | undefined => {
-			if (!user?.programStartDate) return undefined;
-			return startOfUtcDay(calendarDateForProgramDay(user.programStartDate, dayIndex));
+			if (!programStart) return undefined;
+			return programDayUtcDate(programStart, dayIndex);
 		};
 
 		await prisma.$transaction(async (tx) => {

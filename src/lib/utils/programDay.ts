@@ -199,3 +199,52 @@ const FR_WEEKDAY_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'] as co
 export function shortWeekdayFrUtc(d: Date): string {
 	return FR_WEEKDAY_SHORT[civilDateInTimeZone(d).weekday] ?? '—';
 }
+
+/** yyyy-mm-dd (calendrier Europe/Paris) du jour programme `dayIndex` (peut être ≤ 0 ou > 91). */
+export function programDayDateISO(programStartDate: Date, dayIndex: number): string {
+	const start = civilDateInTimeZone(programStartDate);
+	const t = addDaysCivil(start.year, start.month, start.day, dayIndex - 1);
+	return `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`;
+}
+
+/** Minuit UTC du jour civil (Paris) du jour programme : valeur stockée en `scheduledDate`. */
+export function programDayUtcDate(programStartDate: Date, dayIndex: number): Date {
+	return new Date(`${programDayDateISO(programStartDate, dayIndex)}T00:00:00.000Z`);
+}
+
+/*
+ * Semaines sport calées sur le calendrier (lundi → dimanche).
+ * Semaine 1 = semaine civile contenant J1 (partielle si le programme ne démarre pas un lundi).
+ */
+
+/** Nombre de jours entre le lundi de la semaine de J1 et J1 (0 = démarrage un lundi). */
+export function sportWeekOffset(programStartDate: Date | null): number {
+	if (!programStartDate) return 0;
+	return (civilDateInTimeZone(programStartDate).weekday + 6) % 7;
+}
+
+export function sportWeekCount(programStartDate: Date | null): number {
+	return Math.ceil((sportWeekOffset(programStartDate) + TOTAL_PROGRAM_DAYS) / 7);
+}
+
+export function sportWeekNumberForDay(programStartDate: Date | null, dayIndex: number): number {
+	const d = Math.min(TOTAL_PROGRAM_DAYS, Math.max(1, dayIndex));
+	return Math.floor((d - 1 + sportWeekOffset(programStartDate)) / 7) + 1;
+}
+
+/**
+ * Bornes d'une semaine sport :
+ * - `mondayDayIndex..mondayDayIndex+6` : les 7 jours affichés (lundi → dimanche, hors programme possible) ;
+ * - `weekStart..weekEnd` : jours réellement dans le programme (1..91).
+ */
+export function sportWeekBounds(
+	programStartDate: Date | null,
+	weekNumber: number
+): { mondayDayIndex: number; weekStart: number; weekEnd: number } {
+	const mondayDayIndex = (weekNumber - 1) * 7 + 1 - sportWeekOffset(programStartDate);
+	return {
+		mondayDayIndex,
+		weekStart: Math.max(1, mondayDayIndex),
+		weekEnd: Math.min(TOTAL_PROGRAM_DAYS, mondayDayIndex + 6)
+	};
+}

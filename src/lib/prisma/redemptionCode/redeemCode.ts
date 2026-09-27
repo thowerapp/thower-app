@@ -20,7 +20,8 @@ export async function redeemCode(rawCode: string, userId: string): Promise<Redee
 	if (!code) return { success: false, reason: 'invalid_or_used' };
 
 	const { count } = await prisma.redemptionCode.updateMany({
-		where: { code, usedByUserId: null },
+		// MongoDB : `usedByUserId: null` ne matche pas un champ absent, d'où le isSet: false.
+		where: { code, OR: [{ usedByUserId: null }, { usedByUserId: { isSet: false } }] },
 		data: { usedByUserId: userId, usedAt: new Date() }
 	});
 

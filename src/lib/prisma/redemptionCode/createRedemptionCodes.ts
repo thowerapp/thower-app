@@ -34,7 +34,7 @@ export async function createRedemptionCodes({
 			code = generateCode();
 		}
 		await prisma.redemptionCode.create({
-			data: { code, createdByAdminId, note: note || null }
+			data: { code, createdByAdminId, note: note || null, usedByUserId: null, usedAt: null }
 		});
 		codes.push(code);
 	}

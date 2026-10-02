@@ -11,60 +11,12 @@ import {
 	sportWeekBounds,
 	sportWeekCount,
 	sportWeekNumberForDay,
-	TOTAL_PROGRAM_DAYS,
-	TOTAL_PROGRAM_WEEKS
+	TOTAL_PROGRAM_DAYS
 } from '$lib/utils/programDay';
 import { serializeData } from '$lib/utils/serializeData';
 import { requireSportAccess } from '$lib/server/programAccessGuard';
 import { ensureProgramStartDate } from '$lib/server/program-generation/generateProgramForUser';
-
-const PLANNER_SESSION_TYPES = ['MAIN_A', 'MAIN_B', 'MAIN_C', 'DISCOVERY'] as const;
-
-type PlannerSessionType = (typeof PLANNER_SESSION_TYPES)[number];
-
-type SessionCatalogRow = {
-	id: string;
-	name: string;
-	type: WorkoutSessionType;
-	weekNumber: number | null;
-	order: number;
-};
-
-type WeekUserWorkoutRow = {
-	sessionId: string;
-	dayIndex: number;
-	completedAt: Date | null;
-	isLocked: boolean;
-	session: {
-		id: string;
-		name: string;
-		type: WorkoutSessionType;
-		active: boolean;
-	} | null;
-};
-
-type WeekResolvedSlot = {
-	session: SessionCatalogRow | null;
-	completedAt: Date | null;
-	isLocked: boolean;
-};
-
-function pickSessionForType(
-	sessions: SessionCatalogRow[],
-	type: PlannerSessionType,
-	selectedWeek: number
-): SessionCatalogRow | null {
-	const candidates = sessions.filter((session) => session.type === type);
-	if (candidates.length === 0) return null;
-	// Semaines calées sur le lundi : une 14e semaine partielle peut exister.
-	selectedWeek = Math.min(TOTAL_PROGRAM_WEEKS, selectedWeek);
-
-	return (
-		candidates.find((session) => session.weekNumber === selectedWeek) ??
-		candidates.find((session) => session.weekNumber == null) ??
-		candidates[0]
-	);
-}
+import { resolveSportWeek } from '$lib/server/sport/programSportDays';
 
 function sessionTypeToLetter(t: WorkoutSessionType | null | undefined): string | null {
 	if (!t) return null;
@@ -73,92 +25,6 @@ function sessionTypeToLetter(t: WorkoutSessionType | null | undefined): string |
 	if (t === 'MAIN_C') return 'C';
 	if (t === 'DISCOVERY') return 'D';
 	return null;
-}
-
-function buildResolvedWeekSlots(params: {
-	weekStart: number;
-	weekEnd: number;
-	selectedSessions: SessionCatalogRow[];
-	userRows: WeekUserWorkoutRow[];
-}): Map<number, WeekResolvedSlot> {
-	const { weekStart, weekEnd, selectedSessions, userRows } = params;
-	const selectedById = new Map(selectedSessions.map((session) => [session.id, session]));
-
-	const resolved = new Map<number, WeekResolvedSlot>();
-	for (let dayIndex = weekStart; dayIndex <= weekEnd; dayIndex++) {
-		resolved.set(dayIndex, {
-			session: null,
-			completedAt: null,
-			isLocked: false
-		});
-	}
-
-	const candidateRows = userRows
-		.filter((row) => row.session?.active && selectedById.has(row.sessionId))
-		.sort((a, b) => {
-			const aCompleted = a.completedAt != null ? 1 : 0;
-			const bCompleted = b.completedAt != null ? 1 : 0;
-			if (aCompleted !== bCompleted) return bCompleted - aCompleted;
-			return a.dayIndex - b.dayIndex;
-		});
-
-	const dedupBySessionId = new Map<string, WeekUserWorkoutRow>();
-	for (const row of candidateRows) {
-		if (!dedupBySessionId.has(row.sessionId)) {
-			dedupBySessionId.set(row.sessionId, row);
-		}
-	}
-
-	const usedDays = new Set<number>();
-	const placedSessionIds = new Set<string>();
-
-	for (const row of dedupBySessionId.values()) {
-		if (row.dayIndex < weekStart || row.dayIndex > weekEnd) continue;
-		if (usedDays.has(row.dayIndex)) continue;
-		const session = selectedById.get(row.sessionId);
-		if (!session) continue;
-
-		resolved.set(row.dayIndex, {
-			session,
-			completedAt: row.completedAt,
-			isLocked: row.isLocked
-		});
-		usedDays.add(row.dayIndex);
-		placedSessionIds.add(session.id);
-	}
-
-	const remainingSessions = selectedSessions.filter((session) => !placedSessionIds.has(session.id));
-	const preferredDays = [weekStart, weekStart + 2, weekStart + 4, weekStart + 6].filter(
-		(day) => day <= weekEnd
-	);
-
-	for (let i = 0; i < remainingSessions.length; i++) {
-		const session = remainingSessions[i];
-		const preferredDay = preferredDays[i];
-		let targetDay: number | null = null;
-
-		if (preferredDay != null && !usedDays.has(preferredDay)) {
-			targetDay = preferredDay;
-		} else {
-			for (let dayIndex = weekStart; dayIndex <= weekEnd; dayIndex++) {
-				if (!usedDays.has(dayIndex)) {
-					targetDay = dayIndex;
-					break;
-				}
-			}
-		}
-
-		if (targetDay == null) break;
-
-		resolved.set(targetDay, {
-			session,
-			completedAt: null,
-			isLocked: false
-		});
-		usedDays.add(targetDay);
-	}
-
-	return resolved;
 }
 
 export type SportWeekStripEntry = {
@@ -229,64 +95,27 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			weekEnd,
 			totalProgramDays: TOTAL_PROGRAM_DAYS,
 			weekStrip: [] as SportWeekStripEntry[],
-			sessionRows: [] as SportSessionRow[]
+			sessionRows: [] as SportSessionRow[],
+			hasSportThisWeek: false
 		});
 	}
 
-	const [userWorkoutRows, sessionCatalog] = await Promise.all([
-		prisma.userWorkoutDay.findMany({
-			where: {
-				userId,
-				dayIndex: { gte: weekStart, lte: weekEnd }
-			},
-			include: {
-				session: { select: { id: true, name: true, type: true, active: true } }
-			},
-			orderBy: { dayIndex: 'asc' }
-		}),
-		prisma.workoutSession.findMany({
-			where: {
-				active: true,
-				type: { in: [...PLANNER_SESSION_TYPES] }
-			},
-			select: {
-				id: true,
-				name: true,
-				type: true,
-				weekNumber: true,
-				order: true
-			},
-			orderBy: [{ order: 'asc' }, { createdAt: 'asc' }]
-		})
-	]);
-
-	const selectedSessions = [
-		pickSessionForType(sessionCatalog, 'MAIN_A', selectedWeek),
-		pickSessionForType(sessionCatalog, 'MAIN_B', selectedWeek),
-		pickSessionForType(sessionCatalog, 'MAIN_C', selectedWeek),
-		pickSessionForType(sessionCatalog, 'DISCOVERY', selectedWeek)
-	].filter((session): session is SessionCatalogRow => session != null);
-
-	const resolvedSlots = buildResolvedWeekSlots({
-		weekStart,
-		weekEnd,
-		selectedSessions,
-		userRows: userWorkoutRows as WeekUserWorkoutRow[]
+	// Séances = jours où l'admin a rattaché des vidéos sport (déplaçables par l'utilisateur).
+	const { slots: resolvedSlots } = await resolveSportWeek({
+		userId,
+		programStart,
+		week: selectedWeek
 	});
 
 	const weekStrip: SportWeekStripEntry[] = [];
 
 	for (let dayIndex = mondayDayIndex; dayIndex <= mondayDayIndex + 6; dayIndex++) {
 		const outOfProgram = dayIndex < weekStart || dayIndex > weekEnd;
-		const slot = resolvedSlots.get(dayIndex) ?? {
-			session: null,
-			completedAt: null,
-			isLocked: false
-		};
-		const sessionId = slot.session?.id ?? null;
-		const completedAt = slot.completedAt;
-		const letter = sessionTypeToLetter(slot.session?.type);
-		const sessionName = slot.session?.name ?? null;
+		const slot = outOfProgram ? undefined : resolvedSlots.get(dayIndex);
+		const sessionId = slot?.session.id ?? null;
+		const completedAt = slot?.completedAt ?? null;
+		const letter = sessionTypeToLetter(slot?.session.type);
+		const sessionName = slot?.session.name ?? null;
 		const hasProgramSession = sessionId != null;
 
 		let dateISO: string | null = null;
@@ -318,6 +147,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	const sessionRows = weekStrip.filter((e) => e.hasProgramSession || e.sessionId);
+	const hasSportThisWeek = sessionRows.length > 0;
 
 	// Inject virtual D slot (Découverte) if no real DISCOVERY session is in DB
 	if (!sessionRows.some((e) => e.sessionLetter === 'D')) {
@@ -369,7 +199,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		weekEnd,
 		totalProgramDays: TOTAL_PROGRAM_DAYS,
 		weekStrip,
-		sessionRows
+		sessionRows,
+		hasSportThisWeek
 	});
 };
 
@@ -407,138 +238,60 @@ export const actions: Actions = {
 			});
 		}
 
-		const { weekStart, weekEnd } = sportWeekBounds(programStart, sourceWeek);
+		const { slots } = await resolveSportWeek({ userId, programStart, week: sourceWeek });
+		const sourceSlot = slots.get(sourceDayIndex) ?? null;
+		const targetSlot = slots.get(targetDayIndex) ?? null;
 
-		// Les 2 requêtes sont indépendantes.
-		const [sessionCatalog, userRows] = await Promise.all([
-			prisma.workoutSession.findMany({
-				where: {
-					active: true,
-					type: { in: [...PLANNER_SESSION_TYPES] }
-				},
-				select: {
-					id: true,
-					name: true,
-					type: true,
-					weekNumber: true,
-					order: true
-				},
-				orderBy: [{ order: 'asc' }, { createdAt: 'asc' }]
-			}),
-			prisma.userWorkoutDay.findMany({
-				where: {
-					userId,
-					dayIndex: { gte: weekStart, lte: weekEnd }
-				},
-				include: {
-					session: { select: { id: true, name: true, type: true, active: true } }
-				}
-			})
-		]);
-
-		const selectedSessions = [
-			pickSessionForType(sessionCatalog, 'MAIN_A', sourceWeek),
-			pickSessionForType(sessionCatalog, 'MAIN_B', sourceWeek),
-			pickSessionForType(sessionCatalog, 'MAIN_C', sourceWeek),
-			pickSessionForType(sessionCatalog, 'DISCOVERY', sourceWeek)
-		].filter((session): session is SessionCatalogRow => session != null);
-
-		const resolvedByDay = buildResolvedWeekSlots({
-			weekStart,
-			weekEnd,
-			selectedSessions,
-			userRows: userRows as WeekUserWorkoutRow[]
-		});
-
-		const sourceResolved = resolvedByDay.get(sourceDayIndex) ?? null;
-		const targetResolved = resolvedByDay.get(targetDayIndex) ?? null;
-		const sourceResolvedSessionId = sourceResolved?.session?.id ?? null;
-		const targetResolvedSessionId = targetResolved?.session?.id ?? null;
-
-		if (!sourceResolvedSessionId) {
+		if (!sourceSlot) {
 			return fail(400, { message: 'Aucune séance sur le jour source.' });
 		}
 
-		if (sourceResolved?.completedAt || targetResolved?.completedAt) {
+		if (sourceSlot.completedAt) {
 			return fail(409, {
 				message: 'Impossible de déplacer une séance déjà validée. Choisis deux jours non validés.'
 			});
 		}
 
-		if (targetResolvedSessionId != null) {
+		if (targetSlot) {
 			return fail(409, {
 				message: 'Dépose la séance sur un jour libre.'
 			});
 		}
 
-		const scheduledDateForDay = (dayIndex: number): Date | undefined => {
-			if (!programStart) return undefined;
-			return programDayUtcDate(programStart, dayIndex);
-		};
+		const scheduledDate = programStart ? programDayUtcDate(programStart, targetDayIndex) : undefined;
 
+		// La séance garde les vidéos de son jour source (contentDayIndex) en changeant de jour.
 		await prisma.$transaction(async (tx) => {
-			const nextWeekRows: Array<{
-				dayIndex: number;
-				sessionId: string | null;
-				completedAt: Date | null;
-				isLocked: boolean;
-			}> = [];
-			for (let dayIndex = weekStart; dayIndex <= weekEnd; dayIndex++) {
-				const current = resolvedByDay.get(dayIndex) ?? {
-					session: null,
-					completedAt: null,
-					isLocked: false
-				};
-
-				if (dayIndex === sourceDayIndex) {
-					nextWeekRows.push({
-						dayIndex,
-						sessionId: null,
-						completedAt: null,
-						isLocked: false
-					});
-					continue;
-				}
-
-				if (dayIndex === targetDayIndex) {
-					nextWeekRows.push({
-						dayIndex,
-						sessionId: sourceResolvedSessionId,
-						completedAt: sourceResolved?.completedAt ?? null,
-						isLocked: sourceResolved?.isLocked ?? false
-					});
-					continue;
-				}
-
-				nextWeekRows.push({
-					dayIndex,
-					sessionId: current.session?.id ?? null,
-					completedAt: current.completedAt,
-					isLocked: current.isLocked
-				});
-			}
-
-			const selectedSessionIds = selectedSessions.map((session) => session.id);
-
+			// Ligne non validée restée sur le jour cible (ancien placement) : bloquerait la clé unique.
 			await tx.userWorkoutDay.deleteMany({
 				where: {
 					userId,
-					dayIndex: { gte: weekStart, lte: weekEnd },
-					sessionId: { in: selectedSessionIds }
+					sessionId: sourceSlot.session.id,
+					dayIndex: targetDayIndex,
+					completedAt: null,
+					...(sourceSlot.userWorkoutDayId ? { id: { not: sourceSlot.userWorkoutDayId } } : {})
 				}
 			});
 
-			for (const row of nextWeekRows) {
-				if (!row.sessionId) continue;
-
+			if (sourceSlot.userWorkoutDayId) {
+				await tx.userWorkoutDay.update({
+					where: { id: sourceSlot.userWorkoutDayId },
+					data: {
+						dayIndex: targetDayIndex,
+						contentDayIndex: sourceSlot.contentDayIndex,
+						scheduledDate
+					}
+				});
+			} else {
 				await tx.userWorkoutDay.create({
 					data: {
 						userId,
-						sessionId: row.sessionId,
-						dayIndex: row.dayIndex,
-						scheduledDate: scheduledDateForDay(row.dayIndex),
-						completedAt: row.completedAt,
-						isLocked: row.isLocked
+						sessionId: sourceSlot.session.id,
+						dayIndex: targetDayIndex,
+						contentDayIndex: sourceSlot.contentDayIndex,
+						scheduledDate,
+						completedAt: null,
+						isLocked: false
 					}
 				});
 			}

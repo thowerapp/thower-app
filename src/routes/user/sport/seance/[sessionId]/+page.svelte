@@ -13,8 +13,8 @@
 
 	const posLabel: Record<string, string> = {
 		PRE: 'Pré-séance',
-		VID1: 'Vidéo 1',
-		VID2: 'Vidéo 2'
+		VID1: 'Séance 1',
+		VID2: 'Séance 2'
 	};
 
 	/** m:ss */
@@ -41,6 +41,16 @@
 	);
 
 	const sessionVideos = $derived(data.videos ?? []);
+	const preCount = $derived(sessionVideos.filter((v: { position: string }) => v.position === 'PRE').length);
+
+	/** « Pré-séance 2 » quand l'admin en a rattaché plusieurs sur le jour. */
+	function videoLabel(index: number): string {
+		const v = sessionVideos[index];
+		const base = posLabel[v.position] ?? v.position;
+		if (v.position !== 'PRE' || preCount < 2) return base;
+		const rank = sessionVideos.slice(0, index + 1).filter((sv: { position: string }) => sv.position === 'PRE').length;
+		return `${base} ${rank}`;
+	}
 
 	function isVideoUnlocked(index: number): boolean {
 		if (!data.canWatchSession) return false;
@@ -72,7 +82,7 @@
 	</div>
 </div>
 
-<div class="seance-expected mx-4">Visionne les vidéos obligatoires (VID1 + VID2) dans l’ordre pour valider la séance. La pré-séance est facultative.</div>
+<div class="seance-expected mx-4">Pré-séances facultatives, puis Séance 1 et Séance 2 à visionner dans l’ordre pour valider la séance.</div>
 
 {#if summary.mandatoryTotal > 0}
 	<div class="seance-synth mx-4">
@@ -113,7 +123,7 @@
 		>
 			<header class="vp-head">
 				<div class="vp-titles">
-					<span class="vp-label">{posLabel[v.position] ?? v.position}</span>
+					<span class="vp-label">{videoLabel(i)}</span>
 					{#if v.isOptional}
 						<span class="vp-optional">facultative</span>
 					{/if}

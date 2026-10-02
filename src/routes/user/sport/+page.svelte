@@ -299,11 +299,12 @@
 
 <div class="u-sh"><div class="u-sh-t">Séances semaine {data.selectedWeek ?? data.currentWeek}</div></div>
 
-{#if rows.length === 0}
+{#if !data.hasSportThisWeek}
 	<p class="mx-4 text-sm text-muted-foreground">
 		Aucune séance sport prévue sur cette semaine dans le programme.
 	</p>
-{:else}
+{/if}
+{#if rows.length > 0}
 	{#each rows as row (row.dayIndex)}
 		{#if row.hrefSeance && !row.completedAtISO && row.isToday}
 			<a href={row.hrefSeance} class="u-li li-cta pending" onclick={fire}>

@@ -97,7 +97,11 @@
 
 	const positionOptions = workoutVideoPositionEnum.options.map((v) => ({
 		value: v,
-		label: ({ PRE: 'Pré-séance (facultative)', VID1: 'Vidéo 1', VID2: 'Vidéo 2' })[v]
+		label: ({
+			PRE: 'Pré-séance (facultative, autant que voulu)',
+			VID1: 'Séance 1',
+			VID2: 'Séance 2'
+		})[v]
 	}));
 
 	const sessionTypeOptions = workoutSessionTypeEnum.options.map((v) => ({

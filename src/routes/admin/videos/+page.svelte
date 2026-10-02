@@ -9,6 +9,7 @@
 	import Plus from 'lucide-svelte/icons/plus';
 	import Trash from 'lucide-svelte/icons/trash';
 	import RefreshCw from 'lucide-svelte/icons/refresh-cw';
+	import CalendarDays from 'lucide-svelte/icons/calendar-days';
 	import { Checkbox } from '$shadcn/checkbox';
 	import { formatVideoDays, SESSION_TYPE_LABELS } from '$lib/utils/adminVideoDays';
 	import type { AdminVideoDayLink } from '$lib/prisma/video/getAllAdminVideos';
@@ -167,6 +168,10 @@
 			publique <code class="rounded bg-muted px-1 text-xs">…/api/cloudflare/stream/webhook</code>).
 		</p>
 		<div class="flex gap-2">
+			<Button variant="outline" href="/admin/videos/programme-sport">
+				<CalendarDays class="size-4" />
+				Récap programme sport
+			</Button>
 			<Button variant="outline" href="/admin/videos/sync">
 				<RefreshCw class="size-4" />
 				Sync Cloudflare

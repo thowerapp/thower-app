@@ -562,8 +562,10 @@ model UserWorkoutDay {
   userId        String         @db.ObjectId
   session       WorkoutSession @relation(fields: [sessionId], references: [id])
   sessionId     String         @db.ObjectId
-  /// Jour du programme 1–91
+  /// Jour du programme 1–91 où la séance est affichée (peut différer du jour source si déplacée)
   dayIndex      Int
+  /// Jour du programme dont les vidéos rattachées sont jouées (null = dayIndex, lignes historiques)
+  contentDayIndex Int?
   scheduledDate DateTime?
   completedAt   DateTime?
   /// Verrouillé si le jour est passé

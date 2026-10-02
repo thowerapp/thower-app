@@ -68,7 +68,11 @@
 
 	const positionOptions = workoutVideoPositionEnum.options.map((v) => ({
 		value: v,
-		label: ({ PRE: 'Pré-séance (facultative)', VID1: 'Vidéo 1', VID2: 'Vidéo 2' })[v]
+		label: ({
+			PRE: 'Pré-séance (facultative, autant que voulu)',
+			VID1: 'Séance 1',
+			VID2: 'Séance 2'
+		})[v]
 	}));
 
 	const sessionTypeOptions = workoutSessionTypeEnum.options.map((v) => ({
@@ -103,7 +107,8 @@
 
 	// Quick-add day attachment (formulaire dédié, indépendant du formulaire principal)
 	let qaDay = $state(1);
-	let qaType = $state('VIDEO_OF_DAY');
+	// svelte-ignore state_referenced_locally
+	let qaType = $state(data.kind === 'workout' ? 'SPORT_SESSION' : 'VIDEO_OF_DAY');
 	let qaPoints = $state(50);
 	let qaLabel = $state('');
 	let qaError = $state<string | null>(null);
@@ -349,11 +354,20 @@
 			class="mt-4 border-t pt-4 space-y-3"
 		>
 			<p class="text-xs font-medium text-muted-foreground">Rattacher à un jour du programme</p>
-			<p class="text-xs text-muted-foreground">
-				Débloque la vidéo ce jour-là (ou remplace la vidéo de la séance ce jour-là) mais ne l’ajoute
-				pas à la checklist : pour ça, crée une tâche « Vidéo à consulter » dans
-				<a href={resolve('/admin/daily-tasks/create')} class="underline">Tâches quotidiennes</a>.
-			</p>
+			{#if data.kind === 'workout'}
+				<p class="text-xs text-muted-foreground">
+					Type « Séance sport » : ce jour devient un jour de séance pour l’utilisateur, et la vidéo
+					s’y place selon sa position (pré-séances, puis Séance 1, puis Séance 2). Vérifie le
+					résultat dans le
+					<a href={resolve('/admin/videos/programme-sport')} class="underline">récap programme sport</a>.
+				</p>
+			{:else}
+				<p class="text-xs text-muted-foreground">
+					Débloque la vidéo ce jour-là mais ne l’ajoute pas à la checklist : pour ça, crée une tâche
+					« Vidéo à consulter » dans
+					<a href={resolve('/admin/daily-tasks/create')} class="underline">Tâches quotidiennes</a>.
+				</p>
+			{/if}
 			<div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
 				<div>
 					<label for="qa-day" class="mb-1 block text-xs text-muted-foreground">Jour (1-91) *</label>

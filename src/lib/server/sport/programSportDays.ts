@@ -110,14 +110,11 @@ export function orderSportVideos(items: SportItemRow[]): SessionWorkoutVideoRow[
 	return rows;
 }
 
-/** Type de séance d'un jour : celui de la Séance 1, sinon de la Séance 2, sinon de n'importe quelle vidéo. */
-export function deriveSessionType(videos: SessionWorkoutVideoRow[]): WorkoutSessionType | null {
-	for (const position of ['VID1', 'VID2', 'PRE'] as const) {
-		const typed = videos.find((v) => v.position === position && v.sessionType != null);
-		if (typed) return typed.sessionType;
-	}
-	return null;
-}
+/**
+ * Séances hebdomadaires A, B, C dans l'ordre des jours sport de la semaine.
+ * (Les vidéos d'un même jour — explication, échauffement, séance — forment une seule séance.)
+ */
+const WEEKLY_SESSION_TYPES = ['MAIN_A', 'MAIN_B', 'MAIN_C'] as const;
 
 export function pickSessionForType(
 	sessions: SessionCatalogRow[],
@@ -321,9 +318,11 @@ export async function resolveSportWeek(params: {
 	]);
 
 	const sessionByContentDay = new Map<number, SlotSession>();
-	for (const [day, videos] of sportDays) {
+	let rank = 0;
+	for (const day of sportDays.keys()) {
+		const type = WEEKLY_SESSION_TYPES[Math.min(rank++, WEEKLY_SESSION_TYPES.length - 1)];
 		const session =
-			pickSessionForType(sessionCatalog, deriveSessionType(videos) ?? 'MAIN_A', week) ??
+			pickSessionForType(sessionCatalog, type, week) ??
 			pickSessionForType(sessionCatalog, 'MAIN_A', week) ??
 			sessionCatalog[0] ??
 			null;

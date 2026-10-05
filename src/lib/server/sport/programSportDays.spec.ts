@@ -3,7 +3,6 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('$lib/server', () => ({ prisma: {} }));
 
 import {
-	deriveSessionType,
 	orderSportVideos,
 	placeSportWeek,
 	type SlotSession,
@@ -71,20 +70,6 @@ describe('orderSportVideos', () => {
 			item('VID1', { id: 'dup' })
 		]);
 		expect(rows.map((r) => r.id)).toEqual(['dup']);
-	});
-});
-
-describe('deriveSessionType', () => {
-	it('prend le type de la Séance 1 en priorité', () => {
-		const rows = orderSportVideos([
-			item('PRE', { sessionType: 'MAIN_B' }),
-			item('VID1', { sessionType: 'MAIN_A' })
-		]);
-		expect(deriveSessionType(rows)).toBe('MAIN_A');
-	});
-
-	it('retombe sur null sans type renseigné', () => {
-		expect(deriveSessionType(orderSportVideos([item('VID1', { sessionType: null })]))).toBeNull();
 	});
 });
 

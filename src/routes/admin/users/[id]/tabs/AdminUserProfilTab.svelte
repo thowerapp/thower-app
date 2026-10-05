@@ -24,6 +24,7 @@
 	import type { ProgressPhotoSelected, UserProfileSelected, UserSelected } from '../types';
 	import { fmtDate } from '../types';
 	import { breadTypeOptions } from '$lib/schema/profile/breadType';
+	import { programDayDateISO } from '$lib/utils/programDay';
 
 	let { userSelected }: { userSelected: UserSelected } = $props();
 
@@ -47,10 +48,6 @@
 		{ name: 'happinessLevel', label: 'Bonheur' },
 		{ name: 'readinessToChange', label: 'Prêt à changer' }
 	] as const;
-
-	function toDateInput(iso: string | null | undefined): string {
-		return iso ? iso.slice(0, 10) : '';
-	}
 
 	function toDateTimeLocal(iso: string | null | undefined): string {
 		return iso ? iso.slice(0, 16) : '';
@@ -162,7 +159,7 @@
 						</div>
 						<div class="space-y-1.5">
 							<Label for="programStartDate">Début programme</Label>
-							<Input id="programStartDate" type="date" name="programStartDate" value={toDateInput(userSelected.programStartDate)} />
+							<Input id="programStartDate" type="date" name="programStartDate" value={userSelected.programStartDate ? programDayDateISO(new Date(userSelected.programStartDate), 1) : ''} />
 						</div>
 						<div class="space-y-1.5">
 							<Label for="photoValidationStatus">Statut validation photo</Label>

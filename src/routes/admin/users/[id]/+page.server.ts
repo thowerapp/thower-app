@@ -10,6 +10,7 @@ import { prisma } from '$lib/server';
 import { hashPassword } from '$lib/lucia/password';
 import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
 import { regenerateFutureProgramForUser } from '$lib/server/program-generation/regenerateFutureProgramForUser';
+import { civilDateInTimeZone, zonedMidnightUtc } from '$lib/utils/programDay';
 import {
 	adminBodyMeasurementDeleteSchema,
 	adminBodyMeasurementSchema,
@@ -258,7 +259,14 @@ export const actions: Actions = {
 		});
 		if (!current) return fail(404, { message: 'User not found' });
 
-		const nextProgramStartDate = toDate(data.programStartDate);
+		// yyyy-mm-dd saisi = date civile Paris : J1 à minuit Paris, obligatoirement un lundi.
+		const startMatch = data.programStartDate?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+		const nextProgramStartDate = startMatch
+			? zonedMidnightUtc(Number(startMatch[1]), Number(startMatch[2]), Number(startMatch[3]))
+			: toDate(data.programStartDate);
+		if (nextProgramStartDate && civilDateInTimeZone(nextProgramStartDate).weekday !== 1) {
+			return fail(400, { message: 'Le programme doit obligatoirement commencer un lundi.' });
+		}
 		const affectsProgram =
 			current.nutritionDaysAllocated !== data.nutritionDaysAllocated ||
 			differs(current.programStartDate, nextProgramStartDate) ||

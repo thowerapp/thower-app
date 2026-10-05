@@ -7,7 +7,7 @@ import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/gener
 import { logProgramGenSummary } from './logProgramGenSummary';
 import { programGenLog, programGenTrace, programGenWarn, type ProgramGenSource } from './programGenerationLog';
 import { rescaleFutureMeals } from '$lib/server/nutrition/rescaleFutureMeals';
-import { todayStartParis } from '$lib/utils/programDay';
+import { nextMondayStartParis } from '$lib/utils/programDay';
 
 /** Contourne un UserSelect Prisma parfois désynchronisé dans l’IDE (champ absent des types générés en cache). */
 type UserNutritionAllocatedRow = { nutritionDaysAllocated: number };
@@ -104,12 +104,12 @@ export async function ensureProgramStartDate(userId: string): Promise<void> {
 		});
 		return;
 	}
-	const start = todayStartParis();
+	const start = nextMondayStartParis();
 	await prisma.user.update({
 		where: { id: userId },
 		data: { programStartDate: start }
 	});
-	programGenLog('8/ programStartDate initialisée (jour même, Paris)', {
+	programGenLog('8/ programStartDate initialisée (lundi Paris)', {
 		userId,
 		programStartDate: start.toISOString()
 	});

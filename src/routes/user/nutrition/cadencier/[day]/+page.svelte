@@ -41,34 +41,16 @@
 		(data as { intermittentFasting?: boolean }).intermittentFasting === true
 	);
 
+	// En jeûne, le petit-déj est masqué ; chaque repas garde ses macros réelles.
 	const displayMeals = $derived.by(() => {
 		if (!fastingActive) return data.meals;
-		const noBreakfast = data.meals.filter((m) => m.position !== 'BREAKFAST');
-		if (noBreakfast.length === 0) return [];
-		const total = data.meals.reduce(
-			(acc, m) => ({
-				calories: acc.calories + m.calories,
-				proteinG: acc.proteinG + m.proteinG,
-				carbsG:   acc.carbsG   + m.carbsG,
-				fatG:     acc.fatG     + m.fatG,
-				fiberG:   acc.fiberG   + m.fiberG
-			}),
-			{ calories: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 }
-		);
-		const count = noBreakfast.length;
-		const tKcal = data.targetKcal ?? total.calories;
-		const tProt = data.targetProteinG ?? total.proteinG;
-		const tFib  = data.targetFiberG   ?? total.fiberG;
-		return noBreakfast.map((m, i) => ({
-			...m,
-			slotIndex: i + 1,
-			label: i === 0 ? 'Repas 1 — Déjeuner' : 'Repas 2 — Dîner',
-			calories:  Math.round(tKcal / count),
-			proteinG:  Math.round((tProt / count) * 10) / 10,
-			carbsG:    Math.round((total.carbsG / count) * 10) / 10,
-			fatG:      Math.round((total.fatG   / count) * 10) / 10,
-			fiberG:    Math.round((tFib  / count) * 10) / 10
-		}));
+		return data.meals
+			.filter((m) => m.position !== 'BREAKFAST')
+			.map((m, i) => ({
+				...m,
+				slotIndex: i + 1,
+				label: `Repas ${i + 1} — ${m.position === 'LUNCH' ? 'Déjeuner' : 'Dîner'}`
+			}));
 	});
 
 	// Onglet actif — initialisé depuis le hash URL

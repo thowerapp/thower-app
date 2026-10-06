@@ -733,6 +733,11 @@ model Meal {
   calcCalories Float?
   calcFiberG   Float?
 
+  /// Féculent cru ajouté au plat pour atteindre la cible kcal (en plus de quantityG) — cf. $lib/nutrition/mealPortion
+  extraStarchG             Float?
+  /// Libellé de l'ingrédient de la recette complété (ex. « Penne complètes »)
+  extraStarchIngredientName String?
+
   /// Saisie manuelle pour plats livrés partenaires
   isManual       Boolean @default(false)
   manualProteinG Float?

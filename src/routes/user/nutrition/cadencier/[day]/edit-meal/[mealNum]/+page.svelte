@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
+	import { mealMacrosFor } from '$lib/nutrition/mealPortion';
 
 	let { data }: { data: PageData } = $props();
 
@@ -21,22 +22,19 @@
 
 	const displayQty = $derived(customQty ?? selected?.optimalQuantityG ?? 0);
 
-	function scaledMacro(base: number | null, refYield: number | null, qty: number): number | null {
-		if (base == null) return null;
-		const ref = refYield != null && refYield > 0 ? refYield : 100;
-		return Math.round(base * (qty / ref) * 10) / 10;
+	function round1(v: number | null): number {
+		return Math.round((v ?? 0) * 10) / 10;
 	}
 
-	const previewMacros = $derived(
-		selected
-			? {
-					kcal: Math.round(scaledMacro(selected.nutritionKcal, selected.referenceYieldG, displayQty) ?? 0),
-					p: scaledMacro(selected.nutritionProteinG, selected.referenceYieldG, displayQty) ?? 0,
-					c: scaledMacro(selected.nutritionCarbsG, selected.referenceYieldG, displayQty) ?? 0,
-					f: scaledMacro(selected.nutritionFatG, selected.referenceYieldG, displayQty) ?? 0
-				}
-			: null
-	);
+	function macrosAt(r: Recipe, qty: number) {
+		return mealMacrosFor(r, qty, r.extraStarchG, r.extraStarchIngredientName);
+	}
+
+	const previewMacros = $derived.by(() => {
+		if (!selected) return null;
+		const m = macrosAt(selected, displayQty);
+		return { kcal: Math.round(m.calcCalories ?? 0), p: round1(m.calcProteinG), c: round1(m.calcCarbsG), f: round1(m.calcFatG) };
+	});
 
 	function adjustQty(delta: number) {
 		const base = customQty ?? selected?.optimalQuantityG ?? 100;
@@ -87,8 +85,8 @@
 			<div class="recipe-row-body">
 				<div class="recipe-row-name">{recipe.name}</div>
 				<div class="recipe-row-meta">
-					{#if recipe.nutritionKcal != null}
-						<span>{Math.round(recipe.nutritionKcal * (recipe.optimalQuantityG / (recipe.referenceYieldG ?? 100)))} kcal</span>
+					{#if recipe.nutritionProteinG != null}
+						<span>{Math.round(macrosAt(recipe, recipe.optimalQuantityG).calcCalories ?? 0)} kcal</span>
 					{/if}
 					{#if recipe.totalTimeMin != null}
 						<span>· {recipe.totalTimeMin} min</span>
@@ -120,6 +118,10 @@
 			{/if}
 		</div>
 
+		{#if selected.extraStarchG != null && selected.extraStarchIngredientName}
+			<p class="starch-note">+ {selected.extraStarchG} g de {selected.extraStarchIngredientName.toLowerCase()} (cru) pour atteindre ta cible</p>
+		{/if}
+
 		{#if previewMacros}
 			<div class="macros">
 				<div class="macro"><div class="mv">{previewMacros.kcal}</div><div class="ml">kcal</div></div>
@@ -139,6 +141,8 @@
 		>
 			<input type="hidden" name="recipeId" value={selected.id} />
 			<input type="hidden" name="quantityG" value={displayQty} />
+			<input type="hidden" name="extraStarchG" value={selected.extraStarchG ?? ''} />
+			<input type="hidden" name="extraStarchIngredientName" value={selected.extraStarchIngredientName ?? ''} />
 			<button type="submit" class="btn-save" disabled={saving}>
 				{saving ? 'Enregistrement…' : 'Valider cette recette →'}
 			</button>
@@ -263,6 +267,11 @@
 	.qty-val { font-size: 0.7rem; font-weight: 700; color: var(--cy); min-width: 52px; text-align: center; }
 	.qty-reset { font-size: 0.5rem; color: var(--txd); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; font-family: inherit; }
 
+	.starch-note {
+		font-size: 0.55rem;
+		color: var(--cy);
+		margin: 0;
+	}
 	.macros {
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);

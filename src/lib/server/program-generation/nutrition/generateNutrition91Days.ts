@@ -3,42 +3,11 @@ import type { MealPosition, Prisma, RecipeCategory } from '@prisma/client';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { dailyProteinTargetG, targetCaloriesPerDay } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
+import { computeMealPortion, mealSlotTargets } from '$lib/nutrition/mealPortion';
 import { programGenLog, programGenTrace, programGenWarn } from '../programGenerationLog';
 
 /** @deprecated Utiliser NUTRITION_SEGMENT_DAYS depuis $lib/nutrition/nutritionPlanConstants */
 export const PROGRAM_NUTRITION_DAYS = NUTRITION_SEGMENT_DAYS;
-
-const DEFAULT_REFERENCE_G = 100;
-const SCALE_MIN = 0.15;
-const SCALE_MAX = 2.5;
-const SCALE_PROTEIN_TOLERANCE = 0.25;
-
-/**
- * Fraction du budget calorique journalier pour chaque créneau repas.
- * Sans jeûne : BREAKFAST 30 %, LUNCH 35 %, DINNER 35 %.
- * Avec jeûne : BREAKFAST reste en BDD à 30 % (masqué côté UI) ; LUNCH et DINNER
- * absorbent chacun 50 % du budget visible.
- */
-function mealBudgetFractionForPosition(position: MealPosition, intermittentFasting: boolean): number {
-	if (intermittentFasting) {
-		if (position === 'BREAKFAST') return 0.3;
-		return 0.5; // LUNCH et DINNER
-	}
-	switch (position) {
-		case 'BREAKFAST':
-			return 0.3;
-		case 'LUNCH':
-			return 0.35;
-		case 'DINNER':
-			return 0.35;
-		default:
-			return 1 / 3;
-	}
-}
-
-function clampScale(scale: number): number {
-	return Math.min(SCALE_MAX, Math.max(SCALE_MIN, scale));
-}
 
 /** Ligne profil attendue — select casté car les types Prisma générés peuvent être en retard sur le schéma. */
 type NutritionGenProfileRow = {
@@ -81,7 +50,7 @@ const recipeCatalogSelect = {
 	nutritionFiberG: true,
 	allergens: true,
 	name: true,
-	ingredients: { select: { name: true } }
+	ingredients: { select: { name: true, quantityG: true, category: true }, orderBy: { order: 'asc' } }
 } as unknown as Prisma.RecipeSelect;
 
 type CatalogRecipe = {
@@ -94,7 +63,7 @@ type CatalogRecipe = {
 	nutritionFatG: number | null;
 	nutritionFiberG: number | null;
 	allergens: string[];
-	ingredients: { name: string }[];
+	ingredients: { name: string; quantityG: number | null; category: string | null }[];
 	name: string;
 };
 
@@ -139,40 +108,6 @@ function recipeConflictsUser(
 	);
 }
 
-function mealQuantityG(recipe: CatalogRecipe): number {
-	if (recipe.referenceYieldG != null && recipe.referenceYieldG > 0) {
-		return recipe.referenceYieldG;
-	}
-	return DEFAULT_REFERENCE_G;
-}
-
-function scaledMacrosForQuantity(recipe: CatalogRecipe, quantityG: number) {
-	const refG =
-		recipe.referenceYieldG != null && recipe.referenceYieldG > 0
-			? recipe.referenceYieldG
-			: DEFAULT_REFERENCE_G;
-	const factor = quantityG / refG;
-	return {
-		calcCalories: recipe.nutritionKcal != null ? recipe.nutritionKcal * factor : null,
-		calcProteinG: recipe.nutritionProteinG != null ? recipe.nutritionProteinG * factor : null,
-		calcCarbsG: recipe.nutritionCarbsG != null ? recipe.nutritionCarbsG * factor : null,
-		calcFatG: recipe.nutritionFatG != null ? recipe.nutritionFatG * factor : null,
-		calcFiberG: recipe.nutritionFiberG != null ? recipe.nutritionFiberG * factor : null
-	};
-}
-
-function kcalAtBaseQuantity(recipe: CatalogRecipe): number {
-	const q = mealQuantityG(recipe);
-	const m = scaledMacrosForQuantity(recipe, q);
-	return m.calcCalories ?? 0;
-}
-
-function proteinAtBaseQuantity(recipe: CatalogRecipe): number {
-	const q = mealQuantityG(recipe);
-	const m = scaledMacrosForQuantity(recipe, q);
-	return m.calcProteinG ?? 0;
-}
-
 /** Graine déterministe (FNV-1a) pour tirage pseudo-aléatoire stable par user / jour / créneau. */
 function catalogPickSeed(userId: string, dayIndex: number, position: string, slotIndex: number): number {
 	const s = `${userId}\0${dayIndex}\0${position}\0${slotIndex}`;
@@ -206,8 +141,8 @@ function pickRandomFromPool<T>(items: T[], seed: number): T | null {
 /**
  * Génère les journées nutrition 1..targetDays (NutritionDay + Meal) depuis le catalogue admin.
  * Exclut les recettes contenant un allergène déclaré par l’utilisateur.
- * Ajuste les quantités pour viser les calories cibles (TDEE − déficit) lorsque le profil le permet.
- * Répartition kcal sur le budget repas : petit-déj 30 %, déj. 35 %, dîner 35 %.
+ * Portions calculées par computeMealPortion (cible protéines + complément féculent pour les kcal).
+ * Répartition kcal sur le budget repas : petit-déj 30 %, déj. 35 %, dîner 35 % (50/50 en jeûne).
  * Le jeûne intermittent est un comportement d'affichage utilisateur (cacher le petit-déj), pas de suppression des repas en BDD.
  */
 export async function generateNutritionDaysForUser(userId: string, targetDays: number): Promise<void> {
@@ -401,37 +336,17 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		const scalesForLog: number[] = [];
 
 		for (const { position, recipe } of toCreate) {
-			const frac = mealBudgetFractionForPosition(position, intermittentFastingDefault);
-			const baseQ = mealQuantityG(recipe);
-			const baseKcal = kcalAtBaseQuantity(recipe);
-			const baseProtein = recipe.nutritionProteinG ?? 0;
+			const slot = mealSlotTargets(position, intermittentFastingDefault, targetKcal != null ? mealBudget : null, targetProteinG);
+			const portion = computeMealPortion(recipe, slot);
 
-			const slotKcal = targetKcal != null && mealBudget > 0 ? mealBudget * frac : null;
-			const slotProtein = targetProteinG != null && targetProteinG > 0 ? targetProteinG * frac : null;
-
-			// Moindres carrés : minimise (kcal_réel/kcal_cible - 1)² + (prot_réelle/prot_cible - 1)²
-			// Solution : scale = (a + b) / (a² + b²)  avec a = baseKcal/slotKcal, b = baseProtein/slotProtein
-			const a = slotKcal != null && slotKcal > 0 && baseKcal > 0 ? baseKcal / slotKcal : null;
-			const b = slotProtein != null && slotProtein > 0 && baseProtein > 0 ? baseProtein / slotProtein : null;
-			let scale =
-				a != null && b != null ? (a + b) / (a * a + b * b)
-				: a != null ? 1 / a
-				: b != null ? 1 / b
-				: 1;
-			scale = clampScale(scale);
-
-			const quantityG = baseQ * scale;
-			const macros = scaledMacrosForQuantity(recipe, quantityG);
-
-			scalesForLog.push(Math.round(scale * 1000) / 1000);
+			scalesForLog.push(Math.round((portion.quantityG / (recipe.referenceYieldG || 100)) * 1000) / 1000);
 
 			await prisma.meal.create({
 				data: {
 					nutritionDayId: nutritionDay.id,
 					position,
 					recipeId: recipe.id,
-					quantityG,
-					...macros
+					...portion
 				}
 			});
 			mealsCreated++;

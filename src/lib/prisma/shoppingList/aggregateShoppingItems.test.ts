@@ -215,6 +215,32 @@ describe('aggregateShoppingItemsFromPlanningDays', () => {
 		expect(items[0].ingredientName).toBe('Carotte');
 	});
 
+	it('ajoute le féculent complété par computeMealPortion', () => {
+		const items = aggregateShoppingItemsFromPlanningDays([
+			{
+				dayIndex: 1,
+				meals: [
+					{
+						quantityG: 200,
+						extraStarchG: 60,
+						extraStarchIngredientName: 'Riz complet',
+						recipe: {
+							name: 'Bowl',
+							referenceYieldG: 100,
+							ingredients: [
+								{ name: 'Riz complet', quantityG: 40, category: 'Féculents', unit: 'g' },
+								{ name: 'Poulet', quantityG: 50, category: 'Viandes', unit: 'g' }
+							]
+						}
+					}
+				]
+			}
+		]);
+
+		expect(items.find((i) => i.ingredientName === 'Riz complet')?.totalQuantityG).toBe(140); // 40 * 2 + 60
+		expect(items.find((i) => i.ingredientName === 'Poulet')?.totalQuantityG).toBe(100);
+	});
+
 	it('ignore les repas sans recette', () => {
 		expect(
 			aggregateShoppingItemsFromPlanningDays([{ dayIndex: 1, meals: [{ quantityG: 100, recipe: null }] }])

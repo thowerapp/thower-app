@@ -9,7 +9,7 @@ import {
 	dailyWaterLitersMin
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
-import { scaledIngredientGrams } from '$lib/nutrition/scaleMealIngredients';
+import { mealIngredientGrams, mealScaleFactor, scaleGramsInNote } from '$lib/nutrition/scaleMealIngredients';
 import {
 	ensureBreakfastMealForDay,
 	loadBreakfastBackfillContextFromProfile,
@@ -280,18 +280,22 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	const meals: DayMealDTO[] = sorted.map((m, slotIndex) => {
 		const macros = mealMacrosRounded(m);
-		totC += macros.calories;
-		totP += macros.proteinG;
-		totCb += macros.carbsG;
-		totF += macros.fatG;
-		totFib += macros.fiberG;
+		// En jeûne, le petit-déj reste en BDD mais n'est ni affiché ni mangé : hors totaux.
+		if (!(intermittentFasting && m.position === 'BREAKFAST')) {
+			totC += macros.calories;
+			totP += macros.proteinG;
+			totCb += macros.carbsG;
+			totF += macros.fatG;
+			totFib += macros.fiberG;
+		}
 
 		const r = m.recipe;
 		const refYield = r?.referenceYieldG ?? null;
+		const factor = mealScaleFactor(m.quantityG, refYield);
 
 		const ingredients: DayIngredientDTO[] =
 			r?.ingredients.map((ing) => {
-				const scaledG = scaledIngredientGrams(ing.quantityG, m.quantityG, refYield);
+				const scaledG = mealIngredientGrams(ing, m, refYield);
 				return {
 					name: ing.name,
 					quantityG: ing.quantityG,
@@ -299,7 +303,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 					unit: ing.unit,
 					category: ing.category,
 					isOptional: ing.isOptional,
-					note: ing.note
+					note: ing.note ? scaleGramsInNote(ing.note, factor) : null
 				};
 			}) ?? [];
 

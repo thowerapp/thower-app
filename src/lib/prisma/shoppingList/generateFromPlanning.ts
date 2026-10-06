@@ -20,7 +20,7 @@ export type GenerateShoppingListOptions = {
 /**
  * Génère ou régénère une liste de courses pour la période [startDayIndex, endDayIndex]
  * à partir du planning repas (NutritionDay → Meal → Recipe → RecipeIngredient).
- * Ingrédients fusionnés par libellé complet + unité (ex. chocolat 90 % ≠ 50 %) ; quantités = scaledIngredientGrams.
+ * Ingrédients fusionnés par libellé complet + unité (ex. chocolat 90 % ≠ 50 %) ; quantités = mealIngredientGrams (portion + féculent ajouté).
  */
 export async function generateShoppingListFromPlanning(
 	userId: string,
@@ -49,6 +49,8 @@ export async function generateShoppingListFromPlanning(
 			meals: {
 				select: {
 					quantityG: true,
+					extraStarchG: true,
+					extraStarchIngredientName: true,
 					recipe: {
 						select: {
 							name: true,

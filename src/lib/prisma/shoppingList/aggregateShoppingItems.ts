@@ -1,5 +1,5 @@
 import { shoppingListAggregateKey } from '$lib/nutrition/normalizeIngredientName';
-import { scaledIngredientGrams } from '$lib/nutrition/scaleMealIngredients';
+import { mealIngredientGrams } from '$lib/nutrition/scaleMealIngredients';
 import type { ShoppingItemSource } from './types';
 
 export type AggregatedShoppingItem = {
@@ -99,6 +99,8 @@ export type PlanningIngredientInput = {
 
 export type PlanningMealInput = {
 	quantityG: number | null;
+	extraStarchG?: number | null;
+	extraStarchIngredientName?: string | null;
 	recipe: {
 		name: string | null;
 		referenceYieldG: number | null;
@@ -126,7 +128,7 @@ export function aggregateShoppingItemsFromPlanningDays(
 				(a, b) => (a.order ?? 0) - (b.order ?? 0)
 			);
 			for (const ing of sortedIngredients) {
-				const qty = scaledIngredientGrams(ing.quantityG, meal.quantityG, recipe.referenceYieldG);
+				const qty = mealIngredientGrams(ing, meal, recipe.referenceYieldG);
 				if (qty == null || qty <= 0) continue;
 				addToShoppingAggregate(
 					aggregated,

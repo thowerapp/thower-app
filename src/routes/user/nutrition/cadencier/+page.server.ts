@@ -14,6 +14,7 @@ import {
 	dailyFiberTargetG
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
+import { rescaleDayMeals } from '$lib/server/nutrition/rescaleFutureMeals';
 import {
 	ensureBreakfastMealForDay,
 	backfillMissingBreakfastMeals,
@@ -329,6 +330,11 @@ export const actions: Actions = {
 				if (ctx) {
 					await ensureBreakfastMealForDay(userId, dayIndex, before.id, ctx);
 				}
+			}
+
+			// Déjeuner / dîner passent de 35 % à 50 % du budget (et inversement) : on recalcule les portions.
+			if (before?.id && before.intermittentFasting !== active) {
+				await rescaleDayMeals(userId, before.id, dayIndex);
 			}
 
 			return { success: true };

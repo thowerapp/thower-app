@@ -6,11 +6,7 @@ import {
 	targetCaloriesPerDay
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
-
-const DEFAULT_REFERENCE_G = 100;
-const SCALE_MIN = 0.15;
-const SCALE_MAX = 2.5;
-const BREAKFAST_FRAC = 0.3;
+import { computeMealPortion, mealSlotTargets, type MealPortion } from '$lib/nutrition/mealPortion';
 
 const recipeCatalogSelect = {
 	id: true,
@@ -23,7 +19,7 @@ const recipeCatalogSelect = {
 	nutritionFiberG: true,
 	allergens: true,
 	name: true,
-	ingredients: { select: { name: true } }
+	ingredients: { select: { name: true, quantityG: true, category: true }, orderBy: { order: 'asc' } }
 } as unknown as Prisma.RecipeSelect;
 
 type CatalogRecipe = {
@@ -35,7 +31,7 @@ type CatalogRecipe = {
 	nutritionFatG: number | null;
 	nutritionFiberG: number | null;
 	allergens: string[];
-	ingredients: { name: string }[];
+	ingredients: { name: string; quantityG: number | null; category: string | null }[];
 	name: string;
 };
 
@@ -60,13 +56,7 @@ type MealCreatePayload = {
 	nutritionDayId: string;
 	position: 'BREAKFAST';
 	recipeId: string;
-	quantityG: number;
-	calcCalories: number | null;
-	calcProteinG: number | null;
-	calcCarbsG: number | null;
-	calcFatG: number | null;
-	calcFiberG: number | null;
-};
+} & MealPortion;
 
 function normalize(str: string): string {
 	return str
@@ -109,28 +99,6 @@ function filterBreakfastRecipes(profile: BreakfastProfileInput, recipesRaw: Cata
 	return recipesRaw.filter((r) => !recipeConflictsUser(r, userAllergens, freeTerms));
 }
 
-function mealQuantityG(recipe: CatalogRecipe): number {
-	if (recipe.referenceYieldG != null && recipe.referenceYieldG > 0) {
-		return recipe.referenceYieldG;
-	}
-	return DEFAULT_REFERENCE_G;
-}
-
-function scaledMacrosForQuantity(recipe: CatalogRecipe, quantityG: number) {
-	const refG =
-		recipe.referenceYieldG != null && recipe.referenceYieldG > 0
-			? recipe.referenceYieldG
-			: DEFAULT_REFERENCE_G;
-	const factor = quantityG / refG;
-	return {
-		calcCalories: recipe.nutritionKcal != null ? recipe.nutritionKcal * factor : null,
-		calcProteinG: recipe.nutritionProteinG != null ? recipe.nutritionProteinG * factor : null,
-		calcCarbsG: recipe.nutritionCarbsG != null ? recipe.nutritionCarbsG * factor : null,
-		calcFatG: recipe.nutritionFatG != null ? recipe.nutritionFatG * factor : null,
-		calcFiberG: recipe.nutritionFiberG != null ? recipe.nutritionFiberG * factor : null
-	};
-}
-
 function catalogPickSeed(userId: string, dayIndex: number, position: string, slotIndex: number): number {
 	const s = `${userId}\0${dayIndex}\0${position}\0${slotIndex}`;
 	let h = 2166136261 >>> 0;
@@ -156,10 +124,6 @@ function pickRandomFromPool<T>(items: T[], seed: number): T | null {
 	const rng = mulberry32(seed);
 	const idx = Math.floor(rng() * items.length);
 	return items[idx] ?? null;
-}
-
-function clampScale(scale: number): number {
-	return Math.min(SCALE_MAX, Math.max(SCALE_MIN, scale));
 }
 
 function computeMealBudget(profile: BreakfastProfileInput, weightKg: number | null): {
@@ -257,29 +221,11 @@ function buildBreakfastMealPayload(
 	const recipe = pickRandomFromPool(ctx.breakfastRecipes, seed);
 	if (!recipe) return null;
 
-	const baseQ = mealQuantityG(recipe);
-	const baseKcal = scaledMacrosForQuantity(recipe, baseQ).calcCalories ?? 0;
-	const baseProtein = scaledMacrosForQuantity(recipe, baseQ).calcProteinG ?? 0;
-
-	let calorieScale = Number.POSITIVE_INFINITY;
-	let proteinScale = Number.POSITIVE_INFINITY;
-	if (ctx.mealBudget > 0 && baseKcal > 0) {
-		calorieScale = (ctx.mealBudget * BREAKFAST_FRAC) / baseKcal;
-	}
-	if (ctx.targetProteinG != null && ctx.targetProteinG > 0 && baseProtein > 0) {
-		proteinScale = (ctx.targetProteinG * BREAKFAST_FRAC) / baseProtein;
-	}
-
-	const finiteScales = [calorieScale, proteinScale].filter(Number.isFinite);
-	const scale = clampScale(finiteScales.length > 0 ? Math.min(...finiteScales) : 1);
-	const quantityG = baseQ * scale;
-
 	return {
 		nutritionDayId,
 		position: 'BREAKFAST',
 		recipeId: recipe.id,
-		quantityG,
-		...scaledMacrosForQuantity(recipe, quantityG)
+		...computeMealPortion(recipe, mealSlotTargets('BREAKFAST', false, ctx.mealBudget, ctx.targetProteinG))
 	};
 }
 

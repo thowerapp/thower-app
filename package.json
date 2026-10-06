@@ -33,6 +33,7 @@
 		"migrate:measurements": "tsx scripts/migrate-measurements-to-profile-and-body.ts",
 		"reset:all-programs": "tsx scripts/reset-all-programs.ts",
 		"set:program-start": "tsx scripts/set-program-start.ts",
+		"rescale:all-meals": "tsx --tsconfig scripts/tsconfig.scripts.json scripts/rescale-all-meals.ts",
 		"rename:workout-sessions": "tsx scripts/rename-workout-sessions.ts"
 	},
 	"devDependencies": {

@@ -8,10 +8,16 @@ import {
 	dailyProteinTargetG
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
+import {
+	MAX_STARCH_G_FRESH,
+	computeMealPortion,
+	mealBudgetFraction,
+	mealMacrosFor,
+	mealSlotTargets,
+	starchReferenceFor
+} from '$lib/nutrition/mealPortion';
 
 const TOTAL_DAYS = 91;
-const SCALE_MIN = 0.15;
-const SCALE_MAX = 2.5;
 
 function positionFromParam(param: string): MealPosition | null {
 	switch (param.toLowerCase()) {
@@ -30,60 +36,8 @@ function positionLabel(p: MealPosition): string {
 	}
 }
 
-function mealBudgetFraction(p: MealPosition, intermittentFasting: boolean): number {
-	if (intermittentFasting) {
-		if (p === 'BREAKFAST') return 0.3;
-		return 0.5; // LUNCH et DINNER
-	}
-	return p === 'BREAKFAST' ? 0.3 : 0.35;
-}
-
 function recipeCategory(p: MealPosition): string {
 	return p === 'BREAKFAST' ? 'BREAKFAST' : 'MEAL';
-}
-
-function scaleMacros(recipe: {
-	nutritionKcal: number | null;
-	nutritionProteinG: number | null;
-	nutritionCarbsG: number | null;
-	nutritionFatG: number | null;
-	nutritionFiberG: number | null;
-	referenceYieldG: number | null;
-}, quantityG: number) {
-	const ref = recipe.referenceYieldG != null && recipe.referenceYieldG > 0 ? recipe.referenceYieldG : 100;
-	const f = quantityG / ref;
-	return {
-		calcCalories: recipe.nutritionKcal != null ? recipe.nutritionKcal * f : null,
-		calcProteinG: recipe.nutritionProteinG != null ? recipe.nutritionProteinG * f : null,
-		calcCarbsG: recipe.nutritionCarbsG != null ? recipe.nutritionCarbsG * f : null,
-		calcFatG: recipe.nutritionFatG != null ? recipe.nutritionFatG * f : null,
-		calcFiberG: recipe.nutritionFiberG != null ? recipe.nutritionFiberG * f : null
-	};
-}
-
-function optimalQuantityG(recipe: {
-	nutritionKcal: number | null;
-	nutritionProteinG: number | null;
-	referenceYieldG: number | null;
-}, targetKcal: number | null, targetProteinG: number | null, frac: number): number {
-	const ref = recipe.referenceYieldG != null && recipe.referenceYieldG > 0 ? recipe.referenceYieldG : 100;
-	const baseKcal = recipe.nutritionKcal != null ? recipe.nutritionKcal : 0;
-	const baseProtein = recipe.nutritionProteinG != null ? recipe.nutritionProteinG : 0;
-
-	let calorieScale = Number.POSITIVE_INFINITY;
-	let proteinScale = Number.POSITIVE_INFINITY;
-
-	if (targetKcal != null && targetKcal > 0 && baseKcal > 0) {
-		calorieScale = (targetKcal * frac) / baseKcal;
-	}
-	if (targetProteinG != null && targetProteinG > 0 && baseProtein > 0) {
-		proteinScale = (targetProteinG * frac) / baseProtein;
-	}
-
-	const finiteScales = [calorieScale, proteinScale].filter(Number.isFinite);
-	let scale = finiteScales.length > 0 ? Math.min(...finiteScales) : 1;
-	scale = Math.min(SCALE_MAX, Math.max(SCALE_MIN, scale));
-	return Math.round(ref * scale);
 }
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -142,7 +96,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				nutritionCarbsG: true,
 				nutritionFatG: true,
 				nutritionFiberG: true,
-				referenceYieldG: true
+				referenceYieldG: true,
+				ingredients: {
+					select: { name: true, quantityG: true, category: true },
+					orderBy: { order: 'asc' }
+				}
 			},
 			orderBy: { name: 'asc' }
 		}),
@@ -172,11 +130,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			? dailyProteinTargetG(weightKg, profile.bodyFatPercent)
 			: null;
 
-	const frac = mealBudgetFraction(position, nutritionDay?.intermittentFasting ?? false);
-	const recipesWithOptimalQ = recipes.map((r) => ({
-		...r,
-		optimalQuantityG: optimalQuantityG(r, mealBudgetKcal, targetProteinG, frac)
-	}));
+	const fasting = nutritionDay?.intermittentFasting ?? false;
+	const frac = mealBudgetFraction(position, fasting);
+	const slot = mealSlotTargets(position, fasting, mealBudgetKcal, targetProteinG);
+	const recipesWithOptimalQ = recipes.map(({ ingredients, ...r }) => {
+		const portion = computeMealPortion({ ...r, ingredients }, slot);
+		return {
+			...r,
+			optimalQuantityG: Math.round(portion.quantityG),
+			extraStarchG: portion.extraStarchG,
+			extraStarchIngredientName: portion.extraStarchIngredientName
+		};
+	});
 
 	return {
 		dayIndex,
@@ -206,6 +171,8 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const recipeId = formData.get('recipeId');
 		const quantityGRaw = formData.get('quantityG');
+		const extraStarchGRaw = formData.get('extraStarchG');
+		const extraStarchNameRaw = formData.get('extraStarchIngredientName');
 
 		if (typeof recipeId !== 'string' || !recipeId) return fail(400, { error: 'Recette manquante' });
 
@@ -217,13 +184,28 @@ export const actions: Actions = {
 				nutritionCarbsG: true,
 				nutritionFatG: true,
 				nutritionFiberG: true,
-				referenceYieldG: true
+				referenceYieldG: true,
+				ingredients: { select: { name: true } }
 			}
 		});
 		if (!recipe) return fail(404, { error: 'Recette introuvable' });
 
 		const quantityG = quantityGRaw != null ? Math.max(10, Math.round(Number(quantityGRaw))) : (recipe.referenceYieldG ?? 100);
-		const macros = scaleMacros(recipe, quantityG);
+
+		// Féculent ajouté proposé par computeMealPortion : accepté seulement s'il s'agit d'un féculent de la recette.
+		const extraStarchName =
+			typeof extraStarchNameRaw === 'string' &&
+			recipe.ingredients.some((i) => i.name === extraStarchNameRaw) &&
+			starchReferenceFor(extraStarchNameRaw) != null
+				? extraStarchNameRaw
+				: null;
+		const extraStarchParsed = Number(extraStarchGRaw);
+		const extraStarchG =
+			extraStarchName && Number.isFinite(extraStarchParsed) && extraStarchParsed > 0
+				? Math.min(Math.round(extraStarchParsed), MAX_STARCH_G_FRESH)
+				: null;
+
+		const macros = mealMacrosFor(recipe, quantityG, extraStarchG, extraStarchName);
 
 		let nutritionDay = await prisma.nutritionDay.findUnique({
 			where: { userId_dayIndex: { userId, dayIndex } },
@@ -241,6 +223,8 @@ export const actions: Actions = {
 			position,
 			recipeId,
 			quantityG,
+			extraStarchG,
+			extraStarchIngredientName: extraStarchG != null ? extraStarchName : null,
 			...macros
 		});
 

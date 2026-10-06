@@ -11,6 +11,9 @@ export type UpsertMealData = {
 	calcCarbsG?: number | null;
 	calcFatG?: number | null;
 	calcCalories?: number | null;
+	calcFiberG?: number | null;
+	extraStarchG?: number | null;
+	extraStarchIngredientName?: string | null;
 	isManual?: boolean;
 	manualProteinG?: number | null;
 	manualCarbsG?: number | null;
@@ -33,6 +36,10 @@ export async function upsertMeal(data: UpsertMealData) {
 		calcCarbsG: data.calcCarbsG ?? undefined,
 		calcFatG: data.calcFatG ?? undefined,
 		calcCalories: data.calcCalories ?? undefined,
+		calcFiberG: data.calcFiberG ?? undefined,
+		// null explicite : un changement de recette efface le féculent ajouté de l'ancienne
+		extraStarchG: data.extraStarchG ?? null,
+		extraStarchIngredientName: data.extraStarchIngredientName ?? null,
 		isManual: data.isManual ?? false,
 		manualProteinG: data.manualProteinG ?? undefined,
 		manualCarbsG: data.manualCarbsG ?? undefined,

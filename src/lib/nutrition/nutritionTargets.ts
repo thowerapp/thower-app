@@ -3,35 +3,28 @@ import type { ActivityLevel } from '@prisma/client';
 const MIN_TARGET_KCAL = 1200;
 
 /**
- * Coefficient NAP (Niveau d'Activité Physique), Méthode Thower.
+ * Coefficient NAP (Niveau d'Activité Physique), Méthode Thower : DEJ = MB × NAP.
  *
- * Le spec MT calcule le NAP comme BASE_NEAT (paliers de pas quotidiens) +
- * SOCLE_MT (musculation obligatoire, +0.10 fixe pour tous) + BONUS_SPORT_SUPP
- * (0 à +0.20 selon séances additionnelles/semaine). Le schéma actuel n'a ni
- * champ "pas quotidiens" ni "séances sport supplémentaires" — seul l'enum
- * ActivityLevel (3 paliers) existe. En attendant ces champs, chaque palier
- * sert de proxy pour une combinaison plausible pas + sport supp., socle inclus :
- *   SEDENTARY ≈ <4000 pas/j (NEAT 1.2) + socle (0.10) + 0 séance supp.        = 1.30
- *   ACTIVE    ≈ 8-11 000 pas/j (NEAT 1.4) + socle (0.10) + 1 séance supp.     = 1.55
- *   ATHLETE   ≈ ≥12 000 pas/j (NEAT 1.5) + socle (0.10) + 4 séances supp.+    = 1.80
+ * Trois paliers choisis par l'utilisateur (ActivityLevel), socle musculation inclus.
+ * Décision produit (2026-10-06) : recalibrage 1,35 / 1,5 / 1,65 (anciennement 1,3 / 1,55 / 1,8,
+ * qui surestimait la dépense des profils Athlète d'environ 10 % par rapport aux fiches MT).
  */
 export function activityCoefficient(level: ActivityLevel | null | undefined): number {
 	switch (level) {
 		case 'ACTIVE':
-			return 1.55;
+			return 1.5;
 		case 'ATHLETE':
-			return 1.8;
+			return 1.65;
 		case 'SEDENTARY':
 		default:
-			return 1.3;
+			return 1.35;
 	}
 }
 
 /**
  * Palier de déficit calorique Méthode Thower, indexé sur le % de masse grasse.
- * Le spec MT distingue une table Homme et une table Femme ; le schéma actuel
- * n'a pas de champ sexe. Décision produit (2026-09-11) : appliquer la table
- * Homme à tous les profils en attendant ce champ.
+ * Décision produit (2026-09-11, confirmée 2026-10-06) : une seule table, appliquée
+ * à tous les profils (pas de distinction Homme / Femme).
  */
 export function calorieDeficitPercent(bodyFatPercent: number): number {
 	if (bodyFatPercent < 14) return 0.1;

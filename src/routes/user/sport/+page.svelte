@@ -27,6 +27,11 @@
 		return letter === 'D';
 	}
 
+	/** Bande de la semaine : « Séance 1 / 2 / 3 » (D = découverte, inchangé). */
+	function stripSessionLabel(letter: string): string {
+		return letter === 'D' ? letter : `Séance ${letter}`;
+	}
+
 	const strip = $derived(data.weekStrip ?? []);
 	const rows = $derived(data.sessionRows ?? []);
 	const totalWeeks = $derived(data.totalWeeks ?? 13);
@@ -277,7 +282,7 @@
 			<div class="u-sd-d" style:color={isFreeDropCell(cell) ? 'var(--txd)' : undefined}>{dayNumFromISO(cell.dateISO)}</div>
 			{#if cell.sessionLetter}
 				<div class="u-sd-b" style:color={cell.completedAtISO ? 'var(--g)' : 'var(--txd)'}>
-					{cell.completedAtISO ? `${cell.sessionLetter}✓` : cell.sessionLetter}
+					{stripSessionLabel(cell.sessionLetter)}{cell.completedAtISO ? ' ✓' : ''}
 				</div>
 			{:else}
 				<div class="u-sd-b" style="color:var(--txd)">—</div>
@@ -437,6 +442,10 @@
 		touch-action: none;
 		-webkit-user-select: none;
 		user-select: none;
+	}
+	.u-sport-week .u-sd-b {
+		line-height: 1.15;
+		text-align: center;
 	}
 	.u-sport-week .u-sd:active {
 		background: rgba(0, 229, 255, 0.08);

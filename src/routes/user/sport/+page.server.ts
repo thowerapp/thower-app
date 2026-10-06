@@ -20,9 +20,9 @@ import { resolveSportWeek } from '$lib/server/sport/programSportDays';
 
 function sessionTypeToLetter(t: WorkoutSessionType | null | undefined): string | null {
 	if (!t) return null;
-	if (t === 'MAIN_A') return 'A';
-	if (t === 'MAIN_B') return 'B';
-	if (t === 'MAIN_C') return 'C';
+	if (t === 'MAIN_A') return '1';
+	if (t === 'MAIN_B') return '2';
+	if (t === 'MAIN_C') return '3';
 	if (t === 'DISCOVERY') return 'D';
 	return null;
 }

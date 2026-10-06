@@ -23,9 +23,9 @@ describe('formatVideoDays', () => {
 				days: [{ source: 'day', dayIndex: 1 }],
 				sessionType: 'MAIN_A'
 			})
-		).toBe('J1 · Séance A');
+		).toBe('J1 · Séance 1');
 		expect(formatVideoDays({ kind: 'workout', days: [], sessionType: 'MAIN_A' })).toBe(
-			'Séance A · chaque semaine'
+			'Séance 1 · chaque semaine'
 		);
 	});
 

@@ -1,9 +1,9 @@
 import type { AdminVideoDayLink } from '$lib/prisma/video/getAllAdminVideos';
 
 export const SESSION_TYPE_LABELS: Record<string, string> = {
-	MAIN_A: 'Séance A',
-	MAIN_B: 'Séance B',
-	MAIN_C: 'Séance C',
+	MAIN_A: 'Séance 1',
+	MAIN_B: 'Séance 2',
+	MAIN_C: 'Séance 3',
 	DISCOVERY: 'Découverte'
 };
 
@@ -22,8 +22,8 @@ function compactDays(days: number[]): string {
 }
 
 /**
- * Libellé de la colonne « Journées » du tableau admin, ex. `J1 · Séance A`.
- * Vidéo sport sans jour précis : `Séance A · chaque semaine` (l'utilisateur place ses séances).
+ * Libellé de la colonne « Journées » du tableau admin, ex. `J1 · Séance 1`.
+ * Vidéo sport sans jour précis : `Séance 1 · chaque semaine` (l'utilisateur place ses séances).
  */
 export function formatVideoDays(v: {
 	kind: 'workout' | 'discovery';

@@ -78,9 +78,9 @@
 	const sessionTypeOptions = workoutSessionTypeEnum.options.map((v) => ({
 		value: v,
 		label: ({
-			MAIN_A: 'Séance A',
-			MAIN_B: 'Séance B',
-			MAIN_C: 'Séance C',
+			MAIN_A: 'Séance 1',
+			MAIN_B: 'Séance 2',
+			MAIN_C: 'Séance 3',
 			DISCOVERY: 'Découverte'
 		})[v]
 	}));

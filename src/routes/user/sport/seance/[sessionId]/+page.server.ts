@@ -206,7 +206,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const { levelData, levelPercent } = computeLevel(totalPoints);
 	const canWatchSession = dayIndex <= currentUnlockedDayIndex;
 
-	// Ordre A→B→C : vérifier que la séance prérequise est validée
+	// Ordre 1→2→3 : vérifier que la séance prérequise est validée
 	let prerequisiteBlocked = false;
 	let prerequisiteMessage: string | null = null;
 	if (session.type === 'MAIN_B' || session.type === 'MAIN_C') {
@@ -218,8 +218,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			prerequisiteBlocked = true;
 			prerequisiteMessage =
 				session.type === 'MAIN_B'
-					? 'Valide la séance A avant d\'accéder à la séance B.'
-					: 'Valide la séance B avant d\'accéder à la séance C.';
+					? 'Valide la séance 1 avant d\'accéder à la séance 2.'
+					: 'Valide la séance 2 avant d\'accéder à la séance 3.';
 		}
 	}
 
@@ -299,7 +299,7 @@ export const actions: Actions = {
 			return fail(409, { message: 'Cette séance est déjà validée.' });
 		}
 
-		// Ordre A→B→C
+		// Ordre 1→2→3
 		if (session.type === 'MAIN_B' || session.type === 'MAIN_C') {
 			const requiredPrevType = session.type === 'MAIN_B' ? 'MAIN_A' : 'MAIN_B';
 			const prevCompleted = await prisma.userWorkoutDay.findFirst({
@@ -309,8 +309,8 @@ export const actions: Actions = {
 				return fail(409, {
 					message:
 						session.type === 'MAIN_B'
-							? 'Valide la séance A avant de valider la séance B.'
-							: 'Valide la séance B avant de valider la séance C.'
+							? 'Valide la séance 1 avant de valider la séance 2.'
+							: 'Valide la séance 2 avant de valider la séance 3.'
 				});
 			}
 		}

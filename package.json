@@ -32,7 +32,8 @@
 		"stream:register-webhook": "node scripts/register-stream-webhook.mjs",
 		"migrate:measurements": "tsx scripts/migrate-measurements-to-profile-and-body.ts",
 		"reset:all-programs": "tsx scripts/reset-all-programs.ts",
-		"set:program-start": "tsx scripts/set-program-start.ts"
+		"set:program-start": "tsx scripts/set-program-start.ts",
+		"rename:workout-sessions": "tsx scripts/rename-workout-sessions.ts"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.11.0",

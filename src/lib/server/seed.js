@@ -350,9 +350,9 @@ async function main() {
 	console.log('4/10 — WorkoutSessions + Videos…');
 	// 3 séances A/B/C + vidéos placeholder (remplaçables via admin / Cloudflare). Ordre = sessionIdx 0,1,2.
 	const sessionDefs = [
-		{ type: 'MAIN_A', name: 'A', weekNumber: 1, order: 0 },
-		{ type: 'MAIN_B', name: 'B', weekNumber: 1, order: 1 },
-		{ type: 'MAIN_C', name: 'C', weekNumber: 1, order: 2 }
+		{ type: 'MAIN_A', name: 'Séance 1', weekNumber: 1, order: 0 },
+		{ type: 'MAIN_B', name: 'Séance 2', weekNumber: 1, order: 1 },
+		{ type: 'MAIN_C', name: 'Séance 3', weekNumber: 1, order: 2 }
 	];
 	const videoSlots = [
 		{ position: 'PRE', title: 'Pré-séance', isOptional: true, order: 0, uidKey: 'pre' },
@@ -837,8 +837,8 @@ async function main() {
 
 	// Points (WORKOUT_* et points vidéo conservés comme historique ; pas de UVP validé côté DB)
 	for (const ev of [
-		{ type: 'WORKOUT_COMPLETE', amount: 50, metadata: { sessionName: 'Séance A' } },
-		{ type: 'WORKOUT_COMPLETE', amount: 50, metadata: { sessionName: 'Séance B' } },
+		{ type: 'WORKOUT_COMPLETE', amount: 50, metadata: { sessionName: 'Séance 1' } },
+		{ type: 'WORKOUT_COMPLETE', amount: 50, metadata: { sessionName: 'Séance 2' } },
 		{ type: 'DAILY_TASK', amount: 20, metadata: { label: "Eau au lever" } },
 		{ type: 'DAILY_TASK', amount: 20, metadata: { label: 'Pas de téléphone 30 min' } },
 		{ type: 'BADGE_UNLOCK', amount: 0, metadata: { badgeSlug: '7-jours-seance' } }
@@ -986,7 +986,7 @@ async function main() {
 
 	// Points (VIDEO_WATCHED retiré — UVP laissé vide pour tests)
 	for (const ev of [
-		{ type: 'WORKOUT_COMPLETE', amount: 50, metadata: { sessionName: 'Séance A' } },
+		{ type: 'WORKOUT_COMPLETE', amount: 50, metadata: { sessionName: 'Séance 1' } },
 		{ type: 'DAILY_TASK', amount: 20, metadata: { label: "Eau au lever" } },
 		{ type: 'DAILY_TASK', amount: 20, metadata: { label: 'Pas de téléphone 30 min' } },
 		{ type: 'PHOTO_UPLOAD', amount: 50, metadata: { month: 1 } }

@@ -45,11 +45,19 @@ export function mealIngredientGrams(
 	return scaled + extra;
 }
 
-/** Met à l'échelle les grammages cités dans une note (« 50g plat + 200g dessert » × 0,8 → « 40 g plat + 160 g dessert »). */
-export function scaleGramsInNote(note: string, factor: number): string {
-	if (!Number.isFinite(factor) || factor === 1) return note;
-	return note.replace(/(\d+(?:[.,]\d+)?)\s?g\b/gi, (_, n: string) => {
-		const v = Number.parseFloat(n.replace(',', '.')) * factor;
-		return `${Math.round(v)} g`;
-	});
+/**
+ * Met à l'échelle les grammages et nombres d'œufs cités dans une note ou des instructions
+ * (« 50g plat + 200g dessert » × 0,8 → « 40 g plat + 160 g dessert » ; « 3 œufs » × 1,42 → « 4 œufs »).
+ */
+export function scaleQuantitiesInText(text: string, factor: number): string {
+	if (!Number.isFinite(factor) || factor === 1) return text;
+	return text
+		.replace(/(\d+(?:[.,]\d+)?)\s?g\b/gi, (_, n: string) => {
+			const v = Number.parseFloat(n.replace(',', '.')) * factor;
+			return `${Math.round(v)} g`;
+		})
+		.replace(/(\d+)(\s+)(œuf|oeuf)s?/gi, (_, n: string, space: string, word: string) => {
+			const count = Math.max(1, Math.round(Number.parseInt(n, 10) * factor));
+			return `${count}${space}${word}${count > 1 ? 's' : ''}`;
+		});
 }

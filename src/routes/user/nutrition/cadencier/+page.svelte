@@ -94,7 +94,7 @@
 		</label>
 	</div>
 	<div class="week-sub">
-		91 jours · Jour programme : {data.currentDayIndex}
+		3 mois · Jour programme : {data.currentDayIndex}
 		{#if !data.hasProgramStart}
 			· <span class="warn">Début de programme non défini — jour affiché comme J1</span>
 		{/if}

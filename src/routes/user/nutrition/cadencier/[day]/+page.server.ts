@@ -9,7 +9,7 @@ import {
 	dailyWaterLitersMin
 } from '$lib/nutrition/nutritionTargets';
 import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
-import { mealIngredientGrams, mealScaleFactor, scaleGramsInNote } from '$lib/nutrition/scaleMealIngredients';
+import { mealIngredientGrams, mealScaleFactor, scaleQuantitiesInText } from '$lib/nutrition/scaleMealIngredients';
 import {
 	ensureBreakfastMealForDay,
 	loadBreakfastBackfillContextFromProfile,
@@ -303,7 +303,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 					unit: ing.unit,
 					category: ing.category,
 					isOptional: ing.isOptional,
-					note: ing.note ? scaleGramsInNote(ing.note, factor) : null
+					note: ing.note ? scaleQuantitiesInText(ing.note, factor) : null
 				};
 			}) ?? [];
 
@@ -321,7 +321,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			recipeName: r?.name?.trim() ? r.name : 'Non planifié',
 			description: r?.description ?? null,
 			totalTimeMin: r?.totalTimeMin ?? null,
-			instructions: r?.instructions ?? null,
+			instructions: r?.instructions ? scaleQuantitiesInText(r.instructions, factor) : null,
 			allergens: r?.allergens ?? [],
 			ingredients,
 			...macros

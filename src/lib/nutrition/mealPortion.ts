@@ -8,15 +8,17 @@ import { recipeReferenceYieldG } from './scaleMealIngredients';
  * unique ne peut pas atteindre à la fois la cible kcal et la cible protéines. Méthode :
  *  1. facteur recette = min(cible protéines, cible kcal) → protéines atteintes sans dépasser les kcal ;
  *  2. le solde kcal est comblé avec le féculent de la recette (grammes crus ajoutés ; féculent total
- *     plafonné à 150 g cru, 400 g pour pommes de terre / patates douces) ;
- *  3. s'il reste un solde (pas de féculent ou plafond atteint), on remonte le facteur recette.
+ *     plafonné à 250 g cru, 400 g pour pommes de terre / patates douces). Les protéines du féculent
+ *     ajouté comptent : le facteur recette est réduit d'autant ;
+ *  3. les protéines (recette + féculent) ne dépassent jamais la cible : s'il reste un solde kcal
+ *     (pas de féculent ou plafond atteint), le repas reste sous la cible kcal.
  * Les kcal sont toujours recalculées depuis les macros (Atwater) : 4 P + 4 G + 9 L + 2 fibres.
  */
 
 export const SCALE_MIN = 0.15;
 export const SCALE_MAX = 2.5;
 /** Féculent total au maximum sur un repas (portion recette + ajout), en grammes crus. */
-export const MAX_STARCH_G_DRY = 150;
+export const MAX_STARCH_G_DRY = 250;
 /** Idem pour les féculents frais peu denses (pommes de terre, patates douces). */
 export const MAX_STARCH_G_FRESH = 400;
 
@@ -191,30 +193,39 @@ export function computeMealPortion(
 	let extraStarchG: number | null = null;
 	let extraStarchIngredientName: string | null = null;
 
-	if (slot.kcal != null && slot.kcal > 0) {
-		const targetKcal = slot.kcal;
-		const starch = targetKcal > baseKcal * scale ? findStarchIngredient(recipe) : null;
-		if (starch) {
-			const kcalPerG = atwaterKcal(starch.per100) / 100;
-			const maxTotalG = kcalPerG < 1.5 ? MAX_STARCH_G_FRESH : MAX_STARCH_G_DRY;
-			let grams = (targetKcal - baseKcal * scale) / kcalPerG;
-			if (starch.quantityG * scale + grams > maxTotalG) {
-				// Plafond atteint : facteur recette et grammes ajoutés tels que kcal = cible et féculent total = plafond.
-				const denom = baseKcal - starch.quantityG * kcalPerG;
-				if (denom > 0) {
-					scale = Math.max(scale, clampScale((targetKcal - maxTotalG * kcalPerG) / denom));
+	const targetKcal = slot.kcal != null && slot.kcal > 0 ? slot.kcal : null;
+	const targetProteinG = proteinScale != null ? slot.proteinG : null;
+	const starch = targetKcal != null && targetKcal > baseKcal * scale ? findStarchIngredient(recipe) : null;
+	if (targetKcal != null && starch) {
+		const kcalPerG = atwaterKcal(starch.per100) / 100;
+		const proteinPerG = starch.per100.proteinG / 100;
+		const maxTotalG = kcalPerG < 1.5 ? MAX_STARCH_G_FRESH : MAX_STARCH_G_DRY;
+
+		if (targetProteinG != null) {
+			// Protéines et kcal atteintes ensemble : P_recette·s + p_féculent·g = P_cible ; K_recette·s + k_féculent·g = K_cible.
+			const det = base.proteinG * kcalPerG - proteinPerG * baseKcal;
+			if (det > 0) {
+				let s = (targetProteinG * kcalPerG - proteinPerG * targetKcal) / det;
+				const g = (base.proteinG * targetKcal - baseKcal * targetProteinG) / det;
+				if (starch.quantityG * s + g > maxTotalG) {
+					// Féculent total au plafond : le facteur recette suit l'équation protéines.
+					const denom = base.proteinG - proteinPerG * starch.quantityG;
+					s = denom > 0 ? (targetProteinG - proteinPerG * maxTotalG) / denom : scale;
 				}
-				grams = Math.max(0, maxTotalG - starch.quantityG * scale);
-			}
-			grams = Math.round(grams);
-			if (grams > 0) {
-				extraStarchG = grams;
-				extraStarchIngredientName = starch.name;
+				// Recette déjà au-delà du plafond de féculent : rien à ajouter, on garde le facteur protéines.
+				if (s > 0 && starch.quantityG * s <= maxTotalG) scale = Math.min(scale, clampScale(s));
 			}
 		}
-		const gap = targetKcal - baseKcal * scale - (extraStarchG ?? 0) * (starch ? atwaterKcal(starch.per100) / 100 : 0);
-		if (gap > 1) {
-			scale = clampScale(scale + gap / baseKcal);
+
+		// Grammes ajoutés sans dépasser ni les kcal, ni les protéines, ni le plafond de féculent.
+		const roomKcalG = (targetKcal - baseKcal * scale) / kcalPerG;
+		const roomProteinG =
+			targetProteinG != null && proteinPerG > 0 ? (targetProteinG - base.proteinG * scale) / proteinPerG : Infinity;
+		const roomStarchG = maxTotalG - starch.quantityG * scale;
+		const grams = Math.floor(Math.max(0, Math.min(roomKcalG, roomProteinG, roomStarchG)));
+		if (grams > 0) {
+			extraStarchG = grams;
+			extraStarchIngredientName = starch.name;
 		}
 	}
 

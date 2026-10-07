@@ -170,7 +170,7 @@
 		</div>
 
 		<!-- Ingrédients -->
-		{#if activeMeal.ingredients.length > 0}
+		{#if activeMeal.ingredients.length > 0 || activeMeal.complement}
 			<h3 class="subh">Ingrédients</h3>
 			<ul class="ing-list">
 				{#each activeMeal.ingredients as ing}
@@ -185,6 +185,13 @@
 						{#if ing.note}<div class="ing-note">{ing.note}</div>{/if}
 					</li>
 				{/each}
+				{#if activeMeal.complement}
+					<li>
+						<span class="ing-name">{activeMeal.complement.name}</span>
+						<span class="ing-qty">{fmtG(activeMeal.complement.grams * u)} g</span>
+						<div class="ing-note">Complément cru pour atteindre tes cibles du jour</div>
+					</li>
+				{/if}
 			</ul>
 		{/if}
 

@@ -2,13 +2,8 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server';
 import type { MealPosition } from '@prisma/client';
-import {
-	targetCaloriesPerDay,
-	dailyProteinTargetG,
-	dailyFiberTargetG,
-	dailyWaterLitersMin
-} from '$lib/nutrition/nutritionTargets';
-import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
+import { dailyWaterLitersMin } from '$lib/nutrition/nutritionTargets';
+import { mealTargetsFromProfile, profileBreadMacros } from '$lib/server/nutrition/userMealTargets';
 import { mealIngredientGrams, mealScaleFactor, scaleQuantitiesInText } from '$lib/nutrition/scaleMealIngredients';
 import {
 	ensureBreakfastMealForDay,
@@ -45,6 +40,8 @@ type DayMealDTO = {
 	instructions: string | null;
 	allergens: string[];
 	ingredients: DayIngredientDTO[];
+	/** Complément féculent ajouté par le programme quand il ne fait pas partie de la recette (ex. riz complet). */
+	complement: { name: string; grams: number } | null;
 	calories: number;
 	proteinG: number;
 	carbsG: number;
@@ -165,38 +162,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const weightKg = lastMeasure?.weightKg ?? null;
 	let nutritionDay = nutritionDayInitial;
 
-	let breadKcal = 0;
-	if (
-		profile?.breadDaily &&
-		profile.breadType &&
-		profile.breadGramsPerDay != null &&
-		profile.breadGramsPerDay > 0
-	) {
-		breadKcal = breadMacrosForGrams(profile.breadType as BreadTypeValue, profile.breadGramsPerDay).kcal;
-	}
-
-	const targetKcal =
-		weightKg != null && weightKg > 0
-			? targetCaloriesPerDay({
-					weightKg,
-					bodyFatPercent: profile?.bodyFatPercent,
-					activityLevel: profile?.activityLevel as import('@prisma/client').ActivityLevel | null
-				})
-			: null;
-
-	const mealBudgetKcal =
-		targetKcal != null ? Math.max(0, Math.round(targetKcal - breadKcal)) : null;
-
-	const targetProteinG =
-		weightKg != null &&
-		weightKg > 0 &&
-		profile?.bodyFatPercent != null &&
-		profile.bodyFatPercent >= 3 &&
-		profile.bodyFatPercent <= 70
-			? Math.round(dailyProteinTargetG(weightKg, profile.bodyFatPercent) * 10) / 10
-			: null;
-
-	const targetFiberG = targetKcal != null ? Math.round(dailyFiberTargetG(targetKcal) * 10) / 10 : null;
+	const mealTargets = mealTargetsFromProfile(profile, weightKg);
+	const breadKcal = profileBreadMacros(profile)?.kcal ?? 0;
+	const targetKcal = mealTargets != null ? Math.round(mealTargets.kcal + breadKcal) : null;
+	const mealBudgetKcal = mealTargets != null ? Math.round(mealTargets.kcal) : null;
+	const round1 = (v: number) => Math.round(v * 10) / 10;
+	const targetProteinG = mealTargets != null ? round1(mealTargets.proteinG) : null;
+	const targetCarbsG = mealTargets != null ? round1(mealTargets.carbsG) : null;
+	const targetFatG = mealTargets != null ? round1(mealTargets.fatG) : null;
+	const targetFiberG = mealTargets != null ? round1(mealTargets.fiberG) : null;
 
 	const dailyWaterLRest =
 		weightKg != null && weightKg > 0
@@ -261,6 +235,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			mealBudgetKcal,
 			breadKcal: breadKcal > 0 ? Math.round(breadKcal) : null,
 			targetProteinG,
+			targetCarbsG,
+			targetFatG,
 			targetFiberG,
 			dailyWaterLRest,
 			dailyWaterLWorkout,
@@ -324,6 +300,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			instructions: r?.instructions ? scaleQuantitiesInText(r.instructions, factor) : null,
 			allergens: r?.allergens ?? [],
 			ingredients,
+			complement:
+				m.extraStarchG != null &&
+				m.extraStarchG > 0 &&
+				m.extraStarchIngredientName &&
+				!(r?.ingredients ?? []).some((ing) => ing.name === m.extraStarchIngredientName)
+					? { name: m.extraStarchIngredientName, grams: m.extraStarchG }
+					: null,
 			...macros
 		};
 	});
@@ -347,6 +330,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		mealBudgetKcal,
 		breadKcal: breadKcal > 0 ? Math.round(breadKcal) : null,
 		targetProteinG,
+		targetCarbsG,
+		targetFatG,
 		targetFiberG,
 		dailyWaterLRest,
 		dailyWaterLWorkout,

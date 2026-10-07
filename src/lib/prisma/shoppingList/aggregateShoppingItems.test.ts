@@ -241,6 +241,31 @@ describe('aggregateShoppingItemsFromPlanningDays', () => {
 		expect(items.find((i) => i.ingredientName === 'Poulet')?.totalQuantityG).toBe(100);
 	});
 
+	it('ajoute le complément féculent absent de la recette en ligne propre', () => {
+		const items = aggregateShoppingItemsFromPlanningDays([
+			{
+				dayIndex: 1,
+				meals: [
+					{
+						quantityG: 100,
+						extraStarchG: 90,
+						extraStarchIngredientName: 'Riz complet',
+						recipe: {
+							name: 'Omelette',
+							referenceYieldG: 100,
+							ingredients: [{ name: 'Œufs entiers', quantityG: 180, category: 'Œufs', unit: 'g' }]
+						}
+					}
+				]
+			}
+		]);
+
+		const rice = items.find((i) => i.ingredientName === 'Riz complet');
+		expect(rice?.totalQuantityG).toBe(90);
+		expect(rice?.category).toBe('Féculents');
+		expect(items.find((i) => i.ingredientName === 'Œufs entiers')?.totalQuantityG).toBe(180);
+	});
+
 	it('ignore les repas sans recette', () => {
 		expect(
 			aggregateShoppingItemsFromPlanningDays([{ dayIndex: 1, meals: [{ quantityG: 100, recipe: null }] }])

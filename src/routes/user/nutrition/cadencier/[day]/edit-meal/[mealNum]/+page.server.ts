@@ -3,19 +3,15 @@ import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import type { MealPosition } from '@prisma/client';
 import { upsertMeal } from '$lib/prisma/nutritionDay/upsertMeal';
+import { mealBudgetFraction } from '$lib/nutrition/mealPortion';
+import { fitDay, type PlannerMeal } from '$lib/nutrition/dayPlanner';
+import type { MealMacroTargets } from '$lib/nutrition/nutritionTargets';
 import {
-	targetCaloriesPerDay,
-	dailyProteinTargetG
-} from '$lib/nutrition/nutritionTargets';
-import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
-import {
-	MAX_STARCH_G_FRESH,
-	computeMealPortion,
-	mealBudgetFraction,
-	mealMacrosFor,
-	mealSlotTargets,
-	starchReferenceFor
-} from '$lib/nutrition/mealPortion';
+	loadUserMealTargets,
+	mealTargetsFromProfile,
+	mealTargetsProfileSelect
+} from '$lib/server/nutrition/userMealTargets';
+import { fitRecipeSelect, fixedDayMacros, isAdjustableMeal } from '$lib/server/nutrition/rescaleFutureMeals';
 
 const TOTAL_DAYS = 91;
 
@@ -40,6 +36,67 @@ function recipeCategory(p: MealPosition): string {
 	return p === 'BREAKFAST' ? 'BREAKFAST' : 'MEAL';
 }
 
+const dayMealsSelect = {
+	id: true,
+	intermittentFasting: true,
+	meals: {
+		select: {
+			id: true,
+			position: true,
+			recipeId: true,
+			isManual: true,
+			eatenAt: true,
+			manualProteinG: true,
+			manualCarbsG: true,
+			manualFatG: true,
+			manualFiberG: true,
+			calcProteinG: true,
+			calcCarbsG: true,
+			calcFatG: true,
+			calcFiberG: true,
+			recipe: { select: fitRecipeSelect }
+		}
+	}
+} as const;
+
+type DayForEdit = {
+	intermittentFasting: boolean;
+	meals: (Parameters<typeof fixedDayMacros>[0][number] & {
+		id: string;
+		position: MealPosition;
+		recipe: PlannerMeal['recipe'] | null;
+	})[];
+};
+
+/**
+ * Journée ajustée avec `recipe` au créneau `position` (les autres repas gardent leur recette) :
+ * portions des autres repas ajustables et portion du créneau.
+ */
+function planDayWith(
+	day: DayForEdit | null,
+	position: MealPosition,
+	recipe: PlannerMeal['recipe'],
+	targets: MealMacroTargets | null,
+	fixedQuantityG: number | null = null
+) {
+	const others = (day?.meals ?? []).filter((m) => m.position !== position);
+	const adjustable = others.filter(isAdjustableMeal);
+	const fasting = day?.intermittentFasting ?? false;
+	const portions = fitDay({
+		meals: [
+			...adjustable.map((m) => ({ position: m.position, recipe: m.recipe! })),
+			{ position, recipe, fixedQuantityG }
+		],
+		daily: targets,
+		intermittentFasting: fasting,
+		fixed: fixedDayMacros(others, fasting)
+	});
+	return {
+		others: adjustable.map((m, k) => ({ id: m.id, portion: portions[k] })),
+		slot: portions[portions.length - 1]
+	};
+}
+
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
 
@@ -56,30 +113,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const [nutritionDay, profile, lastMeasure, recipes, favoriteIds] = await Promise.all([
 		prisma.nutritionDay.findUnique({
 			where: { userId_dayIndex: { userId, dayIndex } },
-			select: {
-				id: true,
-				intermittentFasting: true,
-				meals: {
-					where: { position },
-					select: {
-						id: true,
-						recipeId: true,
-						quantityG: true,
-						recipe: { select: { id: true, name: true } }
-					}
-				}
-			}
+			select: dayMealsSelect
 		}),
-		prisma.userProfile.findUnique({
-			where: { userId },
-			select: {
-				bodyFatPercent: true,
-				activityLevel: true,
-				breadDaily: true,
-				breadGramsPerDay: true,
-				breadType: true
-			}
-		}),
+		prisma.userProfile.findUnique({ where: { userId }, select: mealTargetsProfileSelect }),
 		prisma.bodyMeasurement.findFirst({
 			where: { userId },
 			orderBy: { createdAt: 'desc' },
@@ -109,37 +145,29 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.then((rows) => rows.map((r) => r.recipeId))
 	]);
 
-	const currentMeal = nutritionDay?.meals[0] ?? null;
+	const currentMeal = nutritionDay?.meals.find((m) => m.position === position) ?? null;
 	const weightKg = lastMeasure?.weightKg ?? null;
 
-	let breadKcal = 0;
-	if (profile?.breadDaily && profile.breadType && profile.breadGramsPerDay != null && profile.breadGramsPerDay > 0) {
-		breadKcal = breadMacrosForGrams(profile.breadType as BreadTypeValue, profile.breadGramsPerDay).kcal;
-	}
-	const targetKcal =
-		weightKg != null && weightKg > 0
-			? targetCaloriesPerDay({
-					weightKg,
-					bodyFatPercent: profile?.bodyFatPercent,
-					activityLevel: profile?.activityLevel as import('@prisma/client').ActivityLevel | null
-				})
-			: null;
-	const mealBudgetKcal = targetKcal != null ? Math.max(0, targetKcal - breadKcal) : null;
-	const targetProteinG =
-		weightKg != null && weightKg > 0 && profile?.bodyFatPercent != null && profile.bodyFatPercent >= 3 && profile.bodyFatPercent <= 70
-			? dailyProteinTargetG(weightKg, profile.bodyFatPercent)
-			: null;
+	const mealTargets = mealTargetsFromProfile(profile, weightKg);
 
 	const fasting = nutritionDay?.intermittentFasting ?? false;
 	const frac = mealBudgetFraction(position, fasting);
-	const slot = mealSlotTargets(position, fasting, mealBudgetKcal, targetProteinG);
+	// Chaque recette est proposée avec la journée recalculée autour d'elle (autres repas inchangés).
 	const recipesWithOptimalQ = recipes.map(({ ingredients, ...r }) => {
-		const portion = computeMealPortion({ ...r, ingredients }, slot);
+		const { slot } = planDayWith(nutritionDay, position, { ...r, ingredients }, mealTargets);
 		return {
 			...r,
-			optimalQuantityG: Math.round(portion.quantityG),
-			extraStarchG: portion.extraStarchG,
-			extraStarchIngredientName: portion.extraStarchIngredientName
+			optimalQuantityG: Math.round(slot.quantityG),
+			optimalMacros: {
+				kcal: slot.calcCalories,
+				proteinG: slot.calcProteinG,
+				carbsG: slot.calcCarbsG,
+				fatG: slot.calcFatG
+			},
+			complement:
+				slot.extraStarchG != null && slot.extraStarchIngredientName
+					? { name: slot.extraStarchIngredientName, grams: slot.extraStarchG }
+					: null
 		};
 	});
 
@@ -151,8 +179,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		currentRecipeId: currentMeal?.recipeId ?? null,
 		recipes: recipesWithOptimalQ,
 		favoriteIds,
-		targetKcal: mealBudgetKcal,
-		targetProteinG: targetProteinG != null ? Math.round(targetProteinG * 10) / 10 : null,
+		targetKcal: mealTargets != null ? mealTargets.kcal : null,
+		targetProteinG: mealTargets != null ? Math.round(mealTargets.proteinG * 10) / 10 : null,
 		frac
 	};
 };
@@ -171,41 +199,31 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const recipeId = formData.get('recipeId');
 		const quantityGRaw = formData.get('quantityG');
-		const extraStarchGRaw = formData.get('extraStarchG');
-		const extraStarchNameRaw = formData.get('extraStarchIngredientName');
 
 		if (typeof recipeId !== 'string' || !recipeId) return fail(400, { error: 'Recette manquante' });
 
-		const recipe = await prisma.recipe.findUnique({
-			where: { id: recipeId },
-			select: {
-				nutritionKcal: true,
-				nutritionProteinG: true,
-				nutritionCarbsG: true,
-				nutritionFatG: true,
-				nutritionFiberG: true,
-				referenceYieldG: true,
-				ingredients: { select: { name: true } }
-			}
-		});
+		const [recipe, mealTargets, day] = await Promise.all([
+			prisma.recipe.findUnique({ where: { id: recipeId }, select: fitRecipeSelect }),
+			loadUserMealTargets(userId),
+			prisma.nutritionDay.findUnique({ where: { userId_dayIndex: { userId, dayIndex } }, select: dayMealsSelect })
+		]);
 		if (!recipe) return fail(404, { error: 'Recette introuvable' });
 
-		const quantityG = quantityGRaw != null ? Math.max(10, Math.round(Number(quantityGRaw))) : (recipe.referenceYieldG ?? 100);
-
-		// Féculent ajouté proposé par computeMealPortion : accepté seulement s'il s'agit d'un féculent de la recette.
-		const extraStarchName =
-			typeof extraStarchNameRaw === 'string' &&
-			recipe.ingredients.some((i) => i.name === extraStarchNameRaw) &&
-			starchReferenceFor(extraStarchNameRaw) != null
-				? extraStarchNameRaw
+		// Quantité proposée inchangée : journée ajustée librement ; sinon ce repas garde la quantité choisie
+		// et les autres repas du jour sont recalculés autour.
+		const proposed = planDayWith(day, position, recipe, mealTargets);
+		const requestedG = Number(quantityGRaw);
+		const custom =
+			quantityGRaw != null && Number.isFinite(requestedG) && Math.round(requestedG) !== Math.round(proposed.slot.quantityG)
+				? Math.max(10, Math.round(requestedG))
 				: null;
-		const extraStarchParsed = Number(extraStarchGRaw);
-		const extraStarchG =
-			extraStarchName && Number.isFinite(extraStarchParsed) && extraStarchParsed > 0
-				? Math.min(Math.round(extraStarchParsed), MAX_STARCH_G_FRESH)
-				: null;
+		const plan = custom != null ? planDayWith(day, position, recipe, mealTargets, custom) : proposed;
 
-		const macros = mealMacrosFor(recipe, quantityG, extraStarchG, extraStarchName);
+		if (plan.others.length > 0) {
+			await prisma.$transaction(
+				plan.others.map(({ id, portion }) => prisma.meal.update({ where: { id }, data: portion }))
+			);
+		}
 
 		let nutritionDay = await prisma.nutritionDay.findUnique({
 			where: { userId_dayIndex: { userId, dayIndex } },
@@ -222,10 +240,7 @@ export const actions: Actions = {
 			nutritionDayId: nutritionDay.id,
 			position,
 			recipeId,
-			quantityG,
-			extraStarchG,
-			extraStarchIngredientName: extraStarchG != null ? extraStarchName : null,
-			...macros
+			...plan.slot
 		});
 
 		throw redirect(303, `/user/nutrition/cadencier/${dayIndex}#${position.toLowerCase()}`);

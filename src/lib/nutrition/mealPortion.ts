@@ -2,25 +2,20 @@ import { normalizeIngredientName } from './normalizeIngredientName';
 import { recipeReferenceYieldG } from './scaleMealIngredients';
 
 /**
- * Calcul unique des portions de repas (génération, recalage, changement de recette, jeûne).
- *
- * Les recettes du catalogue sont très protéinées (~6,8 g P / 100 kcal contre ~4,7 visé) : un facteur
- * unique ne peut pas atteindre à la fois la cible kcal et la cible protéines. Méthode :
- *  1. facteur recette = min(cible protéines, cible kcal) → protéines atteintes sans dépasser les kcal ;
- *  2. le solde kcal est comblé avec le féculent de la recette (grammes crus ajoutés ; féculent total
- *     plafonné à 250 g cru, 400 g pour pommes de terre / patates douces). Les protéines du féculent
- *     ajouté comptent : le facteur recette est réduit d'autant ;
- *  3. les protéines (recette + féculent) ne dépassent jamais la cible : s'il reste un solde kcal
- *     (pas de féculent ou plafond atteint), le repas reste sous la cible kcal.
+ * Macros d'un repas = macros de la fiche recette (saisies par l'admin) × facteur de portion
+ * + complément féculent cru ajouté par le programme (`extraStarchG` de `extraStarchIngredientName`).
  * Les kcal sont toujours recalculées depuis les macros (Atwater) : 4 P + 4 G + 9 L + 2 fibres.
+ * La répartition d'une journée (facteurs et compléments) est calculée par $lib/nutrition/dayPlanner.
  */
 
 export const SCALE_MIN = 0.15;
 export const SCALE_MAX = 2.5;
-/** Féculent total au maximum sur un repas (portion recette + ajout), en grammes crus. */
+/** Féculent total au maximum sur un repas (portion recette + complément), en grammes crus. */
 export const MAX_STARCH_G_DRY = 250;
 /** Idem pour les féculents frais peu denses (pommes de terre, patates douces). */
 export const MAX_STARCH_G_FRESH = 400;
+/** Complément servi quand la recette n'a pas de féculent. */
+export const DEFAULT_COMPLEMENT_STARCH = 'Riz complet';
 
 export type MacroValues = {
 	proteinG: number;
@@ -79,10 +74,6 @@ export function atwaterKcal(m: MacroValues): number {
 	return 4 * m.proteinG + 4 * m.carbsG + 9 * m.fatG + 2 * m.fiberG;
 }
 
-function clampScale(scale: number): number {
-	return Math.min(SCALE_MAX, Math.max(SCALE_MIN, scale));
-}
-
 function addMacros(a: MacroValues, b: MacroValues, factorB: number): MacroValues {
 	return {
 		proteinG: a.proteinG + b.proteinG * factorB,
@@ -94,7 +85,7 @@ function addMacros(a: MacroValues, b: MacroValues, factorB: number): MacroValues
 
 const ZERO: MacroValues = { proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 };
 
-function recipeHasMacros(recipe: Omit<PortionRecipe, 'ingredients'>): boolean {
+export function recipeHasMacros(recipe: Omit<PortionRecipe, 'ingredients'>): boolean {
 	return (
 		recipe.nutritionProteinG != null ||
 		recipe.nutritionCarbsG != null ||
@@ -162,82 +153,6 @@ export function mealMacrosFor(
 	return toMealMacros(m);
 }
 
-/** Portion d'un repas pour viser les cibles kcal / protéines du créneau. */
-export function computeMealPortion(
-	recipe: PortionRecipe,
-	slot: { kcal: number | null; proteinG: number | null }
-): MealPortion {
-	const refG = recipeReferenceYieldG(recipe.referenceYieldG);
-	const base = recipeBaseMacros(recipe);
-	const baseKcal = atwaterKcal(base);
-
-	if (!recipeHasMacros(recipe) || baseKcal <= 0) {
-		return {
-			quantityG: refG,
-			extraStarchG: null,
-			extraStarchIngredientName: null,
-			...mealMacrosFor(recipe, refG)
-		};
-	}
-
-	const kcalScale = slot.kcal != null && slot.kcal > 0 ? slot.kcal / baseKcal : null;
-	const proteinScale =
-		slot.proteinG != null && slot.proteinG > 0 && base.proteinG > 0 ? slot.proteinG / base.proteinG : null;
-
-	let scale = clampScale(
-		kcalScale != null && proteinScale != null
-			? Math.min(kcalScale, proteinScale)
-			: (kcalScale ?? proteinScale ?? 1)
-	);
-
-	let extraStarchG: number | null = null;
-	let extraStarchIngredientName: string | null = null;
-
-	const targetKcal = slot.kcal != null && slot.kcal > 0 ? slot.kcal : null;
-	const targetProteinG = proteinScale != null ? slot.proteinG : null;
-	const starch = targetKcal != null && targetKcal > baseKcal * scale ? findStarchIngredient(recipe) : null;
-	if (targetKcal != null && starch) {
-		const kcalPerG = atwaterKcal(starch.per100) / 100;
-		const proteinPerG = starch.per100.proteinG / 100;
-		const maxTotalG = kcalPerG < 1.5 ? MAX_STARCH_G_FRESH : MAX_STARCH_G_DRY;
-
-		if (targetProteinG != null) {
-			// Protéines et kcal atteintes ensemble : P_recette·s + p_féculent·g = P_cible ; K_recette·s + k_féculent·g = K_cible.
-			const det = base.proteinG * kcalPerG - proteinPerG * baseKcal;
-			if (det > 0) {
-				let s = (targetProteinG * kcalPerG - proteinPerG * targetKcal) / det;
-				const g = (base.proteinG * targetKcal - baseKcal * targetProteinG) / det;
-				if (starch.quantityG * s + g > maxTotalG) {
-					// Féculent total au plafond : le facteur recette suit l'équation protéines.
-					const denom = base.proteinG - proteinPerG * starch.quantityG;
-					s = denom > 0 ? (targetProteinG - proteinPerG * maxTotalG) / denom : scale;
-				}
-				// Recette déjà au-delà du plafond de féculent : rien à ajouter, on garde le facteur protéines.
-				if (s > 0 && starch.quantityG * s <= maxTotalG) scale = Math.min(scale, clampScale(s));
-			}
-		}
-
-		// Grammes ajoutés sans dépasser ni les kcal, ni les protéines, ni le plafond de féculent.
-		const roomKcalG = (targetKcal - baseKcal * scale) / kcalPerG;
-		const roomProteinG =
-			targetProteinG != null && proteinPerG > 0 ? (targetProteinG - base.proteinG * scale) / proteinPerG : Infinity;
-		const roomStarchG = maxTotalG - starch.quantityG * scale;
-		const grams = Math.floor(Math.max(0, Math.min(roomKcalG, roomProteinG, roomStarchG)));
-		if (grams > 0) {
-			extraStarchG = grams;
-			extraStarchIngredientName = starch.name;
-		}
-	}
-
-	const quantityG = refG * scale;
-	return {
-		quantityG,
-		extraStarchG,
-		extraStarchIngredientName,
-		...mealMacrosFor(recipe, quantityG, extraStarchG, extraStarchIngredientName)
-	};
-}
-
 /**
  * Fraction du budget journalier par créneau.
  * Sans jeûne : petit-déj 30 %, déjeuner 35 %, dîner 35 %.
@@ -247,18 +162,4 @@ export function mealBudgetFraction(position: string, intermittentFasting: boolea
 	if (position === 'BREAKFAST') return 0.3;
 	if (position === 'LUNCH' || position === 'DINNER') return intermittentFasting ? 0.5 : 0.35;
 	return 1 / 3;
-}
-
-/** Cibles kcal / protéines d'un créneau. */
-export function mealSlotTargets(
-	position: string,
-	intermittentFasting: boolean,
-	mealBudgetKcal: number | null,
-	dailyProteinG: number | null
-): { kcal: number | null; proteinG: number | null } {
-	const frac = mealBudgetFraction(position, intermittentFasting);
-	return {
-		kcal: mealBudgetKcal != null && mealBudgetKcal > 0 ? mealBudgetKcal * frac : null,
-		proteinG: dailyProteinG != null && dailyProteinG > 0 ? dailyProteinG * frac : null
-	};
 }

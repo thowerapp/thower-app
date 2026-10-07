@@ -1,12 +1,11 @@
 import { prisma } from '$lib/server';
 import type { Prisma } from '@prisma/client';
 import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/generateFromPlanning';
-import {
-	dailyProteinTargetG,
-	targetCaloriesPerDay
-} from '$lib/nutrition/nutritionTargets';
-import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
-import { computeMealPortion, mealSlotTargets, type MealPortion } from '$lib/nutrition/mealPortion';
+import type { MealMacroTargets } from '$lib/nutrition/nutritionTargets';
+import { mealTargetsFromProfile } from './userMealTargets';
+import type { MealPortion } from '$lib/nutrition/mealPortion';
+import { fitDay } from '$lib/nutrition/dayPlanner';
+import { refitDaysById } from './rescaleFutureMeals';
 
 const recipeCatalogSelect = {
 	id: true,
@@ -48,8 +47,7 @@ export type BreakfastProfileInput = {
 
 export type BreakfastBackfillContext = {
 	breakfastRecipes: CatalogRecipe[];
-	mealBudget: number;
-	targetProteinG: number | null;
+	mealTargets: MealMacroTargets | null;
 };
 
 type MealCreatePayload = {
@@ -126,44 +124,6 @@ function pickRandomFromPool<T>(items: T[], seed: number): T | null {
 	return items[idx] ?? null;
 }
 
-function computeMealBudget(profile: BreakfastProfileInput, weightKg: number | null): {
-	mealBudget: number;
-	targetProteinG: number | null;
-} {
-	let breadKcal = 0;
-	if (
-		profile.breadDaily &&
-		profile.breadType &&
-		profile.breadGramsPerDay != null &&
-		profile.breadGramsPerDay > 0
-	) {
-		breadKcal = breadMacrosForGrams(profile.breadType as BreadTypeValue, profile.breadGramsPerDay).kcal;
-	}
-
-	const targetKcal =
-		weightKg != null && weightKg > 0
-			? targetCaloriesPerDay({
-					weightKg,
-					bodyFatPercent: profile.bodyFatPercent,
-					activityLevel: profile.activityLevel as import('@prisma/client').ActivityLevel | null
-				})
-			: null;
-
-	const targetProteinG =
-		weightKg != null &&
-		weightKg > 0 &&
-		profile.bodyFatPercent != null &&
-		profile.bodyFatPercent >= 3 &&
-		profile.bodyFatPercent <= 70
-			? dailyProteinTargetG(weightKg, profile.bodyFatPercent)
-			: null;
-
-	return {
-		mealBudget: targetKcal != null ? Math.max(targetKcal - breadKcal, 0) : 0,
-		targetProteinG
-	};
-}
-
 /** Contexte partagé — profil + poids déjà chargés, une seule requête recettes. */
 export async function loadBreakfastBackfillContextFromProfile(
 	userId: string,
@@ -180,8 +140,7 @@ export async function loadBreakfastBackfillContextFromProfile(
 		return null;
 	}
 
-	const { mealBudget, targetProteinG } = computeMealBudget(profile, weightKg);
-	return { breakfastRecipes, mealBudget, targetProteinG };
+	return { breakfastRecipes, mealTargets: mealTargetsFromProfile(profile, weightKg) };
 }
 
 /** Charge profil + poids + recettes en parallèle (toggle, appels isolés). */
@@ -225,7 +184,8 @@ function buildBreakfastMealPayload(
 		nutritionDayId,
 		position: 'BREAKFAST',
 		recipeId: recipe.id,
-		...computeMealPortion(recipe, mealSlotTargets('BREAKFAST', false, ctx.mealBudget, ctx.targetProteinG))
+		// Portion de départ sur la part du petit-déjeuner ; la journée est ensuite recalculée ensemble.
+		...fitDay({ meals: [{ position: 'BREAKFAST', recipe }], daily: ctx.mealTargets, intermittentFasting: true })[0]
 	};
 }
 
@@ -284,6 +244,7 @@ export async function backfillMissingBreakfastMeals(
 	if (payloads.length === 0) return false;
 
 	await prisma.meal.createMany({ data: payloads });
+	await refitDaysById(userId, payloads.map((p) => p.nutritionDayId));
 
 	await regenerateShoppingListsForDayIndices(
 		userId,
@@ -313,6 +274,7 @@ export async function ensureBreakfastMealForDay(
 	if (!payload) return false;
 
 	await prisma.meal.create({ data: payload });
+	await refitDaysById(userId, [nutritionDayId]);
 
 	await regenerateShoppingListsForDayIndices(userId, [dayIndex]);
 

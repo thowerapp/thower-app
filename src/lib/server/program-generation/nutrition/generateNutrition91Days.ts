@@ -1,10 +1,13 @@
 import { prisma } from '$lib/server';
 import type { MealPosition, Prisma, RecipeCategory } from '@prisma/client';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
-import { dailyProteinTargetG, targetCaloriesPerDay } from '$lib/nutrition/nutritionTargets';
-import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
-import { computeMealPortion, mealSlotTargets } from '$lib/nutrition/mealPortion';
+import { mealTargetsFromProfile } from '$lib/server/nutrition/userMealTargets';
+import { fitDay, pickDayRecipes } from '$lib/nutrition/dayPlanner';
+import { fitRecipeSelect, fixedDayMacros, isAdjustableMeal } from '$lib/server/nutrition/rescaleFutureMeals';
 import { programGenLog, programGenTrace, programGenWarn } from '../programGenerationLog';
+
+/** Jours précédents dont les recettes ne sont pas reprises. */
+const RECENT_DAYS = 3;
 
 /** @deprecated Utiliser NUTRITION_SEGMENT_DAYS depuis $lib/nutrition/nutritionPlanConstants */
 export const PROGRAM_NUTRITION_DAYS = NUTRITION_SEGMENT_DAYS;
@@ -130,18 +133,11 @@ function mulberry32(initial: number): () => number {
 	};
 }
 
-/** Tirage uniforme dans le pool (après filtre allergènes) — varie par jour/créneau, reproductible pour un même couple (user, jour, position). */
-function pickRandomFromPool<T>(items: T[], seed: number): T | null {
-	if (items.length === 0) return null;
-	const rng = mulberry32(seed);
-	const idx = Math.floor(rng() * items.length);
-	return items[idx] ?? null;
-}
-
 /**
  * Génère les journées nutrition 1..targetDays (NutritionDay + Meal) depuis le catalogue admin.
  * Exclut les recettes contenant un allergène déclaré par l’utilisateur.
- * Portions calculées par computeMealPortion (cible protéines + complément féculent pour les kcal).
+ * Recettes choisies et portions ajustées par journée ($lib/nutrition/dayPlanner) : facteur de chaque recette + complément
+ * féculent, totaux du jour au plus près des cibles du profil (kcal, protéines, glucides, lipides, fibres).
  * Répartition kcal sur le budget repas : petit-déj 30 %, déj. 35 %, dîner 35 % (50/50 en jeûne).
  * Le jeûne intermittent est un comportement d'affichage utilisateur (cacher le petit-déj), pas de suppression des repas en BDD.
  */
@@ -190,43 +186,15 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		note: weightKg == null ? 'pas de poids → pas de calories cibles (échelle 1 sur portions ref.)' : null
 	});
 
-	const targetKcal =
-		weightKg != null && weightKg > 0
-			? targetCaloriesPerDay({
-					weightKg,
-					bodyFatPercent: profile?.bodyFatPercent,
-					activityLevel: profile?.activityLevel as import('@prisma/client').ActivityLevel | null
-				})
-			: null;
+	// Cibles journalières des repas (kcal, P, G, L, fibres), pain quotidien déduit.
+	const mealTargets = mealTargetsFromProfile(profile, weightKg);
 
-	const targetProteinG =
-		weightKg != null &&
-		weightKg > 0 &&
-		profile?.bodyFatPercent != null &&
-		profile.bodyFatPercent >= 3 &&
-		profile.bodyFatPercent <= 70
-			? dailyProteinTargetG(weightKg, profile.bodyFatPercent)
-			: null;
-
-	programGenLog('N4/ Calories cibles repas (hors pain)', {
+	programGenLog('N4/ Cibles journalières des repas (hors pain)', {
 		userId,
-		targetKcal,
-		targetProteinG: targetProteinG != null ? Math.round(targetProteinG * 10) / 10 : null,
-		unit: 'kcal/j'
+		mealTargets: mealTargets
+			? Object.fromEntries(Object.entries(mealTargets).map(([k, v]) => [k, Math.round(v * 10) / 10]))
+			: null
 	});
-
-	let breadKcal = 0;
-	if (
-		profile?.breadDaily &&
-		profile.breadType &&
-		profile.breadGramsPerDay != null &&
-		profile.breadGramsPerDay > 0
-	) {
-		breadKcal = breadMacrosForGrams(profile.breadType as BreadTypeValue, profile.breadGramsPerDay).kcal;
-	}
-	if (breadKcal > 0) {
-		programGenLog('N4b/ Apport pain déduit du budget repas', { userId, breadKcal });
-	}
 
 	const recipesRaw = (await prisma.recipe.findMany({
 		where: { isCustom: false, active: true },
@@ -285,13 +253,14 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		userId,
 		positions,
 		budgetFractions: intermittentFastingDefault ? '30% PD (masqué) / 50% déj. / 50% dîner' : '30% / 35% / 35% (PD / déj. / dîner)',
-		macrosDistributed: 'Calories, Protéines, Fibres répartis proportionnellement',
-		recipeSelection: 'pseudo-aléatoire (graine userId+jour+créneau, Mulberry32)'
+		macrosDistributed: 'kcal, protéines, glucides, lipides, fibres répartis proportionnellement',
+		recipeSelection: 'déjeuner tiré au sort (graine userId+jour), autres créneaux choisis pour la journée la plus proche des cibles ; pas de recette des 3 jours précédents'
 	});
 
 	let nutritionDaysCreated = 0;
 	let mealsCreated = 0;
 	let daysTouched = 0;
+	let recentDays: string[][] = [];
 
 	for (let dayIndex = 1; dayIndex <= targetDays; dayIndex++) {
 		let nutritionDay = await prisma.nutritionDay.findUnique({
@@ -310,47 +279,59 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 
 		const existingMeals = await prisma.meal.findMany({
 			where: { nutritionDayId: nutritionDay.id },
-			select: { position: true }
+			include: { recipe: { select: fitRecipeSelect } }
 		});
 		const hasPosition = new Set(existingMeals.map((m) => m.position));
+		const missing = positions.filter((p) => !hasPosition.has(p));
 
-		const toCreate: { position: MealPosition; recipe: CatalogRecipe }[] = [];
-
-		for (let slot = 0; slot < positions.length; slot++) {
-			const position = positions[slot];
-			if (hasPosition.has(position)) continue;
-
-			const pool = position === 'BREAKFAST' ? breakfastRecipes : mealRecipes;
-			const seed = catalogPickSeed(userId, dayIndex, position, slot);
-			const recipe = pickRandomFromPool(pool, seed);
-			if (recipe) toCreate.push({ position, recipe });
+		// Recettes des 3 derniers jours : pas reprises (variété).
+		const recentRecipeIds = new Set(recentDays.flat());
+		if (missing.length === 0) {
+			recentDays = [...recentDays.slice(-(RECENT_DAYS - 1)), existingMeals.map((m) => m.recipeId).filter((id): id is string => !!id)];
+			continue;
 		}
-
-		if (toCreate.length === 0) continue;
 
 		daysTouched++;
 
-		const mealBudget =
-			targetKcal != null ? Math.max(targetKcal - breadKcal, 0) : 0;
+		const fasting = nutritionDay.intermittentFasting;
+		const kept = existingMeals.filter(isAdjustableMeal);
+		const fixed = fixedDayMacros(existingMeals, fasting);
+		const picks = pickDayRecipes({
+			positionsToFill: missing,
+			existing: kept.map((m) => ({ position: m.position, recipe: m.recipe!, recipeId: m.recipeId })),
+			pools: { BREAKFAST: breakfastRecipes, MEAL: mealRecipes },
+			daily: mealTargets,
+			intermittentFasting: fasting,
+			fixed,
+			recentRecipeIds,
+			random: mulberry32(catalogPickSeed(userId, dayIndex, 'DAY', 0))
+		});
+
+		// Journée entière ajustée ensemble : repas existants ajustables + repas créés.
+		const planned = [
+			...kept.map((m) => ({ mealId: m.id as string | null, position: m.position, recipeId: m.recipeId!, recipe: m.recipe! })),
+			...[...picks].map(([position, recipe]) => ({ mealId: null, position: position as MealPosition, recipeId: recipe.id, recipe }))
+		];
+		const portions = fitDay({ meals: planned, daily: mealTargets, intermittentFasting: fasting, fixed });
 
 		const scalesForLog: number[] = [];
-
-		for (const { position, recipe } of toCreate) {
-			const slot = mealSlotTargets(position, intermittentFastingDefault, targetKcal != null ? mealBudget : null, targetProteinG);
-			const portion = computeMealPortion(recipe, slot);
-
-			scalesForLog.push(Math.round((portion.quantityG / (recipe.referenceYieldG || 100)) * 1000) / 1000);
-
-			await prisma.meal.create({
-				data: {
-					nutritionDayId: nutritionDay.id,
-					position,
-					recipeId: recipe.id,
-					...portion
-				}
-			});
-			mealsCreated++;
+		for (const [k, meal] of planned.entries()) {
+			const portion = portions[k];
+			scalesForLog.push(Math.round((portion.quantityG / (meal.recipe.referenceYieldG || 100)) * 1000) / 1000);
+			if (meal.mealId) {
+				await prisma.meal.update({ where: { id: meal.mealId }, data: portion });
+			} else {
+				await prisma.meal.create({
+					data: { nutritionDayId: nutritionDay.id, position: meal.position, recipeId: meal.recipeId, ...portion }
+				});
+				mealsCreated++;
+			}
 		}
+		recentDays = [
+			...recentDays.slice(-(RECENT_DAYS - 1)),
+			[...existingMeals.map((m) => m.recipeId), ...planned.map((m) => m.recipeId)].filter((id): id is string => !!id)
+		];
+		const toCreate = [...picks].map(([position, recipe]) => ({ position, recipe }));
 
 		if (dayIndex === 1 || dayIndex === targetDays || dayIndex % 30 === 0) {
 			programGenLog(`N8/ Jour ${dayIndex}/${targetDays} (échantillon)`, {
@@ -360,8 +341,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 				positions: toCreate.map((t) => t.position),
 				recipeIds: toCreate.map((t) => t.recipe.id),
 				scales: scalesForLog,
-				mealBudget: Math.round(mealBudget * 10) / 10,
-				targetKcal,
+				mealBudgetKcal: mealTargets ? Math.round(mealTargets.kcal) : null,
 				split: '30/35/35'
 			});
 		}

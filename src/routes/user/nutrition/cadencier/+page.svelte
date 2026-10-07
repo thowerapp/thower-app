@@ -166,6 +166,12 @@
 	<div class="section-header">
 		{getDayName(selectedDay).charAt(0).toUpperCase() + getDayName(selectedDay).slice(1)} · Jour {selectedDay}
 	</div>
+	{#if data.dayTargets}
+		<div class="day-targets">
+			Cibles repas du jour : {data.dayTargets.kcal} kcal · P {data.dayTargets.proteinG} g · G {data.dayTargets.carbsG} g ·
+			L {data.dayTargets.fatG} g · F {data.dayTargets.fiberG} g
+		</div>
+	{/if}
 
 	{#if displayMeals.length > 0}
 		<div class="meals-list">
@@ -211,6 +217,12 @@
 </div>
 
 <style>
+	.day-targets {
+		font-size: 0.5625rem;
+		color: var(--txd);
+		font-family: var(--fb);
+		margin: -4px 0 10px;
+	}
 	.week-info {
 		padding: 14px 18px;
 		background: transparent;

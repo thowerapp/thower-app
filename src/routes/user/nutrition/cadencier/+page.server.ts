@@ -8,12 +8,7 @@ import {
 	TOTAL_PROGRAM_DAYS,
 	TOTAL_PROGRAM_WEEKS
 } from '$lib/utils/programDay';
-import {
-	targetCaloriesPerDay,
-	dailyProteinTargetG,
-	dailyFiberTargetG
-} from '$lib/nutrition/nutritionTargets';
-import { breadMacrosForGrams, type BreadTypeValue } from '$lib/schema/profile/breadType';
+import { mealTargetsFromProfile } from '$lib/server/nutrition/userMealTargets';
 import { rescaleDayMeals } from '$lib/server/nutrition/rescaleFutureMeals';
 import {
 	ensureBreakfastMealForDay,
@@ -254,28 +249,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const weightKg = lastMeasure?.weightKg ?? null;
 
-	let breadKcal = 0;
-	if (profile?.breadDaily && profile.breadType && profile.breadGramsPerDay != null && profile.breadGramsPerDay > 0) {
-		breadKcal = breadMacrosForGrams(profile.breadType as BreadTypeValue, profile.breadGramsPerDay).kcal;
-	}
-
-	const targetKcal =
-		weightKg != null && weightKg > 0
-			? targetCaloriesPerDay({
-					weightKg,
-					bodyFatPercent: profile?.bodyFatPercent,
-					activityLevel: profile?.activityLevel as import('@prisma/client').ActivityLevel | null
-				})
-			: null;
-
-	const mealBudgetKcal = targetKcal != null ? Math.max(0, Math.round(targetKcal - breadKcal)) : null;
-
-	const targetProteinG =
-		weightKg != null && weightKg > 0 && profile?.bodyFatPercent != null && profile.bodyFatPercent >= 3 && profile.bodyFatPercent <= 70
-			? Math.round(dailyProteinTargetG(weightKg, profile.bodyFatPercent) * 10) / 10
-			: null;
-
-	const targetFiberG = targetKcal != null ? Math.round(dailyFiberTargetG(targetKcal) * 10) / 10 : null;
+	// Cibles journalières des repas (pain quotidien déduit), arrondies pour l'affichage.
+	const mealTargets = mealTargetsFromProfile(profile, weightKg);
+	const dayTargets = mealTargets
+		? {
+				kcal: Math.round(mealTargets.kcal),
+				proteinG: Math.round(mealTargets.proteinG),
+				carbsG: Math.round(mealTargets.carbsG),
+				fatG: Math.round(mealTargets.fatG),
+				fiberG: Math.round(mealTargets.fiberG)
+			}
+		: null;
 
 	return {
 		currentDayIndex,
@@ -288,9 +272,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		nutritionDaysAllocated: user?.nutritionDaysAllocated ?? 0,
 		hasProgramStart: user?.programStartDate != null,
 		intermittentFasting: user?.profile?.intermittentFastingMorning ?? false,
-		targetKcal: mealBudgetKcal,
-		targetProteinG,
-		targetFiberG
+		dayTargets
 	};
 };
 

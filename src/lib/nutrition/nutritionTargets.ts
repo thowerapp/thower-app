@@ -100,9 +100,12 @@ export function dailyFatTargetG(weightKg: number): number {
 	return weightKg * 0.8;
 }
 
-/** Glucides (g/j) — Méthode Thower : solde calorique restant après protéines + lipides. */
-export function dailyCarbTargetG(targetKcal: number, proteinG: number, fatG: number): number {
-	const remainingKcal = targetKcal - (proteinG * 4 + fatG * 9);
+/**
+ * Glucides (g/j, hors fibres) — Méthode Thower : solde calorique restant après protéines + lipides
+ * (+ fibres à 2 kcal/g si fournies, pour que 4 P + 4 G + 9 L + 2 fibres retombe sur la cible).
+ */
+export function dailyCarbTargetG(targetKcal: number, proteinG: number, fatG: number, fiberG = 0): number {
+	const remainingKcal = targetKcal - (proteinG * 4 + fatG * 9 + fiberG * 2);
 	return Math.max(0, remainingKcal / 4);
 }
 
@@ -115,4 +118,36 @@ export function dailyFiberTargetG(targetKcal: number): number {
 export function dailyWaterLitersMin(weightKg: number, workoutDay: boolean): number {
 	const coef = workoutDay ? 0.035 : 0.028;
 	return weightKg * coef;
+}
+
+/** Cibles nutritionnelles (kcal + macros en g) d'une journée de repas ou d'un créneau. */
+export type MealMacroTargets = {
+	kcal: number;
+	proteinG: number;
+	carbsG: number;
+	fatG: number;
+	fiberG: number;
+};
+
+/**
+ * Cibles journalières des repas d'un utilisateur : cibles Méthode Thower du profil, moins l'apport du
+ * pain quotidien déclaré (déduit de chaque macro). Null si profil incomplet (poids, % MG).
+ */
+export function dailyMealTargets(params: {
+	weightKg: number | null | undefined;
+	bodyFatPercent: number | null | undefined;
+	activityLevel?: ActivityLevel | null;
+	bread?: { kcal: number; proteinG: number; carbsG: number; fatG: number; fiberG: number } | null;
+}): MealMacroTargets | null {
+	const { weightKg, bodyFatPercent } = params;
+	if (weightKg == null || weightKg <= 0 || bodyFatPercent == null) return null;
+	const dayKcal = targetCaloriesPerDay({ weightKg, bodyFatPercent, activityLevel: params.activityLevel });
+	if (dayKcal == null) return null;
+
+	const b = params.bread ?? { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 };
+	const kcal = Math.max(0, dayKcal - b.kcal);
+	const proteinG = Math.max(0, dailyProteinTargetG(weightKg, bodyFatPercent) - b.proteinG);
+	const fatG = Math.max(0, dailyFatTargetG(weightKg) - b.fatG);
+	const fiberG = Math.max(0, dailyFiberTargetG(dayKcal) - b.fiberG);
+	return { kcal, proteinG, fatG, fiberG, carbsG: dailyCarbTargetG(kcal, proteinG, fatG, fiberG) };
 }

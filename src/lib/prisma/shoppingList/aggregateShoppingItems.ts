@@ -140,6 +140,16 @@ export function aggregateShoppingItemsFromPlanningDays(
 					recipeName
 				);
 			}
+			// Complément féculent absent de la recette (ex. riz complet) : ligne propre.
+			const complementName = meal.extraStarchIngredientName;
+			if (
+				meal.extraStarchG != null &&
+				meal.extraStarchG > 0 &&
+				complementName &&
+				!recipe.ingredients.some((ing) => ing.name === complementName)
+			) {
+				addToShoppingAggregate(aggregated, complementName, 'Féculents', 'g', meal.extraStarchG, false, recipeName);
+			}
 		}
 	}
 

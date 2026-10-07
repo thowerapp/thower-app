@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
-	import { mealMacrosFor } from '$lib/nutrition/mealPortion';
 
 	let { data }: { data: PageData } = $props();
 
@@ -26,15 +25,19 @@
 		return Math.round((v ?? 0) * 10) / 10;
 	}
 
+	/** Macros de la portion optimale, multipliées par le rapport quantité choisie / quantité proposée. */
 	function macrosAt(r: Recipe, qty: number) {
-		return mealMacrosFor(r, qty, r.extraStarchG, r.extraStarchIngredientName);
+		const f = r.optimalQuantityG > 0 ? qty / r.optimalQuantityG : 1;
+		const m = r.optimalMacros;
+		return {
+			kcal: Math.round((m.kcal ?? 0) * f),
+			p: round1((m.proteinG ?? 0) * f),
+			c: round1((m.carbsG ?? 0) * f),
+			f: round1((m.fatG ?? 0) * f)
+		};
 	}
 
-	const previewMacros = $derived.by(() => {
-		if (!selected) return null;
-		const m = macrosAt(selected, displayQty);
-		return { kcal: Math.round(m.calcCalories ?? 0), p: round1(m.calcProteinG), c: round1(m.calcCarbsG), f: round1(m.calcFatG) };
-	});
+	const previewMacros = $derived(selected ? macrosAt(selected, displayQty) : null);
 
 	function adjustQty(delta: number) {
 		const base = customQty ?? selected?.optimalQuantityG ?? 100;
@@ -85,8 +88,8 @@
 			<div class="recipe-row-body">
 				<div class="recipe-row-name">{recipe.name}</div>
 				<div class="recipe-row-meta">
-					{#if recipe.nutritionProteinG != null}
-						<span>{Math.round(macrosAt(recipe, recipe.optimalQuantityG).calcCalories ?? 0)} kcal</span>
+					{#if recipe.optimalMacros.kcal != null}
+						<span>{Math.round(recipe.optimalMacros.kcal)} kcal</span>
 					{/if}
 					{#if recipe.totalTimeMin != null}
 						<span>· {recipe.totalTimeMin} min</span>
@@ -118,8 +121,8 @@
 			{/if}
 		</div>
 
-		{#if selected.extraStarchG != null && selected.extraStarchIngredientName}
-			<p class="starch-note">+ {selected.extraStarchG} g de {selected.extraStarchIngredientName.toLowerCase()} (cru) pour atteindre ta cible</p>
+		{#if selected.complement}
+			<p class="starch-note">+ {selected.complement.grams} g de {selected.complement.name.toLowerCase()} (cru) pour atteindre tes cibles du jour</p>
 		{/if}
 
 		{#if previewMacros}
@@ -141,8 +144,6 @@
 		>
 			<input type="hidden" name="recipeId" value={selected.id} />
 			<input type="hidden" name="quantityG" value={displayQty} />
-			<input type="hidden" name="extraStarchG" value={selected.extraStarchG ?? ''} />
-			<input type="hidden" name="extraStarchIngredientName" value={selected.extraStarchIngredientName ?? ''} />
 			<button type="submit" class="btn-save" disabled={saving}>
 				{saving ? 'Enregistrement…' : 'Valider cette recette →'}
 			</button>

@@ -1,6 +1,6 @@
 import { prisma } from '$lib/server';
 import type { MealMacroTargets } from '$lib/nutrition/nutritionTargets';
-import type { MacroValues } from '$lib/nutrition/mealPortion';
+import type { MacroValues, MealPortion } from '$lib/nutrition/mealPortion';
 import { fitDay, isCountedMeal } from '$lib/nutrition/dayPlanner';
 import { currentProgramDayIndex } from '$lib/utils/programDay';
 import { regenerateShoppingListsOverlappingDay } from '$lib/prisma/shoppingList/regenerateOverlappingDay';
@@ -140,11 +140,15 @@ function isStalePortion(
 		quantityG: number | null;
 		extraStarchG: number | null;
 		extraStarchIngredientName: string | null;
+		complements: { name: string; grams: number }[];
 		calcCalories: number | null;
 	},
-	portion: { quantityG: number; extraStarchG: number | null; extraStarchIngredientName: string | null; calcCalories: number | null }
+	portion: MealPortion
 ): boolean {
+	const complementsKey = (list: { name: string; grams: number }[]) =>
+		list.map((c) => `${c.name}:${Math.round(c.grams)}`).join('|');
 	return (
+		complementsKey(meal.complements) !== complementsKey(portion.complements) ||
 		Math.abs((meal.quantityG ?? 0) - portion.quantityG) > 0.5 ||
 		(meal.extraStarchG ?? null) !== portion.extraStarchG ||
 		(meal.extraStarchIngredientName ?? null) !== portion.extraStarchIngredientName ||

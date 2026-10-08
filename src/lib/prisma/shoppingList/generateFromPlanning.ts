@@ -51,6 +51,7 @@ export async function generateShoppingListFromPlanning(
 					quantityG: true,
 					extraStarchG: true,
 					extraStarchIngredientName: true,
+					complements: true,
 					recipe: {
 						select: {
 							name: true,

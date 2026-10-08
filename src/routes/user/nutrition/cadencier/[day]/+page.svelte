@@ -70,7 +70,7 @@
 	);
 
 	function tabLabel(pos: string): string {
-		if (pos === 'BREAKFAST') return 'Petit-déj.';
+		if (pos === 'BREAKFAST') return 'P’tit déj ou collation';
 		if (pos === 'LUNCH')     return 'Déjeuner';
 		if (pos === 'DINNER')    return 'Dîner';
 		return pos;
@@ -170,7 +170,7 @@
 		</div>
 
 		<!-- Ingrédients -->
-		{#if activeMeal.ingredients.length > 0 || activeMeal.complement}
+		{#if activeMeal.ingredients.length > 0 || activeMeal.complements.length > 0}
 			<h3 class="subh">Ingrédients</h3>
 			<ul class="ing-list">
 				{#each activeMeal.ingredients as ing}
@@ -185,13 +185,13 @@
 						{#if ing.note}<div class="ing-note">{ing.note}</div>{/if}
 					</li>
 				{/each}
-				{#if activeMeal.complement}
+				{#each activeMeal.complements as c (c.name)}
 					<li>
-						<span class="ing-name">{activeMeal.complement.name}</span>
-						<span class="ing-qty">{fmtG(activeMeal.complement.grams * u)} g</span>
-						<div class="ing-note">Complément cru pour atteindre tes cibles du jour</div>
+						<span class="ing-name">{c.name}</span>
+						<span class="ing-qty">{fmtG(c.grams * u)} g</span>
+						<div class="ing-note">Complément pour atteindre tes cibles du jour (dessert ou collation)</div>
 					</li>
-				{/if}
+				{/each}
 			</ul>
 		{/if}
 

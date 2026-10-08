@@ -1,4 +1,5 @@
 import {
+	MEAL_COMPLEMENTS,
 	DEFAULT_COMPLEMENT_STARCH,
 	MAX_STARCH_G_DRY,
 	MAX_STARCH_G_FRESH,
@@ -26,17 +27,23 @@ import { recipeReferenceYieldG } from './scaleMealIngredients';
  * ajuste donc ensemble, pour toute la journée :
  *  - le facteur de portion de chaque recette ;
  *  - un complément féculent cru par repas (le féculent de la recette, sinon riz complet), plafonné à
- *    250 g de féculents par repas recette comprise (400 g pour pommes de terre / patates douces).
+ *    160 g de féculents secs par repas recette comprise (400 g pour pommes de terre / patates douces) ;
+ *  - des compléments servis en dessert / collation (MEAL_COMPLEMENTS) : flocons d'avoine et banane pour le
+ *    solde de glucides au-delà du plafond de féculents, skyr nature pour des protéines sans lipides.
  * Objectif : totaux de la journée au plus près des cibles du profil (moindres carrés pondérés, protéines
- * prioritaires), avec un rappel vers la part de chaque créneau (30/35/35, 50/50 en jeûne) pour garder
- * des repas équilibrés entre eux.
+ * prioritaires), avec un rappel vers la part de chaque créneau (30/35/35, 50/50 en jeûne) pour les kcal
+ * et pour les protéines, afin de garder des repas équilibrés entre eux.
  * En jeûne, le petit-déjeuner (masqué, hors total) est ajusté seul sur sa part de 30 %.
  */
 
 /** Poids des écarts relatifs : protéines, glucides, lipides, fibres. */
-const TARGET_WEIGHTS = [10, 3, 3, 1] as const;
+const TARGET_WEIGHTS = [10, 3, 3, 0.3] as const;
+/** Poids de l'écart au total de kcal de la journée. */
+const KCAL_WEIGHT = 20;
 /** Poids du rappel vers la part de kcal de chaque créneau. */
 const SHARE_WEIGHT = 0.5;
+/** Poids du rappel vers la part de protéines de chaque créneau (repas protéinés de façon équilibrée). */
+const PROTEIN_SHARE_WEIGHT = 3;
 /** Passes de la descente : complètes pour la journée retenue, réduites pour comparer les candidats. */
 const SWEEPS = 300;
 const SCORING_SWEEPS = 40;
@@ -44,7 +51,7 @@ const SCORING_SWEEPS = 40;
 export type PlannerMeal = {
 	position: string;
 	recipe: PortionRecipe;
-	/** Quantité de plat imposée (curseur de l'édition d'un repas) : seul le complément est ajusté. */
+	/** Quantité de plat imposée (curseur de l'édition d'un repas) : seuls les compléments sont ajustés. */
 	fixedQuantityG?: number | null;
 };
 
@@ -67,36 +74,60 @@ export function isCountedMeal(position: string, intermittentFasting: boolean): b
 	return !(intermittentFasting && position === 'BREAKFAST');
 }
 
+/** Un complément ajouté au repas : grammes ajustés entre 0 et un plafond. */
+type Complement = {
+	name: string;
+	/** Macros par gramme. */
+	perG: Vec;
+	kcalPerG: number;
+	/** Plafond des grammes ajoutés, selon le facteur recette courant. */
+	maxG: (s: number) => number;
+	g: number;
+};
+
 type FitVar = {
 	meal: PlannerMeal;
 	refG: number;
 	base: Vec;
 	baseKcal: number;
-	starchName: string;
-	starchPer100: Vec;
-	starchKcalPerG: number;
-	/** Féculent de la recette (g à facteur 1) compté dans le plafond. */
-	recipeStarchG: number;
-	capG: number;
+	starch: Complement;
+	extras: Complement[];
 	shareKcal: number;
+	shareProteinG: number;
 	sFixed: boolean;
 	s: number;
-	g: number;
 };
 
 function referencePortion(recipe: PortionRecipe): MealPortion {
 	const refG = recipeReferenceYieldG(recipe.referenceYieldG);
-	return { quantityG: refG, extraStarchG: null, extraStarchIngredientName: null, ...mealMacrosFor(recipe, refG) };
+	return {
+		quantityG: refG,
+		extraStarchG: null,
+		extraStarchIngredientName: null,
+		complements: [],
+		...mealMacrosFor(recipe, refG)
+	};
 }
 
-function buildVar(meal: PlannerMeal, shareKcal: number): FitVar {
+function complement(name: string, per100: MacroValues, maxG: (s: number) => number): Complement {
+	return {
+		name,
+		perG: toVec(per100).map((x) => x / 100) as Vec,
+		kcalPerG: atwaterKcal(per100) / 100,
+		maxG,
+		g: 0
+	};
+}
+
+function buildVar(meal: PlannerMeal, shareKcal: number, shareProteinG: number): FitVar {
 	const recipe = meal.recipe;
 	const refG = recipeReferenceYieldG(recipe.referenceYieldG);
 	const base = toVec(recipeBaseMacros(recipe));
 	const baseKcal = atwaterKcal(recipeBaseMacros(recipe));
 	const own = findStarchIngredient(recipe);
-	const per100 = own?.per100 ?? starchReferenceFor(DEFAULT_COMPLEMENT_STARCH)!;
-	const starchKcalPerG = atwaterKcal(per100) / 100;
+	const starchPer100 = own?.per100 ?? starchReferenceFor(DEFAULT_COMPLEMENT_STARCH)!;
+	const capG = atwaterKcal(starchPer100) / 100 < 1.5 ? MAX_STARCH_G_FRESH : MAX_STARCH_G_DRY;
+	const recipeStarchG = own?.quantityG ?? 0;
 	const sFixed = meal.fixedQuantityG != null && meal.fixedQuantityG > 0;
 	const s = sFixed
 		? meal.fixedQuantityG! / refG
@@ -106,33 +137,37 @@ function buildVar(meal: PlannerMeal, shareKcal: number): FitVar {
 		refG,
 		base,
 		baseKcal,
-		starchName: own?.name ?? DEFAULT_COMPLEMENT_STARCH,
-		starchPer100: toVec(per100).map((x) => x / 100) as Vec,
-		starchKcalPerG,
-		recipeStarchG: own?.quantityG ?? 0,
-		capG: starchKcalPerG < 1.5 ? MAX_STARCH_G_FRESH : MAX_STARCH_G_DRY,
+		// Plafond : féculent de la recette (au facteur courant) + complément.
+		starch: complement(own?.name ?? DEFAULT_COMPLEMENT_STARCH, starchPer100, (f) => Math.max(0, capG - recipeStarchG * f)),
+		extras: MEAL_COMPLEMENTS.map((c) => complement(c.name, c.per100, () => c.maxG)),
 		shareKcal,
+		shareProteinG,
 		sFixed,
-		s,
-		g: 0
+		s
 	};
-}
-
-function maxComplementG(v: FitVar): number {
-	return Math.max(0, v.capG - v.recipeStarchG * v.s);
 }
 
 /**
  * Ajuste facteurs et compléments d'un groupe de repas vers des cibles (descente par coordonnées bornée,
  * minimum exact par variable ; problème convexe à bornes près).
  */
-function solveGroup(vars: FitVar[], targets: Vec, fixed: Vec, sweeps = SWEEPS): void {
+function solveGroup(vars: FitVar[], targets: Vec, targetKcal: number, fixed: Vec, sweeps = SWEEPS): void {
 	const tot: Vec = [...fixed];
-	for (const v of vars) for (let j = 0; j < 4; j++) tot[j] += v.base[j] * v.s + v.starchPer100[j] * v.g;
+	const complementsOf = (v: FitVar) => [v.starch, ...v.extras];
+	const mealVec = (v: FitVar): Vec => {
+		const m: Vec = [0, 0, 0, 0];
+		for (let j = 0; j < 4; j++) m[j] = v.base[j] * v.s + complementsOf(v).reduce((a, c) => a + c.perG[j] * c.g, 0);
+		return m;
+	};
+	for (const v of vars) {
+		const m = mealVec(v);
+		for (let j = 0; j < 4; j++) tot[j] += m[j];
+	}
+	const mealKcal = (v: FitVar) => v.baseKcal * v.s + complementsOf(v).reduce((a, c) => a + c.kcalPerG * c.g, 0);
+	const mealProtein = (v: FitVar) => mealVec(v)[0];
 
 	// Nouvelle valeur d'une variable (facteur ou complément) d'un repas : minimum exact de l'objectif sur cet axe.
 	const step = (v: FitVar, coef: Vec, kcalCoef: number, current: number, lo: number, hi: number): number => {
-		const mealKcal = v.baseKcal * v.s + v.starchKcalPerG * v.g;
 		let num = 0;
 		let den = 0;
 		for (let j = 0; j < 4; j++) {
@@ -141,16 +176,31 @@ function solveGroup(vars: FitVar[], targets: Vec, fixed: Vec, sweeps = SWEEPS): 
 			num += TARGET_WEIGHTS[j] * (tot[j] / targets[j] - 1) * a;
 			den += TARGET_WEIGHTS[j] * a * a;
 		}
+		if (targetKcal > 0) {
+			const totKcal = 4 * tot[0] + 4 * tot[1] + 9 * tot[2] + 2 * tot[3];
+			const a = kcalCoef / targetKcal;
+			num += KCAL_WEIGHT * (totKcal / targetKcal - 1) * a;
+			den += KCAL_WEIGHT * a * a;
+		}
 		if (v.shareKcal > 0) {
 			const a = kcalCoef / v.shareKcal;
-			num += SHARE_WEIGHT * (mealKcal / v.shareKcal - 1) * a;
+			num += SHARE_WEIGHT * (mealKcal(v) / v.shareKcal - 1) * a;
 			den += SHARE_WEIGHT * a * a;
+		}
+		if (v.shareProteinG > 0) {
+			const a = coef[0] / v.shareProteinG;
+			num += PROTEIN_SHARE_WEIGHT * (mealProtein(v) / v.shareProteinG - 1) * a;
+			den += PROTEIN_SHARE_WEIGHT * a * a;
 		}
 		if (den <= 0) return current;
 		return Math.min(hi, Math.max(lo, current - num / den));
 	};
 	const move = (coef: Vec, delta: number) => {
 		for (let j = 0; j < 4; j++) tot[j] += coef[j] * delta;
+	};
+	const setComplement = (c: Complement, next: number) => {
+		move(c.perG, next - c.g);
+		c.g = next;
 	};
 
 	for (let sweep = 0; sweep < sweeps; sweep++) {
@@ -161,14 +211,13 @@ function solveGroup(vars: FitVar[], targets: Vec, fixed: Vec, sweeps = SWEEPS): 
 				move(v.base, next - v.s);
 				maxDelta = Math.max(maxDelta, Math.abs(next - v.s));
 				v.s = next;
-				const capped = Math.min(v.g, maxComplementG(v));
-				move(v.starchPer100, capped - v.g);
-				v.g = capped;
+				setComplement(v.starch, Math.min(v.starch.g, v.starch.maxG(v.s)));
 			}
-			const nextG = step(v, v.starchPer100, v.starchKcalPerG, v.g, 0, maxComplementG(v));
-			move(v.starchPer100, nextG - v.g);
-			maxDelta = Math.max(maxDelta, Math.abs(nextG - v.g) / 100);
-			v.g = nextG;
+			for (const c of complementsOf(v)) {
+				const next = step(v, c.perG, c.kcalPerG, c.g, 0, c.maxG(v.s));
+				maxDelta = Math.max(maxDelta, Math.abs(next - c.g) / 100);
+				setComplement(c, next);
+			}
 		}
 		if (maxDelta < 1e-5) break;
 	}
@@ -176,14 +225,18 @@ function solveGroup(vars: FitVar[], targets: Vec, fixed: Vec, sweeps = SWEEPS): 
 
 function toPortion(v: FitVar): MealPortion {
 	const quantityG = v.refG * v.s;
-	const grams = Math.round(v.g);
-	const extraStarchG = grams > 0 ? grams : null;
-	const extraStarchIngredientName = extraStarchG != null ? v.starchName : null;
+	const starchG = Math.round(v.starch.g);
+	const extraStarchG = starchG > 0 ? starchG : null;
+	const extraStarchIngredientName = extraStarchG != null ? v.starch.name : null;
+	const complements = v.extras
+		.map((c) => ({ name: c.name, grams: Math.round(c.g) }))
+		.filter((c) => c.grams > 0);
 	return {
 		quantityG,
 		extraStarchG,
 		extraStarchIngredientName,
-		...mealMacrosFor(v.meal.recipe, quantityG, extraStarchG, extraStarchIngredientName)
+		complements,
+		...mealMacrosFor(v.meal.recipe, quantityG, extraStarchG, extraStarchIngredientName, complements)
 	};
 }
 
@@ -203,8 +256,8 @@ export function fitDay(input: DayFitInput): MealPortion[] {
 		else {
 			// Petit-déjeuner masqué (jeûne) : ajusté seul sur sa part, prêt si le jeûne est désactivé.
 			const frac = mealBudgetFraction(m.position, false);
-			const v = buildVar(m, daily.kcal * frac);
-			solveGroup([v], toVec(daily).map((x) => x * frac) as Vec, [0, 0, 0, 0], input.sweeps);
+			const v = buildVar(m, daily.kcal * frac, daily.proteinG * frac);
+			solveGroup([v], toVec(daily).map((x) => x * frac) as Vec, daily.kcal * frac, [0, 0, 0, 0], input.sweeps);
 			result[k] = toPortion(v);
 		}
 	});
@@ -215,8 +268,11 @@ export function fitDay(input: DayFitInput): MealPortion[] {
 		const fracs = counted.map((k) => mealBudgetFraction(meals[k].position, intermittentFasting));
 		const fracSum = fracs.reduce((s, f) => s + f, 0);
 		const adjustableKcal = Math.max(0, daily.kcal - fixedKcal);
-		const vars = counted.map((k, i) => buildVar(meals[k], (adjustableKcal * fracs[i]) / fracSum));
-		solveGroup(vars, toVec(daily), fixedVec, input.sweeps);
+		const adjustableProteinG = Math.max(0, daily.proteinG - fixedVec[0]);
+		const vars = counted.map((k, i) =>
+			buildVar(meals[k], (adjustableKcal * fracs[i]) / fracSum, (adjustableProteinG * fracs[i]) / fracSum)
+		);
+		solveGroup(vars, toVec(daily), daily.kcal, fixedVec, input.sweeps);
 		counted.forEach((k, i) => (result[k] = toPortion(vars[i])));
 	}
 

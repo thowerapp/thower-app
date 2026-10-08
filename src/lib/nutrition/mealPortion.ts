@@ -10,12 +10,32 @@ import { recipeReferenceYieldG } from './scaleMealIngredients';
 
 export const SCALE_MIN = 0.15;
 export const SCALE_MAX = 2.5;
-/** Féculent total au maximum sur un repas (portion recette + complément), en grammes crus. */
-export const MAX_STARCH_G_DRY = 250;
+/** Féculent sec au maximum sur un repas (portion recette + complément), en grammes crus (~450 g cuits). */
+export const MAX_STARCH_G_DRY = 160;
 /** Idem pour les féculents frais peu denses (pommes de terre, patates douces). */
 export const MAX_STARCH_G_FRESH = 400;
 /** Complément servi quand la recette n'a pas de féculent. */
 export const DEFAULT_COMPLEMENT_STARCH = 'Riz complet';
+/**
+ * Compléments ajoutés par le programme, servis en dessert / collation (valeurs Ciqual pour 100 g, glucides
+ * hors fibres ; plafond par repas) :
+ *  - flocons d'avoine et banane : solde de glucides au-delà du plafond de féculents, sources denses et digestes ;
+ *  - skyr nature : protéines maigres, pour viser les protéines sans les lipides des plats (les recettes
+ *    apportent ~0,6 g de lipides par gramme de protéines contre ~0,46 visé).
+ */
+export const MEAL_COMPLEMENTS: { name: string; category: string; per100: MacroValues; maxG: number }[] = [
+	{ name: 'Flocons d’avoine', category: 'Féculents', per100: { proteinG: 13.5, carbsG: 58.7, fatG: 7, fiberG: 10 }, maxG: 80 },
+	{ name: 'Banane', category: 'Fruits', per100: { proteinG: 1.1, carbsG: 20, fatG: 0.3, fiberG: 2.5 }, maxG: 240 },
+	{ name: 'Skyr nature', category: 'Produits frais', per100: { proteinG: 10, carbsG: 4, fatG: 0.2, fiberG: 0 }, maxG: 150 }
+];
+
+/** Catégorie de liste de courses d'un complément (Féculents par défaut : féculent de référence). */
+export function complementCategory(name: string): string {
+	return MEAL_COMPLEMENTS.find((c) => c.name === name)?.category ?? 'Féculents';
+}
+
+/** Complément ajouté à un repas (hors féculent de la recette). */
+export type MealComplement = { name: string; grams: number };
 
 export type MacroValues = {
 	proteinG: number;
@@ -45,6 +65,8 @@ export type MealPortion = {
 	quantityG: number;
 	extraStarchG: number | null;
 	extraStarchIngredientName: string | null;
+	/** Compléments (MEAL_COMPLEMENTS) ajoutés au repas. */
+	complements: MealComplement[];
 } & MealMacros;
 
 /**
@@ -134,21 +156,31 @@ function toMealMacros(m: MacroValues): MealMacros {
 	};
 }
 
-/** Macros d'un repas pour une quantité de plat donnée + éventuel féculent ajouté. */
+/** Valeurs pour 100 g d'un complément (MEAL_COMPLEMENTS ou féculent de référence), ou null. */
+export function complementReferenceFor(name: string): MacroValues | null {
+	return MEAL_COMPLEMENTS.find((c) => c.name === name)?.per100 ?? starchReferenceFor(name);
+}
+
+/** Macros d'un repas pour une quantité de plat donnée + éventuels compléments ajoutés. */
 export function mealMacrosFor(
 	recipe: Omit<PortionRecipe, 'ingredients'>,
 	quantityG: number,
 	extraStarchG?: number | null,
-	extraStarchIngredientName?: string | null
+	extraStarchIngredientName?: string | null,
+	complements?: MealComplement[] | null
 ): MealMacros {
 	if (!recipeHasMacros(recipe)) {
 		return { calcCalories: null, calcProteinG: null, calcCarbsG: null, calcFatG: null, calcFiberG: null };
 	}
 	const factor = quantityG / recipeReferenceYieldG(recipe.referenceYieldG);
 	let m = addMacros(ZERO, recipeBaseMacros(recipe), factor);
-	if (extraStarchG != null && extraStarchG > 0 && extraStarchIngredientName) {
-		const per100 = starchReferenceFor(extraStarchIngredientName);
-		if (per100) m = addMacros(m, per100, extraStarchG / 100);
+	for (const { grams, name } of [
+		{ grams: extraStarchG, name: extraStarchIngredientName },
+		...(complements ?? [])
+	]) {
+		if (grams == null || grams <= 0 || !name) continue;
+		const per100 = complementReferenceFor(name);
+		if (per100) m = addMacros(m, per100, grams / 100);
 	}
 	return toMealMacros(m);
 }

@@ -715,6 +715,12 @@ model NutritionDay {
 }
 
 /// Repas dans une journée — macros calculées et sauvegardées en BDD
+/// Complément ajouté à un repas par le programme (nom + grammes).
+type MealComplement {
+  name  String
+  grams Float
+}
+
 model Meal {
   id             String       @id @default(auto()) @map("_id") @db.ObjectId
   nutritionDay   NutritionDay @relation(fields: [nutritionDayId], references: [id], onDelete: Cascade)
@@ -737,6 +743,9 @@ model Meal {
   extraStarchG             Float?
   /// Libellé de l'ingrédient de la recette complété (ex. « Penne complètes »)
   extraStarchIngredientName String?
+
+  /// Compléments ajoutés par le programme (flocons d'avoine, banane, skyr…) — cf. $lib/nutrition/dayPlanner
+  complements MealComplement[]
 
   /// Saisie manuelle pour plats livrés partenaires
   isManual       Boolean @default(false)

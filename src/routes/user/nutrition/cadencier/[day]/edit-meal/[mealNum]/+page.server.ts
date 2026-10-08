@@ -26,7 +26,7 @@ function positionFromParam(param: string): MealPosition | null {
 
 function positionLabel(p: MealPosition): string {
 	switch (p) {
-		case 'BREAKFAST': return 'Petit-déjeuner';
+		case 'BREAKFAST': return 'P’tit déj ou collation';
 		case 'LUNCH': return 'Déjeuner';
 		case 'DINNER': return 'Dîner';
 	}
@@ -164,10 +164,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				carbsG: slot.calcCarbsG,
 				fatG: slot.calcFatG
 			},
-			complement:
-				slot.extraStarchG != null && slot.extraStarchIngredientName
-					? { name: slot.extraStarchIngredientName, grams: slot.extraStarchG }
-					: null
+			complements: [
+				...(slot.extraStarchG != null && slot.extraStarchIngredientName
+					? [{ name: slot.extraStarchIngredientName, grams: slot.extraStarchG }]
+					: []),
+				...slot.complements
+			]
 		};
 	});
 

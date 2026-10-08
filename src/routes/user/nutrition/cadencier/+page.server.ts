@@ -24,7 +24,7 @@ const WEEKS = TOTAL_PROGRAM_WEEKS;
 function positionLabel(position: MealPosition): string {
 	switch (position) {
 		case 'BREAKFAST':
-			return 'Petit-déjeuner';
+			return 'P’tit déj ou collation';
 		case 'LUNCH':
 			return 'Déjeuner';
 		case 'DINNER':

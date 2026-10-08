@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { RECIPE_CATALOG_DEFS } from '$lib/server/seed/recipeCatalogDefs.js';
-import { atwaterKcal, findStarchIngredient, MAX_STARCH_G_DRY, MAX_STARCH_G_FRESH, type PortionRecipe } from './mealPortion';
+import {
+	MEAL_COMPLEMENTS,
+	MAX_STARCH_G_DRY,
+	MAX_STARCH_G_FRESH,
+	atwaterKcal,
+	complementReferenceFor,
+	findStarchIngredient,
+	type PortionRecipe
+} from './mealPortion';
 import { dailyMealTargets, type MealMacroTargets } from './nutritionTargets';
 import { dayDeviationScore, fitDay, isCountedMeal, pickDayRecipes, type PlannerMeal } from './dayPlanner';
 
@@ -109,12 +117,29 @@ describe('génération 91 jours × profils (macros des fiches admin)', () => {
 			const worst = (xs: number[]) => Math.max(...xs.map(Math.abs));
 
 			it('totaux du jour au plus près des cibles', () => {
-				expect(mean(rel('kcal'))).toBeLessThan(0.01);
-				expect(mean(rel('proteinG'))).toBeLessThan(0.02);
-				expect(mean(rel('carbsG'))).toBeLessThan(0.02);
-				expect(mean(rel('fatG'))).toBeLessThan(0.04);
-				expect(worst(rel('kcal'))).toBeLessThan(0.05);
-				expect(worst(rel('proteinG'))).toBeLessThan(0.05);
+				expect(mean(rel('kcal'))).toBeLessThan(0.005);
+				expect(mean(rel('proteinG'))).toBeLessThan(0.01);
+				expect(mean(rel('carbsG'))).toBeLessThan(0.01);
+				expect(mean(rel('fatG'))).toBeLessThan(0.01);
+				expect(worst(rel('kcal'))).toBeLessThan(0.01);
+				expect(worst(rel('proteinG'))).toBeLessThan(0.03);
+				expect(worst(rel('carbsG'))).toBeLessThan(0.03);
+			});
+
+			it('protéines réparties selon les créneaux (déjeuner ≈ dîner)', () => {
+				for (const r of results) {
+					const byPos = new Map(r.meals.map((m, k) => [m.position, r.portions[k].calcProteinG!]));
+					const ratio = byPos.get('LUNCH')! / byPos.get('DINNER')!;
+					expect(ratio).toBeGreaterThan(0.9);
+					expect(ratio).toBeLessThan(1.1);
+				}
+			});
+
+			it('compléments sous leur plafond', () => {
+				for (const r of results)
+					for (const p of r.portions)
+						for (const c of p.complements)
+							expect(c.grams).toBeLessThanOrEqual(MEAL_COMPLEMENTS.find((x) => x.name === c.name)!.maxG + 0.5);
 			});
 
 			it('kcal de chaque repas = 4 P + 4 G + 9 L + 2 fibres', () => {
@@ -166,10 +191,14 @@ describe('fitDay', () => {
 	it('garde les recettes de l’admin : seul le facteur de portion et le complément varient', () => {
 		const [p] = fitDay({ meals: [{ position: 'LUNCH', recipe: lunch }], daily: CLIENT, intermittentFasting: true });
 		const factor = p.quantityG / lunch.referenceYieldG!;
-		const own = findStarchIngredient(lunch)!;
-		const complement = p.extraStarchIngredientName === own.name ? (p.extraStarchG ?? 0) / 100 : 0;
-		expect(p.calcProteinG).toBeCloseTo(lunch.nutritionProteinG! * factor + own.per100.proteinG * complement, 6);
-		expect(p.calcFatG).toBeCloseTo(lunch.nutritionFatG! * factor + own.per100.fatG * complement, 6);
+		const added = [
+			{ name: p.extraStarchIngredientName, grams: p.extraStarchG ?? 0 },
+			...p.complements
+		].filter((c): c is { name: string; grams: number } => c.name != null && c.grams > 0);
+		const addedOf = (key: 'proteinG' | 'fatG') =>
+			added.reduce((s, c) => s + (complementReferenceFor(c.name)![key] * c.grams) / 100, 0);
+		expect(p.calcProteinG).toBeCloseTo(lunch.nutritionProteinG! * factor + addedOf('proteinG'), 6);
+		expect(p.calcFatG).toBeCloseTo(lunch.nutritionFatG! * factor + addedOf('fatG'), 6);
 	});
 
 	it('sert du riz complet en complément quand la recette n’a pas de féculent', () => {
@@ -213,10 +242,28 @@ describe('fitDay', () => {
 		expect(forced[1].quantityG).toBeGreaterThan(free[1].quantityG);
 	});
 
+	it('journée du bilan Gemini (Banane-Chocolat + Satay, jeûne) : cibles atteintes, protéines 50/50, riz ≤ 160 g cru', () => {
+		const meals = [
+			{ position: 'LUNCH', recipe: byName('Sauté de Poulet cacahuètes, Chou-Fleur') },
+			{ position: 'DINNER', recipe: byName('Sauté de Poulet Satay') }
+		];
+		const { portions, tot } = dayTotals(meals, CLIENT, true);
+		expect(Math.abs(tot.kcal / CLIENT.kcal - 1)).toBeLessThan(0.01);
+		expect(Math.abs(tot.proteinG / CLIENT.proteinG - 1)).toBeLessThan(0.02);
+		expect(Math.abs(tot.carbsG / CLIENT.carbsG - 1)).toBeLessThan(0.03);
+		expect(Math.abs(tot.fatG / CLIENT.fatG - 1)).toBeLessThan(0.03);
+		expect(portions[0].calcProteinG! / portions[1].calcProteinG!).toBeGreaterThan(0.9);
+		expect(portions[0].calcProteinG! / portions[1].calcProteinG!).toBeLessThan(1.1);
+		const lunchRecipe = meals[0].recipe;
+		const riceG = (35 * portions[0].quantityG) / lunchRecipe.referenceYieldG! + (portions[0].extraStarchG ?? 0);
+		expect(riceG).toBeLessThanOrEqual(MAX_STARCH_G_DRY + 1);
+	});
+
 	it('sans cibles : portions de référence', () => {
 		const [p] = fitDay({ meals: [{ position: 'LUNCH', recipe: lunch }], daily: null, intermittentFasting: false });
 		expect(p.quantityG).toBe(lunch.referenceYieldG);
 		expect(p.extraStarchG).toBeNull();
+		expect(p.complements).toEqual([]);
 	});
 
 	it('meilleure association = écart plus faible qu’une association tirée au hasard', () => {

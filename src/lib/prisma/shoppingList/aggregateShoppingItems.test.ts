@@ -266,6 +266,31 @@ describe('aggregateShoppingItemsFromPlanningDays', () => {
 		expect(items.find((i) => i.ingredientName === 'Œufs entiers')?.totalQuantityG).toBe(180);
 	});
 
+	it('ajoute les compléments du programme dans leur catégorie', () => {
+		const items = aggregateShoppingItemsFromPlanningDays([
+			{
+				dayIndex: 1,
+				meals: [
+					{
+						quantityG: 100,
+						complements: [
+							{ name: 'Banane', grams: 240 },
+							{ name: 'Skyr nature', grams: 150 }
+						],
+						recipe: {
+							name: 'Bowl',
+							referenceYieldG: 100,
+							ingredients: [{ name: 'Skyr nature', quantityG: 50, category: 'Produits frais', unit: 'g' }]
+						}
+					}
+				]
+			}
+		]);
+
+		expect(items.find((i) => i.ingredientName === 'Banane')).toMatchObject({ totalQuantityG: 240, category: 'Fruits' });
+		expect(items.find((i) => i.ingredientName === 'Skyr nature')?.totalQuantityG).toBe(200);
+	});
+
 	it('ignore les repas sans recette', () => {
 		expect(
 			aggregateShoppingItemsFromPlanningDays([{ dayIndex: 1, meals: [{ quantityG: 100, recipe: null }] }])

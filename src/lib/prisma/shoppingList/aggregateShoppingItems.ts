@@ -1,5 +1,6 @@
 import { shoppingListAggregateKey } from '$lib/nutrition/normalizeIngredientName';
 import { mealIngredientGrams } from '$lib/nutrition/scaleMealIngredients';
+import { complementCategory } from '$lib/nutrition/mealPortion';
 import type { ShoppingItemSource } from './types';
 
 export type AggregatedShoppingItem = {
@@ -101,6 +102,7 @@ export type PlanningMealInput = {
 	quantityG: number | null;
 	extraStarchG?: number | null;
 	extraStarchIngredientName?: string | null;
+	complements?: { name: string; grams: number }[] | null;
 	recipe: {
 		name: string | null;
 		referenceYieldG: number | null;
@@ -149,6 +151,11 @@ export function aggregateShoppingItemsFromPlanningDays(
 				!recipe.ingredients.some((ing) => ing.name === complementName)
 			) {
 				addToShoppingAggregate(aggregated, complementName, 'Féculents', 'g', meal.extraStarchG, false, recipeName);
+			}
+			for (const c of meal.complements ?? []) {
+				if (c.grams > 0) {
+					addToShoppingAggregate(aggregated, c.name, complementCategory(c.name), 'g', c.grams, false, recipeName);
+				}
 			}
 		}
 	}

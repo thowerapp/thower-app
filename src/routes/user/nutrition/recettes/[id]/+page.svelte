@@ -9,7 +9,7 @@
 	$effect(() => { isFavorite = data.isFavorite; });
 
 	const categoryLabels: Record<string, string> = {
-		BREAKFAST: 'Petit déjeuner',
+		BREAKFAST: 'P’tit déj ou collation',
 		MEAL: 'Repas',
 		DESSERT: 'Dessert'
 	};

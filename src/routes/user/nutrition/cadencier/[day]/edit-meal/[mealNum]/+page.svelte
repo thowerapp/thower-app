@@ -121,8 +121,10 @@
 			{/if}
 		</div>
 
-		{#if selected.complement}
-			<p class="starch-note">+ {selected.complement.grams} g de {selected.complement.name.toLowerCase()} (cru) pour atteindre tes cibles du jour</p>
+		{#if selected.complements.length > 0}
+			<p class="starch-note">
+				+ {selected.complements.map((c) => `${c.grams} g de ${c.name.toLowerCase()}`).join(', ')} pour atteindre tes cibles du jour
+			</p>
 		{/if}
 
 		{#if previewMacros}

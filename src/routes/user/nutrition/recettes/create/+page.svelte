@@ -20,7 +20,7 @@
 	<label>
 		<span>Catégorie</span>
 		<select name="category" required>
-			<option value="BREAKFAST">Petit déjeuner</option>
+			<option value="BREAKFAST">P’tit déj ou collation</option>
 			<option value="MEAL" selected>Repas</option>
 			<option value="DESSERT">Dessert</option>
 		</select>

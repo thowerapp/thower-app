@@ -46,8 +46,8 @@ type DayMealDTO = {
 	instructions: string | null;
 	allergens: string[];
 	ingredients: DayIngredientDTO[];
-	/** Complément féculent ajouté par le programme quand il ne fait pas partie de la recette (ex. riz complet). */
-	complement: { name: string; grams: number } | null;
+	/** Compléments ajoutés par le programme hors ingrédients de la recette (riz complet, flocons, banane, skyr…). */
+	complements: { name: string; grams: number }[];
 	calories: number;
 	proteinG: number;
 	carbsG: number;
@@ -58,7 +58,7 @@ type DayMealDTO = {
 function positionLabel(position: MealPosition): string {
 	switch (position) {
 		case 'BREAKFAST':
-			return 'Petit-déjeuner';
+			return 'P’tit déj ou collation';
 		case 'LUNCH':
 			return 'Déjeuner';
 		case 'DINNER':
@@ -309,13 +309,16 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			instructions: r?.instructions ? scaleQuantitiesInText(r.instructions, factor) : null,
 			allergens: r?.allergens ?? [],
 			ingredients,
-			complement:
-				m.extraStarchG != null &&
+			complements: [
+				// Féculent ajouté : fusionné dans la ligne de l'ingrédient s'il fait partie de la recette.
+				...(m.extraStarchG != null &&
 				m.extraStarchG > 0 &&
 				m.extraStarchIngredientName &&
 				!(r?.ingredients ?? []).some((ing) => ing.name === m.extraStarchIngredientName)
-					? { name: m.extraStarchIngredientName, grams: m.extraStarchG }
-					: null,
+					? [{ name: m.extraStarchIngredientName, grams: m.extraStarchG }]
+					: []),
+				...m.complements
+			],
 			...macros
 		};
 	});

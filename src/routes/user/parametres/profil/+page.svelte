@@ -168,12 +168,12 @@ $effect(() => {
 <details class="acc">
   <summary class="acc-sum">
     <span class="acc-title">Alimentation</span>
-    <span class="acc-sub">{data.profile?.breakfastEnabled ? 'Petit déj. activé' : 'Sans petit déj.'}</span>
+    <span class="acc-sub">{data.profile?.breakfastEnabled ? 'P’tit déj ou collation activé' : 'Sans p’tit déj ni collation'}</span>
     <span class="acc-arr"></span>
   </summary>
   <div class="acc-body">
     <div class="u-li">
-      <div class="u-li-b"><div class="u-li-s">Petit déjeuner</div><div class="u-li-t">{data.profile?.breakfastEnabled ? 'Activé' : 'Désactivé'}</div></div>
+      <div class="u-li-b"><div class="u-li-s">P’tit déj ou collation</div><div class="u-li-t">{data.profile?.breakfastEnabled ? 'Activé' : 'Désactivé'}</div></div>
     </div>
     <div class="u-li">
       <div class="u-li-b"><div class="u-li-s">Jeûne intermittent (matin)</div><div class="u-li-t">{data.profile?.intermittentFastingMorning === true ? 'Activé' : data.profile?.intermittentFastingMorning === false ? 'Désactivé' : '—'}</div></div>

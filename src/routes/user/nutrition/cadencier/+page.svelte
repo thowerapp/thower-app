@@ -131,7 +131,7 @@
 				{#if jeuneActive}
 					Actif · 2 repas équilibrés
 				{:else}
-					Inactif · 3 repas (Petit-déj. + Déjeuner + Dîner)
+					Inactif · 3 repas (P’tit déj ou collation + Déjeuner + Dîner)
 				{/if}
 			</div>
 		</div>

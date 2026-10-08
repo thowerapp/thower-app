@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mealBudgetFraction, mealMacrosFor, starchReferenceFor, type PortionRecipe } from './mealPortion';
-import { scaleQuantitiesInText } from './scaleMealIngredients';
+import { scaleIngredientNote, scaleQuantitiesInText } from './scaleMealIngredients';
 
 /** Recette catalogue « Penne Complètes au Poulet, Sauce Tomate et Parmesan ». */
 const PENNE: PortionRecipe = {
@@ -75,5 +75,16 @@ describe('scaleQuantitiesInText', () => {
 		expect(
 			scaleQuantitiesInText('Cuire les 3 œufs durs 9 minutes. Ajouter les 50g de Skyr.', 1.42)
 		).toBe('Cuire les 4 œufs durs 9 minutes. Ajouter les 71 g de Skyr.');
+	});
+});
+
+describe('scaleIngredientNote', () => {
+	it('recalcule le nombre d’unités en tête de note', () => {
+		expect(scaleIngredientNote('2 bananes - dessert', 0.4875)).toBe('1 banane - dessert');
+		expect(scaleIngredientNote('4 tranches', 1.5)).toBe('6 tranches');
+		expect(scaleIngredientNote('1 petit avocat (chair)', 1.2)).toBe('1 petit avocat (chair)');
+		expect(scaleIngredientNote('2 œufs mollets', 0.4875)).toBe('1 œuf mollets');
+		expect(scaleIngredientNote('50g plat + 200g dessert', 1.3)).toBe('65 g plat + 260 g dessert');
+		expect(scaleIngredientNote('dessert', 0.5)).toBe('dessert');
 	});
 });

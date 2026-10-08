@@ -4,7 +4,13 @@ import { prisma } from '$lib/server';
 import type { MealPosition } from '@prisma/client';
 import { dailyWaterLitersMin } from '$lib/nutrition/nutritionTargets';
 import { mealTargetsFromProfile, profileBreadMacros } from '$lib/server/nutrition/userMealTargets';
-import { mealIngredientGrams, mealScaleFactor, scaleQuantitiesInText } from '$lib/nutrition/scaleMealIngredients';
+import { refreshStaleDays } from '$lib/server/nutrition/rescaleFutureMeals';
+import {
+	mealIngredientGrams,
+	mealScaleFactor,
+	scaleIngredientNote,
+	scaleQuantitiesInText
+} from '$lib/nutrition/scaleMealIngredients';
 import {
 	ensureBreakfastMealForDay,
 	loadBreakfastBackfillContextFromProfile,
@@ -123,6 +129,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > TOTAL_DAYS) {
 		throw error(404, 'Jour invalide');
 	}
+
+	// Portions alignées sur le calcul actuel avant affichage (aujourd'hui et jours suivants).
+	await refreshStaleDays(userId, dayIndex, dayIndex);
 
 	const [profile, lastMeasure, nutritionDayInitial] = await Promise.all([
 		prisma.userProfile.findUnique({
@@ -279,7 +288,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 					unit: ing.unit,
 					category: ing.category,
 					isOptional: ing.isOptional,
-					note: ing.note ? scaleQuantitiesInText(ing.note, factor) : null
+					note: ing.note ? scaleIngredientNote(ing.note, factor) : null
 				};
 			}) ?? [];
 

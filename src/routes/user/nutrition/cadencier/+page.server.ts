@@ -9,7 +9,7 @@ import {
 	TOTAL_PROGRAM_WEEKS
 } from '$lib/utils/programDay';
 import { mealTargetsFromProfile } from '$lib/server/nutrition/userMealTargets';
-import { rescaleDayMeals } from '$lib/server/nutrition/rescaleFutureMeals';
+import { refreshStaleDays, rescaleDayMeals } from '$lib/server/nutrition/rescaleFutureMeals';
 import {
 	ensureBreakfastMealForDay,
 	backfillMissingBreakfastMeals,
@@ -126,6 +126,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 	const weekStart = (selectedWeek - 1) * 7 + 1;
 	const weekEnd = Math.min(TOTAL_DAYS, weekStart + 6);
+
+	// Portions d'aujourd'hui et des jours suivants alignées sur le calcul actuel avant affichage.
+	await refreshStaleDays(userId, weekStart, weekEnd);
 
 	const nutritionDayQuery = {
 		where: { userId, dayIndex: { gte: weekStart, lte: weekEnd } },

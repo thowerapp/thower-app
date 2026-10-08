@@ -11,6 +11,7 @@ import { hashPassword } from '$lib/lucia/password';
 import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
 import { regenerateFutureProgramForUser } from '$lib/server/program-generation/regenerateFutureProgramForUser';
 import { civilDateInTimeZone, zonedMidnightUtc } from '$lib/utils/programDay';
+import { rescaleDayMeals } from '$lib/server/nutrition/rescaleFutureMeals';
 import {
 	adminBodyMeasurementDeleteSchema,
 	adminBodyMeasurementSchema,
@@ -436,10 +437,13 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const parsed = adminNutritionDaySchema.safeParse(formDataToObject(formData));
 		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Jour nutrition invalide' });
-		await prisma.nutritionDay.update({
+		const day = await prisma.nutritionDay.update({
 			where: { id: parsed.data.id },
-			data: { intermittentFasting: parsed.data.intermittentFasting }
+			data: { intermittentFasting: parsed.data.intermittentFasting },
+			select: { id: true, userId: true, dayIndex: true }
 		});
+		// Déjeuner / dîner passent de 35 % à 50 % (ou inversement) : la journée est recalculée.
+		await rescaleDayMeals(day.userId, day.id, day.dayIndex);
 		return { success: true };
 	},
 

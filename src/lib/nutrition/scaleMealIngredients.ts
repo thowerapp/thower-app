@@ -61,3 +61,23 @@ export function scaleQuantitiesInText(text: string, factor: number): string {
 			return `${count}${space}${word}${count > 1 ? 's' : ''}`;
 		});
 }
+
+/** Accorde un mot simple au nombre (« banane » / « bananes »). */
+function inflect(word: string, count: number): string {
+	if (count > 1) return /[sx]$/i.test(word) ? word : `${word}s`;
+	return word.length > 3 && /s$/i.test(word) ? word.slice(0, -1) : word;
+}
+
+/**
+ * Note d'ingrédient mise à l'échelle : grammages, œufs, et nombre d'unités en tête de note
+ * (« 2 bananes - dessert » × 0,5 → « 1 banane - dessert », « 4 tranches » × 1,5 → « 6 tranches »).
+ */
+export function scaleIngredientNote(note: string, factor: number): string {
+	const scaled = scaleQuantitiesInText(note, factor);
+	if (!Number.isFinite(factor) || factor === 1) return scaled;
+	return scaled.replace(/^(\s*)(\d+)(\s+)([a-zà-ÿ]+)/i, (match, lead: string, n: string, space: string, word: string) => {
+		if (/^(œuf|oeuf|g)$/i.test(word.replace(/s$/i, ''))) return match;
+		const count = Math.max(1, Math.round(Number.parseInt(n, 10) * factor));
+		return `${lead}${count}${space}${inflect(word, count)}`;
+	});
+}

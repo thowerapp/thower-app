@@ -25,7 +25,13 @@ const dayMealsInclude = {
 type DayWithMeals = Awaited<ReturnType<typeof loadDays>>[number];
 type DayMeal = DayWithMeals['meals'][number];
 
-function loadDays(dayWhere: { userId: string; dayIndex?: { gt: number }; id?: string | { in: string[] } }) {
+type DayWhere = {
+	userId: string;
+	dayIndex?: { gt?: number; gte?: number; lte?: number };
+	id?: string | { in: string[] };
+};
+
+function loadDays(dayWhere: DayWhere) {
 	return prisma.nutritionDay.findMany({ where: dayWhere, include: dayMealsInclude });
 }
 
@@ -87,10 +93,7 @@ export function refitDayPortions(
 }
 
 /** Recalcule ensemble les portions et compléments des repas ajustables de chaque journée. */
-async function refitDays(
-	dayWhere: { userId: string; dayIndex?: { gt: number }; id?: string | { in: string[] } },
-	targets: MealMacroTargets
-): Promise<void> {
+async function refitDays(dayWhere: DayWhere, targets: MealMacroTargets): Promise<void> {
 	const days = await loadDays(dayWhere);
 	const updates = days.flatMap((day) =>
 		refitDayPortions(day, targets).map(({ mealId, portion }) =>
@@ -129,4 +132,55 @@ export async function refitDaysById(userId: string, nutritionDayIds: string[]): 
 export async function rescaleDayMeals(userId: string, nutritionDayId: string, dayIndex: number): Promise<void> {
 	await refitDaysById(userId, [nutritionDayId]);
 	await regenerateShoppingListsOverlappingDay(userId, dayIndex);
+}
+
+/** true si la portion enregistrée ne correspond plus au calcul actuel (profil, jeûne, recette ou programme modifiés). */
+function isStalePortion(
+	meal: {
+		quantityG: number | null;
+		extraStarchG: number | null;
+		extraStarchIngredientName: string | null;
+		calcCalories: number | null;
+	},
+	portion: { quantityG: number; extraStarchG: number | null; extraStarchIngredientName: string | null; calcCalories: number | null }
+): boolean {
+	return (
+		Math.abs((meal.quantityG ?? 0) - portion.quantityG) > 0.5 ||
+		(meal.extraStarchG ?? null) !== portion.extraStarchG ||
+		(meal.extraStarchIngredientName ?? null) !== portion.extraStarchIngredientName ||
+		Math.abs((meal.calcCalories ?? 0) - (portion.calcCalories ?? 0)) > 1
+	);
+}
+
+/**
+ * Recalage à l'affichage : recalcule les journées [from, to] à partir d'aujourd'hui et enregistre les
+ * portions qui ne correspondent plus au calcul actuel (jeûne basculé sans recalcul, profil ou recette
+ * modifiés, repas calculés par une ancienne version). Les jours passés et les repas mangés ou manuels ne
+ * changent pas. Le calcul étant déterministe, une journée à jour n'est jamais réécrite.
+ */
+export async function refreshStaleDays(userId: string, from: number, to: number): Promise<void> {
+	const [targets, user] = await Promise.all([
+		loadUserMealTargets(userId),
+		prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true } })
+	]);
+	if (!targets) return;
+	const start = Math.max(from, currentProgramDayIndex(user?.programStartDate ?? null));
+	if (start > to) return;
+
+	const days = await loadDays({ userId, dayIndex: { gte: start, lte: to } });
+	const updates: ReturnType<typeof prisma.meal.update>[] = [];
+	const changedDays = new Set<number>();
+	for (const day of days) {
+		for (const { mealId, portion } of refitDayPortions(day, targets)) {
+			const meal = day.meals.find((m) => m.id === mealId)!;
+			if (!isStalePortion(meal, portion)) continue;
+			updates.push(prisma.meal.update({ where: { id: mealId }, data: portion }));
+			changedDays.add(day.dayIndex);
+		}
+	}
+	if (updates.length === 0) return;
+	await prisma.$transaction(updates);
+	for (const dayIndex of changedDays) {
+		await regenerateShoppingListsOverlappingDay(userId, dayIndex);
+	}
 }

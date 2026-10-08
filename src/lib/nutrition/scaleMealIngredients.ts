@@ -81,3 +81,21 @@ export function scaleIngredientNote(note: string, factor: number): string {
 		return `${lead}${count}${space}${inflect(word, count)}`;
 	});
 }
+
+/** Poids d'un œuf moyen entier, sans coquille (calibre M). */
+export const EGG_UNIT_G = 55;
+
+/**
+ * Œufs servis à l'unité : nombre d'œufs entiers (au moins 1) le plus proche des grammes calculés, et
+ * grammes correspondants. Null si l'ingrédient n'est pas un œuf.
+ */
+export function wholeEggPortion(name: string, grams: number | null): { count: number; grams: number } | null {
+	if (grams == null || grams <= 0 || !/(^|[\s(])(œuf|oeuf)s?\b/.test(name.toLowerCase())) return null;
+	const count = Math.max(1, Math.round(grams / EGG_UNIT_G));
+	return { count, grams: count * EGG_UNIT_G };
+}
+
+/** Remplace le nombre d'œufs cité dans une note (« 2 œufs mollets » → « 1 œuf mollets »). */
+export function withEggCount(note: string, count: number): string {
+	return note.replace(/\d+(\s+)(œuf|oeuf)s?/i, (_, space: string, word: string) => `${count}${space}${word}${count > 1 ? 's' : ''}`);
+}

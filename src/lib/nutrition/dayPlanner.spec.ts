@@ -135,6 +135,16 @@ describe('génération 91 jours × profils (macros des fiches admin)', () => {
 				}
 			});
 
+			it('kcal réparties selon les créneaux (20/40/40 à 3 repas, 50/50 en jeûne)', () => {
+				for (const r of results)
+					r.portions.forEach((p, k) => {
+						const position = r.meals[k].position;
+						if (!isCountedMeal(position, profile.fasting)) return;
+						const expected = position === 'BREAKFAST' ? 0.2 : profile.fasting ? 0.5 : 0.4;
+						expect(Math.abs(p.calcCalories! / r.tot.kcal - expected)).toBeLessThan(0.05);
+					});
+			});
+
 			it('compléments sous leur plafond', () => {
 				for (const r of results)
 					for (const p of r.portions)
@@ -175,8 +185,8 @@ describe('génération 91 jours × profils (macros des fiches admin)', () => {
 					const counted = r.portions.filter((_, k) => isCountedMeal(r.meals[k].position, profile.fasting));
 					for (const p of counted) {
 						const share = p.calcCalories! / r.tot.kcal;
-						expect(share).toBeGreaterThan(0.2);
-						expect(share).toBeLessThan(0.7);
+						expect(share).toBeGreaterThan(0.15);
+						expect(share).toBeLessThan(0.6);
 					}
 				}
 			});
@@ -209,7 +219,7 @@ describe('fitDay', () => {
 		expect(p.extraStarchG).toBeGreaterThan(0);
 	});
 
-	it('jeûne : petit-déjeuner hors total, ajusté seul sur ses 30 %', () => {
+	it('jeûne : p’tit déj hors total, ajusté seul sur ses 20 %', () => {
 		const breakfast = POOLS.BREAKFAST[0];
 		const meals = [
 			{ position: 'BREAKFAST', recipe: breakfast },
@@ -219,8 +229,8 @@ describe('fitDay', () => {
 		const withBreakfast = fitDay({ meals, daily: CLIENT, intermittentFasting: true });
 		const without = fitDay({ meals: meals.slice(1), daily: CLIENT, intermittentFasting: true });
 		expect(withBreakfast[1].calcCalories).toBeCloseTo(without[0].calcCalories!, 3);
-		expect(withBreakfast[0].calcCalories! / (CLIENT.kcal * 0.3)).toBeGreaterThan(0.85);
-		expect(withBreakfast[0].calcCalories! / (CLIENT.kcal * 0.3)).toBeLessThan(1.15);
+		expect(withBreakfast[0].calcCalories! / (CLIENT.kcal * 0.2)).toBeGreaterThan(0.85);
+		expect(withBreakfast[0].calcCalories! / (CLIENT.kcal * 0.2)).toBeLessThan(1.15);
 	});
 
 	it('repas manuel ou mangé : son apport est déduit, les autres repas complètent la journée', () => {

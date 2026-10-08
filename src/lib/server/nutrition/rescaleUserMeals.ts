@@ -2,7 +2,6 @@ import { prisma } from '$lib/server';
 import type { MealMacroTargets } from '$lib/nutrition/nutritionTargets';
 import type { MacroValues, MealPortion } from '$lib/nutrition/mealPortion';
 import { fitDay, isCountedMeal } from '$lib/nutrition/dayPlanner';
-import { currentProgramDayIndex } from '$lib/utils/programDay';
 import { regenerateShoppingListsOverlappingDay } from '$lib/prisma/shoppingList/regenerateOverlappingDay';
 import { loadUserMealTargets } from './userMealTargets';
 
@@ -106,18 +105,13 @@ async function refitDays(dayWhere: DayWhere, targets: MealMacroTargets): Promise
 }
 
 /**
- * Met à jour les portions de tous les repas futurs en fonction des cibles actuelles du profil
- * (nouveau poids, nouveau % masse grasse…). Les jours passés (≤ currentDayIndex) ne sont pas touchés.
+ * Recalcule tout le cadencier sur les cibles actuelles du profil (nouveau poids, % masse grasse, activité,
+ * pain…). Les repas déjà mangés ou saisis à la main ne changent pas ; leur apport est déduit de leur journée.
  */
-export async function rescaleFutureMeals(userId: string): Promise<void> {
-	const [targets, user] = await Promise.all([
-		loadUserMealTargets(userId),
-		prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true } })
-	]);
+export async function rescaleUserMeals(userId: string): Promise<void> {
+	const targets = await loadUserMealTargets(userId);
 	if (!targets) return;
-
-	const currentDayIndex = currentProgramDayIndex(user?.programStartDate ?? null);
-	await refitDays({ userId, dayIndex: { gt: currentDayIndex } }, targets);
+	await refitDays({ userId }, targets);
 }
 
 /** Recalcule les portions de journées données (sans liste de courses). */
@@ -157,21 +151,16 @@ function isStalePortion(
 }
 
 /**
- * Recalage à l'affichage : recalcule les journées [from, to] à partir d'aujourd'hui et enregistre les
- * portions qui ne correspondent plus au calcul actuel (jeûne basculé sans recalcul, profil ou recette
- * modifiés, repas calculés par une ancienne version). Les jours passés et les repas mangés ou manuels ne
- * changent pas. Le calcul étant déterministe, une journée à jour n'est jamais réécrite.
+ * Recalage à l'affichage : recalcule les journées [from, to] et enregistre les portions qui ne
+ * correspondent plus au calcul actuel (jeûne basculé sans recalcul, profil ou recette modifiés, repas
+ * calculés par une ancienne version). Les repas mangés ou manuels ne changent pas. Le calcul étant
+ * déterministe, une journée à jour n'est jamais réécrite.
  */
 export async function refreshStaleDays(userId: string, from: number, to: number): Promise<void> {
-	const [targets, user] = await Promise.all([
-		loadUserMealTargets(userId),
-		prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true } })
-	]);
+	const targets = await loadUserMealTargets(userId);
 	if (!targets) return;
-	const start = Math.max(from, currentProgramDayIndex(user?.programStartDate ?? null));
-	if (start > to) return;
 
-	const days = await loadDays({ userId, dayIndex: { gte: start, lte: to } });
+	const days = await loadDays({ userId, dayIndex: { gte: from, lte: to } });
 	const updates: ReturnType<typeof prisma.meal.update>[] = [];
 	const changedDays = new Set<number>();
 	for (const day of days) {

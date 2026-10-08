@@ -187,11 +187,11 @@ export function mealMacrosFor(
 
 /**
  * Fraction du budget journalier par créneau.
- * Sans jeûne : petit-déj 30 %, déjeuner 35 %, dîner 35 %.
- * Avec jeûne : déjeuner et dîner 50 % chacun ; le petit-déj reste en BDD à 30 % (masqué côté UI).
+ * Sans jeûne : p'tit déj ou collation 20 %, déjeuner 40 %, dîner 40 %.
+ * Avec jeûne : déjeuner et dîner 50 % chacun ; le p'tit déj reste en BDD à 20 % (masqué côté UI).
  */
 export function mealBudgetFraction(position: string, intermittentFasting: boolean): number {
-	if (position === 'BREAKFAST') return 0.3;
-	if (position === 'LUNCH' || position === 'DINNER') return intermittentFasting ? 0.5 : 0.35;
+	if (position === 'BREAKFAST') return 0.2;
+	if (position === 'LUNCH' || position === 'DINNER') return intermittentFasting ? 0.5 : 0.4;
 	return 1 / 3;
 }

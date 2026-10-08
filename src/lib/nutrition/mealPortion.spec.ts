@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mealBudgetFraction, mealMacrosFor, starchReferenceFor, type PortionRecipe } from './mealPortion';
-import { scaleIngredientNote, scaleQuantitiesInText } from './scaleMealIngredients';
+import { scaleIngredientNote, scaleQuantitiesInText, wholeEggPortion, withEggCount } from './scaleMealIngredients';
 
 /** Recette catalogue « Penne Complètes au Poulet, Sauce Tomate et Parmesan ». */
 const PENNE: PortionRecipe = {
@@ -19,9 +19,9 @@ const PENNE: PortionRecipe = {
 };
 
 describe('mealBudgetFraction', () => {
-	it('répartit 30/35/35 sans jeûne et 50/50 avec jeûne', () => {
-		expect(mealBudgetFraction('BREAKFAST', false)).toBe(0.3);
-		expect(mealBudgetFraction('LUNCH', false)).toBe(0.35);
+	it('répartit 20/40/40 sans jeûne et 50/50 avec jeûne', () => {
+		expect(mealBudgetFraction('BREAKFAST', false)).toBe(0.2);
+		expect(mealBudgetFraction('LUNCH', false)).toBe(0.4);
 		expect(mealBudgetFraction('DINNER', true)).toBe(0.5);
 	});
 });
@@ -86,5 +86,20 @@ describe('scaleIngredientNote', () => {
 		expect(scaleIngredientNote('2 œufs mollets', 0.4875)).toBe('1 œuf mollets');
 		expect(scaleIngredientNote('50g plat + 200g dessert', 1.3)).toBe('65 g plat + 260 g dessert');
 		expect(scaleIngredientNote('dessert', 0.5)).toBe('dessert');
+	});
+});
+
+describe('wholeEggPortion', () => {
+	it('sert les œufs entiers (55 g), au moins un', () => {
+		expect(wholeEggPortion('Œuf entier', 27.7)).toEqual({ count: 1, grams: 55 });
+		expect(wholeEggPortion('Œufs entiers', 120)).toEqual({ count: 2, grams: 110 });
+		expect(wholeEggPortion('Œufs entiers (plat principal)', 255.6)).toEqual({ count: 5, grams: 275 });
+		expect(wholeEggPortion('Bœuf haché 5% MG', 150)).toBeNull();
+		expect(wholeEggPortion('Œuf entier', null)).toBeNull();
+	});
+
+	it('aligne le nombre d’œufs de la note', () => {
+		expect(withEggCount('2 œufs mollets', 1)).toBe('1 œuf mollets');
+		expect(withEggCount('1 œuf', 3)).toBe('3 œufs');
 	});
 });

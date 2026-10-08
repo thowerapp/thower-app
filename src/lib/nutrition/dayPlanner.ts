@@ -31,9 +31,9 @@ import { recipeReferenceYieldG } from './scaleMealIngredients';
  *  - des compléments servis en dessert / collation (MEAL_COMPLEMENTS) : flocons d'avoine et banane pour le
  *    solde de glucides au-delà du plafond de féculents, skyr nature pour des protéines sans lipides.
  * Objectif : totaux de la journée au plus près des cibles du profil (moindres carrés pondérés, protéines
- * prioritaires), avec un rappel vers la part de chaque créneau (30/35/35, 50/50 en jeûne) pour les kcal
+ * prioritaires), avec un rappel vers la part de chaque créneau (20/40/40, 50/50 en jeûne) pour les kcal
  * et pour les protéines, afin de garder des repas équilibrés entre eux.
- * En jeûne, le petit-déjeuner (masqué, hors total) est ajusté seul sur sa part de 30 %.
+ * En jeûne, le petit-déjeuner (masqué, hors total) est ajusté seul sur sa part de 20 %.
  */
 
 /** Poids des écarts relatifs : protéines, glucides, lipides, fibres. */

@@ -11,7 +11,7 @@ import { hashPassword } from '$lib/lucia/password';
 import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
 import { regenerateFutureProgramForUser } from '$lib/server/program-generation/regenerateFutureProgramForUser';
 import { civilDateInTimeZone, zonedMidnightUtc } from '$lib/utils/programDay';
-import { rescaleDayMeals } from '$lib/server/nutrition/rescaleFutureMeals';
+import { rescaleDayMeals } from '$lib/server/nutrition/rescaleUserMeals';
 import {
 	adminBodyMeasurementDeleteSchema,
 	adminBodyMeasurementSchema,
@@ -442,7 +442,7 @@ export const actions: Actions = {
 			data: { intermittentFasting: parsed.data.intermittentFasting },
 			select: { id: true, userId: true, dayIndex: true }
 		});
-		// Déjeuner / dîner passent de 35 % à 50 % (ou inversement) : la journée est recalculée.
+		// Déjeuner / dîner passent de 40 % à 50 % (ou inversement) : la journée est recalculée.
 		await rescaleDayMeals(day.userId, day.id, day.dayIndex);
 		return { success: true };
 	},

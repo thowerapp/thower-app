@@ -263,7 +263,8 @@ describe('aggregateShoppingItemsFromPlanningDays', () => {
 		const rice = items.find((i) => i.ingredientName === 'Riz complet');
 		expect(rice?.totalQuantityG).toBe(90);
 		expect(rice?.category).toBe('Féculents');
-		expect(items.find((i) => i.ingredientName === 'Œufs entiers')?.totalQuantityG).toBe(180);
+		// 180 g → 3 œufs entiers de 55 g.
+		expect(items.find((i) => i.ingredientName === 'Œufs entiers')?.totalQuantityG).toBe(165);
 	});
 
 	it('ajoute les compléments du programme dans leur catégorie', () => {

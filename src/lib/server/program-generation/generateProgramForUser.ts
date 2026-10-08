@@ -6,7 +6,7 @@ import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/generateFromPlanning';
 import { logProgramGenSummary } from './logProgramGenSummary';
 import { programGenLog, programGenTrace, programGenWarn, type ProgramGenSource } from './programGenerationLog';
-import { rescaleFutureMeals } from '$lib/server/nutrition/rescaleFutureMeals';
+import { rescaleUserMeals } from '$lib/server/nutrition/rescaleUserMeals';
 import { nextMondayStartParis } from '$lib/utils/programDay';
 
 /** Contourne un UserSelect Prisma parfois désynchronisé dans l’IDE (champ absent des types générés en cache). */
@@ -159,9 +159,9 @@ export async function generateProgramForUser(
 			programGenTrace('generate_skip_complete', { userId, source, targetDays });
 			programGenLog('5/ Planning déjà complet — recalage portions + vérification liste de courses', { userId, targetDays });
 
-			// Recalage des portions futures sur le nouveau TDEE (nouveau poids / % MG).
-			programGenLog('5a/ Rescale repas futurs', { userId });
-			await rescaleFutureMeals(userId);
+			// Recalage de tout le cadencier sur les nouvelles cibles (poids, % MG, activité, pain).
+			programGenLog('5a/ Recalcul du cadencier', { userId });
+			await rescaleUserMeals(userId);
 
 			// Le plan est complet mais la liste de courses n'existe peut-être pas encore
 			// (cas : programme généré avant l'ajout de la fonctionnalité).
@@ -180,9 +180,9 @@ export async function generateProgramForUser(
 			return;
 		}
 
-		// Recalage des portions futures sur le nouveau TDEE avant de compléter les jours manquants.
-		programGenLog('5d/ Rescale repas futurs (plan partiel)', { userId });
-		await rescaleFutureMeals(userId);
+		// Recalage du cadencier existant sur les nouvelles cibles avant de compléter les jours manquants.
+		programGenLog('5d/ Recalcul du cadencier (plan partiel)', { userId });
+		await rescaleUserMeals(userId);
 
 		programGenLog('6/ Appel generateNutritionDaysForUser', { userId, targetDays });
 		await generateNutritionDaysForUser(userId, targetDays);

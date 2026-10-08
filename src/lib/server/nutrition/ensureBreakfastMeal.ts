@@ -5,7 +5,7 @@ import type { MealMacroTargets } from '$lib/nutrition/nutritionTargets';
 import { mealTargetsFromProfile } from './userMealTargets';
 import type { MealPortion } from '$lib/nutrition/mealPortion';
 import { fitDay } from '$lib/nutrition/dayPlanner';
-import { refitDaysById } from './rescaleFutureMeals';
+import { refitDaysById } from './rescaleUserMeals';
 
 const recipeCatalogSelect = {
 	id: true,

@@ -3,7 +3,7 @@ import type { MealPosition, Prisma, RecipeCategory } from '@prisma/client';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { mealTargetsFromProfile } from '$lib/server/nutrition/userMealTargets';
 import { fitDay, pickDayRecipes } from '$lib/nutrition/dayPlanner';
-import { fitRecipeSelect, fixedDayMacros, isAdjustableMeal } from '$lib/server/nutrition/rescaleFutureMeals';
+import { fitRecipeSelect, fixedDayMacros, isAdjustableMeal } from '$lib/server/nutrition/rescaleUserMeals';
 import { programGenLog, programGenTrace, programGenWarn } from '../programGenerationLog';
 
 /** Jours précédents dont les recettes ne sont pas reprises. */
@@ -138,7 +138,7 @@ function mulberry32(initial: number): () => number {
  * Exclut les recettes contenant un allergène déclaré par l’utilisateur.
  * Recettes choisies et portions ajustées par journée ($lib/nutrition/dayPlanner) : facteur de chaque recette + complément
  * féculent, totaux du jour au plus près des cibles du profil (kcal, protéines, glucides, lipides, fibres).
- * Répartition kcal sur le budget repas : petit-déj 30 %, déj. 35 %, dîner 35 % (50/50 en jeûne).
+ * Répartition kcal sur le budget repas : p'tit déj ou collation 20 %, déj. 40 %, dîner 40 % (50/50 en jeûne).
  * Le jeûne intermittent est un comportement d'affichage utilisateur (cacher le petit-déj), pas de suppression des repas en BDD.
  */
 export async function generateNutritionDaysForUser(userId: string, targetDays: number): Promise<void> {
@@ -252,7 +252,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 	programGenLog('N7/ Boucle jours — positions repas', {
 		userId,
 		positions,
-		budgetFractions: intermittentFastingDefault ? '30% PD (masqué) / 50% déj. / 50% dîner' : '30% / 35% / 35% (PD / déj. / dîner)',
+		budgetFractions: intermittentFastingDefault ? '20% PD (masqué) / 50% déj. / 50% dîner' : '20% / 40% / 40% (PD / déj. / dîner)',
 		macrosDistributed: 'kcal, protéines, glucides, lipides, fibres répartis proportionnellement',
 		recipeSelection: 'déjeuner tiré au sort (graine userId+jour), autres créneaux choisis pour la journée la plus proche des cibles ; pas de recette des 3 jours précédents'
 	});
@@ -342,7 +342,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 				recipeIds: toCreate.map((t) => t.recipe.id),
 				scales: scalesForLog,
 				mealBudgetKcal: mealTargets ? Math.round(mealTargets.kcal) : null,
-				split: '30/35/35'
+				split: intermittentFastingDefault ? '50/50' : '20/40/40'
 			});
 		}
 	}

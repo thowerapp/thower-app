@@ -4,12 +4,14 @@ import { prisma } from '$lib/server';
 import type { MealPosition } from '@prisma/client';
 import { dailyWaterLitersMin } from '$lib/nutrition/nutritionTargets';
 import { mealTargetsFromProfile, profileBreadMacros } from '$lib/server/nutrition/userMealTargets';
-import { refreshStaleDays } from '$lib/server/nutrition/rescaleFutureMeals';
+import { refreshStaleDays } from '$lib/server/nutrition/rescaleUserMeals';
 import {
 	mealIngredientGrams,
 	mealScaleFactor,
 	scaleIngredientNote,
-	scaleQuantitiesInText
+	scaleQuantitiesInText,
+	wholeEggPortion,
+	withEggCount
 } from '$lib/nutrition/scaleMealIngredients';
 import {
 	ensureBreakfastMealForDay,
@@ -280,15 +282,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		const ingredients: DayIngredientDTO[] =
 			r?.ingredients.map((ing) => {
-				const scaledG = mealIngredientGrams(ing, m, refYield);
+				const grams = mealIngredientGrams(ing, m, refYield);
+				const note = ing.note ? scaleIngredientNote(ing.note, factor) : null;
+				// Œufs affichés à l'unité (œuf moyen entier) plutôt qu'en fraction d'œuf.
+				const eggs = wholeEggPortion(ing.name, grams);
 				return {
 					name: ing.name,
 					quantityG: ing.quantityG,
-					scaledG,
+					scaledG: eggs?.grams ?? grams,
 					unit: ing.unit,
 					category: ing.category,
 					isOptional: ing.isOptional,
-					note: ing.note ? scaleIngredientNote(ing.note, factor) : null
+					note: eggs && note ? withEggCount(note, eggs.count) : note
 				};
 			}) ?? [];
 

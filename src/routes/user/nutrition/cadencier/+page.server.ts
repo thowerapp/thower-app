@@ -9,7 +9,7 @@ import {
 	TOTAL_PROGRAM_WEEKS
 } from '$lib/utils/programDay';
 import { mealTargetsFromProfile } from '$lib/server/nutrition/userMealTargets';
-import { refreshStaleDays, rescaleDayMeals } from '$lib/server/nutrition/rescaleFutureMeals';
+import { refreshStaleDays, rescaleDayMeals } from '$lib/server/nutrition/rescaleUserMeals';
 import {
 	ensureBreakfastMealForDay,
 	backfillMissingBreakfastMeals,
@@ -317,7 +317,7 @@ export const actions: Actions = {
 				}
 			}
 
-			// Déjeuner / dîner passent de 35 % à 50 % du budget (et inversement) : on recalcule les portions.
+			// Déjeuner / dîner passent de 40 % à 50 % du budget (et inversement) : on recalcule les portions.
 			if (before?.id && before.intermittentFasting !== active) {
 				await rescaleDayMeals(userId, before.id, dayIndex);
 			}

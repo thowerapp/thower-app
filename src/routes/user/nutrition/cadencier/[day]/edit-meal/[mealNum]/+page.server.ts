@@ -11,7 +11,7 @@ import {
 	mealTargetsFromProfile,
 	mealTargetsProfileSelect
 } from '$lib/server/nutrition/userMealTargets';
-import { fitRecipeSelect, fixedDayMacros, isAdjustableMeal } from '$lib/server/nutrition/rescaleFutureMeals';
+import { fitRecipeSelect, fixedDayMacros, isAdjustableMeal } from '$lib/server/nutrition/rescaleUserMeals';
 
 const TOTAL_DAYS = 91;
 

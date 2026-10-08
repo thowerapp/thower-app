@@ -1,6 +1,6 @@
 /**
- * Recalcule les portions de tous les repas futurs (non manuels) de tous les utilisateurs avec
- * computeMealPortion ($lib/nutrition/mealPortion), puis régénère les listes de courses concernées.
+ * Recalcule tout le cadencier (repas non mangés et non manuels) de tous les utilisateurs avec le planificateur
+ * de journée ($lib/nutrition/dayPlanner), puis régénère les listes de courses concernées.
  * À lancer une fois après le déploiement du nouveau calcul nutrition.
  *
  * Usage :
@@ -8,7 +8,7 @@
  *   npm run rescale:all-meals -- <email>  # un seul utilisateur
  */
 import { prisma } from '$lib/server';
-import { rescaleFutureMeals } from '$lib/server/nutrition/rescaleFutureMeals';
+import { rescaleUserMeals } from '$lib/server/nutrition/rescaleUserMeals';
 import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/generateFromPlanning';
 
 async function main() {
@@ -27,7 +27,7 @@ async function main() {
 	}
 
 	for (const user of users) {
-		await rescaleFutureMeals(user.id);
+		await rescaleUserMeals(user.id);
 		const lists = await prisma.shoppingList.findMany({
 			where: { userId: user.id },
 			select: { startDayIndex: true, endDayIndex: true }
@@ -37,7 +37,7 @@ async function main() {
 				includeReportedFromPrevious: true
 			});
 		}
-		console.log(`${user.email} → repas futurs recalculés, ${lists.length} liste(s) de courses régénérée(s)`);
+		console.log(`${user.email} → cadencier recalculé, ${lists.length} liste(s) de courses régénérée(s)`);
 	}
 }
 

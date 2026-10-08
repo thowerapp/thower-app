@@ -1,5 +1,5 @@
 import { shoppingListAggregateKey } from '$lib/nutrition/normalizeIngredientName';
-import { mealIngredientGrams } from '$lib/nutrition/scaleMealIngredients';
+import { mealIngredientGrams, wholeEggPortion } from '$lib/nutrition/scaleMealIngredients';
 import { complementCategory } from '$lib/nutrition/mealPortion';
 import type { ShoppingItemSource } from './types';
 
@@ -130,7 +130,9 @@ export function aggregateShoppingItemsFromPlanningDays(
 				(a, b) => (a.order ?? 0) - (b.order ?? 0)
 			);
 			for (const ing of sortedIngredients) {
-				const qty = mealIngredientGrams(ing, meal, recipe.referenceYieldG);
+				const grams = mealIngredientGrams(ing, meal, recipe.referenceYieldG);
+				// Œufs comptés à l'unité, comme sur la fiche du jour.
+				const qty = wholeEggPortion(ing.name, grams)?.grams ?? grams;
 				if (qty == null || qty <= 0) continue;
 				addToShoppingAggregate(
 					aggregated,

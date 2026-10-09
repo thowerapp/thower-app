@@ -422,8 +422,10 @@
 	}
 
 	/* Measurement form styling with meas-* classes */
+	/* Fond noir quel que soit le thème : le texte hérité (titres de carte) doit rester clair. */
 	:global(.meas-card) {
 		background: #0a0a0a;
+		color: #f0ede8;
 		border: 1px solid rgba(240, 237, 232, 0.1);
 	}
 

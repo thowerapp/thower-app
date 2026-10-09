@@ -77,9 +77,6 @@
 
 	<Card.Root class="meas-card mt-4">
 		<Card.Content class="pt-5 pb-5 space-y-4">
-			<p class="text-xs text-muted-foreground leading-relaxed">
-				• Contre-indications a un regime alimentaire ?
-			</p>
 			<div class="space-y-3">
 				<p class="meas-label font-semibold text-base">Pain</p>
 				<p class="text-xs text-muted-foreground">

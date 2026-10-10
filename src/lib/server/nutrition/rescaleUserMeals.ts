@@ -91,16 +91,21 @@ export function refitDayPortions(
 	return adjustable.map((m, k) => ({ mealId: m.id, portion: portions[k] }));
 }
 
-/** Recalcule ensemble les portions et compléments des repas ajustables de chaque journée. */
+/** Journées par transaction : MongoDB annule une transaction au-delà de 60 s (~270 mises à jour pour 91 jours). */
+const DAYS_PER_TRANSACTION = 7;
+
+/** Recalcule ensemble les portions et compléments des repas ajustables de chaque journée (une transaction par semaine). */
 async function refitDays(dayWhere: DayWhere, targets: MealMacroTargets): Promise<void> {
 	const days = await loadDays(dayWhere);
-	const updates = days.flatMap((day) =>
-		refitDayPortions(day, targets).map(({ mealId, portion }) =>
-			prisma.meal.update({ where: { id: mealId }, data: portion })
-		)
-	);
-	if (updates.length > 0) {
-		await prisma.$transaction(updates);
+	for (let k = 0; k < days.length; k += DAYS_PER_TRANSACTION) {
+		const updates = days.slice(k, k + DAYS_PER_TRANSACTION).flatMap((day) =>
+			refitDayPortions(day, targets).map(({ mealId, portion }) =>
+				prisma.meal.update({ where: { id: mealId }, data: portion })
+			)
+		);
+		if (updates.length > 0) {
+			await prisma.$transaction(updates);
+		}
 	}
 }
 

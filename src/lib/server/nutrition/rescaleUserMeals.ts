@@ -135,6 +135,7 @@ function isStalePortion(
 		extraStarchG: number | null;
 		extraStarchIngredientName: string | null;
 		complements: { name: string; grams: number }[];
+		ingredientGrams: { name: string; grams: number }[];
 		calcCalories: number | null;
 	},
 	portion: MealPortion
@@ -143,6 +144,7 @@ function isStalePortion(
 		list.map((c) => `${c.name}:${Math.round(c.grams)}`).join('|');
 	return (
 		complementsKey(meal.complements) !== complementsKey(portion.complements) ||
+		complementsKey(meal.ingredientGrams) !== complementsKey(portion.ingredientGrams) ||
 		Math.abs((meal.quantityG ?? 0) - portion.quantityG) > 0.5 ||
 		(meal.extraStarchG ?? null) !== portion.extraStarchG ||
 		(meal.extraStarchIngredientName ?? null) !== portion.extraStarchIngredientName ||

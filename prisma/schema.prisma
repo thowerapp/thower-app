@@ -746,6 +746,8 @@ model Meal {
 
   /// Compléments ajoutés par le programme (flocons d'avoine, banane, skyr…) — cf. $lib/nutrition/dayPlanner
   complements MealComplement[]
+  /// Grammes des ingrédients de la recette fixés hors facteur de portion (seuils planchers, féculent tampon) — cf. $lib/nutrition/dayPlanner
+  ingredientGrams MealComplement[]
 
   /// Saisie manuelle pour plats livrés partenaires
   isManual       Boolean @default(false)

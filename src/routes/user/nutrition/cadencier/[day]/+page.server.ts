@@ -280,10 +280,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		const refYield = r?.referenceYieldG ?? null;
 		const factor = mealScaleFactor(m.quantityG, refYield);
 
+		let plannedG = m.quantityG;
 		const ingredients: DayIngredientDTO[] =
 			r?.ingredients.map((ing) => {
 				const grams = mealIngredientGrams(ing, m, refYield);
-				const note = ing.note ? scaleIngredientNote(ing.note, factor) : null;
+				// Ingrédient à grammes fixés (seuil plancher, féculent tampon) : la note suit ses propres grammes.
+				const fixedG = m.ingredientGrams.find((i) => i.name === ing.name)?.grams;
+				const ingFactor = fixedG != null && ing.quantityG ? fixedG / ing.quantityG : factor;
+				if (fixedG != null && ing.quantityG != null && plannedG != null) plannedG += fixedG - ing.quantityG * factor;
+				const note = ing.note ? scaleIngredientNote(ing.note, ingFactor) : null;
 				// Œufs affichés à l'unité (œuf moyen entier) plutôt qu'en fraction d'œuf.
 				const eggs = wholeEggPortion(ing.name, grams);
 				return {
@@ -304,7 +309,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			label: `Repas ${slotIndex + 1} — ${positionLabel(m.position)}`,
 			timeLabel: defaultTimeLabel(m.position),
 			isManual: m.isManual,
-			quantityG: m.quantityG,
+			quantityG: plannedG,
 			referenceYieldG: r?.referenceYieldG ?? null,
 			servings: r?.servings ?? 1,
 			recipeId: r?.id ?? null,

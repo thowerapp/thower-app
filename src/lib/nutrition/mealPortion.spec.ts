@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { mealBudgetFraction, mealMacrosFor, starchReferenceFor, type PortionRecipe } from './mealPortion';
+import { RECIPE_CATALOG_DEFS } from '$lib/server/seed/recipeCatalogDefs.js';
+import { ingredientFloor, mealBudgetFraction, mealMacrosFor, recipeBaseMacros, recipeParts, starchReferenceFor, type PortionRecipe } from './mealPortion';
 import { scaleIngredientNote, scaleQuantitiesInText, wholeEggPortion, withEggCount } from './scaleMealIngredients';
 
 /** Recette catalogue « Penne Complètes au Poulet, Sauce Tomate et Parmesan ». */
@@ -46,11 +47,62 @@ describe('starchReferenceFor', () => {
 	});
 });
 
+describe('ingredientFloor', () => {
+	it('donne un seuil et des valeurs à chaque viande, poisson, œuf, oléagineux et féculent du catalogue', () => {
+		const floored = ['Viandes', 'Poissons', 'Œufs', 'Oléagineux', 'Féculents'];
+		for (const r of RECIPE_CATALOG_DEFS as unknown as PortionRecipe[])
+			for (const ing of r.ingredients ?? [])
+				if (ing.quantityG && floored.includes(ing.category ?? '')) expect(ingredientFloor(ing), ing.name).not.toBeNull();
+	});
+
+	it('applique les seuils de cuisine', () => {
+		expect(ingredientFloor({ name: 'Filet de poulet en lamelles', category: 'Viandes' })?.floorG).toBe(70);
+		expect(ingredientFloor({ name: 'Tofu ferme', category: 'Légumineuses' })?.floorG).toBe(70);
+		expect(ingredientFloor({ name: 'Œufs entiers', category: 'Œufs' })).toMatchObject({ floorG: 55, isEgg: true });
+		expect(ingredientFloor({ name: 'Pain de mie complet', category: 'Féculents' })?.floorG).toBe(35);
+		expect(ingredientFloor({ name: 'Noix de cajou', category: 'Oléagineux' })?.floorG).toBe(10);
+		expect(ingredientFloor({ name: 'Riz complet', category: 'Féculents' })?.floorG).toBe(30);
+		expect(ingredientFloor({ name: 'Steak haché 15% MG émietté', category: 'Viandes' })?.per100.fatG).toBe(15);
+		expect(ingredientFloor({ name: 'Brocoli', category: 'Légumes' })).toBeNull();
+	});
+});
+
+describe('recipeParts', () => {
+	it('seuil jamais au-dessus de la fiche, reste = fiche − ingrédients à seuil', () => {
+		const { parts, rest } = recipeParts(PENNE);
+		expect(parts.map((p) => [p.name, p.floorG, p.isBuffer])).toEqual([
+			['Filet de poulet en lamelles', 70, false],
+			['Penne complètes', 30, true]
+		]);
+		const base = recipeBaseMacros(PENNE);
+		const parts100 = parts.reduce((s, p) => s + (p.per100.proteinG * p.quantityG) / 100, 0);
+		expect(rest.proteinG).toBeCloseTo(base.proteinG - parts100, 6);
+	});
+
+	it('fiches du catalogue cohérentes avec les valeurs de référence (écart ≤ 6 g par macro)', () => {
+		for (const r of RECIPE_CATALOG_DEFS as unknown as PortionRecipe[]) {
+			const { parts } = recipeParts(r);
+			const base = recipeBaseMacros(r);
+			for (const key of ['proteinG', 'carbsG', 'fatG'] as const) {
+				const partsG = parts.reduce((s, p) => s + (p.per100[key] * p.quantityG) / 100, 0);
+				expect(partsG, `${(r as { name?: string }).name} ${key}`).toBeLessThanOrEqual(base[key] + 6);
+			}
+		}
+	});
+});
+
 describe('mealMacrosFor', () => {
 	it('additionne la recette et le féculent ajouté', () => {
 		const m = mealMacrosFor(PENNE, 1000, 100, 'Penne complètes');
 		expect(m.calcProteinG).toBeCloseTo(88, 6);
 		expect(m.calcCarbsG).toBeCloseTo(152, 6);
+	});
+
+	it('compte les ingrédients à grammes fixés à leurs grammes et le reste au facteur', () => {
+		const half = mealMacrosFor(PENNE, 500);
+		const withFloor = mealMacrosFor(PENNE, 500, null, null, null, [{ name: 'Filet de poulet en lamelles', grams: 100 }]);
+		// 100 g de poulet au lieu de 80 g (160 × 0,5) : + 20 g × 23,5 % de protéines.
+		expect(withFloor.calcProteinG! - half.calcProteinG!).toBeCloseTo(20 * 0.235, 6);
 	});
 
 	it('renvoie null pour une recette sans macros', () => {

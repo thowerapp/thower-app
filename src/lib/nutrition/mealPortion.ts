@@ -1,9 +1,11 @@
 import { normalizeIngredientName } from './normalizeIngredientName';
-import { recipeReferenceYieldG } from './scaleMealIngredients';
+import { EGG_UNIT_G, isEggIngredient, recipeReferenceYieldG } from './scaleMealIngredients';
 
 /**
  * Macros d'un repas = macros de la fiche recette (saisies par l'admin) × facteur de portion
  * + complément féculent cru ajouté par le programme (`extraStarchG` de `extraStarchIngredientName`).
+ * Quand le planificateur fixe les grammes de certains ingrédients (`ingredientGrams` : seuils planchers,
+ * féculent tampon), ces ingrédients sont comptés à leurs grammes et le reste de la recette au facteur.
  * Les kcal sont toujours recalculées depuis les macros (Atwater) : 4 P + 4 G + 9 L + 2 fibres.
  * La répartition d'une journée (facteurs et compléments) est calculée par $lib/nutrition/dayPlanner.
  */
@@ -67,6 +69,8 @@ export type MealPortion = {
 	extraStarchIngredientName: string | null;
 	/** Compléments (MEAL_COMPLEMENTS) ajoutés au repas. */
 	complements: MealComplement[];
+	/** Grammes des ingrédients de la recette fixés hors facteur (seuils planchers, féculent tampon). */
+	ingredientGrams: MealComplement[];
 } & MealMacros;
 
 /**
@@ -146,6 +150,144 @@ export function findStarchIngredient(
 	return null;
 }
 
+/**
+ * Seuils planchers par portion, en grammes : en dessous, l'ingrédient n'est plus cuisinable (viande qui
+ * sèche, demi-noix isolée…). Jamais au-dessus de la quantité de la fiche recette.
+ */
+export const INGREDIENT_FLOORS_G = {
+	/** Viandes, poissons, tofu, tempeh. */
+	protein: 70,
+	/** Un œuf entier, insécable. */
+	egg: EGG_UNIT_G,
+	/** Une vraie tranche. */
+	bread: 35,
+	nuts: 10,
+	/** Féculents (riz, avoine, pâtes crues…). */
+	starch: 30
+} as const;
+
+type Reference = { tokens: string[]; per100: MacroValues };
+
+/**
+ * Protéines et oléagineux à seuil plancher — valeurs Ciqual pour 100 g tel qu'acheté.
+ * Chaque mot-clé doit préfixer un mot du libellé (chiffres compris : « 15 » % MG) ; ordre = priorité.
+ */
+const PROTEIN_REFERENCE: Reference[] = [
+	{ tokens: ['bresaola'], per100: { proteinG: 32, carbsG: 0.5, fatG: 2.6, fiberG: 0 } },
+	{ tokens: ['bacon'], per100: { proteinG: 19, carbsG: 1, fatG: 5, fiberG: 0 } },
+	{ tokens: ['jambon'], per100: { proteinG: 20, carbsG: 1, fatG: 3, fiberG: 0 } },
+	{ tokens: ['dinde', 'fume'], per100: { proteinG: 21, carbsG: 1, fatG: 2, fiberG: 0 } },
+	{ tokens: ['blanc', 'dinde'], per100: { proteinG: 21, carbsG: 1, fatG: 2, fiberG: 0 } },
+	{ tokens: ['hache', '15'], per100: { proteinG: 18.5, carbsG: 0, fatG: 15, fiberG: 0 } },
+	{ tokens: ['hache'], per100: { proteinG: 21, carbsG: 0, fatG: 5, fiberG: 0 } },
+	{ tokens: ['porc'], per100: { proteinG: 22, carbsG: 0, fatG: 3, fiberG: 0 } },
+	{ tokens: ['poulet'], per100: { proteinG: 23.5, carbsG: 0, fatG: 1.5, fiberG: 0 } },
+	{ tokens: ['dinde'], per100: { proteinG: 24, carbsG: 0, fatG: 1.2, fiberG: 0 } },
+	{ tokens: ['maquereau', 'fume'], per100: { proteinG: 19, carbsG: 0, fatG: 22, fiberG: 0 } },
+	{ tokens: ['maquereau'], per100: { proteinG: 20, carbsG: 0, fatG: 13, fiberG: 0 } },
+	{ tokens: ['saumon', 'fume'], per100: { proteinG: 22, carbsG: 0, fatG: 10, fiberG: 0 } },
+	{ tokens: ['saumon'], per100: { proteinG: 20, carbsG: 0, fatG: 13, fiberG: 0 } },
+	{ tokens: ['truite'], per100: { proteinG: 22, carbsG: 0, fatG: 6, fiberG: 0 } },
+	{ tokens: ['sardine'], per100: { proteinG: 23, carbsG: 0, fatG: 10, fiberG: 0 } },
+	{ tokens: ['thon'], per100: { proteinG: 25, carbsG: 0, fatG: 1, fiberG: 0 } },
+	{ tokens: ['crevette'], per100: { proteinG: 21, carbsG: 0, fatG: 1, fiberG: 0 } },
+	{ tokens: ['cabillaud'], per100: { proteinG: 18, carbsG: 0, fatG: 0.7, fiberG: 0 } },
+	{ tokens: ['colin'], per100: { proteinG: 18, carbsG: 0, fatG: 0.7, fiberG: 0 } },
+	{ tokens: ['tofu', 'fume'], per100: { proteinG: 16, carbsG: 1.5, fatG: 9, fiberG: 1 } },
+	{ tokens: ['tofu'], per100: { proteinG: 13, carbsG: 1.5, fatG: 8, fiberG: 1 } },
+	{ tokens: ['tempeh'], per100: { proteinG: 19, carbsG: 7, fatG: 11, fiberG: 5 } }
+];
+
+const NUT_REFERENCE: Reference[] = [
+	{ tokens: ['beurre', 'cacahuete'], per100: { proteinG: 25, carbsG: 13, fatG: 50, fiberG: 6 } },
+	{ tokens: ['cacahuete'], per100: { proteinG: 26, carbsG: 10, fatG: 49, fiberG: 8.5 } },
+	{ tokens: ['cajou'], per100: { proteinG: 18, carbsG: 27, fatG: 46, fiberG: 3.5 } },
+	{ tokens: ['bresil'], per100: { proteinG: 14, carbsG: 4, fatG: 66, fiberG: 7.5 } },
+	{ tokens: ['pecan'], per100: { proteinG: 9, carbsG: 4.5, fatG: 72, fiberG: 9.5 } },
+	{ tokens: ['pistache'], per100: { proteinG: 21, carbsG: 13, fatG: 46, fiberG: 10 } },
+	{ tokens: ['noisette'], per100: { proteinG: 15, carbsG: 7, fatG: 61, fiberG: 10 } },
+	{ tokens: ['pignon'], per100: { proteinG: 14, carbsG: 4, fatG: 68, fiberG: 3.7 } },
+	{ tokens: ['amande'], per100: { proteinG: 21, carbsG: 6, fatG: 52, fiberG: 12 } },
+	{ tokens: ['noix'], per100: { proteinG: 15, carbsG: 7, fatG: 65, fiberG: 6.5 } }
+];
+
+/** Œuf entier cru (Ciqual). */
+const EGG_PER100: MacroValues = { proteinG: 12.7, carbsG: 0.3, fatG: 9.8, fiberG: 0 };
+
+function matchReference(table: Reference[], name: string): MacroValues | null {
+	const words = normalizeIngredientName(name).split(/[^a-z0-9]+/);
+	return table.find((r) => r.tokens.every((t) => words.some((w) => w.startsWith(t))))?.per100 ?? null;
+}
+
+const isCategory = (category: string | null | undefined, prefix: string) =>
+	category != null && normalizeIngredientName(category).startsWith(prefix);
+
+/** Seuil plancher (grammes) et valeurs pour 100 g d'un ingrédient à seuil, ou null s'il n'en a pas. */
+export function ingredientFloor(ing: {
+	name: string;
+	category?: string | null;
+}): { floorG: number; per100: MacroValues; isEgg: boolean } | null {
+	if (isEggIngredient(ing.name)) return { floorG: INGREDIENT_FLOORS_G.egg, per100: EGG_PER100, isEgg: true };
+	const proteinOk = isCategory(ing.category, 'viande') || isCategory(ing.category, 'poisson') || /tofu|tempeh/i.test(ing.name);
+	const protein = proteinOk ? matchReference(PROTEIN_REFERENCE, ing.name) : null;
+	if (protein) return { floorG: INGREDIENT_FLOORS_G.protein, per100: protein, isEgg: false };
+	const nuts = isCategory(ing.category, 'oleagineux') ? matchReference(NUT_REFERENCE, ing.name) : null;
+	if (nuts) return { floorG: INGREDIENT_FLOORS_G.nuts, per100: nuts, isEgg: false };
+	const starch = isCategory(ing.category, 'feculent') ? starchReferenceFor(ing.name) : null;
+	if (starch) {
+		const bread = normalizeIngredientName(ing.name).startsWith('pain');
+		return { floorG: bread ? INGREDIENT_FLOORS_G.bread : INGREDIENT_FLOORS_G.starch, per100: starch, isEgg: false };
+	}
+	return null;
+}
+
+/** Ingrédient de la recette dont les grammes ne suivent pas seulement le facteur de portion. */
+export type RecipePart = {
+	name: string;
+	/** Grammes de la fiche. */
+	quantityG: number;
+	/** Seuil plancher, jamais au-dessus de la fiche. */
+	floorG: number;
+	per100: MacroValues;
+	isEgg: boolean;
+	/** Féculent principal : grammes libres (tampon), indépendants du facteur. */
+	isBuffer: boolean;
+};
+
+/**
+ * Découpage d'une recette : ingrédients à seuil plancher (dont le féculent tampon) et reste de la fiche
+ * (légumes, sauces, matières grasses…) = macros de la fiche − ingrédients à seuil, borné à 0.
+ */
+export function recipeParts(recipe: PortionRecipe): { parts: RecipePart[]; rest: MacroValues } {
+	const buffer = findStarchIngredient(recipe);
+	const parts: RecipePart[] = [];
+	for (const ing of recipe.ingredients ?? []) {
+		if (ing.quantityG == null || ing.quantityG <= 0) continue;
+		const floor = ingredientFloor(ing);
+		if (!floor) continue;
+		const isBuffer = buffer != null && ing.name === buffer.name && !parts.some((p) => p.isBuffer);
+		parts.push({
+			name: ing.name,
+			quantityG: ing.quantityG,
+			floorG: floor.isEgg ? floor.floorG : Math.min(floor.floorG, ing.quantityG),
+			per100: isBuffer ? buffer.per100 : floor.per100,
+			isEgg: floor.isEgg,
+			isBuffer
+		});
+	}
+	let rest = recipeBaseMacros(recipe);
+	for (const p of parts) rest = addMacros(rest, p.per100, -p.quantityG / 100);
+	return {
+		parts,
+		rest: {
+			proteinG: Math.max(0, rest.proteinG),
+			carbsG: Math.max(0, rest.carbsG),
+			fatG: Math.max(0, rest.fatG),
+			fiberG: Math.max(0, rest.fiberG)
+		}
+	};
+}
+
 function toMealMacros(m: MacroValues): MealMacros {
 	return {
 		calcCalories: atwaterKcal(m),
@@ -161,19 +303,33 @@ export function complementReferenceFor(name: string): MacroValues | null {
 	return MEAL_COMPLEMENTS.find((c) => c.name === name)?.per100 ?? starchReferenceFor(name);
 }
 
-/** Macros d'un repas pour une quantité de plat donnée + éventuels compléments ajoutés. */
+/**
+ * Macros d'un repas pour une quantité de plat donnée + éventuels compléments ajoutés. Avec
+ * `ingredientGrams`, les ingrédients à seuil sont comptés à leurs grammes et le reste au facteur.
+ */
 export function mealMacrosFor(
-	recipe: Omit<PortionRecipe, 'ingredients'>,
+	recipe: PortionRecipe,
 	quantityG: number,
 	extraStarchG?: number | null,
 	extraStarchIngredientName?: string | null,
-	complements?: MealComplement[] | null
+	complements?: MealComplement[] | null,
+	ingredientGrams?: MealComplement[] | null
 ): MealMacros {
 	if (!recipeHasMacros(recipe)) {
 		return { calcCalories: null, calcProteinG: null, calcCarbsG: null, calcFatG: null, calcFiberG: null };
 	}
 	const factor = quantityG / recipeReferenceYieldG(recipe.referenceYieldG);
-	let m = addMacros(ZERO, recipeBaseMacros(recipe), factor);
+	let m: MacroValues;
+	if (ingredientGrams?.length) {
+		const { parts, rest } = recipeParts(recipe);
+		m = addMacros(ZERO, rest, factor);
+		for (const p of parts) {
+			const grams = ingredientGrams.find((i) => i.name === p.name)?.grams ?? p.quantityG * factor;
+			m = addMacros(m, p.per100, grams / 100);
+		}
+	} else {
+		m = addMacros(ZERO, recipeBaseMacros(recipe), factor);
+	}
 	for (const { grams, name } of [
 		{ grams: extraStarchG, name: extraStarchIngredientName },
 		...(complements ?? [])

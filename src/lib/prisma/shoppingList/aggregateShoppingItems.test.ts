@@ -241,6 +241,36 @@ describe('aggregateShoppingItemsFromPlanningDays', () => {
 		expect(items.find((i) => i.ingredientName === 'Poulet')?.totalQuantityG).toBe(100);
 	});
 
+	it('reprend les grammes fixés par le planificateur (seuil plancher, féculent tampon)', () => {
+		const items = aggregateShoppingItemsFromPlanningDays([
+			{
+				dayIndex: 1,
+				meals: [
+					{
+						quantityG: 50,
+						ingredientGrams: [
+							{ name: 'Poulet', grams: 70 },
+							{ name: 'Riz complet', grams: 85 }
+						],
+						recipe: {
+							name: 'Bowl',
+							referenceYieldG: 100,
+							ingredients: [
+								{ name: 'Riz complet', quantityG: 40, category: 'Féculents', unit: 'g' },
+								{ name: 'Poulet', quantityG: 100, category: 'Viandes', unit: 'g' },
+								{ name: 'Brocoli', quantityG: 120, category: 'Légumes', unit: 'g' }
+							]
+						}
+					}
+				]
+			}
+		]);
+
+		expect(items.find((i) => i.ingredientName === 'Poulet')?.totalQuantityG).toBe(70);
+		expect(items.find((i) => i.ingredientName === 'Riz complet')?.totalQuantityG).toBe(85);
+		expect(items.find((i) => i.ingredientName === 'Brocoli')?.totalQuantityG).toBe(60); // 120 * 0,5
+	});
+
 	it('ajoute le complément féculent absent de la recette en ligne propre', () => {
 		const items = aggregateShoppingItemsFromPlanningDays([
 			{

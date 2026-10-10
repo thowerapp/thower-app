@@ -7,8 +7,11 @@ import {
 	atwaterKcal,
 	complementReferenceFor,
 	findStarchIngredient,
+	ingredientFloor,
+	recipeParts,
 	type PortionRecipe
 } from './mealPortion';
+import { EGG_UNIT_G, mealIngredientGrams } from './scaleMealIngredients';
 import { dailyMealTargets, type MealMacroTargets } from './nutritionTargets';
 import { dayDeviationScore, fitDay, isCountedMeal, pickDayRecipes, type PlannerMeal } from './dayPlanner';
 
@@ -32,6 +35,7 @@ const byName = (prefix: string) => CATALOG.find((r) => r.name.startsWith(prefix)
 const CLIENT = dailyMealTargets({ weightKg: 93.7, bodyFatPercent: 12.6, activityLevel: 'ATHLETE' })!;
 const PROFILES = [
 	{ label: 'client athlète en jeûne (2 repas)', daily: CLIENT, fasting: true },
+	{ label: 'client athlète (3 repas)', daily: CLIENT, fasting: false },
 	{ label: 'actif 75 kg (3 repas)', daily: dailyMealTargets({ weightKg: 75, bodyFatPercent: 20, activityLevel: 'ACTIVE' })!, fasting: false },
 	{ label: 'sédentaire 58 kg (3 repas)', daily: dailyMealTargets({ weightKg: 58, bodyFatPercent: 28, activityLevel: 'SEDENTARY' })!, fasting: false }
 ];
@@ -174,9 +178,26 @@ describe('génération 91 jours × profils (macros des fiches admin)', () => {
 					r.portions.forEach((p, k) => {
 						const recipe = r.meals[k].recipe;
 						const own = findStarchIngredient(recipe);
-						const ownG = own && own.name === p.extraStarchIngredientName ? (own.quantityG * p.quantityG) / recipe.referenceYieldG! : 0;
+						const ownG = own ? mealIngredientGrams(own, p, recipe.referenceYieldG)! : 0;
 						expect(ownG + (p.extraStarchG ?? 0)).toBeLessThanOrEqual(MAX_STARCH_G_FRESH + 1);
 						if (own && own.per100.carbsG > 30) expect(ownG + (p.extraStarchG ?? 0)).toBeLessThanOrEqual(MAX_STARCH_G_DRY + 1);
+					});
+			});
+
+			it('portions cuisinables : ingrédients au-dessus de leur seuil, œufs entiers, féculents ajoutés ≥ 30 g', () => {
+				for (const r of results)
+					r.portions.forEach((p, k) => {
+						const recipe = r.meals[k].recipe;
+						for (const ing of recipe.ingredients ?? []) {
+							const floor = ingredientFloor(ing);
+							if (!floor || !ing.quantityG) continue;
+							const grams = mealIngredientGrams(ing, p, recipe.referenceYieldG)!;
+							expect(grams, ing.name).toBeGreaterThanOrEqual(Math.min(floor.floorG, ing.quantityG) - 0.5);
+							if (floor.isEgg) expect(grams % EGG_UNIT_G, ing.name).toBe(0);
+						}
+						for (const c of [...p.complements, { name: p.extraStarchIngredientName ?? '', grams: p.extraStarchG ?? 0 }])
+							if (c.name === 'Flocons d’avoine' || c.name === 'Riz complet')
+								expect(c.grams === 0 || c.grams >= 30, `${c.name} ${c.grams} g`).toBe(true);
 					});
 			});
 
@@ -198,17 +219,32 @@ describe('fitDay', () => {
 	const lunch = byName('Émincé de Dinde Oriental');
 	const dinner = byName('Double Club Sandwich');
 
-	it('garde les recettes de l’admin : seul le facteur de portion et le complément varient', () => {
+	it('garde les recettes de l’admin : reste de la fiche au facteur, ingrédients à seuil à leurs grammes, compléments', () => {
 		const [p] = fitDay({ meals: [{ position: 'LUNCH', recipe: lunch }], daily: CLIENT, intermittentFasting: true });
 		const factor = p.quantityG / lunch.referenceYieldG!;
+		const { parts, rest } = recipeParts(lunch);
+		expect(p.ingredientGrams.map((i) => i.name).sort()).toEqual(parts.map((x) => x.name).sort());
 		const added = [
 			{ name: p.extraStarchIngredientName, grams: p.extraStarchG ?? 0 },
 			...p.complements
 		].filter((c): c is { name: string; grams: number } => c.name != null && c.grams > 0);
-		const addedOf = (key: 'proteinG' | 'fatG') =>
+		const expected = (key: 'proteinG' | 'fatG') =>
+			rest[key] * factor +
+			parts.reduce((s, x) => s + (x.per100[key] * p.ingredientGrams.find((i) => i.name === x.name)!.grams) / 100, 0) +
 			added.reduce((s, c) => s + (complementReferenceFor(c.name)![key] * c.grams) / 100, 0);
-		expect(p.calcProteinG).toBeCloseTo(lunch.nutritionProteinG! * factor + addedOf('proteinG'), 6);
-		expect(p.calcFatG).toBeCloseTo(lunch.nutritionFatG! * factor + addedOf('fatG'), 6);
+		expect(p.calcProteinG).toBeCloseTo(expected('proteinG'), 6);
+		expect(p.calcFatG).toBeCloseTo(expected('fatG'), 6);
+	});
+
+	it('petit gabarit : la viande reste à 70 g et le féculent tampon absorbe le solde', () => {
+		const light = dailyMealTargets({ weightKg: 58, bodyFatPercent: 28, activityLevel: 'SEDENTARY' })!;
+		const [p] = fitDay({ meals: [{ position: 'LUNCH', recipe: lunch }, { position: 'DINNER', recipe: dinner }], daily: light, intermittentFasting: true });
+		const meat = lunch.ingredients.find((i) => i.category === 'Viandes')!;
+		const starch = findStarchIngredient(lunch)!;
+		const factor = p.quantityG / lunch.referenceYieldG!;
+		expect(mealIngredientGrams(meat, p, lunch.referenceYieldG)).toBeGreaterThanOrEqual(Math.min(70, meat.quantityG!));
+		// Le féculent ne suit pas le facteur du plat.
+		expect(Math.abs(mealIngredientGrams(starch, p, lunch.referenceYieldG)! - starch.quantityG * factor)).toBeGreaterThan(1);
 	});
 
 	it('sert du riz complet en complément quand la recette n’a pas de féculent', () => {

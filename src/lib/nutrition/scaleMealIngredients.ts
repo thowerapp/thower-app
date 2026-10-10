@@ -26,16 +26,22 @@ export function scaledIngredientGrams(
 	return ingredientQuantityG * mealScaleFactor(mealQuantityG, referenceYieldG);
 }
 
-/** Grammes ingrédient du repas : portion de recette + féculent ajouté par computeMealPortion si c'est cet ingrédient. */
+/**
+ * Grammes ingrédient du repas : grammes fixés par le planificateur (ingrédients à seuil plancher et
+ * féculent tampon), sinon portion de recette + féculent ajouté si c'est cet ingrédient.
+ */
 export function mealIngredientGrams(
 	ingredient: { name: string; quantityG: number | null | undefined },
 	meal: {
 		quantityG: number | null | undefined;
 		extraStarchG?: number | null;
 		extraStarchIngredientName?: string | null;
+		ingredientGrams?: { name: string; grams: number }[] | null;
 	},
 	referenceYieldG: number | null | undefined
 ): number | null {
+	const planned = meal.ingredientGrams?.find((i) => i.name === ingredient.name);
+	if (planned && ingredient.quantityG != null) return planned.grams;
 	const scaled = scaledIngredientGrams(ingredient.quantityG, meal.quantityG, referenceYieldG);
 	if (scaled == null) return null;
 	const extra =
@@ -85,12 +91,17 @@ export function scaleIngredientNote(note: string, factor: number): string {
 /** Poids d'un œuf moyen entier, sans coquille (calibre M). */
 export const EGG_UNIT_G = 55;
 
+/** true si le libellé désigne des œufs (« Œufs entiers », « Œuf entier (dessert) »). */
+export function isEggIngredient(name: string): boolean {
+	return /(^|[\s(])(œuf|oeuf)s?\b/.test(name.toLowerCase());
+}
+
 /**
  * Œufs servis à l'unité : nombre d'œufs entiers (au moins 1) le plus proche des grammes calculés, et
  * grammes correspondants. Null si l'ingrédient n'est pas un œuf.
  */
 export function wholeEggPortion(name: string, grams: number | null): { count: number; grams: number } | null {
-	if (grams == null || grams <= 0 || !/(^|[\s(])(œuf|oeuf)s?\b/.test(name.toLowerCase())) return null;
+	if (grams == null || grams <= 0 || !isEggIngredient(name)) return null;
 	const count = Math.max(1, Math.round(grams / EGG_UNIT_G));
 	return { count, grams: count * EGG_UNIT_G };
 }

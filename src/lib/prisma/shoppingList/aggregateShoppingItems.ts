@@ -103,6 +103,7 @@ export type PlanningMealInput = {
 	extraStarchG?: number | null;
 	extraStarchIngredientName?: string | null;
 	complements?: { name: string; grams: number }[] | null;
+	ingredientGrams?: { name: string; grams: number }[] | null;
 	recipe: {
 		name: string | null;
 		referenceYieldG: number | null;

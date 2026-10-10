@@ -15,6 +15,7 @@ export type UpsertMealData = {
 	extraStarchG?: number | null;
 	extraStarchIngredientName?: string | null;
 	complements?: { name: string; grams: number }[];
+	ingredientGrams?: { name: string; grams: number }[];
 	isManual?: boolean;
 	manualProteinG?: number | null;
 	manualCarbsG?: number | null;
@@ -42,6 +43,7 @@ export async function upsertMeal(data: UpsertMealData) {
 		extraStarchG: data.extraStarchG ?? null,
 		extraStarchIngredientName: data.extraStarchIngredientName ?? null,
 		complements: data.complements ?? [],
+		ingredientGrams: data.ingredientGrams ?? [],
 		isManual: data.isManual ?? false,
 		manualProteinG: data.manualProteinG ?? undefined,
 		manualCarbsG: data.manualCarbsG ?? undefined,

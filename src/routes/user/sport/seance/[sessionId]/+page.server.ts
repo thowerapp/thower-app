@@ -15,7 +15,7 @@ import { getSportVideosForProgramDay, resolveSportWeek } from '$lib/server/sport
 import {
 	completeWorkoutDay,
 	isPrerequisiteMet,
-	WORKOUT_COMPLETION_POINTS
+	sessionCompletionPoints
 } from '$lib/server/sport/workoutCompletion';
 import { computeLevel } from '$lib/utils/levels';
 
@@ -216,7 +216,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		totalPoints,
 		levelData,
 		levelPercent,
-		workoutCompletionPoints: WORKOUT_COMPLETION_POINTS,
+		workoutCompletionPoints: sessionCompletionPoints(session.type),
 		seanceVideoSummary: {
 			mandatoryValidated,
 			mandatoryTotal: mandatoryVideos.length,
@@ -319,6 +319,7 @@ export const actions: Actions = {
 			userId,
 			sessionId,
 			sessionName: session.name,
+			sessionType: session.type,
 			dayIndex: dayIdx,
 			contentDayIndex: slot.contentDayIndex,
 			scheduledDate
@@ -329,7 +330,7 @@ export const actions: Actions = {
 
 		return {
 			success: true,
-			pointsAwarded: WORKOUT_COMPLETION_POINTS
+			pointsAwarded: sessionCompletionPoints(session.type)
 		};
 	}
 };

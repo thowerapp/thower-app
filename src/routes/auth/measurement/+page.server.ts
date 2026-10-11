@@ -27,7 +27,8 @@ import type { Actions, RequestEvent } from './$types';
 
 /** Génération nutrition peut durer >10s si waitUntil indisponible (repli await). */
 export const config = {
-	maxDuration: 300
+	// Plan Vercel Hobby : 60 s maximum sans Fluid compute ; une génération dure ~2 s.
+	maxDuration: 60
 };
 
 async function replaceInitialProgressPhotos(userId: string, data: MeasurementSchema) {

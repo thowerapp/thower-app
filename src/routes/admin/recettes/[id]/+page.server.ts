@@ -2,19 +2,18 @@ import { zod } from '$lib/superforms-zod';
 import type { PageServerLoad, Actions } from './$types';
 import { message, superValidate, fail } from 'sveltekit-superforms';
 import { error, redirect } from '@sveltejs/kit';
-import { recipeSchema, type RecipeSchema } from '$lib/schema/recipe/recipeSchema';
+import { recipeSchema } from '$lib/schema/recipe/recipeSchema';
 import { prisma } from '$lib/server';
 import { invalidateRecipeCatalog } from '$lib/server/nutrition/recipeCatalog';
+import { regenerateShoppingListsForRecipe } from '$lib/prisma/shoppingList/regenerateOverlappingDay';
 import { serializeData } from '$lib/utils/serializeData';
 
 export const load: PageServerLoad = async ({ params }) => {
 
-	const recipe = prisma.recipe
-		? await prisma.recipe.findUnique({
-				where: { id: params.id },
-				include: { ingredients: { orderBy: { order: 'asc' } } }
-			})
-		: null;
+	const recipe = await prisma.recipe.findUnique({
+		where: { id: params.id },
+		include: { ingredients: { orderBy: { order: 'asc' } } }
+	});
 
 	if (!recipe) throw error(404, 'Recette introuvable.');
 
@@ -76,14 +75,13 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const d = form.data as RecipeSchema;
+		const d = form.data;
 
 
 		try {
-			// Supprimer les anciens ingrédients et recréer (stratégie replace pour MongoDB)
-			await prisma.recipeIngredient.deleteMany({ where: { recipeId: params.id } });
-
-			await prisma.recipe.update({
+			// Remplacement des ingrédients dans une transaction : un échec laisse la recette intacte.
+			const deleteIngredients = prisma.recipeIngredient.deleteMany({ where: { recipeId: params.id } });
+			const updateRecipe = prisma.recipe.update({
 				where: { id: params.id },
 				data: {
 					name: d.name,
@@ -114,12 +112,20 @@ export const actions: Actions = {
 					}
 				}
 			});
+			await prisma.$transaction([deleteIngredients, updateRecipe]);
 
 			invalidateRecipeCatalog();
-			return message(form, 'Recette mise à jour.');
 		} catch (err) {
 			console.error('[admin/recettes/[id]] updateRecipe error', err);
 			return fail(500, { form, message: 'Une erreur est survenue lors de la mise à jour.' });
 		}
+
+		// Listes de courses des repas qui utilisent la recette (comme `updateRecipe`).
+		try {
+			await regenerateShoppingListsForRecipe(params.id);
+		} catch (err) {
+			console.error('[admin/recettes/[id]] regenerateShoppingListsForRecipe error', err);
+		}
+		return message(form, 'Recette mise à jour.');
 	}
 };

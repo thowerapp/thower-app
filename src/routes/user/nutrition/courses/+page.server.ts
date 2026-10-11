@@ -182,8 +182,7 @@ export const actions: Actions = {
 				: daysCountFromPeriode(currentDay, periode);
 		const { startDayIndex, endDayIndex } = computeRange(currentDay, daysCount);
 
-		await prisma.shoppingList.deleteMany({ where: { userId, startDayIndex, endDayIndex } });
-
+		// Remplace la liste en conservant les cases cochées (comme la régénération automatique).
 		const result = await generateShoppingListFromPlanning(userId, startDayIndex, endDayIndex, {
 			includeReportedFromPrevious: true
 		});

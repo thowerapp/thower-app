@@ -12,7 +12,7 @@ const prismaMock = {
 
 vi.mock('$lib/server', () => ({ prisma: prismaMock }));
 
-const { completeWorkoutDay, isPrerequisiteMet, WORKOUT_COMPLETION_POINTS } = await import(
+const { completeWorkoutDay, isPrerequisiteMet, sessionCompletionPoints, WORKOUT_COMPLETION_POINTS } = await import(
 	'./workoutCompletion'
 );
 
@@ -20,6 +20,7 @@ const base = {
 	userId: 'u1',
 	sessionId: 's1',
 	sessionName: 'S',
+	sessionType: 'MAIN_A' as const,
 	dayIndex: 3,
 	contentDayIndex: 3
 };
@@ -60,9 +61,23 @@ describe('completeWorkoutDay', () => {
 		await expect(completeWorkoutDay(base)).resolves.toBe(false);
 	});
 
+	it('valide une séance Découverte sans créditer de points', async () => {
+		tx.userWorkoutDay.updateMany.mockResolvedValue({ count: 1 });
+		await expect(completeWorkoutDay({ ...base, sessionType: 'DISCOVERY' })).resolves.toBe(true);
+		expect(tx.pointEvent.create).not.toHaveBeenCalled();
+	});
+
 	it('propage les autres erreurs', async () => {
 		prismaMock.$transaction.mockRejectedValue(new Error('db down'));
 		await expect(completeWorkoutDay(base)).rejects.toThrow('db down');
+	});
+});
+
+describe('sessionCompletionPoints', () => {
+	it('crédite les séances principales, pas la Découverte', () => {
+		expect(sessionCompletionPoints('MAIN_A')).toBe(WORKOUT_COMPLETION_POINTS);
+		expect(sessionCompletionPoints('MAIN_C')).toBe(WORKOUT_COMPLETION_POINTS);
+		expect(sessionCompletionPoints('DISCOVERY')).toBe(0);
 	});
 });
 

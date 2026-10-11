@@ -7,7 +7,8 @@ dotenv.config();
 
 // La génération du programme tourne en waitUntil après la réponse à Stripe.
 export const config = {
-	maxDuration: 300
+	// Plan Vercel Hobby : 60 s maximum sans Fluid compute ; une génération dure ~2 s.
+	maxDuration: 60
 };
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');

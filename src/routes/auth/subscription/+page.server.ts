@@ -20,7 +20,8 @@ import type { Actions, RequestEvent } from './$types';
 
 // La génération du programme tourne en waitUntil après la réponse.
 export const config = {
-	maxDuration: 300
+	// Plan Vercel Hobby : 60 s maximum sans Fluid compute ; une génération dure ~2 s.
+	maxDuration: 60
 };
 
 export const load = async (event: RequestEvent) => {

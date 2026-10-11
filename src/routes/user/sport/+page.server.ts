@@ -17,7 +17,7 @@ import { serializeData } from '$lib/utils/serializeData';
 import { requireSportAccess } from '$lib/server/programAccessGuard';
 import { ensureProgramStartDate } from '$lib/server/program-generation/generateProgramForUser';
 import { resolveSportWeek } from '$lib/server/sport/programSportDays';
-import { WORKOUT_COMPLETION_POINTS } from '$lib/server/sport/workoutCompletion';
+import { sessionCompletionPoints } from '$lib/server/sport/workoutCompletion';
 
 function sessionTypeToLetter(t: WorkoutSessionType | null | undefined): string | null {
 	if (!t) return null;
@@ -140,7 +140,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			sessionId,
 			sessionLetter: letter,
 			sessionName,
-			points: sessionId ? WORKOUT_COMPLETION_POINTS : 0,
+			points: slot ? sessionCompletionPoints(slot.session.type) : 0,
 			completedAtISO: completedAt?.toISOString() ?? null,
 			isToday: !outOfProgram && dayIndex === currentDayIndex,
 			hrefSeance

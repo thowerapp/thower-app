@@ -7,6 +7,11 @@ import { sportWeekBounds, sportWeekNumberForDay } from '$lib/utils/programDay';
 /** Points gagnés à la validation d'une séance sport (source unique). */
 export const WORKOUT_COMPLETION_POINTS = POINTS.WORKOUT_COMPLETE;
 
+/** La Découverte est facultative : seules ses vidéos rapportent des points, pas sa validation. */
+export function sessionCompletionPoints(type: WorkoutSessionType): number {
+	return type === 'DISCOVERY' ? 0 : WORKOUT_COMPLETION_POINTS;
+}
+
 const PREVIOUS_TYPE: Partial<Record<WorkoutSessionType, WorkoutSessionType>> = {
 	MAIN_B: 'MAIN_A',
 	MAIN_C: 'MAIN_B'
@@ -52,11 +57,14 @@ export async function completeWorkoutDay(params: {
 	userId: string;
 	sessionId: string;
 	sessionName: string;
+	sessionType: WorkoutSessionType;
 	dayIndex: number;
 	contentDayIndex: number;
 	scheduledDate?: Date;
 }): Promise<boolean> {
-	const { userId, sessionId, sessionName, dayIndex, contentDayIndex, scheduledDate } = params;
+	const { userId, sessionId, sessionName, sessionType, dayIndex, contentDayIndex, scheduledDate } =
+		params;
+	const points = sessionCompletionPoints(sessionType);
 
 	try {
 		return await prisma.$transaction(async (tx) => {
@@ -87,14 +95,16 @@ export async function completeWorkoutDay(params: {
 				await tx.userWorkoutDay.create({ data: { userId, sessionId, dayIndex, ...completion } });
 			}
 
-			await tx.pointEvent.create({
-				data: {
-					userId,
-					type: 'WORKOUT_COMPLETE',
-					amount: WORKOUT_COMPLETION_POINTS,
-					metadata: { sessionId, sessionName, dayIndex }
-				}
-			});
+			if (points > 0) {
+				await tx.pointEvent.create({
+					data: {
+						userId,
+						type: 'WORKOUT_COMPLETE',
+						amount: points,
+						metadata: { sessionId, sessionName, dayIndex }
+					}
+				});
+			}
 			return true;
 		});
 	} catch (err) {

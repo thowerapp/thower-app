@@ -38,6 +38,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		if (notReady > 0) warnings.push(`${notReady} vidéo(s) pas encore prête(s)`);
 
 		const type = explicitSessionType(videos);
+		if (!type) {
+			// Sans type, le rang est déduit dans la semaine : Séance 1 / 2 / 3 peuvent s'inverser.
+			warnings.push('Aucune vidéo typée (Séance 1, 2, 3 ou Découverte) : ordre déduit, à renseigner');
+		}
 		if (type && type !== 'DISCOVERY') {
 			const sameWeek = daysByTypeAndWeek.get(`${Math.ceil(dayIndex / 7)}:${type}`) ?? [];
 			const others = sameWeek.filter((d) => d !== dayIndex);

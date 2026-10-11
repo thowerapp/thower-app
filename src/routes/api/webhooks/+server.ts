@@ -5,6 +5,11 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// La génération du programme tourne en waitUntil après la réponse à Stripe.
+export const config = {
+	maxDuration: 300
+};
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 /** Secrets de signature (endpoint Dashboard, CLI `stripe listen`, preview Vercel…). */
@@ -16,7 +21,14 @@ function stripeWebhookSecrets(): string[] {
 	]
 		.filter(Boolean)
 		.join(',');
-	return [...new Set(raw.split(',').map((s) => s.trim()).filter(Boolean))];
+	return [
+		...new Set(
+			raw
+				.split(',')
+				.map((s) => s.trim())
+				.filter(Boolean)
+		)
+	];
 }
 
 function constructStripeEvent(body: string, signature: string): Stripe.Event {

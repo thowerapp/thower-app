@@ -14,6 +14,7 @@ export type ProgramGenStep =
 	| 'schedule_denied'
 	| 'schedule_ok'
 	| 'schedule_complete'
+	| 'schedule_skip_running'
 	| 'generate_start'
 	| 'generate_abort'
 	| 'generate_skip_complete'
@@ -24,9 +25,7 @@ export type ProgramGenStep =
 	| 'admin_future_regen_complete';
 
 export function programGenLogEnabled(): boolean {
-	return (
-		process.env.PROGRAM_GENERATION_LOG === '1' || process.env.NODE_ENV !== 'production'
-	);
+	return process.env.PROGRAM_GENERATION_LOG === '1' || process.env.NODE_ENV !== 'production';
 }
 
 /** Jalon visible en production — une ligne JSON par événement. */

@@ -210,8 +210,14 @@
 		</div>
 	{:else}
 		<p class="empty-msg">
-			Aucun repas planifié pour ce jour. La génération du programme ou une mensuration peuvent être
-			nécessaires.
+			{#if data.programGenStatus === 'RUNNING'}
+				Ton programme est en cours de génération, reviens dans quelques instants.
+			{:else if data.programGenStatus === 'FAILED'}
+				La génération de ton programme n'a pas abouti. Enregistre à nouveau tes mensurations pour la relancer.
+			{:else}
+				Aucun repas planifié pour ce jour. La génération du programme ou une mensuration peuvent être
+				nécessaires.
+			{/if}
 		</p>
 	{/if}
 </div>

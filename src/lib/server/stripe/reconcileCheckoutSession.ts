@@ -9,6 +9,8 @@ import { getSubscriptionEndDateFromPlan, type PlanId } from '$lib/server/subscri
 import { claimNutritionSegmentCreditOnTransaction } from '$lib/server/mongo/claimNutritionSegmentCredit';
 import { incUserNutritionDaysAllocatedMongo } from '$lib/server/mongo/incUserNutritionDaysAllocated';
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
+import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
+import { shouldResumeProgramGeneration } from '$lib/server/program-generation/generationLock';
 import { programGenTrace } from '$lib/server/program-generation/programGenerationLog';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { logPaymentStatus, onboardingTrace } from '$lib/server/onboarding/onboardingLog';
@@ -25,6 +27,14 @@ export type CheckoutReconcileSource = 'webhook' | 'return_url' | 'measurement_sy
 
 function sessionUserId(session: Stripe.Checkout.Session): string | null {
 	return session.metadata?.userId ?? session.client_reference_id ?? null;
+}
+
+function dispatchGeneration(userId: string, source: CheckoutReconcileSource) {
+	return dispatchProgramGeneration(null, () =>
+		scheduleProgramGenerationAfterPayment(userId, {
+			source: source === 'webhook' ? 'webhook' : 'internal'
+		})
+	);
 }
 
 /**
@@ -105,6 +115,10 @@ export async function reconcilePaidCheckoutSession(
 	const credited = await claimNutritionSegmentCreditOnTransaction(transaction.id);
 
 	if (!credited) {
+		// Rejeu (ex. retry Stripe après une fonction coupée) : relancer si la génération n'a pas abouti.
+		const hasMeasurements = (await getBodyMeasurementsByUserId(transaction.userId, 1)).length > 0;
+		const resumed = hasMeasurements && (await shouldResumeProgramGeneration(transaction.userId));
+		if (resumed) await dispatchGeneration(transaction.userId, source);
 		onboardingTrace('stripe_reconcile', {
 			userId: transaction.userId,
 			source: 'stripe',
@@ -142,9 +156,7 @@ export async function reconcilePaidCheckoutSession(
 
 	const measurements = await getBodyMeasurementsByUserId(transaction.userId, 1);
 	if (measurements.length > 0) {
-		await scheduleProgramGenerationAfterPayment(transaction.userId, {
-			source: source === 'webhook' ? 'webhook' : 'internal'
-		});
+		await dispatchGeneration(transaction.userId, source);
 	}
 
 	const valid = await getHasValidPaymentByUserId(transaction.userId);

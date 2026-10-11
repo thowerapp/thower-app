@@ -16,6 +16,14 @@ enum Role {
   CLIENT
 }
 
+/// État de la génération du programme nutrition d'un utilisateur (null = comptes antérieurs au suivi)
+enum ProgramGenStatus {
+  IDLE
+  RUNNING
+  DONE
+  FAILED
+}
+
 enum ActivityLevel {
   SEDENTARY
   ACTIVE
@@ -170,6 +178,10 @@ model User {
   photoValidationStatus     PhotoValidationStatus      @default(PENDING)
   /// Quand l'admin a validé les photos et saisi le % de masse graisseuse
   photoValidatedAt          DateTime?
+  /// Génération du programme nutrition : verrou (RUNNING + bail) et résultat
+  programGenStatus          ProgramGenStatus?
+  programGenStartedAt       DateTime?
+  programGenFinishedAt      DateTime?
   createdAt                 DateTime                   @default(now())
 
   // Auth

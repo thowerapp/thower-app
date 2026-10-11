@@ -1,7 +1,8 @@
 import { prisma } from '$lib/server';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
-import { generateProgramForUser } from './generateProgramForUser';
+import { generateProgramForUser, ensureProgramStartDate } from './generateProgramForUser';
+import { claimProgramGeneration, finishProgramGeneration } from './generationLock';
 import {
 	programGenError,
 	programGenLog,
@@ -13,7 +14,11 @@ import { logProgramGenSummary } from './logProgramGenSummary';
 
 export type { ProgramGenSource } from './programGenerationLog';
 
-export { PROGRAM_NUTRITION_DAYS, generateNutritionDaysForUser, generateNutrition91Days } from './nutrition/generateNutrition91Days';
+export {
+	PROGRAM_NUTRITION_DAYS,
+	generateNutritionDaysForUser,
+	generateNutrition91Days
+} from './nutrition/generateNutrition91Days';
 export { generateProgramForUser } from './generateProgramForUser';
 
 /** Admin / tests : crédite 91 j de nutrition si absent (pas de webhook Stripe). */
@@ -31,6 +36,14 @@ async function ensureNutritionDaysAllocated(userId: string): Promise<void> {
 	programGenLog('1b/ nutritionDaysAllocated fixé à 91 (admin ou rattrapage)', { userId });
 }
 
+async function readAllocatedDays(userId: string): Promise<number> {
+	const user = await prisma.user.findUnique({
+		where: { id: userId },
+		select: { nutritionDaysAllocated: true }
+	});
+	return user?.nutritionDaysAllocated ?? 0;
+}
+
 /**
  * Déclenché côté serveur après validation du formulaire measurement.
  * Paiement valide requis (sauf ADMIN). Le webhook Stripe ne génère plus le programme.
@@ -42,7 +55,11 @@ export async function scheduleProgramGenerationAfterPayment(
 	const source = options?.source ?? 'internal';
 
 	programGenTrace('schedule_start', { userId, source, role: options?.role });
-	programGenLog('1/ entrée scheduleProgramGenerationAfterPayment', { userId, role: options?.role, source });
+	programGenLog('1/ entrée scheduleProgramGenerationAfterPayment', {
+		userId,
+		role: options?.role,
+		source
+	});
 
 	const role =
 		options?.role ??
@@ -99,7 +116,26 @@ export async function scheduleProgramGenerationAfterPayment(
 	});
 
 	try {
-		await generateProgramForUser(userId, source);
+		// Le sport ne dépend que de cette date : elle ne doit pas attendre la génération nutrition.
+		await ensureProgramStartDate(userId);
+
+		if (!(await claimProgramGeneration(userId))) {
+			programGenTrace('schedule_skip_running', { userId, source });
+			return;
+		}
+
+		try {
+			// Un paiement arrivé pendant la génération (appel concurrent ignoré) est rattrapé par une 2e passe.
+			for (let pass = 0; pass < 2; pass++) {
+				const before = await readAllocatedDays(userId);
+				await generateProgramForUser(userId, source);
+				if ((await readAllocatedDays(userId)) <= before) break;
+			}
+			await finishProgramGeneration(userId, 'DONE');
+		} catch (err) {
+			await finishProgramGeneration(userId, 'FAILED').catch(() => undefined);
+			throw err;
+		}
 		programGenTrace('schedule_complete', { userId, source, outcome: 'ok' });
 	} catch (err) {
 		programGenError('generate_error', {

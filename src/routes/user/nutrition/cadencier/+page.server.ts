@@ -88,6 +88,7 @@ type CadencierDayDTO = {
 type CadencierUserRow = {
 	programStartDate: Date | null;
 	nutritionDaysAllocated: number;
+	programGenStatus: 'IDLE' | 'RUNNING' | 'DONE' | 'FAILED' | null;
 	profile: { intermittentFastingMorning: boolean | null } | null;
 };
 
@@ -95,6 +96,7 @@ type CadencierUserRow = {
 const cadencierUserSelect = {
 	programStartDate: true,
 	nutritionDaysAllocated: true,
+	programGenStatus: true,
 	profile: { select: { intermittentFastingMorning: true } }
 } as unknown as Prisma.UserSelect;
 
@@ -204,21 +206,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			: [];
 		const meals: CadencierMealDTO[] = sortedMeals.map((m, slotIndex) => {
 			const manual = m.isManual === true;
-			const calories = Math.round(
-				manual ? (m.manualCalories ?? 0) : (m.calcCalories ?? 0)
-			);
-			const proteinG = Math.round(
-				(manual ? (m.manualProteinG ?? 0) : (m.calcProteinG ?? 0)) * 10
-			) / 10;
-			const carbsG = Math.round(
-				(manual ? (m.manualCarbsG ?? 0) : (m.calcCarbsG ?? 0)) * 10
-			) / 10;
-			const fatG = Math.round(
-				(manual ? (m.manualFatG ?? 0) : (m.calcFatG ?? 0)) * 10
-			) / 10;
-			const fiberG = Math.round(
-				(manual ? (m.manualFiberG ?? 0) : (m.calcFiberG ?? 0)) * 10
-			) / 10;
+			const calories = Math.round(manual ? (m.manualCalories ?? 0) : (m.calcCalories ?? 0));
+			const proteinG =
+				Math.round((manual ? (m.manualProteinG ?? 0) : (m.calcProteinG ?? 0)) * 10) / 10;
+			const carbsG = Math.round((manual ? (m.manualCarbsG ?? 0) : (m.calcCarbsG ?? 0)) * 10) / 10;
+			const fatG = Math.round((manual ? (m.manualFatG ?? 0) : (m.calcFatG ?? 0)) * 10) / 10;
+			const fiberG = Math.round((manual ? (m.manualFiberG ?? 0) : (m.calcFiberG ?? 0)) * 10) / 10;
 			return {
 				id: m.id,
 				position: m.position,
@@ -273,6 +266,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		weekDays,
 		defaultSelectedDay,
 		nutritionDaysAllocated: user?.nutritionDaysAllocated ?? 0,
+		programGenStatus: user?.programGenStatus ?? null,
 		hasProgramStart: user?.programStartDate != null,
 		intermittentFasting: user?.profile?.intermittentFastingMorning ?? false,
 		dayTargets
@@ -338,7 +332,7 @@ export const actions: Actions = {
 			await prisma.userProfile.upsert({
 				where: { userId },
 				create: { userId, intermittentFastingMorning: active },
-				update: { intermittentFastingMorning: active },
+				update: { intermittentFastingMorning: active }
 			});
 			return { success: true };
 		} catch {

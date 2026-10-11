@@ -18,6 +18,11 @@ import { logPaymentStatus, onboardingTrace } from '$lib/server/onboarding/onboar
 
 import type { Actions, RequestEvent } from './$types';
 
+// La génération du programme tourne en waitUntil après la réponse.
+export const config = {
+	maxDuration: 300
+};
+
 export const load = async (event: RequestEvent) => {
 	if (event.locals.session === null || event.locals.user === null) {
 		return redirect(302, '/auth/login');
@@ -42,7 +47,11 @@ export const load = async (event: RequestEvent) => {
 		await logPaymentStatus(userId, 'subscription', 'stripe_return_before_reconcile');
 		if (stripeSessionId) {
 			reconcileOutcome = 'session_id';
-			const reconciled = await reconcileCheckoutSessionForUser(stripeSessionId, userId, 'return_url');
+			const reconciled = await reconcileCheckoutSessionForUser(
+				stripeSessionId,
+				userId,
+				'return_url'
+			);
 			onboardingTrace('stripe_reconcile', {
 				userId,
 				source: 'subscription',
@@ -123,9 +132,7 @@ export const load = async (event: RequestEvent) => {
 				isAdmin,
 				hasValidPayment,
 				hasMeasurements,
-				reason: hasMeasurements
-					? 'payment_not_valid'
-					: 'missing_measurements_redirect_measurement'
+				reason: hasMeasurements ? 'payment_not_valid' : 'missing_measurements_redirect_measurement'
 			});
 		}
 		return redirect(302, redirectTo);

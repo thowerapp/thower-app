@@ -175,7 +175,7 @@ const checkInMetricsComplete = $derived(
   </div>
   <div class="u-li" style="opacity:.45">
     <div class="u-li-th"><div style="width:9px;height:9px;border-radius:50%;background:var(--br2)"></div></div>
-    <div class="u-li-b"><div class="u-li-t">Photos 3 angles (Mois {data.currentMonth})</div><div class="u-li-s">Uploader Face + Profil + Dos</div></div>
+    <div class="u-li-b"><div class="u-li-t">Photos 3 angles ({data.programCycle > 1 ? `Cycle ${data.programCycle} · ` : ''}Mois {data.displayMonth})</div><div class="u-li-s">Uploader Face + Profil + Dos</div></div>
     <div class="u-li-r"><div class="u-arr"></div></div>
   </div>
 {/if}
@@ -202,8 +202,8 @@ const checkInMetricsComplete = $derived(
 </div>
 
 <!-- Check-in mensuel — visible à partir du mois 2 uniquement -->
-{#if data.currentMonth >= 2}
-<div class="u-sh"><div class="u-sh-t">Check-in mensuel</div><div class="u-sh-s">{data.checkInDue ? `Mois ${data.currentMonth} · À compléter · +50 pts` : `Mois ${data.currentMonth} · Complété ✓`}</div></div>
+{#if data.displayMonth >= 2 || data.programCycle > 1}
+<div class="u-sh"><div class="u-sh-t">Check-in mensuel</div><div class="u-sh-s">{data.checkInDue ? `Mois ${data.displayMonth} · À compléter · +50 pts` : `Mois ${data.displayMonth} · Complété ✓`}</div></div>
 
 {#if data.checkInDue}
   <div style="padding: 18px; background: var(--s2); border-bottom: 1px solid var(--br); margin-bottom: 12px;">
@@ -383,7 +383,7 @@ const checkInMetricsComplete = $derived(
       </div>
     {/each}
   </div>
-  <div class="checkin-next">Prochain check-in disponible au mois {data.currentMonth + 1}</div>
+  <div class="checkin-next">Prochain check-in disponible au mois {data.displayMonth + 1}</div>
 {/if}
 {/if}
 

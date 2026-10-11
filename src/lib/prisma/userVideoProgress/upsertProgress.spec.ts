@@ -223,3 +223,54 @@ describe('upsertVideoProgress — progression max croissante', () => {
 		expect(result.completedNow).toBe(false);
 	});
 });
+
+describe('upsertVideoProgress — workout, nouveau cycle de 91 jours', () => {
+	const cycleStart = new Date('2026-04-05T22:00:00.000Z');
+
+	it('une vidéo terminée au cycle précédent repart de zéro et se complète à nouveau', async () => {
+		const db = await getPrisma();
+		db.userVideoProgress.findFirst.mockResolvedValue({
+			id: 'p1',
+			maxPositionSec: 100,
+			completedAt: new Date('2026-02-01T10:00:00.000Z')
+		});
+
+		const partial = await upsertVideoProgress({
+			kind: 'workout',
+			userId: 'u1',
+			workoutVideoId: 'vid1',
+			positionSec: 10,
+			cycleStart
+		});
+		expect(partial).toMatchObject({ completedNow: false, alreadyCompleted: false, maxPositionSec: 10 });
+		expect(db.userVideoProgress.update.mock.calls[0][0].data.completedAt).toBeNull();
+
+		const done = await upsertVideoProgress({
+			kind: 'workout',
+			userId: 'u1',
+			workoutVideoId: 'vid1',
+			positionSec: 0,
+			ended: true,
+			cycleStart
+		});
+		expect(done.completedNow).toBe(true);
+	});
+
+	it('une vidéo déjà terminée dans ce cycle ne se recomplète pas', async () => {
+		const db = await getPrisma();
+		db.userVideoProgress.findFirst.mockResolvedValue({
+			id: 'p1',
+			maxPositionSec: 100,
+			completedAt: new Date('2026-04-10T10:00:00.000Z')
+		});
+		const result = await upsertVideoProgress({
+			kind: 'workout',
+			userId: 'u1',
+			workoutVideoId: 'vid1',
+			positionSec: 100,
+			ended: true,
+			cycleStart
+		});
+		expect(result).toMatchObject({ completedNow: false, alreadyCompleted: true });
+	});
+});

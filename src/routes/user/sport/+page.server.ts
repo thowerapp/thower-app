@@ -4,7 +4,6 @@ import { prisma } from '$lib/server';
 import type { WorkoutSessionType } from '@prisma/client';
 import {
 	calendarDateForProgramDay,
-	currentProgramDayIndex,
 	programDayDateISO,
 	programDayUtcDate,
 	shortWeekdayFrUtc,
@@ -18,6 +17,8 @@ import { requireSportAccess } from '$lib/server/programAccessGuard';
 import { ensureProgramStartDate } from '$lib/server/program-generation/generateProgramForUser';
 import { resolveSportWeek } from '$lib/server/sport/programSportDays';
 import { sessionCompletionPoints } from '$lib/server/sport/workoutCompletion';
+import { getUserProgramCycle } from '$lib/server/programCycle';
+import { absoluteDayIndex, programCycleSelect, resolveProgramCycle } from '$lib/utils/programCycle';
 
 function sessionTypeToLetter(t: WorkoutSessionType | null | undefined): string | null {
 	if (!t) return null;
@@ -58,15 +59,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// `program` ne dépend pas de `user` : on les lance ensemble.
 	const [user, program] = await Promise.all([
-		prisma.user.findUnique({
-			where: { id: userId },
-			select: { programStartDate: true }
-		}),
+		prisma.user.findUnique({ where: { id: userId }, select: programCycleSelect }),
 		prisma.program.findFirst({ where: { active: true }, select: { id: true } })
 	]);
 
-	const programStart = user?.programStartDate ?? null;
-	const currentDayIndex = currentProgramDayIndex(programStart);
+	// Le planning montre le cycle de 91 jours en cours (jours relatifs, départ du cycle).
+	const cycle = resolveProgramCycle(user);
+	const programStart = cycle.start;
+	const currentDayIndex = cycle.dayIndex;
 	const totalWeeks = sportWeekCount(programStart);
 	const currentWeek = sportWeekNumberForDay(programStart, currentDayIndex);
 
@@ -88,6 +88,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		return serializeData({
 			hasProgram: false,
 			hasProgramStart: false,
+			cycle: cycle.cycle,
 			currentDayIndex,
 			currentWeek,
 			totalWeeks,
@@ -105,7 +106,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const { slots: resolvedSlots } = await resolveSportWeek({
 		userId,
 		programStart,
-		week: selectedWeek
+		week: selectedWeek,
+		offset: cycle.offset
 	});
 
 	const weekStrip: SportWeekStripEntry[] = [];
@@ -192,6 +194,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	return serializeData({
 		hasProgram: true,
 		hasProgramStart: programStart !== null,
+		cycle: cycle.cycle,
 		currentDayIndex,
 		currentWeek,
 		totalWeeks,
@@ -225,11 +228,9 @@ export const actions: Actions = {
 		}
 
 		const userId = locals.user.id;
-		const user = await prisma.user.findUnique({
-			where: { id: userId },
-			select: { programStartDate: true }
-		});
-		const programStart = user?.programStartDate ?? null;
+		const cycle = await getUserProgramCycle(userId);
+		const programStart = cycle.start;
+		const targetAbsoluteDay = absoluteDayIndex(cycle, targetDayIndex);
 
 		const sourceWeek = sportWeekNumberForDay(programStart, sourceDayIndex);
 		const targetWeek = sportWeekNumberForDay(programStart, targetDayIndex);
@@ -239,7 +240,7 @@ export const actions: Actions = {
 			});
 		}
 
-		const { slots } = await resolveSportWeek({ userId, programStart, week: sourceWeek });
+		const { slots } = await resolveSportWeek({ userId, programStart, week: sourceWeek, offset: cycle.offset });
 		const sourceSlot = slots.get(sourceDayIndex) ?? null;
 		const targetSlot = slots.get(targetDayIndex) ?? null;
 
@@ -268,7 +269,7 @@ export const actions: Actions = {
 				where: {
 					userId,
 					sessionId: sourceSlot.session.id,
-					dayIndex: targetDayIndex,
+					dayIndex: targetAbsoluteDay,
 					completedAt: null,
 					...(sourceSlot.userWorkoutDayId ? { id: { not: sourceSlot.userWorkoutDayId } } : {})
 				}
@@ -278,7 +279,7 @@ export const actions: Actions = {
 				await tx.userWorkoutDay.update({
 					where: { id: sourceSlot.userWorkoutDayId },
 					data: {
-						dayIndex: targetDayIndex,
+						dayIndex: targetAbsoluteDay,
 						contentDayIndex: sourceSlot.contentDayIndex,
 						scheduledDate
 					}
@@ -288,7 +289,7 @@ export const actions: Actions = {
 					data: {
 						userId,
 						sessionId: sourceSlot.session.id,
-						dayIndex: targetDayIndex,
+						dayIndex: targetAbsoluteDay,
 						contentDayIndex: sourceSlot.contentDayIndex,
 						scheduledDate,
 						completedAt: null,

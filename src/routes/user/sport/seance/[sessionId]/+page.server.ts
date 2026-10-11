@@ -2,7 +2,6 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { prisma } from '$lib/server';
 import {
-	currentProgramDayIndex,
 	programDayDateISO,
 	programDayUtcDate,
 	sportWeekNumberForDay
@@ -18,16 +17,26 @@ import {
 	sessionCompletionPoints
 } from '$lib/server/sport/workoutCompletion';
 import { computeLevel } from '$lib/utils/levels';
+import { getUserProgramCycle } from '$lib/server/programCycle';
+import {
+	absoluteDayIndex,
+	completedInCycle,
+	completedInCycleWhere,
+	programCycleSelect,
+	resolveProgramCycle,
+	type ProgramCycle
+} from '$lib/utils/programCycle';
 
 const OID = /^[a-f\d]{24}$/i;
 type VideoProgressState = 'preparing' | 'not_started' | 'in_progress' | 'validated';
 
 /** Créneau sport de l'utilisateur sur un jour (séance + jour source des vidéos), ou null. */
-async function resolveSlotForDay(userId: string, dayIndex: number, programStart: Date | null) {
+async function resolveSlotForDay(userId: string, dayIndex: number, cycle: ProgramCycle) {
 	const { slots } = await resolveSportWeek({
 		userId,
-		programStart,
-		week: sportWeekNumberForDay(programStart, dayIndex)
+		programStart: cycle.start,
+		week: sportWeekNumberForDay(cycle.start, dayIndex),
+		offset: cycle.offset
 	});
 	return slots.get(dayIndex) ?? null;
 }
@@ -40,29 +49,25 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const userId = locals.user.id;
 
 	const [user, totalPoints] = await Promise.all([
-		prisma.user.findUnique({
-			where: { id: userId },
-			select: { programStartDate: true }
-		}),
+		prisma.user.findUnique({ where: { id: userId }, select: programCycleSelect }),
 		getTotalPointsForUser(userId)
 	]);
+	// Jours relatifs au cycle de 91 jours en cours ; `UserWorkoutDay` est en jour absolu.
+	const cycle = resolveProgramCycle(user);
 
 	const rawDay = url.searchParams.get('day');
 	// Semaine consultée sur le planning avant d'ouvrir la séance : le bouton retour y ramène.
 	const rawSemaine = url.searchParams.get('semaine');
 	const fromWeek = rawSemaine != null && /^\d{1,2}$/.test(rawSemaine) ? rawSemaine : null;
 	const backHref = fromWeek ? `/user/sport?semaine=${fromWeek}` : '/user/sport';
-	const currentUnlockedDayIndex = currentProgramDayIndex(user?.programStartDate ?? null);
-	let dayIndex =
-		rawDay != null && rawDay !== ''
-			? Number.parseInt(rawDay, 10)
-			: currentProgramDayIndex(user?.programStartDate ?? null);
+	const currentUnlockedDayIndex = cycle.dayIndex;
+	let dayIndex = rawDay != null && rawDay !== '' ? Number.parseInt(rawDay, 10) : cycle.dayIndex;
 	if (!Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > 91) {
-		dayIndex = currentProgramDayIndex(user?.programStartDate ?? null);
+		dayIndex = cycle.dayIndex;
 	}
 
 	// Séance = jour rattaché par l'admin ; ses vidéos sont celles de son jour source.
-	const slot = await resolveSlotForDay(userId, dayIndex, user?.programStartDate ?? null);
+	const slot = await resolveSlotForDay(userId, dayIndex, cycle);
 	if (!slot) {
 		throw error(404, 'Pas de séance prévue ce jour.');
 	}
@@ -82,7 +87,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 	const [userDay, progressRows] = await Promise.all([
 		prisma.userWorkoutDay.findFirst({
-			where: { userId, sessionId, dayIndex },
+			where: { userId, sessionId, dayIndex: absoluteDayIndex(cycle, dayIndex) },
 			select: {
 				id: true,
 				completedAt: true,
@@ -105,9 +110,11 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const progressByVideoId = new Map<string, { completedAt: Date | null; maxPositionSec: number }>();
 	for (const r of progressRows) {
 		if (r.workoutVideoId) {
+			// Vidéo terminée lors d'un cycle précédent : à revoir dans ce cycle.
+			const stale = r.completedAt != null && !completedInCycle(r.completedAt, cycle);
 			progressByVideoId.set(r.workoutVideoId, {
-				completedAt: r.completedAt,
-				maxPositionSec: r.maxPositionSec
+				completedAt: stale ? null : r.completedAt,
+				maxPositionSec: stale ? 0 : r.maxPositionSec
 			});
 		}
 	}
@@ -115,7 +122,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const validationThresholdPercent = Math.round(VIDEO_COMPLETION_THRESHOLD * 100);
 
 	let scheduledISO: string | null = null;
-	const ps = user?.programStartDate;
+	const ps = cycle.start;
 	if (ps) {
 		scheduledISO = programDayDateISO(ps, dayIndex);
 	}
@@ -185,7 +192,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			userId,
 			sessionType: session.type,
 			dayIndex,
-			programStart: user?.programStartDate ?? null
+			programStart: cycle.start,
+			offset: cycle.offset
 		}))
 	) {
 		prerequisiteBlocked = true;
@@ -248,11 +256,9 @@ export const actions: Actions = {
 		});
 		if (!session?.active) return fail(404, { message: 'Séance introuvable.' });
 
-		const user = await prisma.user.findUnique({
-			where: { id: userId },
-			select: { programStartDate: true }
-		});
-		const slot = await resolveSlotForDay(userId, dayIdx, user?.programStartDate ?? null);
+		const cycle = await getUserProgramCycle(userId);
+		const absoluteDay = absoluteDayIndex(cycle, dayIdx);
+		const slot = await resolveSlotForDay(userId, dayIdx, cycle);
 		if (!slot || slot.session.id !== sessionId) {
 			return fail(404, { message: 'Pas de séance prévue ce jour.' });
 		}
@@ -260,7 +266,7 @@ export const actions: Actions = {
 		const sessionVideos = await getSportVideosForProgramDay(slot.contentDayIndex, userId);
 
 		const existingWorkoutDay = await prisma.userWorkoutDay.findFirst({
-			where: { userId, sessionId, dayIndex: dayIdx },
+			where: { userId, sessionId, dayIndex: absoluteDay },
 			select: { completedAt: true }
 		});
 		if (existingWorkoutDay?.completedAt) {
@@ -273,7 +279,8 @@ export const actions: Actions = {
 				userId,
 				sessionType: session.type,
 				dayIndex: dayIdx,
-				programStart: user?.programStartDate ?? null
+				programStart: cycle.start,
+				offset: cycle.offset
 			}))
 		) {
 			return fail(409, {
@@ -292,7 +299,7 @@ export const actions: Actions = {
 				where: {
 					userId,
 					workoutVideoId: { in: mandatoryVideoIds },
-					completedAt: { not: null }
+					completedAt: completedInCycleWhere(cycle)
 				}
 			});
 
@@ -303,16 +310,15 @@ export const actions: Actions = {
 			}
 		}
 
-		const currentUnlockedDayIndex = currentProgramDayIndex(user?.programStartDate ?? null);
-		if (dayIdx > currentUnlockedDayIndex) {
+		if (dayIdx > cycle.dayIndex) {
 			return fail(409, {
 				message: 'Cette séance est planifiée dans le futur. Elle se débloquera le jour venu.'
 			});
 		}
 
 		let scheduledDate: Date | undefined;
-		if (user?.programStartDate) {
-			scheduledDate = programDayUtcDate(user.programStartDate, dayIdx);
+		if (cycle.start) {
+			scheduledDate = programDayUtcDate(cycle.start, dayIdx);
 		}
 
 		const completed = await completeWorkoutDay({
@@ -320,7 +326,7 @@ export const actions: Actions = {
 			sessionId,
 			sessionName: session.name,
 			sessionType: session.type,
-			dayIndex: dayIdx,
+			dayIndex: absoluteDay,
 			contentDayIndex: slot.contentDayIndex,
 			scheduledDate
 		});

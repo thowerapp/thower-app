@@ -1,6 +1,8 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
+import { getUserProgramCycle } from '$lib/server/programCycle';
+import { absoluteDayIndex } from '$lib/utils/programCycle';
 import type { MealPosition } from '@prisma/client';
 import { upsertMeal } from '$lib/prisma/nutritionDay/upsertMeal';
 import { mealBudgetFraction } from '$lib/nutrition/mealPortion';
@@ -108,6 +110,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const dayIndex = Number.parseInt(params.day ?? '', 10);
 	if (!Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > TOTAL_DAYS)
 		throw error(404, 'Jour invalide');
+	// Jour du cycle en cours (URL) → jour absolu de `NutritionDay`.
+	const absoluteDay = absoluteDayIndex(await getUserProgramCycle(userId), dayIndex);
 
 	const position = positionFromParam(params.mealNum ?? '');
 	if (!position) throw error(404, 'Créneau invalide');
@@ -117,7 +121,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	// Aucune de ces requêtes ne dépend d'une autre : une seule vague.
 	const [nutritionDay, profile, lastMeasure, catalog, favoriteIds] = await Promise.all([
 		prisma.nutritionDay.findUnique({
-			where: { userId_dayIndex: { userId, dayIndex } },
+			where: { userId_dayIndex: { userId, dayIndex: absoluteDay } },
 			select: dayMealsSelect
 		}),
 		prisma.userProfile.findUnique({ where: { userId }, select: mealTargetsProfileSelect }),
@@ -196,6 +200,7 @@ export const actions: Actions = {
 		const dayIndex = Number.parseInt(params.day ?? '', 10);
 		if (!Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > TOTAL_DAYS)
 			return fail(400, { error: 'Jour invalide' });
+		const absoluteDay = absoluteDayIndex(await getUserProgramCycle(userId), dayIndex);
 
 		const position = positionFromParam(params.mealNum ?? '');
 		if (!position) return fail(400, { error: 'Créneau invalide' });
@@ -210,7 +215,7 @@ export const actions: Actions = {
 			prisma.recipe.findUnique({ where: { id: recipeId }, select: fitRecipeSelect }),
 			loadUserMealTargets(userId),
 			prisma.nutritionDay.findUnique({
-				where: { userId_dayIndex: { userId, dayIndex } },
+				where: { userId_dayIndex: { userId, dayIndex: absoluteDay } },
 				select: dayMealsSelect
 			})
 		]);
@@ -236,12 +241,12 @@ export const actions: Actions = {
 		}
 
 		let nutritionDay = await prisma.nutritionDay.findUnique({
-			where: { userId_dayIndex: { userId, dayIndex } },
+			where: { userId_dayIndex: { userId, dayIndex: absoluteDay } },
 			select: { id: true }
 		});
 		if (!nutritionDay) {
 			nutritionDay = await prisma.nutritionDay.create({
-				data: { userId, dayIndex },
+				data: { userId, dayIndex: absoluteDay },
 				select: { id: true }
 			});
 		}

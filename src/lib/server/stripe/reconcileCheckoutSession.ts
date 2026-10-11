@@ -13,6 +13,7 @@ import { shouldResumeProgramGeneration } from '$lib/server/program-generation/ge
 import { programGenTrace, type ProgramGenSource } from '$lib/server/program-generation/programGenerationLog';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { logPaymentStatus, onboardingTrace } from '$lib/server/onboarding/onboardingLog';
+import { nextCycleStart, programCycleSelect, programCycleStarts } from '$lib/utils/programCycle';
 
 const VALID_PLANS: PlanId[] = ['quarterly'];
 
@@ -104,7 +105,7 @@ export async function reconcilePaidCheckoutSession(
 
 	const user = await prisma.user.findUnique({
 		where: { id: transaction.userId },
-		select: { subscriptionEndsAt: true }
+		select: { subscriptionEndsAt: true, ...programCycleSelect }
 	});
 	const currentEndsAt = user?.subscriptionEndsAt ?? null;
 	const endsAt = VALID_PLANS.includes(planId)
@@ -128,10 +129,27 @@ export async function reconcilePaidCheckoutSession(
 		return getHasValidPaymentByUserId(transaction.userId);
 	}
 
+	// Programme déjà démarré : ce paiement est un renouvellement, qui ouvre le cycle de 91 jours suivant.
+	const cycleStarts = programCycleStarts(user);
+	const renewalCycleStart = cycleStarts.length > 0 ? nextCycleStart(cycleStarts) : null;
 	await prisma.user.update({
 		where: { id: transaction.userId },
-		data: { subscriptionEndsAt: endsAt }
+		data: {
+			subscriptionEndsAt: endsAt,
+			...(renewalCycleStart ? { programCycleStarts: { push: renewalCycleStart } } : {})
+		}
 	});
+	if (renewalCycleStart) {
+		onboardingTrace('stripe_reconcile', {
+			userId: transaction.userId,
+			source: 'stripe',
+			outcome: 'renewal_cycle_scheduled',
+			reconcileSource: source,
+			sessionId: session.id,
+			cycle: cycleStarts.length + 1,
+			cycleStart: renewalCycleStart.toISOString()
+		});
+	}
 
 	if (includesNutrition) {
 		const { modified } = await incUserNutritionDaysAllocatedMongo(

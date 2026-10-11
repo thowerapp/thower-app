@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+import { cycleDayLabel } from '$lib/utils/programCycle';
 import type { PageData, LayoutData } from './$types';
 import EmberCanvas from '$lib/components/EmberCanvas.svelte';
 import DailyChecklist from '$lib/components/DailyChecklist.svelte';
@@ -21,6 +22,7 @@ const programStartsAt = $derived(data.programStartsAt ?? null);
 const currentDayIndex = $derived(
 	($page.data as { currentDayIndex?: number }).currentDayIndex ?? 0
 );
+const programCycle = $derived(($page.data as { programCycle?: number }).programCycle ?? 1);
 const currentWeekNum = $derived(Math.min(13, Math.max(1, Math.ceil(currentDayIndex / 7))));
 
 // ── Progression logo (0 = jour 1, 1 = jour 91) ────────────────────────────
@@ -137,7 +139,7 @@ $effect(() => {
         {#if programAwaitingStart && programStartsAt}
           <ProgramStartCountdown startsAt={programStartsAt} />
         {:else}
-          <div class="hh-eyebrow">Jour {currentDayIndex} / 91</div>
+          <div class="hh-eyebrow">{cycleDayLabel(programCycle, currentDayIndex)} / 91</div>
           <div class="hh-title">Tho<span class="hh-title-white">wer</span></div>
           <div class="hh-sub">Semaine {currentWeekNum} · Programme Méthode</div>
         {/if}
@@ -181,7 +183,7 @@ $effect(() => {
 
 <div class="u-sh">
   <div class="u-sh-t">Mon programme</div>
-  <div class="u-sh-s">{programAwaitingStart ? 'Démarre lundi' : `Jour ${currentDayIndex} / 91`}</div>
+  <div class="u-sh-s">{programAwaitingStart ? 'Démarre lundi' : `${cycleDayLabel(programCycle, currentDayIndex)} / 91`}</div>
 </div>
 
 <div class="u-split-cards">

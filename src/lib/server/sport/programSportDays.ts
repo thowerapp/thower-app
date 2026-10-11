@@ -400,19 +400,24 @@ export async function getSportDaysInRange(
 	return daysInRange(await getSportPlan(), from, to);
 }
 
-/** Séances d'une semaine sport pour un utilisateur (planning, déplacement, page séance). */
+/**
+ * Séances d'une semaine sport pour un utilisateur (planning, déplacement, page séance).
+ * `programStart` = départ du cycle en cours ; `offset` = décalage du cycle (`ProgramCycle.offset`) :
+ * les lignes `UserWorkoutDay` sont lues en jour absolu et renvoyées en jour relatif.
+ */
 export async function resolveSportWeek(params: {
 	userId: string;
 	programStart: Date | null;
 	week: number;
+	offset?: number;
 }) {
-	const { userId, programStart, week } = params;
+	const { userId, programStart, week, offset = 0 } = params;
 	const { mondayDayIndex, weekStart, weekEnd } = sportWeekBounds(programStart, week);
 
-	const [plan, userRows, userOverrides] = await Promise.all([
+	const [plan, rawUserRows, userOverrides] = await Promise.all([
 		getSportPlan(),
 		prisma.userWorkoutDay.findMany({
-			where: { userId, dayIndex: { gte: weekStart, lte: weekEnd } },
+			where: { userId, dayIndex: { gte: weekStart + offset, lte: weekEnd + offset } },
 			select: {
 				id: true,
 				sessionId: true,
@@ -425,6 +430,7 @@ export async function resolveSportWeek(params: {
 		}),
 		getUserSportOverrides(userId)
 	]);
+	const userRows = rawUserRows.map((r) => ({ ...r, dayIndex: r.dayIndex - offset }));
 
 	const { sessionCatalog } = plan;
 	const sportDays = applySportOverrides(

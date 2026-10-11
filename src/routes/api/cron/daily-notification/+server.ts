@@ -3,9 +3,18 @@ import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server';
 import { isAuthorizedCron } from '$lib/server/cronAuth';
 import { sendWebPush } from '$server/web-push';
+import { catchUpProgramGenerations } from '$lib/server/program-generation/catchUpGenerations';
 import type { RequestHandler } from './$types';
 
-/** Rappel quotidien à 10h et 19h Paris (appelé par Vercel Cron). Authentifié par CRON_SECRET (libre en dev) : GET /api/cron/daily-notification */
+// Plan Vercel Hobby : 60 s maximum ; le rattrapage traite au plus 5 générations (~2 s chacune).
+export const config = {
+	maxDuration: 60
+};
+
+/**
+ * Rappel quotidien à 10h et 19h Paris (appelé par Vercel Cron), puis rattrapage des générations
+ * de programme incomplètes. Authentifié par CRON_SECRET (libre en dev) : GET /api/cron/daily-notification
+ */
 export const GET: RequestHandler = async ({ request }) => {
 	if (!isAuthorizedCron(request.headers.get('authorization'), env.CRON_SECRET, dev)) {
 		return new Response('Unauthorized', { status: 401 });
@@ -32,12 +41,23 @@ export const GET: RequestHandler = async ({ request }) => {
 		}
 	}
 	const total = subs.length;
+
+	// Rattrapage des générations : échec, fonction coupée, paiement arrivé pendant une génération.
+	let generation: Awaited<ReturnType<typeof catchUpProgramGenerations>> | { error: string };
+	try {
+		generation = await catchUpProgramGenerations();
+	} catch (err) {
+		console.error('[cron daily-notification] rattrapage génération', err);
+		generation = { error: err instanceof Error ? err.message : String(err) };
+	}
+
 	return new Response(
 		JSON.stringify({
 			ok: true,
 			sent,
 			failed,
 			total,
+			generation,
 			...(total === 0 && {
 				message: 'Aucun abonnement push. Sur ton téléphone : ouvre l’app en prod, connecte-toi, Paramètres → Notification de test.'
 			})

@@ -22,10 +22,15 @@ const PREVIOUS_TYPE: Partial<Record<WorkoutSessionType, WorkoutSessionType>> = {
 export async function isPrerequisiteMet(params: {
 	userId: string;
 	sessionType: WorkoutSessionType;
+	/** Jour relatif du cycle. */
 	dayIndex: number;
+	/** Départ du cycle en cours. */
 	programStart: Date | null;
+	/** Décalage du cycle : les lignes `UserWorkoutDay` sont en jour absolu. */
+	offset?: number;
 }): Promise<boolean> {
 	const previous = PREVIOUS_TYPE[params.sessionType];
+	const offset = params.offset ?? 0;
 	if (!previous) return true;
 
 	const week = sportWeekNumberForDay(params.programStart, params.dayIndex);
@@ -34,7 +39,7 @@ export async function isPrerequisiteMet(params: {
 		where: {
 			userId: params.userId,
 			completedAt: { not: null },
-			dayIndex: { gte: weekStart, lte: weekEnd },
+			dayIndex: { gte: weekStart + offset, lte: weekEnd + offset },
 			session: { type: previous }
 		},
 		select: { id: true }

@@ -5,7 +5,9 @@ import { prisma } from '$lib/server';
 import { getTotalPointsForUser } from '$lib/prisma/pointEvent/getTotalPointsForUser';
 import { POINTS } from '$lib/server/pointsConfig';
 import { z } from 'zod';
-import { currentProgramDayIndex, todayStartParis } from '$lib/utils/programDay';
+import { todayStartParis } from '$lib/utils/programDay';
+import { absoluteProgressMonth, programCycleSelect, resolveProgramCycle } from '$lib/utils/programCycle';
+import { getUserProgramCycle } from '$lib/server/programCycle';
 import { awardPoints } from '$lib/server/awardPoints';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -26,7 +28,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		inscriptionPhotosByAngle,
 		monthlyCheckIns
 	] = await Promise.all([
-		prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true } }),
+		prisma.user.findUnique({ where: { id: userId }, select: programCycleSelect }),
 		getTotalPointsForUser(userId),
 		prisma.userWorkoutDay.count({ where: { userId, completedAt: { not: null } } }),
 		prisma.userBadge.findMany({
@@ -46,8 +48,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		prisma.monthlyCheckIn.findMany({ where: { userId }, orderBy: { month: 'asc' } })
 	]);
 
-	const programStart = user?.programStartDate ?? null;
-	const currentDayIndex = currentProgramDayIndex(programStart);
+	const cycle = resolveProgramCycle(user);
+	const programStart = cycle.start;
+	const currentDayIndex = cycle.dayIndex;
 	const currentWeek = currentDayIndex > 0 ? Math.ceil(currentDayIndex / 7) : 1;
 
 	const activeTasks = activeTaskDetails.length;
@@ -55,7 +58,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		activeTasks > 0 ? Math.min(100, Math.round((todayCompletions / activeTasks) * 100)) : 0;
 
 	// ─── Photos du mois (dépend de currentMonth, donc requête séparée) ──────
-	const currentMonth = Math.ceil(currentDayIndex / 30);
+	// Mois de suivi absolu : 1..3 au cycle 1, 4..6 au cycle 2…
+	const currentMonth = absoluteProgressMonth(cycle, currentDayIndex);
 	const photosByAngle = await prisma.progressPhoto.findMany({
 		where: { userId, month: currentMonth },
 		select: { angle: true, url: true }
@@ -122,6 +126,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		photoMap,
 		inscriptionPhotoMap,
 		currentMonth,
+		/** Mois affiché, relatif au cycle (1..3). */
+		displayMonth: currentMonth - (Math.max(1, cycle.cycle) - 1) * 3,
+		programCycle: cycle.cycle,
 		monthlyCheckIns,
 		checkInDue,
 		currentMonthCheckIn,
@@ -167,20 +174,16 @@ export const actions: Actions = {
 		const { stressLevel, sleepQuality, bodyConfidence, digestionQuality, happinessLevel, readinessToChange, frontUrl, sideUrl, backUrl } = parsed.data;
 
 		try {
-			const user = await prisma.user.findUnique({
-				where: { id: locals.user.id },
-				select: { programStartDate: true }
-			});
-
-			if (!user?.programStartDate) {
+			const cycle = await getUserProgramCycle(locals.user.id);
+			if (cycle.cycle === 0) {
 				return fail(400, { message: 'Programme non démarré' });
 			}
 
-			const currentDayIndex = currentProgramDayIndex(user.programStartDate);
+			const currentDayIndex = cycle.dayIndex;
 			if (currentDayIndex < 1) {
 				return fail(400, { message: 'Programme pas encore démarré' });
 			}
-			const currentMonth = Math.ceil(currentDayIndex / 30);
+			const currentMonth = absoluteProgressMonth(cycle, currentDayIndex);
 
 			// Vérifier qu'un check-in n'existe pas pour ce mois
 			const existing = await prisma.monthlyCheckIn.findUnique({

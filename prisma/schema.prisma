@@ -171,6 +171,8 @@ model User {
   nutritionDaysAllocated    Int                        @default(0)
   /// Date de début du programme 91 jours (pour calculer le jour courant)
   programStartDate          DateTime?
+  /// Départs des cycles de 91 jours suivants (renouvellements) ; le cycle 1 part de programStartDate
+  programCycleStarts        DateTime[]
   /// Stop/Report activé par l’admin uniquement (maladie, blessure)
   programPausedAt            DateTime?
   programPausedReason        String?

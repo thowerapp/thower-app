@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server';
+import { TOTAL_PROGRAM_DAYS } from '$lib/utils/programDay';
 import { getProgramOfferEntitlements } from '$lib/prisma/transaction/getProgramOfferEntitlements';
 import { generateNutritionDaysForUser } from './nutrition/generateNutrition91Days';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
@@ -83,6 +84,11 @@ async function isNutritionPlanComplete(userId: string, targetDays: number): Prom
 	return true;
 }
 
+/** Premier jour du dernier cycle alloué (J1 au premier programme, J92 au cycle 2…) : la liste couvre ce cycle. */
+function lastSegmentStart(targetDays: number): number {
+	return Math.max(1, targetDays - TOTAL_PROGRAM_DAYS + 1);
+}
+
 /** Initialise programStartDate si absente (sport seul ou nutrition + sport). */
 export async function ensureProgramStartDate(userId: string): Promise<void> {
 	const user = await prisma.user.findUnique({
@@ -160,7 +166,7 @@ export async function generateProgramForUser(
 			const existingList = await prisma.shoppingList.findFirst({ where: { userId }, select: { id: true } });
 			if (!existingList) {
 				programGenLog('5b/ Aucune liste de courses — génération rattrapée', { userId, targetDays });
-				const shoppingResult = await generateShoppingListFromPlanning(userId, 1, targetDays, {
+				const shoppingResult = await generateShoppingListFromPlanning(userId, lastSegmentStart(targetDays), targetDays, {
 					includeReportedFromPrevious: false
 				});
 				programGenLog('5c/ Liste de courses rattrapée', { userId, listId: shoppingResult?.listId ?? null });
@@ -181,7 +187,7 @@ export async function generateProgramForUser(
 		programGenLog('7/ generateNutritionDaysForUser terminé', { userId, targetDays });
 
 		programGenLog('7b/ Génération liste de courses (jours 1..targetDays)', { userId, targetDays });
-		const shoppingResult = await generateShoppingListFromPlanning(userId, 1, targetDays, {
+		const shoppingResult = await generateShoppingListFromPlanning(userId, lastSegmentStart(targetDays), targetDays, {
 			includeReportedFromPrevious: false
 		});
 		programGenLog('7c/ Liste de courses générée', { userId, listId: shoppingResult?.listId ?? null });

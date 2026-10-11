@@ -149,9 +149,9 @@
 
 	function getPeriodLabel(): string {
 		if (!list) return '';
-		if (list.startDayIndex === list.endDayIndex)
-			return `Jour ${list.startDayIndex} du programme`;
-		return `Jours ${list.startDayIndex}–${list.endDayIndex} du programme`;
+		// Jours du cycle en cours (la liste stocke des jours absolus).
+		if (d.startDayIndex === d.endDayIndex) return `Jour ${d.startDayIndex} du programme`;
+		return `Jours ${d.startDayIndex}–${d.endDayIndex} du programme`;
 	}
 
 	function checkedCount(): number {

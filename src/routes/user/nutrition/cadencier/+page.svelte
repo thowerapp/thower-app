@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { cycleDayLabel } from '$lib/utils/programCycle';
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
@@ -94,7 +95,7 @@
 		</label>
 	</div>
 	<div class="week-sub">
-		3 mois · Jour programme : {data.currentDayIndex}
+		3 mois · {cycleDayLabel(data.programCycle, data.currentDayIndex)}
 		{#if !data.hasProgramStart}
 			· <span class="warn">Début de programme non défini — jour affiché comme J1</span>
 		{/if}

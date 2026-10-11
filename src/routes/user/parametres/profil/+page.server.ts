@@ -3,7 +3,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import { getTotalPointsForUser } from '$lib/prisma/pointEvent/getTotalPointsForUser';
-import { currentProgramDayIndex } from '$lib/utils/programDay';
+import { absoluteDayIndex, resolveProgramCycle } from '$lib/utils/programCycle';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
@@ -19,6 +19,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				username: true,
 				picture: true,
 				programStartDate: true,
+				programCycleStarts: true,
 				subscriptionEndsAt: true,
 				nutritionDaysAllocated: true,
 			}
@@ -83,9 +84,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		prisma.dailyTask.count({ where: { active: true } }),
 		prisma.dailyTaskCompletion.count({ where: { userId } })
 	]);
-	const programStart = user?.programStartDate;
-	const currentDayIndex = currentProgramDayIndex(programStart ?? null);
-	const expectedCompletions = activeTasks * currentDayIndex;
+	// Complétions comptées sur tous les cycles : attendu = jours écoulés depuis le premier départ.
+	const cycle = resolveProgramCycle(user);
+	const currentDayIndex = cycle.dayIndex;
+	const expectedCompletions = activeTasks * absoluteDayIndex(cycle, currentDayIndex);
 	const scorePercent = expectedCompletions > 0 ? Math.round((completions / expectedCompletions) * 100) : 0;
 
 	const statuts = [
@@ -114,6 +116,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		latestBadge: userBadges[0]?.badge.name ?? null,
 		dailyTasks,
 		optOutIds: Array.from(optOutIds),
+		currentDayIndex,
+		programCycle: cycle.cycle
 	};
 };
 

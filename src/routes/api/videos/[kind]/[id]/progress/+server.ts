@@ -7,6 +7,7 @@ import { autoCompleteVideoTask } from '$lib/prisma/dailyTask/autoCompleteVideoTa
 import { prisma } from '$lib/server';
 import { hasSportAccess } from '$lib/server/programAccessGuard';
 import { awardPoints } from '$lib/server/awardPoints';
+import { getUserProgramCycle } from '$lib/server/programCycle';
 
 
 const bodySchema = z.object({
@@ -41,9 +42,18 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		throw error(400, err instanceof Error ? err.message : 'Payload invalide.');
 	}
 
+	// Vidéos de séance : à revoir à chaque cycle de 91 jours (points regagnés).
+	const cycle = kind === 'workout' ? await getUserProgramCycle(userId) : null;
 	const result = await upsertVideoProgress(
 		kind === 'workout'
-			? { kind, userId, workoutVideoId: params.id, positionSec: body.positionSec, ended: body.ended }
+			? {
+					kind,
+					userId,
+					workoutVideoId: params.id,
+					positionSec: body.positionSec,
+					ended: body.ended,
+					cycleStart: cycle && cycle.cycle > 1 ? cycle.start : null
+				}
 			: {
 					kind,
 					userId,

@@ -27,7 +27,15 @@ export function computeCompletion(
 }
 
 export type UpsertVideoProgressInput =
-	| { kind: 'workout'; userId: string; workoutVideoId: string; positionSec: number; ended?: boolean }
+	| {
+			kind: 'workout';
+			userId: string;
+			workoutVideoId: string;
+			positionSec: number;
+			ended?: boolean;
+			/** Départ du cycle en cours (cycle 2+) : une complétion antérieure est à refaire. */
+			cycleStart?: Date | null;
+	  }
 	| { kind: 'discovery'; userId: string; discoveryContentId: string; positionSec: number; ended?: boolean };
 
 export type UpsertVideoProgressResult = {
@@ -57,20 +65,26 @@ export async function upsertVideoProgress(
 		const existing = await prisma.userVideoProgress.findFirst({
 			where: { userId: input.userId, workoutVideoId: input.workoutVideoId }
 		});
-		const previousMax = existing?.maxPositionSec ?? 0;
+		// Vue lors d'un cycle précédent : la progression repart de zéro pour ce cycle.
+		const stale =
+			existing?.completedAt != null &&
+			input.cycleStart != null &&
+			existing.completedAt.getTime() < input.cycleStart.getTime();
+		const wasCompleted = existing?.completedAt != null && !stale;
+		const previousMax = stale ? 0 : (existing?.maxPositionSec ?? 0);
 		const newMax = Math.max(previousMax, Math.max(0, input.positionSec));
 
 		const shouldComplete = computeCompletion(
 			newMax,
 			video.durationSeconds ?? null,
 			input.ended === true,
-			!!existing?.completedAt
+			wasCompleted
 		);
 
 		const data = {
 			maxPositionSec: newMax,
 			lastHeartbeatAt: now,
-			...(shouldComplete ? { completedAt: now } : {})
+			...(shouldComplete ? { completedAt: now } : stale ? { completedAt: null } : {})
 		};
 
 		if (existing) {
@@ -91,7 +105,7 @@ export async function upsertVideoProgress(
 		return {
 			maxPositionSec: newMax,
 			completedNow: shouldComplete,
-			alreadyCompleted: !!existing?.completedAt,
+			alreadyCompleted: wasCompleted,
 			durationSeconds: video.durationSeconds ?? null
 		};
 	}

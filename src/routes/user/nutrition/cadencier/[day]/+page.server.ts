@@ -1,6 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server';
+import { getUserProgramCycle } from '$lib/server/programCycle';
+import { absoluteDayIndex } from '$lib/utils/programCycle';
 import type { MealPosition } from '@prisma/client';
 import { dailyWaterLitersMin } from '$lib/nutrition/nutritionTargets';
 import { defaultTimeLabel, mealMacrosRounded, positionLabel, positionOrder } from '$lib/nutrition/mealDisplay';
@@ -70,6 +72,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > TOTAL_DAYS) {
 		throw error(404, 'Jour invalide');
 	}
+	// `dayIndex` = jour du cycle en cours (affiché) ; `NutritionDay` est en jour absolu.
+	const absoluteDay = absoluteDayIndex(await getUserProgramCycle(userId), dayIndex);
 
 	const [profile, lastMeasure] = await Promise.all([
 		prisma.userProfile.findUnique({
@@ -96,10 +100,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const mealTargets = mealTargetsFromProfile(profile, weightKg);
 
 	// Portions alignées sur le calcul actuel avant affichage (aujourd'hui et jours suivants).
-	await refreshStaleDays(userId, dayIndex, dayIndex, mealTargets);
+	await refreshStaleDays(userId, absoluteDay, absoluteDay, mealTargets);
 
 	let nutritionDay = await prisma.nutritionDay.findUnique({
-		where: { userId_dayIndex: { userId, dayIndex } },
+		where: { userId_dayIndex: { userId, dayIndex: absoluteDay } },
 		include: {
 			meals: {
 				include: {
@@ -143,9 +147,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			weightKg
 		);
 		if (breakfastCtx) {
-			await ensureBreakfastMealForDay(userId, dayIndex, nutritionDay.id, breakfastCtx);
+			await ensureBreakfastMealForDay(userId, absoluteDay, nutritionDay.id, breakfastCtx);
 			nutritionDay = await prisma.nutritionDay.findUnique({
-				where: { userId_dayIndex: { userId, dayIndex } },
+				where: { userId_dayIndex: { userId, dayIndex: absoluteDay } },
 				include: {
 					meals: {
 						include: {

@@ -23,11 +23,6 @@ function scoreBar(val: number | null | undefined): string {
   return '▮'.repeat(val) + '▯'.repeat(10 - val);
 }
 
-function daysSince(date: Date | string | null | undefined): number | null {
-  if (!date) return null;
-  return Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000);
-}
-
 // Animation barre de niveau et score au montage
 let barPct = $state(0);
 let displayedPts = $state(0);
@@ -83,7 +78,7 @@ $effect(() => {
     <div class="ph-email">{data.user?.email ?? ''}</div>
     <div class="ph-stats-row">
       {#if data.user?.programStartDate}
-        <div class="ph-stat"><span class="ph-sv">Jour {daysSince(data.user.programStartDate ?? null) ?? '—'}</span><span class="ph-sl">/ 91</span></div>
+        <div class="ph-stat"><span class="ph-sv">{data.programCycle > 1 ? `Cycle ${data.programCycle} · ` : ''}Jour {data.currentDayIndex || '—'}</span><span class="ph-sl">/ 91</span></div>
       {/if}
       <div class="ph-stat"><span class="ph-sv" style="color:var(--cy)">{displayedPts}</span><span class="ph-sl">pts</span></div>
       {#if data.badgesCount > 0}

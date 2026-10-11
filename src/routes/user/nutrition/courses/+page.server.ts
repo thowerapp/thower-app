@@ -4,11 +4,9 @@ import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/gener
 import { parseShoppingItemSources, type ShoppingListWithItems } from '$lib/prisma/shoppingList/types';
 import { requireNutritionAccess } from '$lib/server/programAccessGuard';
 import { prisma } from '$lib/server';
-import {
-	currentProgramDayIndex,
-	programWeekBounds,
-	TOTAL_PROGRAM_DAYS
-} from '$lib/utils/programDay';
+import { getUserProgramCycle } from '$lib/server/programCycle';
+import { absoluteDayIndex, programCycleSelect, resolveProgramCycle } from '$lib/utils/programCycle';
+import { programWeekBounds, TOTAL_PROGRAM_DAYS } from '$lib/utils/programDay';
 import type { PageServerLoad, Actions } from './$types';
 
 type SortOrder = 'category' | 'alpha';
@@ -131,16 +129,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const rawDays = url.searchParams.get('days');
 	const sortOrder = parseSortOrder(url.searchParams.get('sort'));
 
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { programStartDate: true, nutritionDaysAllocated: true }
-	});
-
-	const currentDay = currentProgramDayIndex(user?.programStartDate ?? null);
+	// Plage affichée en jours du cycle en cours ; listes et repas en jour absolu (+ offset).
+	const cycle = await getUserProgramCycle(userId);
+	const currentDay = cycle.dayIndex;
 	const daysCount = parseDaysCount(rawDays) ?? daysCountFromPeriode(currentDay, periode);
 	const { startDayIndex, endDayIndex } = computeRange(currentDay, daysCount);
 
-	const list = await getOrGenerateList(userId, startDayIndex, endDayIndex);
+	const list = await getOrGenerateList(
+		userId,
+		absoluteDayIndex(cycle, startDayIndex),
+		absoluteDayIndex(cycle, endDayIndex)
+	);
 
 	return { list, periode, currentDay, startDayIndex, endDayIndex, daysCount, sortOrder };
 };
@@ -170,12 +169,13 @@ export const actions: Actions = {
 
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
-			select: { programStartDate: true, nutritionDaysAllocated: true }
+			select: { ...programCycleSelect, nutritionDaysAllocated: true }
 		});
 		if ((user?.nutritionDaysAllocated ?? 0) < 1)
 			return fail(400, { message: 'Aucun jour de programme alloué.' });
 
-		const currentDay = currentProgramDayIndex(user?.programStartDate ?? null);
+		const cycle = resolveProgramCycle(user);
+		const currentDay = cycle.dayIndex;
 		const daysCount =
 			typeof rawDays === 'string'
 				? (parseDaysCount(rawDays) ?? daysCountFromPeriode(currentDay, periode))
@@ -183,9 +183,12 @@ export const actions: Actions = {
 		const { startDayIndex, endDayIndex } = computeRange(currentDay, daysCount);
 
 		// Remplace la liste en conservant les cases cochées (comme la régénération automatique).
-		const result = await generateShoppingListFromPlanning(userId, startDayIndex, endDayIndex, {
-			includeReportedFromPrevious: true
-		});
+		const result = await generateShoppingListFromPlanning(
+			userId,
+			absoluteDayIndex(cycle, startDayIndex),
+			absoluteDayIndex(cycle, endDayIndex),
+			{ includeReportedFromPrevious: true }
+		);
 		if (!result) return fail(500, { message: 'Erreur lors de la génération de la liste.' });
 		return { success: true };
 	}

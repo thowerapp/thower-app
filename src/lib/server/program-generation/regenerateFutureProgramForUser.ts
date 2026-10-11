@@ -1,15 +1,13 @@
 import { prisma } from '$lib/server';
-import { currentProgramDayIndex } from '$lib/utils/programDay';
+import { absoluteDayIndex, programCycleSelect, resolveProgramCycle } from '$lib/utils/programCycle';
 import { generateProgramForUser } from './generateProgramForUser';
 import { programGenLog, programGenTrace, type ProgramGenSource } from './programGenerationLog';
 
 async function resolveFirstFutureDayIndex(userId: string): Promise<number> {
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { programStartDate: true }
-	});
-
-	return Math.max(1, currentProgramDayIndex(user?.programStartDate ?? null));
+	const user = await prisma.user.findUnique({ where: { id: userId }, select: programCycleSelect });
+	// Jour absolu : au cycle 2, on ne touche pas aux jours du cycle 1.
+	const cycle = resolveProgramCycle(user);
+	return absoluteDayIndex(cycle, Math.max(1, cycle.dayIndex));
 }
 
 export async function regenerateFutureProgramForUser(

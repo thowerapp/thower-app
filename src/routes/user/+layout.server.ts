@@ -8,11 +8,13 @@ import { prisma } from '$lib/server';
 import { getProgramOfferEntitlements } from '$lib/prisma';
 import { checkUserAppAccess } from '$lib/server/access';
 import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
+import { todayStartParis } from '$lib/utils/programDay';
 import {
-	currentProgramDayIndex,
-	isProgramAwaitingStart,
-	todayStartParis
-} from '$lib/utils/programDay';
+	absoluteDayIndex,
+	absoluteProgressMonth,
+	programCycleSelect,
+	resolveProgramCycle
+} from '$lib/utils/programCycle';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
@@ -23,7 +25,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	const [bodyMeasurements, fetchedProgramAccess, user] = await Promise.all([
 		getBodyMeasurementsByUserId(userId, 1),
 		getProgramOfferEntitlements(userId),
-		prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true } })
+		prisma.user.findUnique({ where: { id: userId }, select: programCycleSelect })
 	]);
 	const hasMeasurements = bodyMeasurements.length > 0;
 
@@ -34,10 +36,12 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
 	try {
 		// ── 1. Séance du jour ─────────────────────────────────────────────
-		// On calcule le dayIndex courant depuis programStartDate
-		const programStart = user?.programStartDate ?? null;
-		const currentDayIndex = currentProgramDayIndex(programStart);
-		const programAwaitingStart = isProgramAwaitingStart(programStart);
+		// Jour relatif du cycle de 91 jours en cours ; les tables utilisateur sont en jour absolu.
+		const cycle = resolveProgramCycle(user);
+		const programStart = cycle.start;
+		const currentDayIndex = cycle.dayIndex;
+		const programAwaitingStart = cycle.awaitingStart;
+		const absoluteDay = absoluteDayIndex(cycle, currentDayIndex);
 
 		if (programAwaitingStart || currentDayIndex < 1) {
 			return {
@@ -50,6 +54,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 				},
 				currentDayIndex: 0,
 				programStartDate: programStart?.toISOString() ?? null,
+				programCycle: cycle.cycle,
 				programAwaitingStart,
 				programAccess,
 				optOutTaskIds: [] as string[],
@@ -57,13 +62,13 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			};
 		}
 
-		const currentMonth = Math.ceil(currentDayIndex / 30);
+		const currentMonth = absoluteProgressMonth(cycle, currentDayIndex);
 
 		// Séance, tâches, repas et photos du jour sont indépendants : une seule vague de requêtes.
 		const [workoutDone, activeTasks, optOuts, todayCompletions, todayNutrition, photosTaken] =
 			await Promise.all([
 				prisma.userWorkoutDay.findFirst({
-					where: { userId, dayIndex: currentDayIndex, completedAt: { not: null } },
+					where: { userId, dayIndex: absoluteDay, completedAt: { not: null } },
 					select: { id: true }
 				}),
 				prisma.dailyTask.findMany({
@@ -79,7 +84,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 					select: { taskId: true }
 				}),
 				prisma.nutritionDay.findFirst({
-					where: { userId, dayIndex: currentDayIndex },
+					where: { userId, dayIndex: absoluteDay },
 					select: { meals: { select: { id: true } } }
 				}),
 				prisma.progressPhoto.count({
@@ -115,6 +120,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			},
 			currentDayIndex,
 			programStartDate: programStart?.toISOString() ?? null,
+			programCycle: cycle.cycle,
 			programAwaitingStart: false,
 			programAccess,
 			optOutTaskIds,
@@ -132,6 +138,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			},
 			currentDayIndex: 0,
 			programStartDate: null,
+			programCycle: 0,
 			programAwaitingStart: false,
 			programAccess,
 			optOutTaskIds: [] as string[],

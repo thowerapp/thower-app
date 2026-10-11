@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { cycleDayLabel } from '$lib/utils/programCycle';
 	import type { PageData } from './$types';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
@@ -203,7 +204,7 @@
 	<div class="week-header-row">
 		<span class="week-header">
 			Semaine {data.selectedWeek ?? data.currentWeek} / {totalWeeks}{#if data.totalProgramDays}
-				<span class="week-header-sub"> · Jour programme {data.currentDayIndex} / {data.totalProgramDays}</span>
+				<span class="week-header-sub"> · {cycleDayLabel(data.cycle, data.currentDayIndex)} / {data.totalProgramDays}</span>
 			{/if}
 		</span>
 		<label class="week-switch">

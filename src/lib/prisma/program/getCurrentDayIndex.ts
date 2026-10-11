@@ -1,14 +1,9 @@
-import { prisma } from '$lib/server';
-import { currentProgramDayIndex } from '$lib/utils/programDay';
+import { getUserProgramCycle } from '$lib/server/programCycle';
 
 /**
- * Retourne le jour courant de l'utilisateur dans le programme (1–91).
+ * Retourne le jour courant de l'utilisateur dans son cycle de 91 jours (1–91).
  * Si le programme n'a pas démarré (date absente ou encore dans le futur), retourne 0.
  */
 export async function getCurrentDayIndex(userId: string): Promise<number> {
-	const user = await prisma.user.findUnique({
-		where: { id: userId },
-		select: { programStartDate: true }
-	});
-	return currentProgramDayIndex(user?.programStartDate ?? null);
+	return (await getUserProgramCycle(userId)).dayIndex;
 }

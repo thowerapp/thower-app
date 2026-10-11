@@ -5,7 +5,8 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import { validateDailyChecklist } from '$lib/server/dailyChecklist';
-import { currentProgramDayIndex, todayStartParis } from '$lib/utils/programDay';
+import { todayStartParis } from '$lib/utils/programDay';
+import { programCycleSelect, resolveProgramCycle } from '$lib/utils/programCycle';
 import { isSeedCloudflareUid } from '$lib/prisma/video/seedVideo';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -46,15 +47,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 			where: { userId, date: todayStart },
 			select: { taskId: true }
 		}),
-		prisma.user.findUnique({
-			where: { id: userId },
-			select: { programStartDate: true }
-		})
+		prisma.user.findUnique({ where: { id: userId }, select: programCycleSelect })
 	]);
 
 	const optOutIds = new Set(optOuts.map((o) => o.taskId));
 	const completedIds = new Set(completions.map((c) => c.taskId));
-	const currentDayIndex = currentProgramDayIndex(user?.programStartDate ?? null);
+	// Les tâches sont programmées en jour relatif du cycle (showFromDay / showUntilDay).
+	const currentDayIndex = resolveProgramCycle(user).dayIndex;
 
 	const isVisible = (t: { showFromDay: number | null; showUntilDay: number | null }) => {
 		if (t.showFromDay != null && currentDayIndex < t.showFromDay) return false;

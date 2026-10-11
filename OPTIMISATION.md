@@ -27,7 +27,7 @@ Branche `optimisation` (ne jamais fusionner avec `main`). État au 2026-10-11, v
 
 ## 2. Déploiement (à faire par l'utilisateur)
 
-- [ ] `npx prisma db push` (jamais `--accept-data-loss`) : collection `user_sport_overrides`, champs `programGenStatus`, `programGenStartedAt`, `programGenFinishedAt`, `nutritionTargetsKey`, index `program_day_items(type, workoutVideoId)` et `user_workout_days(userId, dayIndex)`. Sur `thowerappDev`, rien n'est encore poussé (replica set : OK).
+- [ ] `npx prisma db push` (jamais `--accept-data-loss`) : collection `user_sport_overrides`, champs `programGenStatus`, `programGenStartedAt`, `programGenFinishedAt`, `nutritionTargetsKey`, `programCycleStarts`, index `program_day_items(type, workoutVideoId)` et `user_workout_days(userId, dayIndex)`. Sur `thowerappDev`, rien n'est encore poussé (replica set : OK).
 - [ ] Définir `CRON_SECRET` dans Vercel, sinon `/api/cron/daily-notification` répond 401 et les rappels push s'arrêtent.
 - [ ] Après le push, vérifier la collection et les index.
 - [ ] Au déploiement de T-e : `npm run migrate:checklist-dates -- --apply` sur chaque base (relançable sans effet).
@@ -52,15 +52,17 @@ Branche `optimisation` (ne jamais fusionner avec `main`). État au 2026-10-11, v
 6. [x] **D11** Accueil : masquer YouTube et TikTok tant qu'ils n'ont pas d'URL (Instagram seul).
 7. [x] **T-f** `awardPoints` (`src/lib/server/awardPoints.ts`) : seule voie de création d'un `PointEvent` (hors édition admin), montant par défaut depuis `POINTS`, utilisable seule, en lot `$transaction([...])` ou avec un `tx`. `createPointEvent` supprimé. Bug corrigé : renvoyer ses photos d'inscription recréditait 50 pts à chaque fois.
 8. [x] **T-e** Checklist datée à minuit Europe/Paris (`todayStartParis`) partout, y compris la saisie et l'affichage admin (`parisDayStartFromISODate`, `parisISODate`) ; `startOfUtcDay` supprimé. Migration des dates existantes : `npm run migrate:checklist-dates` (simulation), puis `-- --apply` (base de dev : 0 complétion).
-9. [ ] **D2** Renouvellement = nouveau cycle de 91 jours : à la fin du cycle en cours, départ le lundi suivant, J1..J91 régénérés et plan sport rejoué ; numéro de cycle pour conserver l'historique (repas, séances, checklist). Changement de schéma à concevoir avant de coder.
-10. [ ] **T-c** Rattrapage dans le cron quotidien : relance la génération des comptes aux jours alloués incomplets, en `FAILED` ou en `RUNNING` expiré.
+9. [x] **D2** Renouvellement = nouveau cycle de 91 jours. Jour **absolu** continu dans les tables utilisateur (cycle 2 = 92..182), jour **relatif** (1..91) à l'affichage et pour le plan partagé (plan sport, personnalisations, tâches, popups) ; seul ajout au schéma : `User.programCycleStarts`. Au crédit d'un paiement sur un compte déjà démarré, départ du cycle suivant = fin du cycle en cours (un lundi) ou lundi suivant le paiement si renouvellement tardif (`nextCycleStart`). Calcul pur et testé dans `src/lib/utils/programCycle.ts` (`resolveProgramCycle`, `absoluteDayIndex`, `absoluteProgressMonth`), lu côté serveur par `getUserProgramCycle`. Vidéos de séance à revoir à chaque cycle (points regagnés, `cycleStart` dans `upsertVideoProgress`) ; photos et bilans en mois 4..6 (affichés « Cycle 2 · Mois 1..3 ») ; libellé « Cycle 2 · Jour 5 » à partir du cycle 2. La liste de courses générée couvre le dernier cycle alloué.
+   - Règle de facturation inchangée : tout paiement crédité après le premier (y compris l'achat ultérieur d'une seconde offre) prolonge de 3 mois et ouvre donc un cycle.
+   - Non couvert : l'admin (`admin/users/[id]`, calendrier, date de départ) affiche les jours absolus et ne modifie que le départ du cycle 1 ; la pause admin (`programPausedAt`) reste sans effet sur le calcul du jour, comme avant.
+10. [x] **T-c** Rattrapage dans le cron existant (`/api/cron/daily-notification`, `maxDuration: 60`) : `catchUpProgramGenerations` relance au plus 5 comptes par passage (accès valide, mensurations présentes, et `FAILED`, `RUNNING` au-delà du bail ou jours générés < jours alloués). Sélection pure testée (`selectCatchUpCandidates`). Le résultat figure dans la réponse JSON du cron (`generation`).
 
 **Reste ouvert**
 - [ ] **T-d** 12 candidats par créneau : valider la qualité des journées sur des profils réels (avec les tests d'intégration).
 
 ## 4. Tests à écrire
 
-Les 255 tests actuels utilisent une base simulée : ils vérifient la logique, pas MongoDB, Prisma, Stripe ni Vercel.
+Les 268 tests actuels utilisent une base simulée : ils vérifient la logique, pas MongoDB, Prisma, Stripe ni Vercel.
 
 **Socle**
 - [ ] Base Mongo éphémère en replica set (`mongodb-memory-server`, `scripts/dev-mongo.mjs`) avec un jeu de données de base.
@@ -70,7 +72,8 @@ Les 255 tests actuels utilisent une base simulée : ils vérifient la logique, p
 **Intégration**
 - [ ] Génération 91 jours : pas de doublon, idempotence, reprise après interruption, ≈ 5 requêtes d'écriture ; 3 repas par jour.
 - [ ] Verrou : générations concurrentes, bail expiré, `FAILED` puis reprise, paiement concurrent.
-- [ ] Stripe simulé : webhook rejoué, crédit unique, abonnement prolongé, rattrapage depuis les mensurations.
+- [ ] Stripe simulé : webhook rejoué, crédit unique, abonnement prolongé, rattrapage depuis les mensurations ; renouvellement : un seul cycle ajouté (même rejoué), départ correct à l'heure ou en retard.
+- [ ] Cycle 2 de bout en bout : cadencier J1..J91 sur les jours 92..182, séances et vidéos à refaire, historique du cycle 1 intact, mois de suivi 4..6, rattrapage cron des jours 92..182.
 - [ ] Liste de courses : remplacement atomique, cases conservées, une régénération par plage.
 - [ ] Recalage : empreinte identique sans effet, seuls les repas périmés réécrits, listes régénérées.
 - [ ] Séance : double clic (un seul `PointEvent`), pré-requis par semaine, `completedAt` absent.
@@ -96,7 +99,7 @@ Les 255 tests actuels utilisent une base simulée : ils vérifient la logique, p
 ## 5. Reprise
 
 - **Mise en route** : `npm ci` (lance `prisma generate`). Variables : `.env.example` (dont `CRON_SECRET`).
-- **Tests** : `DATABASE_URL="mongodb://127.0.0.1:1/dummy" npx vitest --run src` : 255 tests. L'URL factice empêche toute écriture en base ; les fichiers `_tmp-*.spec.ts` sont exclus.
+- **Tests** : `DATABASE_URL="mongodb://127.0.0.1:1/dummy" npx vitest --run src` : 268 tests. L'URL factice empêche toute écriture en base ; les fichiers `_tmp-*.spec.ts` sont exclus.
 - **Types** : `npm run check` : 0 erreur, 0 avertissement, à garder à 0.
 - **ESLint** : 295 erreurs sur `src`, toutes antérieures aux optimisations (surtout `no-navigation-without-resolve`, `require-each-key`, variables inutilisées).
 - **Règles** : ne jamais lancer `prisma db push --accept-data-loss` (l'utilisateur pousse le schéma) ; ne pas committer sans demande ; tabulations et formateur automatique : relire un fichier avant de l'éditer.

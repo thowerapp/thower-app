@@ -132,10 +132,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		throw error(404, 'Jour invalide');
 	}
 
-	// Portions alignées sur le calcul actuel avant affichage (aujourd'hui et jours suivants).
-	await refreshStaleDays(userId, dayIndex, dayIndex);
-
-	const [profile, lastMeasure, nutritionDayInitial] = await Promise.all([
+	const [profile, lastMeasure] = await Promise.all([
 		prisma.userProfile.findUnique({
 			where: { userId },
 			select: {
@@ -154,26 +151,29 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			where: { userId },
 			orderBy: { createdAt: 'desc' },
 			select: { weightKg: true }
-		}),
-		prisma.nutritionDay.findUnique({
-			where: { userId_dayIndex: { userId, dayIndex } },
-			include: {
-				meals: {
-					include: {
-						recipe: {
-							include: {
-								ingredients: { orderBy: { order: 'asc' } }
-							}
+		})
+	]);
+	const weightKg = lastMeasure?.weightKg ?? null;
+	const mealTargets = mealTargetsFromProfile(profile, weightKg);
+
+	// Portions alignées sur le calcul actuel avant affichage (aujourd'hui et jours suivants).
+	await refreshStaleDays(userId, dayIndex, dayIndex, mealTargets);
+
+	let nutritionDay = await prisma.nutritionDay.findUnique({
+		where: { userId_dayIndex: { userId, dayIndex } },
+		include: {
+			meals: {
+				include: {
+					recipe: {
+						include: {
+							ingredients: { orderBy: { order: 'asc' } }
 						}
 					}
 				}
 			}
-		})
-	]);
-	const weightKg = lastMeasure?.weightKg ?? null;
-	let nutritionDay = nutritionDayInitial;
+		}
+	});
 
-	const mealTargets = mealTargetsFromProfile(profile, weightKg);
 	const breadKcal = profileBreadMacros(profile)?.kcal ?? 0;
 	const targetKcal = mealTargets != null ? Math.round(mealTargets.kcal + breadKcal) : null;
 	const mealBudgetKcal = mealTargets != null ? Math.round(mealTargets.kcal) : null;

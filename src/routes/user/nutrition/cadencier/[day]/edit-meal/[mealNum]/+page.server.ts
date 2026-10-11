@@ -11,24 +11,37 @@ import {
 	mealTargetsFromProfile,
 	mealTargetsProfileSelect
 } from '$lib/server/nutrition/userMealTargets';
-import { fitRecipeSelect, fixedDayMacros, isAdjustableMeal } from '$lib/server/nutrition/rescaleUserMeals';
+import {
+	fitRecipeSelect,
+	fixedDayMacros,
+	isAdjustableMeal
+} from '$lib/server/nutrition/rescaleUserMeals';
+import { requireNutritionAccess } from '$lib/server/programAccessGuard';
+import { getCatalogRecipes } from '$lib/server/nutrition/recipeCatalog';
 
 const TOTAL_DAYS = 91;
 
 function positionFromParam(param: string): MealPosition | null {
 	switch (param.toLowerCase()) {
-		case 'breakfast': return 'BREAKFAST';
-		case 'lunch': return 'LUNCH';
-		case 'dinner': return 'DINNER';
-		default: return null;
+		case 'breakfast':
+			return 'BREAKFAST';
+		case 'lunch':
+			return 'LUNCH';
+		case 'dinner':
+			return 'DINNER';
+		default:
+			return null;
 	}
 }
 
 function positionLabel(p: MealPosition): string {
 	switch (p) {
-		case 'BREAKFAST': return 'P’tit déj ou collation';
-		case 'LUNCH': return 'Déjeuner';
-		case 'DINNER': return 'Dîner';
+		case 'BREAKFAST':
+			return 'P’tit déj ou collation';
+		case 'LUNCH':
+			return 'Déjeuner';
+		case 'DINNER':
+			return 'Dîner';
 	}
 }
 
@@ -102,7 +115,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	const userId = locals.user.id;
 	const dayIndex = Number.parseInt(params.day ?? '', 10);
-	if (!Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > TOTAL_DAYS) throw error(404, 'Jour invalide');
+	if (!Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > TOTAL_DAYS)
+		throw error(404, 'Jour invalide');
 
 	const position = positionFromParam(params.mealNum ?? '');
 	if (!position) throw error(404, 'Créneau invalide');
@@ -110,7 +124,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const category = recipeCategory(position);
 
 	// Aucune de ces requêtes ne dépend d'une autre : une seule vague.
-	const [nutritionDay, profile, lastMeasure, recipes, favoriteIds] = await Promise.all([
+	const [nutritionDay, profile, lastMeasure, catalog, favoriteIds] = await Promise.all([
 		prisma.nutritionDay.findUnique({
 			where: { userId_dayIndex: { userId, dayIndex } },
 			select: dayMealsSelect
@@ -121,25 +135,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			orderBy: { createdAt: 'desc' },
 			select: { weightKg: true }
 		}),
-		prisma.recipe.findMany({
-			where: { active: true, isCustom: false, category: category as 'BREAKFAST' | 'MEAL' | 'DESSERT' },
-			select: {
-				id: true,
-				name: true,
-				totalTimeMin: true,
-				nutritionKcal: true,
-				nutritionProteinG: true,
-				nutritionCarbsG: true,
-				nutritionFatG: true,
-				nutritionFiberG: true,
-				referenceYieldG: true,
-				ingredients: {
-					select: { name: true, quantityG: true, category: true },
-					orderBy: { order: 'asc' }
-				}
-			},
-			orderBy: { name: 'asc' }
-		}),
+		getCatalogRecipes(),
 		prisma.userFavoriteRecipe
 			.findMany({ where: { userId }, select: { recipeId: true } })
 			.then((rows) => rows.map((r) => r.recipeId))
@@ -153,7 +149,20 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const fasting = nutritionDay?.intermittentFasting ?? false;
 	const frac = mealBudgetFraction(position, fasting);
 	// Chaque recette est proposée avec la journée recalculée autour d'elle (autres repas inchangés).
-	const recipesWithOptimalQ = recipes.map(({ ingredients, ...r }) => {
+	const recipes = catalog.filter((r) => r.category === category);
+	const recipesWithOptimalQ = recipes.map((full) => {
+		const { ingredients } = full;
+		const r = {
+			id: full.id,
+			name: full.name,
+			totalTimeMin: full.totalTimeMin,
+			nutritionKcal: full.nutritionKcal,
+			nutritionProteinG: full.nutritionProteinG,
+			nutritionCarbsG: full.nutritionCarbsG,
+			nutritionFatG: full.nutritionFatG,
+			nutritionFiberG: full.nutritionFiberG,
+			referenceYieldG: full.referenceYieldG
+		};
 		const { slot } = planDayWith(nutritionDay, position, { ...r, ingredients }, mealTargets);
 		return {
 			...r,
@@ -190,10 +199,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 export const actions: Actions = {
 	save: async ({ locals, params, request }) => {
 		if (!locals.user) return fail(401, { error: 'Non authentifié' });
+		await requireNutritionAccess(locals.user.id, locals.user.role);
 
 		const userId = locals.user.id;
 		const dayIndex = Number.parseInt(params.day ?? '', 10);
-		if (!Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > TOTAL_DAYS) return fail(400, { error: 'Jour invalide' });
+		if (!Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > TOTAL_DAYS)
+			return fail(400, { error: 'Jour invalide' });
 
 		const position = positionFromParam(params.mealNum ?? '');
 		if (!position) return fail(400, { error: 'Créneau invalide' });
@@ -207,7 +218,10 @@ export const actions: Actions = {
 		const [recipe, mealTargets, day] = await Promise.all([
 			prisma.recipe.findUnique({ where: { id: recipeId }, select: fitRecipeSelect }),
 			loadUserMealTargets(userId),
-			prisma.nutritionDay.findUnique({ where: { userId_dayIndex: { userId, dayIndex } }, select: dayMealsSelect })
+			prisma.nutritionDay.findUnique({
+				where: { userId_dayIndex: { userId, dayIndex } },
+				select: dayMealsSelect
+			})
 		]);
 		if (!recipe) return fail(404, { error: 'Recette introuvable' });
 
@@ -216,10 +230,13 @@ export const actions: Actions = {
 		const proposed = planDayWith(day, position, recipe, mealTargets);
 		const requestedG = Number(quantityGRaw);
 		const custom =
-			quantityGRaw != null && Number.isFinite(requestedG) && Math.round(requestedG) !== Math.round(proposed.slot.quantityG)
+			quantityGRaw != null &&
+			Number.isFinite(requestedG) &&
+			Math.round(requestedG) !== Math.round(proposed.slot.quantityG)
 				? Math.max(10, Math.round(requestedG))
 				: null;
-		const plan = custom != null ? planDayWith(day, position, recipe, mealTargets, custom) : proposed;
+		const plan =
+			custom != null ? planDayWith(day, position, recipe, mealTargets, custom) : proposed;
 
 		if (plan.others.length > 0) {
 			await prisma.$transaction(

@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server';
+import { invalidateRecipeCatalog } from '$lib/server/nutrition/recipeCatalog';
 import type { RecipeCategory } from '@prisma/client';
 import type { RecipeKitchenEquipmentValue } from '$lib/schema/recipe/recipeKitchenEquipment';
 
@@ -44,7 +45,7 @@ export async function createRecipe(data: CreateRecipeData) {
 		throw new Error('Prisma client has no "recipe" model. Run: npx prisma generate');
 	}
 	const { ingredients, ...rest } = data;
-	return client.recipe.create({
+	const created = await client.recipe.create({
 		data: {
 			...rest,
 			requiredKitchenEquipment: data.requiredKitchenEquipment ?? [],
@@ -68,4 +69,6 @@ export async function createRecipe(data: CreateRecipeData) {
 				: undefined
 		}
 	});
+	invalidateRecipeCatalog();
+	return created;
 }

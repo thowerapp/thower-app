@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server';
+import { invalidateRecipeCatalog } from '$lib/server/nutrition/recipeCatalog';
 import type { RecipeKitchenEquipmentValue } from '$lib/schema/recipe/recipeKitchenEquipment';
 import { regenerateShoppingListsForRecipe } from '../shoppingList/regenerateOverlappingDay';
 
@@ -33,6 +34,7 @@ export async function updateRecipe(recipeId: string, data: UpdateRecipeData) {
 		where: { id: recipeId },
 		data
 	});
+	invalidateRecipeCatalog();
 
 	// MAJ auto liste de courses (Lot 6) : régénérer les listes qui utilisent cette recette
 	await regenerateShoppingListsForRecipe(recipeId);

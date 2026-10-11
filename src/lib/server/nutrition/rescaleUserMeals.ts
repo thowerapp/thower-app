@@ -198,8 +198,14 @@ function isStalePortion(
  * calculés par une ancienne version). Les repas mangés ou manuels ne changent pas. Le calcul étant
  * déterministe, une journée à jour n'est jamais réécrite.
  */
-export async function refreshStaleDays(userId: string, from: number, to: number): Promise<void> {
-	const targets = await loadUserMealTargets(userId);
+export async function refreshStaleDays(
+	userId: string,
+	from: number,
+	to: number,
+	/** Cibles déjà chargées par l'appelant (évite de relire profil et poids) ; `undefined` = les charger. */
+	preloadedTargets?: MealMacroTargets | null
+): Promise<void> {
+	const targets = preloadedTargets === undefined ? await loadUserMealTargets(userId) : preloadedTargets;
 	if (!targets) return;
 
 	const days = await loadDays({ userId, dayIndex: { gte: from, lte: to } });

@@ -1,25 +1,11 @@
 import { prisma } from '$lib/server';
-import type { Prisma } from '@prisma/client';
+import { getCatalogRecipes } from './recipeCatalog';
 import { regenerateShoppingListsOverlappingDays } from '$lib/prisma/shoppingList/regenerateOverlappingDay';
 import type { MealMacroTargets } from '$lib/nutrition/nutritionTargets';
 import { mealTargetsFromProfile } from './userMealTargets';
 import type { MealPortion } from '$lib/nutrition/mealPortion';
 import { fitDay } from '$lib/nutrition/dayPlanner';
 import { refitDaysById } from './rescaleUserMeals';
-
-const recipeCatalogSelect = {
-	id: true,
-	category: true,
-	referenceYieldG: true,
-	nutritionKcal: true,
-	nutritionProteinG: true,
-	nutritionCarbsG: true,
-	nutritionFatG: true,
-	nutritionFiberG: true,
-	allergens: true,
-	name: true,
-	ingredients: { select: { name: true, quantityG: true, category: true }, orderBy: { order: 'asc' } }
-} as unknown as Prisma.RecipeSelect;
 
 type CatalogRecipe = {
 	id: string;
@@ -130,10 +116,7 @@ export async function loadBreakfastBackfillContextFromProfile(
 	profile: BreakfastProfileInput,
 	weightKg: number | null
 ): Promise<BreakfastBackfillContext | null> {
-	const recipesRaw = (await prisma.recipe.findMany({
-		where: { isCustom: false, active: true, category: 'BREAKFAST' },
-		select: recipeCatalogSelect
-	})) as unknown as CatalogRecipe[];
+	const recipesRaw = (await getCatalogRecipes()).filter((r) => r.category === 'BREAKFAST');
 
 	const breakfastRecipes = filterBreakfastRecipes(profile, recipesRaw);
 	if (breakfastRecipes.length === 0) {

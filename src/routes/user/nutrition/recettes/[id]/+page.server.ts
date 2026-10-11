@@ -4,6 +4,7 @@ import { prisma } from '$lib/server';
 import { addFavoriteRecipe } from '$lib/prisma/userFavoriteRecipe/addFavorite';
 import { removeFavoriteRecipe } from '$lib/prisma/userFavoriteRecipe/removeFavorite';
 import { fail } from '@sveltejs/kit';
+import { requireNutritionAccess } from '$lib/server/programAccessGuard';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
@@ -32,6 +33,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 export const actions: Actions = {
 	toggleFavorite: async ({ locals, params }) => {
 		if (!locals.user) return fail(401, { error: 'Non authentifié' });
+		await requireNutritionAccess(locals.user.id, locals.user.role);
 		const userId = locals.user.id;
 		const recipeId = params.id;
 

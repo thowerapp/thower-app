@@ -107,10 +107,31 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const userId = locals.user.id;
 
-	const user = (await prisma.user.findUnique({
-		where: { id: userId },
-		select: cadencierUserSelect
-	})) as CadencierUserRow | null;
+	const [userRaw, profile, lastMeasure] = await Promise.all([
+		prisma.user.findUnique({ where: { id: userId }, select: cadencierUserSelect }),
+		prisma.userProfile.findUnique({
+			where: { userId },
+			select: {
+				allergens: true,
+				otherAllergens: true,
+				disgustingFoods: true,
+				bodyFatPercent: true,
+				activityLevel: true,
+				breadDaily: true,
+				breadGramsPerDay: true,
+				breadType: true
+			}
+		}),
+		prisma.bodyMeasurement.findFirst({
+			where: { userId },
+			orderBy: { createdAt: 'desc' },
+			select: { weightKg: true }
+		})
+	]);
+	const user = userRaw as CadencierUserRow | null;
+	const weightKg = lastMeasure?.weightKg ?? null;
+	// Cibles journalières des repas (pain quotidien déduit), partagées avec le recalage des portions.
+	const mealTargets = mealTargetsFromProfile(profile, weightKg);
 
 	const currentDayIndex = currentProgramDayIndex(user?.programStartDate ?? null);
 	const currentWeek = Math.min(WEEKS, Math.max(1, Math.ceil(currentDayIndex / 7)));
@@ -130,7 +151,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const weekEnd = Math.min(TOTAL_DAYS, weekStart + 6);
 
 	// Portions d'aujourd'hui et des jours suivants alignées sur le calcul actuel avant affichage.
-	await refreshStaleDays(userId, weekStart, weekEnd);
+	await refreshStaleDays(userId, weekStart, weekEnd, mealTargets);
 
 	const nutritionDayQuery = {
 		where: { userId, dayIndex: { gte: weekStart, lte: weekEnd } },
@@ -144,27 +165,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	};
 
-	const [profile, lastMeasure, rowsInitial] = await Promise.all([
-		prisma.userProfile.findUnique({
-			where: { userId },
-			select: {
-				allergens: true,
-				otherAllergens: true,
-				disgustingFoods: true,
-				bodyFatPercent: true,
-				activityLevel: true,
-				breadDaily: true,
-				breadGramsPerDay: true,
-				breadType: true
-			}
-		}),
-		prisma.bodyMeasurement.findFirst({
-			where: { userId },
-			orderBy: { createdAt: 'desc' },
-			select: { weightKg: true }
-		}),
-		prisma.nutritionDay.findMany(nutritionDayQuery)
-	]);
+	const rowsInitial = await prisma.nutritionDay.findMany(nutritionDayQuery);
 
 	let rows = rowsInitial;
 	const daysNeedingBreakfast = rows.filter(
@@ -243,10 +244,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		defaultSelectedDay = weekStart;
 	}
 
-	const weightKg = lastMeasure?.weightKg ?? null;
-
-	// Cibles journalières des repas (pain quotidien déduit), arrondies pour l'affichage.
-	const mealTargets = mealTargetsFromProfile(profile, weightKg);
+	// Cibles arrondies pour l'affichage.
 	const dayTargets = mealTargets
 		? {
 				kcal: Math.round(mealTargets.kcal),

@@ -4,6 +4,7 @@ import { prisma } from '$lib/server';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { addFavoriteRecipe } from '$lib/prisma/userFavoriteRecipe/addFavorite';
 import { removeFavoriteRecipe } from '$lib/prisma/userFavoriteRecipe/removeFavorite';
+import { requireNutritionAccess } from '$lib/server/programAccessGuard';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -48,10 +49,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		where: {
 			id: { in: plannedRecipeIds },
 			active: true,
-			OR: [
-				{ isCustom: false },
-				{ userId }
-			]
+			OR: [{ isCustom: false }, { userId }]
 		},
 		include: {
 			ingredients: true
@@ -88,6 +86,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	toggleFavorite: async ({ locals, request }) => {
 		if (!locals.user) return fail(401, { error: 'Non authentifié' });
+		await requireNutritionAccess(locals.user.id, locals.user.role);
 		const userId = locals.user.id;
 		const data = await request.formData();
 		const recipeId = data.get('recipeId');

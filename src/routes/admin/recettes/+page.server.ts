@@ -1,6 +1,7 @@
 import { zod } from '$lib/superforms-zod';
 import type { PageServerLoad, Actions } from './$types';
 import { message, superValidate, fail } from 'sveltekit-superforms';
+import { invalidateRecipeCatalog } from '$lib/server/nutrition/recipeCatalog';
 import { redirect } from '@sveltejs/kit';
 import { deleteRecipeSchema } from '$lib/schema/recipe/recipeSchema';
 import { prisma } from '$lib/server';
@@ -52,6 +53,7 @@ export const actions: Actions = {
 		try {
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			await (prisma as any).recipe.delete({ where: { id } });
+			invalidateRecipeCatalog();
 			return message(form, 'Recette supprimée.');
 		} catch (error) {
 			console.error('[admin/recettes] deleteRecipe error', error);

@@ -72,10 +72,10 @@ Admin (attach/detach vidéos, séances)
 ### P2 : runtime
 
 - [ ] **N7** Aucune écriture dans les `load` GET (`cadencier`, `cadencier/[day]` : `refreshStaleDays`, `backfillMissingBreakfastMeals`). Déclencher le recalcul à la modification du profil ou en tâche dédiée.
-- [ ] **N8** Mutualiser profil / poids / cibles entre le layout nutrition et les pages enfants (`parent()`) au lieu de les relire 2-3 fois par navigation.
-- [ ] **N9** `edit-meal` : `fitDay` est exécuté pour chaque recette du catalogue à chaque `load`. Calculer à la sélection ou limiter / mettre en cache.
-- [ ] **N10** Cache serveur du catalogue de recettes (TTL court / invalidation à l'action admin).
-- [ ] **N11** `requireNutritionAccess` sur l'action `save` de `edit-meal` (aujourd'hui seulement `locals.user`).
+- [x] **N8** Le cadencier et la page jour chargent profil, poids et cibles une seule fois (en parallèle) et les passent à `refreshStaleDays(…, targets)` : 2 requêtes en moins par navigation.
+- [x] **N9** Mesuré : `fitDay` coûte ~4 ms par recette (≈120 ms pour les 29 recettes du seed) à chaque ouverture de la page de choix de repas. Acceptable : pas de changement ; à revoir si le catalogue dépasse ~150 recettes (calcul à la sélection ou mémoïsation par journée).
+- [x] **N10** Cache serveur du catalogue de recettes (`getCatalogRecipes`, TTL 60 s, `src/lib/server/nutrition/recipeCatalog.ts`) utilisé par la page de choix de repas et le rattrapage du petit-déjeuner ; invalidé à la création, modification et suppression d'une recette. Cache TTL générique `src/lib/server/cache/ttlCache.ts`, réutilisé par le plan sport. La génération du programme relit le catalogue en base (données fraîches).
+- [x] **N11** `requireNutritionAccess` ajouté aux actions de `edit-meal` (save), `recettes` (favoris), `recettes/[id]` (favoris) et `recettes/create` (les `load` sont couverts par le layout, pas les actions).
 
 ### P3 : dette et décisions produit
 

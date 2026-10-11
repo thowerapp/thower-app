@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { prisma } from '$lib/server';
+import { requireNutritionAccess } from '$lib/server/programAccessGuard';
 
 const CATEGORIES = ['BREAKFAST', 'MEAL', 'DESSERT'] as const;
 type CategoryValue = (typeof CATEGORIES)[number];
@@ -32,10 +33,13 @@ export const actions: Actions = {
 		if (!locals.user) {
 			throw redirect(302, '/auth/login');
 		}
+		await requireNutritionAccess(locals.user.id, locals.user.role);
 
 		const data = await request.formData();
 		const name = String(data.get('name') ?? '').trim();
-		const categoryRaw = String(data.get('category') ?? '').trim().toUpperCase();
+		const categoryRaw = String(data.get('category') ?? '')
+			.trim()
+			.toUpperCase();
 		const category = CATEGORIES.includes(categoryRaw as CategoryValue)
 			? (categoryRaw as CategoryValue)
 			: null;
@@ -66,7 +70,8 @@ export const actions: Actions = {
 				category,
 				totalTimeMin: totalTimeRaw != null && totalTimeRaw > 0 ? totalTimeRaw : null,
 				servings: servingsRaw != null && servingsRaw > 0 ? servingsRaw : 1,
-				referenceYieldG: referenceYieldRaw != null && referenceYieldRaw > 0 ? referenceYieldRaw : null,
+				referenceYieldG:
+					referenceYieldRaw != null && referenceYieldRaw > 0 ? referenceYieldRaw : null,
 				nutritionKcal: kcalRaw != null && kcalRaw >= 0 ? kcalRaw : null,
 				nutritionProteinG: proteinRaw != null && proteinRaw >= 0 ? proteinRaw : null,
 				nutritionCarbsG: carbsRaw != null && carbsRaw >= 0 ? carbsRaw : null,

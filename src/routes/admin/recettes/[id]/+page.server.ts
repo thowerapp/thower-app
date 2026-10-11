@@ -4,6 +4,7 @@ import { message, superValidate, fail } from 'sveltekit-superforms';
 import { error, redirect } from '@sveltejs/kit';
 import { recipeSchema, type RecipeSchema } from '$lib/schema/recipe/recipeSchema';
 import { prisma } from '$lib/server';
+import { invalidateRecipeCatalog } from '$lib/server/nutrition/recipeCatalog';
 import { serializeData } from '$lib/utils/serializeData';
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -118,6 +119,7 @@ export const actions: Actions = {
 				}
 			});
 
+			invalidateRecipeCatalog();
 			return message(form, 'Recette mise à jour.');
 		} catch (err) {
 			console.error('[admin/recettes/[id]] updateRecipe error', err);

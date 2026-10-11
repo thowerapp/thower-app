@@ -114,39 +114,52 @@ export async function generateShoppingListFromPlanning(
 
 	const items = sortAggregatedShoppingItems(Array.from(aggregated.values()), sortOrder);
 
-	await db.shoppingList.deleteMany({
-		where: { userId, startDayIndex, endDayIndex }
-	});
+	// Remplacement atomique : en cas d'échec l'ancienne liste reste intacte.
+	const list = await db.$transaction(
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		async (tx: any) => {
+			const previous: { items: { ingredientName: string; unit: string | null; isChecked: boolean }[] }[] =
+				await tx.shoppingList.findMany({
+					where: { userId, startDayIndex, endDayIndex },
+					select: { items: { select: { ingredientName: true, unit: true, isChecked: true } } }
+				});
+			// Les cases cochées survivent à une régénération automatique.
+			const checkedKeys = new Set(
+				previous.flatMap((l) =>
+					l.items.filter((i) => i.isChecked).map((i) => shoppingListAggregateKey(i.ingredientName, i.unit))
+				)
+			);
 
-	const list = await db.shoppingList.create({
-		data: { userId, startDayIndex, endDayIndex },
-		select: {
-			id: true,
-			startDayIndex: true,
-			endDayIndex: true,
-			generatedAt: true
-		}
-	});
+			await tx.shoppingList.deleteMany({ where: { userId, startDayIndex, endDayIndex } });
+			const created = await tx.shoppingList.create({
+				data: { userId, startDayIndex, endDayIndex },
+				select: { id: true, startDayIndex: true, endDayIndex: true, generatedAt: true }
+			});
+			if (items.length > 0) {
+				await tx.shoppingItem.createMany({
+					data: items.map((it) => ({
+						listId: created.id,
+						ingredientName: it.ingredientName,
+						category: it.category,
+						totalQuantityG: Math.round(it.totalQuantityG * 10) / 10,
+						unit: it.unit,
+						isChecked: checkedKeys.has(shoppingListAggregateKey(it.ingredientName, it.unit)),
+						isReported: it.isReported,
+						sources: it.sources.map((s) => ({
+							recipeName: s.recipeName,
+							quantityG: Math.round(s.quantityG * 10) / 10
+						}))
+					}))
+				});
+			}
+			return created;
+		},
+		{ timeout: 30_000 }
+	);
 
 	const createdItems: ShoppingListWithItems['items'] = [];
 
 	if (items.length > 0) {
-		await db.shoppingItem.createMany({
-			data: items.map((it) => ({
-				listId: list.id,
-				ingredientName: it.ingredientName,
-				category: it.category,
-				totalQuantityG: Math.round(it.totalQuantityG * 10) / 10,
-				unit: it.unit,
-				isChecked: false,
-				isReported: it.isReported,
-				sources: it.sources.map((s) => ({
-					recipeName: s.recipeName,
-					quantityG: Math.round(s.quantityG * 10) / 10
-				}))
-			}))
-		});
-
 		const rows = await db.shoppingItem.findMany({
 			where: { listId: list.id },
 			select: {

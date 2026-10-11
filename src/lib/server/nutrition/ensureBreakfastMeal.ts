@@ -1,6 +1,6 @@
 import { prisma } from '$lib/server';
 import type { Prisma } from '@prisma/client';
-import { generateShoppingListFromPlanning } from '$lib/prisma/shoppingList/generateFromPlanning';
+import { regenerateShoppingListsOverlappingDays } from '$lib/prisma/shoppingList/regenerateOverlappingDay';
 import type { MealMacroTargets } from '$lib/nutrition/nutritionTargets';
 import { mealTargetsFromProfile } from './userMealTargets';
 import type { MealPortion } from '$lib/nutrition/mealPortion';
@@ -189,34 +189,6 @@ function buildBreakfastMealPayload(
 	};
 }
 
-async function regenerateShoppingListsForDayIndices(
-	userId: string,
-	dayIndices: number[]
-): Promise<void> {
-	if (dayIndices.length === 0) return;
-
-	const lists = await prisma.shoppingList.findMany({
-		where: {
-			userId,
-			OR: dayIndices.map((dayIndex) => ({
-				startDayIndex: { lte: dayIndex },
-				endDayIndex: { gte: dayIndex }
-			}))
-		},
-		select: { startDayIndex: true, endDayIndex: true }
-	});
-
-	const seen = new Set<string>();
-	for (const { startDayIndex, endDayIndex } of lists) {
-		const key = `${startDayIndex}-${endDayIndex}`;
-		if (seen.has(key)) continue;
-		seen.add(key);
-		await generateShoppingListFromPlanning(userId, startDayIndex, endDayIndex, {
-			includeReportedFromPrevious: true
-		});
-	}
-}
-
 type DayForBackfill = {
 	id: string;
 	dayIndex: number;
@@ -246,7 +218,7 @@ export async function backfillMissingBreakfastMeals(
 	await prisma.meal.createMany({ data: payloads });
 	await refitDaysById(userId, payloads.map((p) => p.nutritionDayId));
 
-	await regenerateShoppingListsForDayIndices(
+	await regenerateShoppingListsOverlappingDays(
 		userId,
 		needs.map((d) => d.dayIndex)
 	);
@@ -276,7 +248,7 @@ export async function ensureBreakfastMealForDay(
 	await prisma.meal.create({ data: payload });
 	await refitDaysById(userId, [nutritionDayId]);
 
-	await regenerateShoppingListsForDayIndices(userId, [dayIndex]);
+	await regenerateShoppingListsOverlappingDays(userId, [dayIndex]);
 
 	return true;
 }

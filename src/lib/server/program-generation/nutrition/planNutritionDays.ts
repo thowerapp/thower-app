@@ -2,7 +2,11 @@ import type { MealPosition, Prisma, RecipeCategory } from '@prisma/client';
 import { fitDay, pickDayRecipes } from '$lib/nutrition/dayPlanner';
 import type { MealPortion } from '$lib/nutrition/mealPortion';
 import type { MealMacroTargets } from '$lib/nutrition/nutritionTargets';
-import { fitRecipeSelect, fixedDayMacros, isAdjustableMeal } from '$lib/server/nutrition/rescaleUserMeals';
+import {
+	fitRecipeSelect,
+	fixedDayMacros,
+	isAdjustableMeal
+} from '$lib/server/nutrition/rescaleUserMeals';
 
 /** Jours précédents dont les recettes ne sont pas reprises. */
 export const RECENT_DAYS = 3;
@@ -21,7 +25,9 @@ export type CatalogRecipe = {
 	name: string;
 };
 
-type ExistingMeal = Prisma.MealGetPayload<{ include: { recipe: { select: typeof fitRecipeSelect } } }>;
+type ExistingMeal = Prisma.MealGetPayload<{
+	include: { recipe: { select: typeof fitRecipeSelect } };
+}>;
 
 export type ExistingNutritionDay = {
 	id: string;
@@ -33,14 +39,24 @@ export type ExistingNutritionDay = {
 export type NutritionDayPlan = {
 	daysToCreate: { dayIndex: number; intermittentFasting: boolean }[];
 	mealUpdates: { mealId: string; portion: MealPortion }[];
-	mealCreates: { dayIndex: number; position: MealPosition; recipeId: string; portion: MealPortion }[];
+	mealCreates: {
+		dayIndex: number;
+		position: MealPosition;
+		recipeId: string;
+		portion: MealPortion;
+	}[];
 	daysTouched: number;
 	/** Jours échantillonnés pour les logs. */
 	samples: { dayIndex: number; positions: MealPosition[]; recipeIds: string[]; scales: number[] }[];
 };
 
 /** Graine déterministe (FNV-1a) pour tirage pseudo-aléatoire stable par user / jour / créneau. */
-export function catalogPickSeed(userId: string, dayIndex: number, position: string, slotIndex: number): number {
+export function catalogPickSeed(
+	userId: string,
+	dayIndex: number,
+	position: string,
+	slotIndex: number
+): number {
 	const s = `${userId}\0${dayIndex}\0${position}\0${slotIndex}`;
 	let h = 2166136261 >>> 0;
 	for (let i = 0; i < s.length; i++) {
@@ -113,7 +129,11 @@ export function planNutritionDays(args: {
 		const fixed = fixedDayMacros(existingMeals, fasting);
 		const picks = pickDayRecipes({
 			positionsToFill: missing,
-			existing: kept.map((m) => ({ position: m.position, recipe: m.recipe!, recipeId: m.recipeId })),
+			existing: kept.map((m) => ({
+				position: m.position,
+				recipe: m.recipe!,
+				recipeId: m.recipeId
+			})),
 			pools,
 			daily: mealTargets,
 			intermittentFasting: fasting,
@@ -124,7 +144,12 @@ export function planNutritionDays(args: {
 
 		// Journée entière ajustée ensemble : repas existants ajustables + repas créés.
 		const planned = [
-			...kept.map((m) => ({ mealId: m.id as string | null, position: m.position, recipeId: m.recipeId!, recipe: m.recipe! })),
+			...kept.map((m) => ({
+				mealId: m.id as string | null,
+				position: m.position,
+				recipeId: m.recipeId!,
+				recipe: m.recipe!
+			})),
 			...[...picks].map(([position, recipe]) => ({
 				mealId: null,
 				position: position as MealPosition,
@@ -132,14 +157,27 @@ export function planNutritionDays(args: {
 				recipe
 			}))
 		];
-		const portions = fitDay({ meals: planned, daily: mealTargets, intermittentFasting: fasting, fixed });
+		const portions = fitDay({
+			meals: planned,
+			daily: mealTargets,
+			intermittentFasting: fasting,
+			fixed
+		});
 
 		const scales: number[] = [];
 		for (const [k, meal] of planned.entries()) {
 			const portion = portions[k];
-			scales.push(Math.round((portion.quantityG / (meal.recipe.referenceYieldG || 100)) * 1000) / 1000);
+			scales.push(
+				Math.round((portion.quantityG / (meal.recipe.referenceYieldG || 100)) * 1000) / 1000
+			);
 			if (meal.mealId) plan.mealUpdates.push({ mealId: meal.mealId, portion });
-			else plan.mealCreates.push({ dayIndex, position: meal.position, recipeId: meal.recipeId, portion });
+			else
+				plan.mealCreates.push({
+					dayIndex,
+					position: meal.position,
+					recipeId: meal.recipeId,
+					portion
+				});
 		}
 		recentDays = [
 			...recentDays.slice(-(RECENT_DAYS - 1)),

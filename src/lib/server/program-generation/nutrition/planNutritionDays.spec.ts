@@ -18,7 +18,11 @@ const pools = {
 	BREAKFAST: CATALOG.filter((r) => r.category === 'BREAKFAST'),
 	MEAL: CATALOG.filter((r) => r.category === 'MEAL')
 };
-const mealTargets = dailyMealTargets({ weightKg: 80, bodyFatPercent: 20, activityLevel: 'ACTIVE' })!;
+const mealTargets = dailyMealTargets({
+	weightKg: 80,
+	bodyFatPercent: 20,
+	activityLevel: 'ACTIVE'
+})!;
 const POSITIONS = ['LUNCH', 'DINNER'] as const;
 
 const base = {
@@ -51,7 +55,12 @@ function existingMeal(over: Record<string, unknown>) {
 }
 
 const day = (dayIndex: number, meals: unknown[]) =>
-	({ id: `d${dayIndex}`, dayIndex, intermittentFasting: false, meals }) as unknown as ExistingNutritionDay;
+	({
+		id: `d${dayIndex}`,
+		dayIndex,
+		intermittentFasting: false,
+		meals
+	}) as unknown as ExistingNutritionDay;
 
 describe('planNutritionDays', () => {
 	it('planifie 91 jours neufs : un jour et un repas par cr\u00e9neau, sans mise \u00e0 jour', () => {
@@ -73,7 +82,8 @@ describe('planNutritionDays', () => {
 	it('varie les plats : pas deux repas identiques le m\u00eame jour ni sur trois jours cons\u00e9cutifs', () => {
 		const plan = planNutritionDays({ ...base, existingDays: [] });
 		const byDay = new Map<number, string[]>();
-		for (const m of plan.mealCreates) byDay.set(m.dayIndex, [...(byDay.get(m.dayIndex) ?? []), m.recipeId]);
+		for (const m of plan.mealCreates)
+			byDay.set(m.dayIndex, [...(byDay.get(m.dayIndex) ?? []), m.recipeId]);
 		for (const [d, ids] of byDay) {
 			expect(new Set(ids).size).toBe(ids.length);
 			const previous = [d - 1, d - 2, d - 3].flatMap((p) => byDay.get(p) ?? []);
@@ -95,15 +105,29 @@ describe('planNutritionDays', () => {
 	it('ne touche pas aux jours complets et compl\u00e8te les jours partiels', () => {
 		const complete = day(1, [
 			existingMeal({ id: 'a', position: 'LUNCH' }),
-			existingMeal({ id: 'b', position: 'DINNER', recipeId: pools.MEAL[1].id, recipe: pools.MEAL[1] })
+			existingMeal({
+				id: 'b',
+				position: 'DINNER',
+				recipeId: pools.MEAL[1].id,
+				recipe: pools.MEAL[1]
+			})
 		]);
-		const partial = day(2, [existingMeal({ id: 'c', position: 'LUNCH', recipeId: pools.MEAL[2].id, recipe: pools.MEAL[2] })]);
+		const partial = day(2, [
+			existingMeal({
+				id: 'c',
+				position: 'LUNCH',
+				recipeId: pools.MEAL[2].id,
+				recipe: pools.MEAL[2]
+			})
+		]);
 		const plan = planNutritionDays({ ...base, targetDays: 3, existingDays: [complete, partial] });
 
 		expect(plan.daysToCreate.map((d) => d.dayIndex)).toEqual([3]);
 		expect(plan.mealUpdates.map((u) => u.mealId)).toEqual(['c']);
 		expect(plan.mealCreates.filter((m) => m.dayIndex === 1)).toHaveLength(0);
-		expect(plan.mealCreates.filter((m) => m.dayIndex === 2).map((m) => m.position)).toEqual(['DINNER']);
+		expect(plan.mealCreates.filter((m) => m.dayIndex === 2).map((m) => m.position)).toEqual([
+			'DINNER'
+		]);
 		expect(plan.mealCreates.filter((m) => m.dayIndex === 3)).toHaveLength(2);
 	});
 

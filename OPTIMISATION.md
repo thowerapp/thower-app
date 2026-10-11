@@ -65,8 +65,8 @@ Admin (attach/detach vidéos, séances)
 
 - [x] **N3** `generateNutritionDaysForUser` planifie en mémoire (`planNutritionDays`, pur et testé) puis écrit par lots : 1 lecture des jours/repas existants, `createMany` des jours, 1 relecture des ids, `createMany` des repas (300 par lot), mises à jour en transactions de 60. Environ 5 requêtes au lieu de ~550 pour 91 jours.
 - [ ] **N3b** Coût CPU du calcul (mesuré en test, hors base) : ~1,7 à 2 s pour 91 jours, surtout `pickDayRecipes` (jusqu'à 6 tirages évalués par `fitDay`). À réduire si besoin (moins de tirages, cache des évaluations).
-- [ ] **N4** Liste de courses (`generateShoppingListFromPlanning`) : écriture atomique (aujourd'hui `deleteMany` puis `create`), conservation des `isChecked` (réinitialisés à chaque régénération), allègement de la lecture 1..91 (recette + ingrédients dupliqués par repas).
-- [ ] **N5** `refreshStaleDays` : une seule régénération de liste par plage au lieu d'une par jour modifié (jusqu'à 7 régénérations complètes d'une liste 1..91).
+- [x] **N4** `generateShoppingListFromPlanning` remplace la liste dans une transaction (suppression, création, articles) : un échec laisse l'ancienne liste intacte. Les cases cochées sont conservées à la régénération automatique (clé ingrédient + unité) ; le bouton « Régénérer » de la page courses supprime d'abord la liste et repart donc de zéro. Reste à faire : alléger la lecture 1..91 (recette + ingrédients dupliqués par repas).
+- [x] **N5** `refreshStaleDays`, le rattrapage du petit-déjeuner et `regenerateShoppingListsForRecipe` régénèrent chaque liste une seule fois (`regenerateShoppingListsOverlappingDays`, dédupliquée par plage) au lieu d'une fois par jour modifié. Les écritures dans les `load` GET restent à sortir (N7).
 - [ ] **N6** `rescaleUserMeals` uniquement si les cibles (poids, % MG, activité, pain) ont changé ; ne pas le relancer à chaque génération ni à chaque sauvegarde de `/auth/measurement`.
 
 ### P2 : runtime

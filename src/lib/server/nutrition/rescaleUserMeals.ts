@@ -2,7 +2,10 @@ import { prisma } from '$lib/server';
 import type { MealMacroTargets } from '$lib/nutrition/nutritionTargets';
 import type { MacroValues, MealPortion } from '$lib/nutrition/mealPortion';
 import { fitDay, isCountedMeal } from '$lib/nutrition/dayPlanner';
-import { regenerateShoppingListsOverlappingDay } from '$lib/prisma/shoppingList/regenerateOverlappingDay';
+import {
+	regenerateShoppingListsOverlappingDay,
+	regenerateShoppingListsOverlappingDays
+} from '$lib/prisma/shoppingList/regenerateOverlappingDay';
 import { loadUserMealTargets } from './userMealTargets';
 
 export const fitRecipeSelect = {
@@ -180,7 +183,5 @@ export async function refreshStaleDays(userId: string, from: number, to: number)
 	}
 	if (updates.length === 0) return;
 	await prisma.$transaction(updates);
-	for (const dayIndex of changedDays) {
-		await regenerateShoppingListsOverlappingDay(userId, dayIndex);
-	}
+	await regenerateShoppingListsOverlappingDays(userId, [...changedDays]);
 }

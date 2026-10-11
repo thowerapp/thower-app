@@ -87,8 +87,8 @@ Admin (attach/detach vidéos, séances)
 
 ## 5. Transverses (hors sport/nutrition, identifiés dans la première analyse)
 
-- [ ] **T1** `api/cron/daily-notification` sans authentification : ajouter `CRON_SECRET`.
-- [ ] **T2** Route `/acces-expire` inexistante (redirigée par `checkAccess`).
+- [x] **T1** `api/cron/daily-notification` exige `Authorization: Bearer ${CRON_SECRET}` (Vercel l'envoie automatiquement quand la variable existe) ; sans secret : 401 en production, libre en dev (`src/lib/server/cronAuth.ts`). **À faire : définir `CRON_SECRET` dans Vercel**, sinon les rappels push s'arrêtent.
+- [x] **T2** Page `/acces-expire` créée (message, lien de renouvellement vers `/auth/subscription`, redirection vers `/user` si l'accès est valide).
 - [ ] **T3** Points : un module unique `awardPoints`, `aggregate` pour le total (4 pages font `findMany` + `reduce`).
 - [ ] **T4** Dates : checklist en minuit UTC (`startOfUtcDay`) vs programme en minuit Europe/Paris.
 - [ ] **T5** `hooks.server.ts` : 3 lectures DB par requête (session, user, session Prisma).

@@ -1,9 +1,16 @@
+import { dev } from '$app/environment';
+import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server';
+import { isAuthorizedCron } from '$lib/server/cronAuth';
 import { sendWebPush } from '$server/web-push';
 import type { RequestHandler } from './$types';
 
-/** Rappel quotidien à 10h et 19h Paris (appelé par Vercel Cron). Test : GET /api/cron/daily-notification */
-export const GET: RequestHandler = async () => {
+/** Rappel quotidien à 10h et 19h Paris (appelé par Vercel Cron). Authentifié par CRON_SECRET (libre en dev) : GET /api/cron/daily-notification */
+export const GET: RequestHandler = async ({ request }) => {
+	if (!isAuthorizedCron(request.headers.get('authorization'), env.CRON_SECRET, dev)) {
+		return new Response('Unauthorized', { status: 401 });
+	}
+
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const subs = await (prisma as any).pushSubscription.findMany({
 		select: { endpoint: true, p256dh: true, auth: true }

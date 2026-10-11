@@ -25,11 +25,6 @@ export type UserProfileSnapshot = {
 export async function getProfileByUserId(
 	userId: string
 ): Promise<UserProfileSnapshot | null> {
-	const client = prisma as { userProfile?: { findUnique: (args: { where: { userId: string } }) => Promise<unknown> } };
-	if (!client?.userProfile) {
-		console.warn('[getProfileByUserId] prisma.userProfile is undefined. Run: npx prisma generate');
-		return null;
-	}
-	const row = await client.userProfile.findUnique({ where: { userId } });
+	const row = await prisma.userProfile.findUnique({ where: { userId } });
 	return row as UserProfileSnapshot | null;
 }

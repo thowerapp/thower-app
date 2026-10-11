@@ -50,19 +50,9 @@ export async function regenerateShoppingListsOverlappingDay(
  * utilise la recette donnée. À appeler après modification d'une recette ou de ses ingrédients.
  */
 export async function regenerateShoppingListsForRecipe(recipeId: string): Promise<void> {
-	const db = prisma as {
-		meal?: {
-			findMany: (args: {
-				where: { recipeId: string };
-				include: { nutritionDay: { select: { userId: true; dayIndex: true } } };
-			}) => Promise<Array<{ nutritionDay: { userId: string; dayIndex: number } }>>;
-		};
-	};
-	if (!db.meal) return;
-
-	const meals = await db.meal.findMany({
+	const meals = await prisma.meal.findMany({
 		where: { recipeId },
-		include: { nutritionDay: { select: { userId: true, dayIndex: true } } }
+		select: { nutritionDay: { select: { userId: true, dayIndex: true } } }
 	});
 
 	const daysByUser = new Map<string, Set<number>>();

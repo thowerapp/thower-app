@@ -1,4 +1,3 @@
-import type { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server';
 import { getProgramOfferEntitlements } from '$lib/prisma/transaction/getProgramOfferEntitlements';
 import { generateNutritionDaysForUser } from './nutrition/generateNutrition91Days';
@@ -9,23 +8,16 @@ import { programGenLog, programGenTrace, programGenWarn, type ProgramGenSource }
 import { rescaleUserMeals } from '$lib/server/nutrition/rescaleUserMeals';
 import { nextMondayStartParis } from '$lib/utils/programDay';
 
-/** Contourne un UserSelect Prisma parfois désynchronisé dans l’IDE (champ absent des types générés en cache). */
-type UserNutritionAllocatedRow = { nutritionDaysAllocated: number };
-
-const selectNutritionDaysAllocated = {
-	nutritionDaysAllocated: true
-} as unknown as Prisma.UserSelect;
-
 /** Le planning est toujours généré en 3 repas/jour (J1..J91). */
 function expectedMealCount(): number {
 	return 3;
 }
 
 async function resolveTargetNutritionDays(userId: string): Promise<number> {
-	const user = (await prisma.user.findUnique({
+	const user = await prisma.user.findUnique({
 		where: { id: userId },
-		select: selectNutritionDaysAllocated
-	})) as UserNutritionAllocatedRow | null;
+		select: { nutritionDaysAllocated: true }
+	});
 	const allocated = user?.nutritionDaysAllocated ?? 0;
 	programGenLog('3a/ User.nutritionDaysAllocated', { userId, allocated });
 
@@ -165,7 +157,7 @@ export async function generateProgramForUser(
 
 			// Le plan est complet mais la liste de courses n'existe peut-être pas encore
 			// (cas : programme généré avant l'ajout de la fonctionnalité).
-			const existingList = await (prisma as any).shoppingList?.findFirst({ where: { userId } });
+			const existingList = await prisma.shoppingList.findFirst({ where: { userId }, select: { id: true } });
 			if (!existingList) {
 				programGenLog('5b/ Aucune liste de courses — génération rattrapée', { userId, targetDays });
 				const shoppingResult = await generateShoppingListFromPlanning(userId, 1, targetDays, {
@@ -182,7 +174,7 @@ export async function generateProgramForUser(
 
 		// Recalage du cadencier existant sur les nouvelles cibles avant de compléter les jours manquants.
 		programGenLog('5d/ Recalcul du cadencier (plan partiel)', { userId });
-		await rescaleUserMeals(userId);
+		await rescaleUserMeals(userId, { regenerateLists: false });
 
 		programGenLog('6/ Appel generateNutritionDaysForUser', { userId, targetDays });
 		await generateNutritionDaysForUser(userId, targetDays);

@@ -102,18 +102,23 @@ export function refitDayPortions(
 const UPDATES_PER_TRANSACTION = 60;
 
 /** Recalcule ensemble les portions et compléments des repas ajustables ; seules les portions périmées sont réécrites. */
-async function refitDays(dayWhere: DayWhere, targets: MealMacroTargets): Promise<void> {
+async function refitDays(dayWhere: DayWhere, targets: MealMacroTargets): Promise<Set<number>> {
 	const days = await loadDays(dayWhere);
+	const changedDays = new Set<number>();
 	const updates = days.flatMap((day) =>
 		refitDayPortions(day, targets)
 			.filter(({ mealId, portion }) =>
 				isStalePortion(day.meals.find((m) => m.id === mealId)!, portion)
 			)
-			.map(({ mealId, portion }) => prisma.meal.update({ where: { id: mealId }, data: portion }))
+			.map(({ mealId, portion }) => {
+				changedDays.add(day.dayIndex);
+				return prisma.meal.update({ where: { id: mealId }, data: portion });
+			})
 	);
 	for (let k = 0; k < updates.length; k += UPDATES_PER_TRANSACTION) {
 		await prisma.$transaction(updates.slice(k, k + UPDATES_PER_TRANSACTION));
 	}
+	return changedDays;
 }
 
 /** Change quand l'algorithme de portions change : force un recalage unique des comptes existants. */
@@ -128,11 +133,15 @@ export function targetsKey(targets: MealMacroTargets): string {
 /**
  * Recalcule tout le cadencier sur les cibles actuelles du profil (nouveau poids, % masse grasse, activité,
  * pain…). Les repas déjà mangés ou saisis à la main ne changent pas ; leur apport est déduit de leur journée.
- * Sans `force`, ne fait rien si les cibles sont celles déjà appliquées.
+ * Sans `force`, ne fait rien si les cibles sont celles déjà appliquées. Les listes de courses suivent les portions.
  */
 export async function rescaleUserMeals(
 	userId: string,
-	options?: { force?: boolean }
+	options?: {
+		force?: boolean;
+		/** Régénère les listes de courses des jours modifiés (défaut : oui). */
+		regenerateLists?: boolean;
+	}
 ): Promise<void> {
 	const targets = await loadUserMealTargets(userId);
 	if (!targets) return;
@@ -146,8 +155,11 @@ export async function rescaleUserMeals(
 		if (user?.nutritionTargetsKey === key) return;
 	}
 
-	await refitDays({ userId }, targets);
+	const changedDays = await refitDays({ userId }, targets);
 	await prisma.user.update({ where: { id: userId }, data: { nutritionTargetsKey: key } });
+	if (options?.regenerateLists !== false && changedDays.size > 0) {
+		await regenerateShoppingListsOverlappingDays(userId, [...changedDays]);
+	}
 }
 
 /** Recalcule les portions de journées données (sans liste de courses). */

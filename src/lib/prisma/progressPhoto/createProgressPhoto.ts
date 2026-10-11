@@ -9,9 +9,5 @@ export type CreateProgressPhotoData = {
 };
 
 export async function createProgressPhoto(data: CreateProgressPhotoData) {
-	const client = prisma as { progressPhoto?: { create: (args: { data: unknown }) => Promise<unknown> } };
-	if (!client?.progressPhoto) {
-		throw new Error('Prisma client has no "progressPhoto" model. Run: npx prisma generate');
-	}
-	return client.progressPhoto.create({ data });
+	return prisma.progressPhoto.create({ data });
 }

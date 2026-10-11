@@ -421,6 +421,19 @@ const FILL_ORDER = ['LUNCH', 'DINNER', 'BREAKFAST'];
 const GOOD_DAY_SCORE = 0.004;
 /** Tirages du premier repas tentés au maximum quand la journée obtenue reste loin des cibles. */
 const MAX_DRAWS = 6;
+/** Candidats évalués au plus pour chaque créneau choisi : borne le coût quand le catalogue grandit. */
+const MAX_CANDIDATES = 12;
+
+/** `k` éléments tirés sans remise (Fisher-Yates partiel) ; tous si la liste est plus courte. */
+function sampleCandidates<T>(items: T[], k: number, random: () => number): T[] {
+	if (items.length <= k) return items;
+	const pool = [...items];
+	for (let i = 0; i < k; i++) {
+		const j = i + Math.floor(random() * (pool.length - i));
+		[pool[i], pool[j]] = [pool[j], pool[i]];
+	}
+	return pool.slice(0, k);
+}
 
 type PickArgs<R extends PickableRecipe> = {
 	positionsToFill: string[];
@@ -467,9 +480,10 @@ function fillDayOnce<R extends PickableRecipe>(args: PickArgs<R>): Map<string, R
 				.filter((p) => isCountedMeal(p, intermittentFasting))
 				.reduce((s, p) => s + mealBudgetFraction(p, intermittentFasting), 0);
 			const partial = scaleTargets(daily, countedFracSum > 0 ? subsetFrac / countedFracSum : 1);
-			let best = eligible[0];
+			const candidates = sampleCandidates(eligible, MAX_CANDIDATES, random);
+			let best = candidates[0];
 			let bestScore = Infinity;
-			for (const candidate of eligible) {
+			for (const candidate of candidates) {
 				const meals = [...current, { position, recipe: candidate }];
 				const portions = fitDay({ meals, daily: partial, intermittentFasting, fixed: args.fixed, sweeps: SCORING_SWEEPS });
 				const score = dayDeviationScore(portions, meals, partial, intermittentFasting, args.fixed);

@@ -15,11 +15,7 @@ export type CreateProgramDayItemData = {
 };
 
 export async function createProgramDayItem(data: CreateProgramDayItemData) {
-	const client = prisma as { programDayItem?: { create: (args: { data: unknown }) => Promise<unknown> } };
-	if (!client?.programDayItem) {
-		throw new Error('Prisma client has no "programDayItem" model. Run: npx prisma generate');
-	}
-	const created = await client.programDayItem.create({
+	const created = await prisma.programDayItem.create({
 		data: {
 			programDayId: data.programDayId,
 			type: data.type,

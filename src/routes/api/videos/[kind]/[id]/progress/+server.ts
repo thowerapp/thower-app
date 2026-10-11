@@ -6,6 +6,8 @@ import { upsertVideoProgress } from '$lib/prisma/userVideoProgress/upsertProgres
 import { createPointEvent } from '$lib/prisma/pointEvent/createEvent';
 import { autoCompleteVideoTask } from '$lib/prisma/dailyTask/autoCompleteVideoTask';
 import { prisma } from '$lib/server';
+import { POINTS } from '$lib/server/pointsConfig';
+import { hasSportAccess } from '$lib/server/programAccessGuard';
 
 function startOfUtcDay(): Date {
 	const d = new Date();
@@ -19,7 +21,7 @@ const bodySchema = z.object({
 });
 
 /** Points attribués à la première complétion d'une vidéo (cohérent avec le seed). */
-const VIDEO_COMPLETION_POINTS = 10;
+const VIDEO_COMPLETION_POINTS = POINTS.VIDEO_WATCHED;
 
 /**
  * Heartbeat de progression vidéo + complétion.
@@ -37,6 +39,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	}
 	const userId = locals.user.id;
 	const kind = videoKindEnum.parse(params.kind);
+	if (kind === 'workout' && !(await hasSportAccess(userId, locals.user.role))) {
+		throw error(403, "L'offre sport n'est pas active sur ce compte.");
+	}
 
 	let body: z.infer<typeof bodySchema>;
 	try {

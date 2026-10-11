@@ -3,6 +3,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import { getTotalPointsForUser } from '$lib/prisma/pointEvent/getTotalPointsForUser';
+import { POINTS } from '$lib/server/pointsConfig';
 import { z } from 'zod';
 import { currentProgramDayIndex } from '$lib/utils/programDay';
 
@@ -237,17 +238,17 @@ export const actions: Actions = {
 				});
 			}
 
-			// Créer l'événement de points (+50)
+			// Créer l'événement de points
 			await prisma.pointEvent.create({
 				data: {
 					userId: locals.user.id,
 					type: 'MONTHLY_CHECKIN',
-					amount: 50,
+					amount: POINTS.MONTHLY_CHECKIN,
 					metadata: { source: 'monthly-checkin', month: currentMonth }
 				}
 			});
 
-			return { success: true, message: 'Check-in soumis et +50 points gagnés !' };
+			return { success: true, message: `Check-in soumis et +${POINTS.MONTHLY_CHECKIN} points gagnés !` };
 		} catch (error: unknown) {
 			console.error('Error submitting monthly check-in:', error);
 			return fail(500, { message: 'Erreur lors de la soumission du check-in' });

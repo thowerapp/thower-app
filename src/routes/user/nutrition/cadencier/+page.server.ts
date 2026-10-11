@@ -46,21 +46,12 @@ type CadencierDayDTO = {
 	meals: CadencierMealDTO[];
 };
 
-/** Ligne User attendue après findUnique (select ci-dessous). */
-type CadencierUserRow = {
-	programStartDate: Date | null;
-	nutritionDaysAllocated: number;
-	programGenStatus: 'IDLE' | 'RUNNING' | 'DONE' | 'FAILED' | null;
-	profile: { intermittentFastingMorning: boolean | null } | null;
-};
-
-/** Même motif que generateProgramForUser : UserSelect parfois désynchronisé côté types. */
 const cadencierUserSelect = {
 	programStartDate: true,
 	nutritionDaysAllocated: true,
 	programGenStatus: true,
 	profile: { select: { intermittentFastingMorning: true } }
-} as unknown as Prisma.UserSelect;
+} satisfies Prisma.UserSelect;
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -90,7 +81,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			select: { weightKg: true }
 		})
 	]);
-	const user = userRaw as CadencierUserRow | null;
+	const user = userRaw;
 	const weightKg = lastMeasure?.weightKg ?? null;
 	// Cibles journalières des repas (pain quotidien déduit), partagées avec le recalage des portions.
 	const mealTargets = mealTargetsFromProfile(profile, weightKg);

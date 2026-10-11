@@ -1,10 +1,11 @@
 import { Prisma } from '@prisma/client';
 import type { WorkoutSessionType } from '@prisma/client';
 import { prisma } from '$lib/server';
+import { POINTS } from '$lib/server/pointsConfig';
 import { sportWeekBounds, sportWeekNumberForDay } from '$lib/utils/programDay';
 
 /** Points gagnés à la validation d'une séance sport (source unique). */
-export const WORKOUT_COMPLETION_POINTS = 50;
+export const WORKOUT_COMPLETION_POINTS = POINTS.WORKOUT_COMPLETE;
 
 const PREVIOUS_TYPE: Partial<Record<WorkoutSessionType, WorkoutSessionType>> = {
 	MAIN_B: 'MAIN_A',

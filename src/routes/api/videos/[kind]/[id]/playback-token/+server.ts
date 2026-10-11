@@ -4,6 +4,7 @@ import { videoKindEnum } from '$lib/schema/video/videoAdminSchema';
 import { createSignedPlaybackToken, getStreamEmbedUrl, getVideoDetails } from '$lib/server/cloudflare-stream';
 import { prisma } from '$lib/server';
 import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
+import { hasSportAccess } from '$lib/server/programAccessGuard';
 
 /**
  * Délivre un token de lecture signé Cloudflare pour la vidéo demandée.
@@ -16,6 +17,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	}
 
 	const kind = videoKindEnum.parse(params.kind);
+	if (kind === 'workout' && !(await hasSportAccess(locals.user.id, locals.user.role))) {
+		throw error(403, "L'offre sport n'est pas active sur ce compte.");
+	}
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const db = prisma as any;
 

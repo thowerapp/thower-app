@@ -22,15 +22,7 @@ export type UpdateRecipeData = {
 };
 
 export async function updateRecipe(recipeId: string, data: UpdateRecipeData) {
-	const client = prisma as {
-		recipe?: {
-			update: (args: { where: { id: string }; data: unknown }) => Promise<unknown>;
-		};
-	};
-	if (!client?.recipe) {
-		throw new Error('Prisma client has no "recipe" model. Run: npx prisma generate');
-	}
-	await client.recipe.update({
+	await prisma.recipe.update({
 		where: { id: recipeId },
 		data
 	});

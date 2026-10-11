@@ -3,7 +3,7 @@ import type { MealPosition, Prisma } from '@prisma/client';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { mealTargetsFromProfile } from '$lib/server/nutrition/userMealTargets';
 import { fitRecipeSelect } from '$lib/server/nutrition/rescaleUserMeals';
-import { planNutritionDays, type CatalogRecipe } from './planNutritionDays';
+import { planNutritionDays } from './planNutritionDays';
 import { filterRecipesForUser } from './recipeFilterUtils';
 import { programGenLog, programGenTrace, programGenWarn } from '../programGenerationLog';
 
@@ -14,22 +14,6 @@ const UPDATE_CHUNK = 60;
 
 /** @deprecated Utiliser NUTRITION_SEGMENT_DAYS depuis $lib/nutrition/nutritionPlanConstants */
 export const PROGRAM_NUTRITION_DAYS = NUTRITION_SEGMENT_DAYS;
-
-/** Ligne profil attendue — select casté car les types Prisma générés peuvent être en retard sur le schéma. */
-type NutritionGenProfileRow = {
-	breakfastEnabled: boolean;
-	intermittentFastingMorning: boolean | null;
-	allergens: string[];
-	activityLevel: string | null;
-	bodyFatPercent: number | null;
-	weightLossGoalKg: number | null;
-	breadDaily: boolean;
-	breadGramsPerDay: number | null;
-	/** Enum Prisma `BreadType` — typé en string pour éviter les exports d’enum variables selon versions client. */
-	breadType: string | null;
-	disgustingFoods: string | null;
-	otherAllergens: string | null;
-};
 
 const nutritionGenProfileSelect = {
 	breakfastEnabled: true,
@@ -43,7 +27,7 @@ const nutritionGenProfileSelect = {
 	breadType: true,
 	disgustingFoods: true,
 	otherAllergens: true
-} as unknown as Prisma.UserProfileSelect;
+} satisfies Prisma.UserProfileSelect;
 
 const recipeCatalogSelect = {
 	id: true,
@@ -57,7 +41,7 @@ const recipeCatalogSelect = {
 	allergens: true,
 	name: true,
 	ingredients: { select: { name: true, quantityG: true, category: true }, orderBy: { order: 'asc' } }
-} as unknown as Prisma.RecipeSelect;
+} satisfies Prisma.RecipeSelect;
 
 /**
  * Génère les journées nutrition 1..targetDays (NutritionDay + Meal) depuis le catalogue admin.
@@ -74,10 +58,10 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		return;
 	}
 
-	const profile = (await prisma.userProfile.findUnique({
+	const profile = await prisma.userProfile.findUnique({
 		where: { userId },
 		select: nutritionGenProfileSelect
-	})) as NutritionGenProfileRow | null;
+	});
 
 	const intermittentFastingDefault = profile?.intermittentFastingMorning === true;
 	const userAllergens = profile?.allergens ?? [];
@@ -118,10 +102,10 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 			: null
 	});
 
-	const recipesRaw = (await prisma.recipe.findMany({
+	const recipesRaw = await prisma.recipe.findMany({
 		where: { isCustom: false, active: true },
 		select: recipeCatalogSelect
-	})) as unknown as CatalogRecipe[];
+	});
 
 	const recipes = filterRecipesForUser(recipesRaw, profile);
 
@@ -165,11 +149,9 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		mealPool: mealRecipes.length
 	});
 
-	// BREAKFAST inclus si petit-déj activé OU jeûne intermittent (masqué à l'affichage, présent en BDD).
+	// Trois repas par jour dès qu'il existe un petit-déjeuner utilisable (le jeûne le masque à l'affichage, il reste en BDD).
 	const positions: MealPosition[] =
-		breakfastRecipes.length > 0 && (breakfastEnabled || intermittentFastingDefault)
-			? ['BREAKFAST', 'LUNCH', 'DINNER']
-			: ['LUNCH', 'DINNER'];
+		breakfastRecipes.length > 0 ? ['BREAKFAST', 'LUNCH', 'DINNER'] : ['LUNCH', 'DINNER'];
 
 	programGenLog('N7/ Boucle jours — positions repas', {
 		userId,

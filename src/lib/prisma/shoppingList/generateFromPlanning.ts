@@ -29,20 +29,13 @@ export async function generateShoppingListFromPlanning(
 	options: GenerateShoppingListOptions = {}
 ): Promise<{ listId: string; list: ShoppingListWithItems } | null> {
 	const { includeReportedFromPrevious = true } = options;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
-
-	if (!db.nutritionDay || !db.shoppingList || !db.shoppingItem || !db.userProfile) {
-		return null;
-	}
-
-	const profile = await db.userProfile.findUnique({
+	const profile = await prisma.userProfile.findUnique({
 		where: { userId },
 		select: { shoppingListSortOrder: true }
 	});
 	const sortOrder = profile?.shoppingListSortOrder === 'alphabetical' ? 'alphabetical' : 'category';
 
-	const nutritionDays = await db.nutritionDay.findMany({
+	const nutritionDays = await prisma.nutritionDay.findMany({
 		where: { userId, dayIndex: { gte: startDayIndex, lte: endDayIndex } },
 		select: {
 			dayIndex: true,
@@ -83,7 +76,7 @@ export async function generateShoppingListFromPlanning(
 	}
 
 	if (includeReportedFromPrevious && startDayIndex > 1) {
-		const previousList = await db.shoppingList.findFirst({
+		const previousList = await prisma.shoppingList.findFirst({
 			where: { userId, endDayIndex: startDayIndex - 1 },
 			orderBy: { generatedAt: 'desc' },
 			include: { items: true }
@@ -115,9 +108,8 @@ export async function generateShoppingListFromPlanning(
 	const items = sortAggregatedShoppingItems(Array.from(aggregated.values()), sortOrder);
 
 	// Remplacement atomique : en cas d'échec l'ancienne liste reste intacte.
-	const list = await db.$transaction(
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		async (tx: any) => {
+	const list = await prisma.$transaction(
+		async (tx) => {
 			const previous: { items: { ingredientName: string; unit: string | null; isChecked: boolean }[] }[] =
 				await tx.shoppingList.findMany({
 					where: { userId, startDayIndex, endDayIndex },
@@ -160,7 +152,7 @@ export async function generateShoppingListFromPlanning(
 	const createdItems: ShoppingListWithItems['items'] = [];
 
 	if (items.length > 0) {
-		const rows = await db.shoppingItem.findMany({
+		const rows = await prisma.shoppingItem.findMany({
 			where: { listId: list.id },
 			select: {
 				id: true,

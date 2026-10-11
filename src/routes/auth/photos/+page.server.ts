@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { z } from 'zod';
 import { createProgressPhoto } from '$lib/prisma/progressPhoto/createProgressPhoto';
 import { prisma } from '$lib/server';
+import { POINTS } from '$lib/server/pointsConfig';
 
 const submitPhotosSchema = z.object({
 	frontUrl: z.string().startsWith('/api/cloudflare/r2/image/photos/', 'URL photo avant invalide'),
@@ -67,12 +68,12 @@ export const actions: Actions = {
 					url: backUrl,
 					month: 0
 				}),
-				// Ajouter +50 points pour photos soumises
+				// Points pour photos soumises
 				prisma.pointEvent.create({
 					data: {
 						userId: locals.user.id,
 						type: 'PHOTO_UPLOAD',
-						amount: 50,
+						amount: POINTS.PHOTO_UPLOAD,
 						metadata: {
 							source: 'auth-photos-submission',
 							timestamp: new Date().toISOString()
@@ -85,7 +86,7 @@ export const actions: Actions = {
 			return fail(500, { message: 'Erreur lors de l\'envoi des photos.' });
 		}
 
-		console.log(`[photos action] ✓ 3 photos + 50pts saved — user=${locals.user.id}`);
+		console.log(`[photos action] ✓ 3 photos + ${POINTS.PHOTO_UPLOAD}pts saved — user=${locals.user.id}`);
 		throw redirect(302, '/auth/well-being');
 	}
 };

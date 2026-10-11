@@ -15,3 +15,9 @@ export async function requireSportAccess(userId: string, role: string): Promise<
 	const ent = await getProgramOfferEntitlements(userId);
 	if (!ent.sport) throw redirect(302, '/auth/subscription?besoin=sport');
 }
+
+/** Variante pour les API (réponse 403 plutôt qu'une redirection) : l'offre sport est-elle achetée ? */
+export async function hasSportAccess(userId: string, role: string): Promise<boolean> {
+	if (role === 'ADMIN') return true;
+	return (await getProgramOfferEntitlements(userId)).sport;
+}

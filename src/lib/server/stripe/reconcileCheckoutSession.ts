@@ -1,4 +1,3 @@
-import type { Prisma } from '@prisma/client';
 import type Stripe from 'stripe';
 import { prisma } from '$lib/server';
 import { stripe } from '$lib/server/stripe';
@@ -16,12 +15,6 @@ import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { logPaymentStatus, onboardingTrace } from '$lib/server/onboarding/onboardingLog';
 
 const VALID_PLANS: PlanId[] = ['quarterly'];
-
-type UserNutritionAllocatedRow = { nutritionDaysAllocated: number };
-
-const selectNutritionDaysAllocated = {
-	nutritionDaysAllocated: true
-} as unknown as Prisma.UserSelect;
 
 export type CheckoutReconcileSource = 'webhook' | 'return_url' | 'measurement_sync';
 
@@ -140,16 +133,14 @@ export async function reconcilePaidCheckoutSession(
 			NUTRITION_SEGMENT_DAYS
 		);
 		if (modified < 1) {
-			const u = (await prisma.user.findUnique({
+			const u = await prisma.user.findUnique({
 				where: { id: transaction.userId },
-				select: selectNutritionDaysAllocated
-			})) as UserNutritionAllocatedRow | null;
+				select: { nutritionDaysAllocated: true }
+			});
 			const base = u?.nutritionDaysAllocated ?? 0;
 			await prisma.user.update({
 				where: { id: transaction.userId },
-				data: {
-					nutritionDaysAllocated: base + NUTRITION_SEGMENT_DAYS
-				} as unknown as Prisma.UserUpdateInput
+				data: { nutritionDaysAllocated: base + NUTRITION_SEGMENT_DAYS }
 			});
 		}
 	}

@@ -10,11 +10,7 @@ export async function logProgramGenSummary(
 	const [nutritionDayCount, mealCount, shoppingList, user] = await Promise.all([
 		prisma.nutritionDay.count({ where: { userId } }),
 		prisma.meal.count({ where: { nutritionDay: { userId } } }),
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(prisma as any).shoppingList?.findFirst?.({
-			where: { userId },
-			select: { id: true }
-		}) ?? Promise.resolve(null),
+		prisma.shoppingList.findFirst({ where: { userId }, select: { id: true } }),
 		prisma.user.findUnique({
 			where: { id: userId },
 			select: {

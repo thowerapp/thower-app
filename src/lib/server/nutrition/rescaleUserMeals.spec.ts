@@ -5,6 +5,7 @@ const prismaMock = vi.hoisted(() => ({
 	userProfile: { findUnique: vi.fn() },
 	bodyMeasurement: { findFirst: vi.fn() },
 	nutritionDay: { findMany: vi.fn() },
+	shoppingList: { findMany: vi.fn(async (_args?: unknown) => [] as unknown[]) },
 	meal: { update: vi.fn((args: unknown) => args) },
 	$transaction: vi.fn(async (ops: unknown[]) => ops)
 }));
@@ -115,6 +116,26 @@ describe('rescaleUserMeals', () => {
 		expect(prismaMock.user.update.mock.calls[0][0].data.nutritionTargetsKey).not.toBe(
 			targetsKey(targets80)
 		);
+	});
+
+	it('régénère les listes de courses des jours modifiés, sauf si demandé autrement', async () => {
+		profileFor(70);
+		prismaMock.user.findUnique.mockResolvedValue({ nutritionTargetsKey: null });
+		await rescaleUserMeals('u1');
+		const args = prismaMock.shoppingList.findMany.mock.calls[0][0] as { where: { OR: unknown[] } };
+		const where = args.where;
+		expect(where.OR.length).toBe(10);
+
+		prismaMock.shoppingList.findMany.mockClear();
+		await rescaleUserMeals('u1', { regenerateLists: false });
+		expect(prismaMock.shoppingList.findMany).not.toHaveBeenCalled();
+	});
+
+	it('ne touche pas aux listes quand aucun repas n’a changé', async () => {
+		profileFor(80);
+		prismaMock.user.findUnique.mockResolvedValue({ nutritionTargetsKey: null });
+		await rescaleUserMeals('u1');
+		expect(prismaMock.shoppingList.findMany).not.toHaveBeenCalled();
 	});
 
 	it('regroupe les mises \u00e0 jour en transactions born\u00e9es', async () => {

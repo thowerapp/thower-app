@@ -7,15 +7,7 @@ export type CreateCompletionData = {
 };
 
 export async function createProgramDayItemCompletion(data: CreateCompletionData) {
-	const client = prisma as {
-		userProgramDayItemCompletion?: {
-			create: (args: { data: unknown }) => Promise<unknown>;
-		};
-	};
-	if (!client?.userProgramDayItemCompletion) {
-		throw new Error('Prisma client has no "userProgramDayItemCompletion" model. Run: npx prisma generate');
-	}
-	return client.userProgramDayItemCompletion.create({
+	return prisma.userProgramDayItemCompletion.create({
 		data: {
 			userId: data.userId,
 			programDayItemId: data.programDayItemId,

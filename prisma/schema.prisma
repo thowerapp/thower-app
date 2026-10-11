@@ -482,6 +482,7 @@ model ProgramDayItem {
   completions UserProgramDayItemCompletion[]
 
   @@index([programDayId])
+  @@index([type, workoutVideoId])
   @@map("program_day_items")
 }
 
@@ -589,6 +590,7 @@ model UserWorkoutDay {
   /// Une occurrence (même séance peut revenir plusieurs fois sur le programme 91j : J2, J9, J16…)
   @@unique([userId, sessionId, dayIndex])
   @@index([userId])
+  @@index([userId, dayIndex])
   @@map("user_workout_days")
 }
 

@@ -1,5 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { requireNutritionAccess } from '$lib/server/programAccessGuard';
+import { defaultTimeLabel, mealMacrosRounded, positionLabel, positionOrder } from '$lib/nutrition/mealDisplay';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import type { MealPosition, Prisma } from '@prisma/client';
@@ -20,45 +21,6 @@ import {
 
 const TOTAL_DAYS = TOTAL_PROGRAM_DAYS;
 const WEEKS = TOTAL_PROGRAM_WEEKS;
-
-function positionLabel(position: MealPosition): string {
-	switch (position) {
-		case 'BREAKFAST':
-			return 'P’tit déj ou collation';
-		case 'LUNCH':
-			return 'Déjeuner';
-		case 'DINNER':
-			return 'Dîner';
-		default:
-			return 'Repas';
-	}
-}
-
-function positionOrder(position: MealPosition): number {
-	switch (position) {
-		case 'BREAKFAST':
-			return 0;
-		case 'LUNCH':
-			return 1;
-		case 'DINNER':
-			return 2;
-		default:
-			return 3;
-	}
-}
-
-function defaultTimeLabel(position: MealPosition): string {
-	switch (position) {
-		case 'BREAKFAST':
-			return '08h00';
-		case 'LUNCH':
-			return '12h30';
-		case 'DINNER':
-			return '19h00';
-		default:
-			return '—';
-	}
-}
 
 type CadencierMealDTO = {
 	id: string;
@@ -206,13 +168,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			? [...row.meals].sort((a, b) => positionOrder(a.position) - positionOrder(b.position))
 			: [];
 		const meals: CadencierMealDTO[] = sortedMeals.map((m, slotIndex) => {
-			const manual = m.isManual === true;
-			const calories = Math.round(manual ? (m.manualCalories ?? 0) : (m.calcCalories ?? 0));
-			const proteinG =
-				Math.round((manual ? (m.manualProteinG ?? 0) : (m.calcProteinG ?? 0)) * 10) / 10;
-			const carbsG = Math.round((manual ? (m.manualCarbsG ?? 0) : (m.calcCarbsG ?? 0)) * 10) / 10;
-			const fatG = Math.round((manual ? (m.manualFatG ?? 0) : (m.calcFatG ?? 0)) * 10) / 10;
-			const fiberG = Math.round((manual ? (m.manualFiberG ?? 0) : (m.calcFiberG ?? 0)) * 10) / 10;
+			const { calories, proteinG, carbsG, fatG, fiberG } = mealMacrosRounded(m);
 			return {
 				id: m.id,
 				position: m.position,

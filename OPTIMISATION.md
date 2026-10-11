@@ -80,7 +80,7 @@ Admin (attach/detach vidéos, séances)
 ### P3 : dette et décisions produit
 
 - [x] **N12** Une seule copie, testée : le filtre allergènes (`filterRecipesForUser` dans `recipeFilterUtils.ts`, utilisé par la génération et le rattrapage du petit-déjeuner) et le tirage pseudo-aléatoire (`seededRandom.ts`, utilisé par `planNutritionDays` et `ensureBreakfastMeal`). Le type `CatalogRecipe` local de `ensureBreakfastMeal` est remplacé par celui du planificateur.
-- [ ] **N13** Dédupliquer `positionLabel` / `positionOrder` / `defaultTimeLabel` / mapping des macros entre `cadencier` et `cadencier/[day]` ; remplacer les `TOTAL_DAYS = 91` locaux par `TOTAL_PROGRAM_DAYS`.
+- [x] **N13** Fonctions d'affichage des repas (`positionLabel`, `positionOrder`, `defaultTimeLabel`, `mealMacrosRounded`) extraites dans `src/lib/nutrition/mealDisplay.ts` (testé) et utilisées par le cadencier, la page jour et la page de choix de repas ; les `TOTAL_DAYS = 91` locaux utilisent `TOTAL_PROGRAM_DAYS`.
 - [ ] **N14** Décision : `weightLossGoalKg` est saisi et stocké mais n'entre dans aucun calcul (cibles basées sur le % de masse grasse).
 - [ ] **N15** Décision : second paiement (+91 jours alloués) génère `J92..J182` jamais affichés (index plafonné à 91, cadencier à 13 semaines, pas de reset de `programStartDate`).
 - [ ] **N16** Retirer les casts `as unknown as Prisma.UserSelect`, `(prisma as any)` : forcer `prisma generate` en CI.
@@ -109,6 +109,74 @@ Admin (attach/detach vidéos, séances)
 ## 7. Points de validation avant de coder
 
 - S12b : tranché (admin / coach seulement).
-- N14 : `weightLossGoalKg` doit-il piloter la cible calorique ?
-- N15 : un second paiement redémarre-t-il un programme de 91 jours ?
-- Mongo en replica set (Atlas) pour les transactions de lots : déjà utilisé dans `rescaleUserMeals` (7 jours par transaction, limite de 60 s).
+- Les autres points sont repris et complétés dans le bilan final (section 8).
+
+## 8. Bilan final (à faire quand les optimisations sont terminées)
+
+Objectif : trancher les points laissés ouverts, puis écrire les tests automatisés qui prouvent que le tout fonctionne comme voulu. Jusqu'ici, les 244 tests unitaires s'exécutent avec une base simulée (mocks) : ils vérifient la logique, pas le comportement réel de MongoDB, de Prisma, de Stripe ni de Vercel.
+
+### 8.1 Points non déterminés à trancher
+
+**Décisions produit**
+- [ ] **D1 (N14)** `weightLossGoalKg` est saisi et stocké mais n'entre dans aucun calcul (cibles basées sur le % de masse grasse). Le faire piloter la cible calorique, le conserver à titre indicatif, ou le retirer du formulaire ?
+- [ ] **D2 (N15)** Second paiement : `nutritionDaysAllocated` passe à 182 et la génération crée J92..J182, jamais affichés (index plafonné à 91, cadencier sur 13 semaines, pas de reset de `programStartDate`). Redémarrer un programme de 91 jours, ou plafonner l'allocation ?
+- [ ] **D3 (N7)** Quand recalculer les portions : à la modification du profil (avec repli à l'affichage), en tâche dédiée, ou garder le recalage à l'affichage ? Aujourd'hui les `load` GET du cadencier écrivent encore en base (`refreshStaleDays`, rattrapage du petit-déjeuner).
+- [ ] **D4** Séances de type Découverte : une séance Découverte réelle rapporte 50 points comme une séance normale, le créneau virtuel D en rapporte 0. Quelle règle ?
+- [ ] **D5** Jours sport sans type admin dans une semaine qui en contient avec type : l'ordre A/B peut s'inverser (un jour sans type devant un jour Séance 1 devient Séance 2). Rendre le type obligatoire, ou accepter ?
+- [ ] **D6 (S12b)** Aucun rôle coach n'existe : seul `ADMIN` crée des personnalisations de plan sport. Créer un rôle `COACH` (périmètre, accès aux fiches) ou rester sur `ADMIN` ?
+- [ ] **D7** Bouton « Régénérer » de la liste de courses : remet les cases à zéro (voulu ?), alors que la régénération automatique les conserve.
+- [ ] **D8** Mise à jour d'une recette depuis l'admin (`admin/recettes/[id]`) : n'appelle pas la régénération des listes de courses faite par la couche données (`updateRecipe`). Aligner ?
+
+**Choix techniques à confirmer**
+- [ ] **T-a** TTL des caches par instance (60 s : plan sport, catalogue de recettes) : acceptable, ou besoin d'une invalidation partagée entre instances ?
+- [ ] **T-b** Bail du verrou de génération (10 min) et `maxDuration` 300 s : cohérents avec le plan Vercel utilisé ?
+- [ ] **T-c** Seconde passe de génération (paiement arrivé pendant une génération) : fenêtre résiduelle entre la dernière lecture et `DONE`. À couvrir par une reprise périodique ?
+- [ ] **T-d (N3b)** Coût CPU de `pickDayRecipes` (~2 s pour 91 jours) : réduire le nombre de tirages ou accepter ?
+- [ ] **T-e (T4)** Dates : checklist en minuit UTC, programme en minuit Europe/Paris. Unifier sur Paris ? (migration des `DailyTaskCompletion.date` existants à prévoir)
+- [ ] **T-f (T3 reste)** Module unique `awardPoints` pour les autres créations de `PointEvent` (photos, progression, admin, vidéo, tâche vidéo auto).
+- [ ] **T-g (N16)** Retirer les casts `as unknown as Prisma.UserSelect` / `(prisma as any)` : 6 à 8 fichiers, à faire avec un `prisma generate` forcé en CI.
+- [ ] **T-h (S14, S15)** Index Mongo (`program_day_items`, `user_workout_days`, `user_sport_overrides`) et garde `requireSportAccess` sur toutes les actions sport.
+- [ ] **T-i** Reprise initiale des comptes existants : sans `nutritionTargetsKey`, chaque compte est recalé une fois à sa prochaine génération ou sauvegarde des mensurations (écritures limitées aux portions périmées).
+
+**Actions de déploiement (non faites)**
+- [ ] `prisma db push` (sans `--accept-data-loss`) : `UserSportOverride`, `programGenStatus`, `programGenStartedAt`, `programGenFinishedAt`, `nutritionTargetsKey`.
+- [ ] Définir `CRON_SECRET` dans Vercel (sinon `/api/cron/daily-notification` répond 401 et les rappels push s'arrêtent).
+- [ ] Vérifier l'existence de la collection et des index après le push ; vérifier que la base est un replica set (transactions interactives).
+
+### 8.2 Tests automatisés à réaliser
+
+**Socle d'infrastructure**
+- [ ] Base Mongo éphémère en replica set pour les tests d'intégration (`mongodb-memory-server` est déjà en dépendance, `scripts/dev-mongo.mjs` existe), avec un jeu de données de base (catalogue de recettes du seed, programme avec séances A/B/C, utilisateurs types).
+- [ ] Commandes séparées : `test:unit` (mocks, rapide) et `test:integration` (base éphémère), toutes deux dans la CI ; plus aucune sonde qui écrit dans une base réelle.
+- [ ] Compteur de requêtes Prisma (extension ou mock instrumenté) pour imposer un budget de requêtes par page et par flux.
+
+**Intégration (logique serveur sur vraie base)**
+- [ ] Génération complète 91 jours : jours et repas créés, aucun doublon, idempotence (2e exécution sans écriture), reprise d'une génération interrompue, cible = allocation, budget ≈ 5 requêtes d'écriture.
+- [ ] Verrou et état de génération : deux générations concurrentes (une seule s'exécute), bail expiré repris, `FAILED` puis reprise, seconde passe après un paiement concurrent.
+- [ ] Rapprochement Stripe (Stripe simulé) : webhook rejoué, crédit unique, abonnement prolongé, génération relancée seulement si non terminée, retour de checkout et mensurations concurrents.
+- [ ] Liste de courses : remplacement atomique (échec simulé en cours d'écriture, ancienne liste intacte), cases cochées conservées, une seule régénération par plage, suppression en cascade des articles.
+- [ ] Recalage des portions : empreinte identique sans effet, changement de poids réécrit seulement les repas périmés, repas mangés ou manuels inchangés, transactions bornées.
+- [ ] Validation de séance : double clic simultané (un seul `PointEvent`), pré-requis A → B → C par semaine, validation d'une ligne existante et création d'une ligne absente, filtre `isSet` sur `completedAt` absent.
+- [ ] Checklist du jour : double envoi simultané (409, pas de points en double), tâches de repli ignorées.
+- [ ] Plan sport : snapshot et invalidation (rattachement, détachement, statut Cloudflare), affectation A/B/C par type admin et repli par rang, personnalisations `HIDE` / `REPLACE` / `ADD` appliquées à un seul utilisateur sans toucher aux autres.
+- [ ] `createMany` avec champs composites (`complements`, `ingredientGrams`) et relecture identique.
+
+**Sécurité et accès**
+- [ ] Écritures `/admin/**` et `/api/admin/**` par un non-admin : 403 (formulaires, actions, API) ; admin : OK.
+- [ ] Actions `/user/nutrition/**` et `/user/sport/**` sans offre achetée : refusées (y compris `edit-meal`, favoris, création de recette).
+- [ ] Cron : 401 sans secret en production, accepté avec le bon secret.
+- [ ] Authentification Lucia après la suppression des relectures : connexion email, Google, 2FA (activation puis validation), session expirée, déconnexion ; `locals.user` et `locals.session` identiques à avant.
+- [ ] Accès expiré : redirection vers `/acces-expire`, renouvellement possible, retour vers `/user` une fois valide.
+
+**Bout en bout (Playwright)**
+- [ ] Parcours nouvel utilisateur : inscription, paiement simulé, photos, bien-être, mensurations, génération, cadencier rempli, liste de courses, premier jour de séance.
+- [ ] Sport : planning de la semaine, déplacement d'une séance, validation en double clic, séance personnalisée visible uniquement pour l'utilisateur concerné.
+- [ ] Nutrition : changement de repas, bascule du jeûne, recalcul des portions et de la liste de courses (cases cochées conservées).
+- [ ] Admin : ajout / suppression d'une personnalisation du plan sport, rattachement d'une vidéo (visible côté utilisateur au plus tard après le TTL).
+
+**Performance et non-régression**
+- [ ] Mesurer sur la base éphémère : durée de génération 91 jours (objectif < 5 s hors calcul CPU), nombre de requêtes par page (`/user`, cadencier, page jour, page séance, courses), budget maximal fixé et vérifié en CI.
+- [ ] Test de charge léger sur les hooks (une seule lecture d'authentification par requête).
+- [ ] Reproduire le chargement du cadencier sans aucune écriture une fois D3 tranché.
+
+**Critère de fin** : tous les points de 8.1 sont tranchés ou explicitement reportés, les actions de déploiement sont faites, et la liste 8.2 est verte en CI.

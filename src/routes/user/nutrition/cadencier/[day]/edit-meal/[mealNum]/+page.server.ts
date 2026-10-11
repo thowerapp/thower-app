@@ -18,8 +18,10 @@ import {
 } from '$lib/server/nutrition/rescaleUserMeals';
 import { requireNutritionAccess } from '$lib/server/programAccessGuard';
 import { getCatalogRecipes } from '$lib/server/nutrition/recipeCatalog';
+import { positionLabel } from '$lib/nutrition/mealDisplay';
+import { TOTAL_PROGRAM_DAYS } from '$lib/utils/programDay';
 
-const TOTAL_DAYS = 91;
+const TOTAL_DAYS = TOTAL_PROGRAM_DAYS;
 
 function positionFromParam(param: string): MealPosition | null {
 	switch (param.toLowerCase()) {
@@ -31,17 +33,6 @@ function positionFromParam(param: string): MealPosition | null {
 			return 'DINNER';
 		default:
 			return null;
-	}
-}
-
-function positionLabel(p: MealPosition): string {
-	switch (p) {
-		case 'BREAKFAST':
-			return 'P’tit déj ou collation';
-		case 'LUNCH':
-			return 'Déjeuner';
-		case 'DINNER':
-			return 'Dîner';
 	}
 }
 

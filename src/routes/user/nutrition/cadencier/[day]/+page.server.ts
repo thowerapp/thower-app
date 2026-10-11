@@ -3,6 +3,8 @@ import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server';
 import type { MealPosition } from '@prisma/client';
 import { dailyWaterLitersMin } from '$lib/nutrition/nutritionTargets';
+import { defaultTimeLabel, mealMacrosRounded, positionLabel, positionOrder } from '$lib/nutrition/mealDisplay';
+import { TOTAL_PROGRAM_DAYS } from '$lib/utils/programDay';
 import { mealTargetsFromProfile, profileBreadMacros } from '$lib/server/nutrition/userMealTargets';
 import { refreshStaleDays } from '$lib/server/nutrition/rescaleUserMeals';
 import {
@@ -19,7 +21,7 @@ import {
 	type BreakfastProfileInput
 } from '$lib/server/nutrition/ensureBreakfastMeal';
 
-const TOTAL_DAYS = 91;
+const TOTAL_DAYS = TOTAL_PROGRAM_DAYS;
 
 type DayIngredientDTO = {
 	name: string;
@@ -56,69 +58,6 @@ type DayMealDTO = {
 	fatG: number;
 	fiberG: number;
 };
-
-function positionLabel(position: MealPosition): string {
-	switch (position) {
-		case 'BREAKFAST':
-			return 'P’tit déj ou collation';
-		case 'LUNCH':
-			return 'Déjeuner';
-		case 'DINNER':
-			return 'Dîner';
-		default:
-			return 'Repas';
-	}
-}
-
-function positionOrder(position: MealPosition): number {
-	switch (position) {
-		case 'BREAKFAST':
-			return 0;
-		case 'LUNCH':
-			return 1;
-		case 'DINNER':
-			return 2;
-		default:
-			return 3;
-	}
-}
-
-function defaultTimeLabel(position: MealPosition): string {
-	switch (position) {
-		case 'BREAKFAST':
-			return '08h00';
-		case 'LUNCH':
-			return '12h30';
-		case 'DINNER':
-			return '19h00';
-		default:
-			return '—';
-	}
-}
-
-function mealMacrosRounded(m: {
-	isManual: boolean;
-	manualCalories: number | null;
-	calcCalories: number | null;
-	manualProteinG: number | null;
-	calcProteinG: number | null;
-	manualCarbsG: number | null;
-	calcCarbsG: number | null;
-	manualFatG: number | null;
-	calcFatG: number | null;
-	manualFiberG: number | null;
-	calcFiberG: number | null;
-}) {
-	const manual = m.isManual === true;
-	return {
-		calories: Math.round(manual ? (m.manualCalories ?? 0) : (m.calcCalories ?? 0)),
-		proteinG:
-			Math.round((manual ? (m.manualProteinG ?? 0) : (m.calcProteinG ?? 0)) * 10) / 10,
-		carbsG: Math.round((manual ? (m.manualCarbsG ?? 0) : (m.calcCarbsG ?? 0)) * 10) / 10,
-		fatG: Math.round((manual ? (m.manualFatG ?? 0) : (m.calcFatG ?? 0)) * 10) / 10,
-		fiberG: Math.round((manual ? (m.manualFiberG ?? 0) : (m.calcFiberG ?? 0)) * 10) / 10
-	};
-}
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) {

@@ -23,14 +23,6 @@
 		sources: ShoppingItemSource[];
 	};
 
-	type ShoppingList = {
-		id: string;
-		startDayIndex: number;
-		endDayIndex: number;
-		generatedAt: string | Date;
-		items: ShoppingItem[];
-	};
-
 	type Periode = 'jour' | '3jours' | 'semaine';
 
 	const periodes: { value: Periode; label: string }[] = [
@@ -39,26 +31,13 @@
 		{ value: 'semaine', label: 'Semaine' }
 	];
 
-	const d = $derived(data as unknown as {
-		list: ShoppingList | null;
-		periode: Periode;
-		currentDay: number;
-		startDayIndex: number;
-		endDayIndex: number;
-		daysCount: number;
-		sortOrder: 'category' | 'alpha';
-	});
+	const d = $derived(data);
 
 	const list = $derived(d.list);
 	const periode = $derived(d.periode ?? 'semaine');
 	const daysCount = $derived(Math.max(1, d.daysCount ?? 7));
-	let sortOrder = $state<'category' | 'alpha'>(d.sortOrder ?? 'category');
-	let customDaysInput = $state<number>(Math.max(1, d.daysCount ?? 7));
-
-	$effect(() => {
-		sortOrder = d.sortOrder ?? 'category';
-		customDaysInput = Math.max(1, d.daysCount ?? 7);
-	});
+	let sortOrder = $derived<'category' | 'alpha'>(d.sortOrder ?? 'category');
+	let customDaysInput = $derived<number>(Math.max(1, d.daysCount ?? 7));
 
 	let checkedMap = $state<Record<string, boolean>>({});
 

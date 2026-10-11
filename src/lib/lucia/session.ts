@@ -105,7 +105,8 @@ export async function validateSessionToken(token: string): Promise<SessionValida
 			picture: result.user.picture,
 			role: result.user.role,
 			isMfaEnabled: result.user.isMfaEnabled,
-			totpKey: result.user.totpKey
+			totpKey: result.user.totpKey,
+			subscriptionEndsAt: result.user.subscriptionEndsAt
 		};
 
 		return { session, user };

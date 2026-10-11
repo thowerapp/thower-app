@@ -18,13 +18,9 @@ export async function getDiscoveryContentByCategoryProgressive(
 	category: DiscoveryCategory,
 	currentDayIndex: number
 ) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
-	if (!db?.discoveryContent) return [];
-
 	// 1. IDs de toutes les vidéos rattachées au programme (géré par le calendrier)
 	const allLinked: { discoveryContentId: string | null }[] =
-		await db.programDayItem.findMany({
+		await prisma.programDayItem.findMany({
 			where: { discoveryContentId: { not: null } },
 			select: { discoveryContentId: true },
 			distinct: ['discoveryContentId']
@@ -35,7 +31,7 @@ export async function getDiscoveryContentByCategoryProgressive(
 
 	// 2. IDs débloqués via le calendrier (ProgramDayItem d'un jour déjà atteint)
 	const unlockedLinked: { discoveryContentId: string | null }[] =
-		await db.programDayItem.findMany({
+		await prisma.programDayItem.findMany({
 			where: {
 				discoveryContentId: { not: null },
 				programDay: { dayIndex: { lte: currentDayIndex } }
@@ -52,7 +48,7 @@ export async function getDiscoveryContentByCategoryProgressive(
 	const visibleTaskLinked: { discoveryContentId: string | null }[] =
 		currentDayIndex < 1
 			? []
-			: await db.dailyTask.findMany({
+			: await prisma.dailyTask.findMany({
 					where: {
 						active: true,
 						discoveryContentId: { not: null },
@@ -77,7 +73,7 @@ export async function getDiscoveryContentByCategoryProgressive(
 	// 4. Vidéos visibles = libres (non gérées) OU débloquées calendrier OU débloquées DailyTask
 	const allUnlockedIds = [...new Set([...unlockedIds, ...taskUnlockedFromLocked])];
 
-	return db.discoveryContent.findMany({
+	return prisma.discoveryContent.findMany({
 		where: {
 			category,
 			active: true,

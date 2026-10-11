@@ -46,7 +46,7 @@ export async function getProgramOffers(): Promise<OfferRow[]> {
 	});
 }
 
-export function quarterlyCentsForOffers(offers: OfferRow[], selectedSlugs: string[]): number {
+export function quarterlyCentsForOffers(offers: OfferForPricing[], selectedSlugs: string[]): number {
 	const slugsSet = new Set(selectedSlugs);
 	return offers
 		.filter((o) => slugsSet.has(o.slug))

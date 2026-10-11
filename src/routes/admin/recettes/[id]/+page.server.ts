@@ -8,11 +8,9 @@ import { invalidateRecipeCatalog } from '$lib/server/nutrition/recipeCatalog';
 import { serializeData } from '$lib/utils/serializeData';
 
 export const load: PageServerLoad = async ({ params }) => {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
 
-	const recipe = db.recipe
-		? await db.recipe.findUnique({
+	const recipe = prisma.recipe
+		? await prisma.recipe.findUnique({
 				where: { id: params.id },
 				include: { ingredients: { orderBy: { order: 'asc' } } }
 			})
@@ -80,14 +78,12 @@ export const actions: Actions = {
 
 		const d = form.data as RecipeSchema;
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const db = prisma as any;
 
 		try {
 			// Supprimer les anciens ingrédients et recréer (stratégie replace pour MongoDB)
-			await db.recipeIngredient.deleteMany({ where: { recipeId: params.id } });
+			await prisma.recipeIngredient.deleteMany({ where: { recipeId: params.id } });
 
-			await db.recipe.update({
+			await prisma.recipe.update({
 				where: { id: params.id },
 				data: {
 					name: d.name,

@@ -84,11 +84,7 @@ async function getOrGenerateList(
 	startDayIndex: number,
 	endDayIndex: number
 ): Promise<ShoppingListWithItems | null> {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
-	if (!db.shoppingList) return null;
-
-	const existing = await db.shoppingList.findFirst({
+	const existing = await prisma.shoppingList.findFirst({
 		where: { userId, startDayIndex, endDayIndex },
 		orderBy: { generatedAt: 'desc' },
 		select: {
@@ -186,11 +182,7 @@ export const actions: Actions = {
 				: daysCountFromPeriode(currentDay, periode);
 		const { startDayIndex, endDayIndex } = computeRange(currentDay, daysCount);
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const db = prisma as any;
-		if (db.shoppingList) {
-			await db.shoppingList.deleteMany({ where: { userId, startDayIndex, endDayIndex } });
-		}
+		await prisma.shoppingList.deleteMany({ where: { userId, startDayIndex, endDayIndex } });
 
 		const result = await generateShoppingListFromPlanning(userId, startDayIndex, endDayIndex, {
 			includeReportedFromPrevious: true

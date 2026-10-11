@@ -43,9 +43,7 @@ type RawDiscoveryDoc = {
  * (ex. `youtubeId` résiduelle) au moteur Prisma, ce qui évite l'erreur de conversion.
  */
 async function fetchDiscoveryContentsMongoRaw(): Promise<RawDiscoveryDoc[]> {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
-	const res = (await db.$runCommandRaw({
+	const res = (await prisma.$runCommandRaw({
 		find: 'discovery_contents',
 		filter: {},
 		projection: {
@@ -151,14 +149,12 @@ async function fetchDayLinks(): Promise<{
 
 /** Liste unifiée pour l'écran admin /admin/videos (séances + découverte). */
 export async function getAllAdminVideos(): Promise<AdminVideoRow[]> {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
 
 	// Données Mongo héritées — réparation best-effort (peut échouer selon la version Mongo / format commande)
 	await repairVideoCloudflareBsonFields();
 
-	const workoutVideos = db.workoutVideo
-		? await db.workoutVideo.findMany({ orderBy: [{ position: 'asc' }, { title: 'asc' }] })
+	const workoutVideos = prisma.workoutVideo
+		? await prisma.workoutVideo.findMany({ orderBy: [{ position: 'asc' }, { title: 'asc' }] })
 		: [];
 
 	const rawDiscovery = await fetchDiscoveryContentsMongoRaw();

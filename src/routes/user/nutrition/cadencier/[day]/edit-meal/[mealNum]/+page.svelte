@@ -7,7 +7,7 @@
 	type Recipe = PageData['recipes'][number];
 
 	let search = $state('');
-	let selectedId = $state<string | null>(data.currentRecipeId ?? null);
+	let selectedId = $derived<string | null>(data.currentRecipeId ?? null);
 	let customQty = $state<number | null>(null);
 	let saving = $state(false);
 

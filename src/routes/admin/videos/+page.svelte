@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Table from '$components/Table.svelte';
 	import { Button } from '$shadcn/button';
 	import { deleteVideoSchema } from '$lib/schema/video/videoAdminSchema';
@@ -17,7 +18,7 @@
 	let { data } = $props();
 
 	/** Une seule instance superforms (éviter un `enhance` recréé sans cesse). */
-	const { enhance: deleteEnhance, message: deleteMessage } = superForm(data.deleteVideoForm, {
+	const { enhance: deleteEnhance, message: deleteMessage } = superForm(untrack(() => data.deleteVideoForm), {
 		validators: zodClient(deleteVideoSchema),
 		invalidateAll: true,
 		resetForm: false

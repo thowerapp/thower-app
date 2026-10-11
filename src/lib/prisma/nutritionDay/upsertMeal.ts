@@ -24,11 +24,6 @@ export type UpsertMealData = {
 };
 
 export async function upsertMeal(data: UpsertMealData) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const client = prisma as any;
-	if (!client?.meal) {
-		throw new Error('Prisma client has no "meal" model. Run: npx prisma generate');
-	}
 	const payload = {
 		nutritionDayId: data.nutritionDayId,
 		position: data.position,
@@ -50,16 +45,17 @@ export async function upsertMeal(data: UpsertMealData) {
 		manualFatG: data.manualFatG ?? undefined,
 		manualCalories: data.manualCalories ?? undefined
 	};
-	await client.meal.upsert({
+	await prisma.meal.upsert({
 		where: { nutritionDayId_position: { nutritionDayId: data.nutritionDayId, position: data.position } },
 		create: payload,
 		update: payload
 	});
 
 	// MAJ auto liste de courses (Lot 6) : régénérer les listes dont la période contient ce jour
-	const day = client.nutritionDay?.findUnique
-		? await client.nutritionDay.findUnique({ where: { id: data.nutritionDayId }, select: { userId: true, dayIndex: true } })
-		: null;
+	const day = await prisma.nutritionDay.findUnique({
+		where: { id: data.nutritionDayId },
+		select: { userId: true, dayIndex: true }
+	});
 	if (day) {
 		await regenerateShoppingListsOverlappingDay(day.userId, day.dayIndex);
 	}

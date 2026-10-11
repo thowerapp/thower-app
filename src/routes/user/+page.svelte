@@ -345,7 +345,6 @@ $effect(() => {
   text-shadow: 0 0 28px var(--gg), 0 0 60px var(--gg);
 }
 .hh-sub { font-size: .5rem; color: var(--txd); letter-spacing: .08em; text-transform: uppercase; margin-top: 5px; font-family: var(--fb); }
-.hh-pills { display: flex; gap: 5px; flex-wrap: wrap; }
 
 /* Bouton paramètres */
 .pbtn { width:32px; height:32px; background:transparent; border:1px solid var(--br2); display:flex; align-items:center; justify-content:center; position:relative; -webkit-tap-highlight-color:transparent; transition: border-color .2s; }

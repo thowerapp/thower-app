@@ -60,10 +60,11 @@ const todayUTC = () => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return
  * @param {number} [noiseSeed=1.7]  - fréquence du bruit sinusoïdal (unique par profil)
  */
 function weeklySnapshots(totalWeeks, start, end, noiseSeed = 1.7) {
+	/** @param {number} v */
 	const round1 = (v) => Math.round(v * 10) / 10;
 	/** @param {number} a @param {number} b @param {number} t */
 	const lerp = (a, b, t) => a + (b - a) * t;
-	/** bruit ±amplitude, déterministe, fréquence propre à chaque profil */
+	/** bruit ±amplitude, déterministe, fréquence propre à chaque profil @param {number} w @param {number} amp */
 	const noise = (w, amp) => Math.sin(w * noiseSeed + noiseSeed) * amp;
 
 	const snaps = [];
@@ -109,7 +110,7 @@ async function main() {
 			console.log(`  → ${actN} profil(s) : activityLevel MODERATE → ACTIVE (enum ActivityLevel).`);
 		}
 	} catch (e) {
-		console.warn('  → Migration activityLevel user_profiles ignorée :', e?.message ?? e);
+		console.warn('  → Migration activityLevel user_profiles ignorée :', e instanceof Error ? e.message : e);
 	}
 
 	// Patch daily_tasks sans type (créées avant l'ajout du champ DailyTaskType)
@@ -132,7 +133,7 @@ async function main() {
 		});
 		console.log('  → daily_tasks : types manquants patchés (VIDEO / STANDARD).');
 	} catch (e) {
-		console.warn('  → Migration type daily_tasks ignorée :', e?.message ?? e);
+		console.warn('  → Migration type daily_tasks ignorée :', e instanceof Error ? e.message : e);
 	}
 
 	try {
@@ -175,7 +176,7 @@ async function main() {
 		}
 		console.log('  → discovery_contents + workout_videos : clé youtubeId nettoyée / cloudflareUid garanti.');
 	} catch (e) {
-		console.warn('  → Migration vidéos Cloudflare (BSON) ignorée :', e?.message ?? e);
+		console.warn('  → Migration vidéos Cloudflare (BSON) ignorée :', e instanceof Error ? e.message : e);
 	}
 
 	// ── 1. OFFRES ──────────────────────────────────────────────────────────────
@@ -229,7 +230,7 @@ async function main() {
 			console.log('  → Ancien doublon MOTIVATION « Jour 1 » désactivé (UID Stream libéré pour la fiche principale).');
 		}
 	} catch (e) {
-		console.warn('  → Nettoyage doublon MOTIVATION avant sync :', e?.message ?? e);
+		console.warn('  → Nettoyage doublon MOTIVATION avant sync :', e instanceof Error ? e.message : e);
 	}
 
 	const discoveryDefs = [
@@ -280,7 +281,7 @@ async function main() {
 						data: /** @type {any} */ (patch)
 					});
 				} catch (e) {
-					console.warn(`  ⚠ Sync discovery ignoré (« ${def.title} ») :`, e?.message ?? e);
+					console.warn(`  ⚠ Sync discovery ignoré (« ${def.title} ») :`, e instanceof Error ? e.message : e);
 				}
 			}
 		}
@@ -339,7 +340,7 @@ async function main() {
 					);
 				}
 			} catch (e) {
-				console.warn('  → Désactivation motivation cf_seed_* ignorée :', e?.message ?? e);
+				console.warn('  → Désactivation motivation cf_seed_* ignorée :', e instanceof Error ? e.message : e);
 			}
 		} else {
 			console.warn(`  ⚠ Vidéo ${VIDEO_UID} introuvable en DB — tâche VIDEO jour 1 non créée.`);
@@ -424,7 +425,7 @@ async function main() {
 			console.log(`  → ${n} recette(s) : category migrée vers MEAL (valeurs hors enum).`);
 		}
 	} catch (e) {
-		console.warn('  → Migration category recettes ignorée :', e?.message ?? e);
+		console.warn('  → Migration category recettes ignorée :', e instanceof Error ? e.message : e);
 	}
 
 	/** 31 recettes catalogue (10 petits-déj + 21 plats) — voir seed/recipeCatalogDefs.js */

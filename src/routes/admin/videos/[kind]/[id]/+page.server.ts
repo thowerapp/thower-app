@@ -14,15 +14,16 @@ import {
 	getVideoDetails
 } from '$lib/server/cloudflare-stream';
 import { serializeData } from '$lib/utils/serializeData';
-import { attachDaySchema, detachDaySchema, type DetachDaySchema } from '$lib/schema/video/attachDaySchema';
+import {
+	attachDaySchema,
+	detachDaySchema,
+	type DetachDaySchema
+} from '$lib/schema/video/attachDaySchema';
 import { listProgramDayItemsForVideo } from '$lib/prisma/programDayItem/listForVideo';
 import { attachVideoToDay } from '$lib/prisma/programDayItem/attachVideo';
 import { detachProgramDayItem } from '$lib/prisma/programDayItem/detach';
 import { prisma } from '$lib/server';
 import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = prisma as any;
 
 export const load: PageServerLoad = async ({ params, locals, depends }) => {
 	if (!locals.user || locals.role !== 'ADMIN') {
@@ -55,10 +56,10 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 			};
 			try {
 				if (kind === 'workout') {
-					await db.workoutVideo.update({ where: { id: params.id }, data: syncData });
+					await prisma.workoutVideo.update({ where: { id: params.id }, data: syncData });
 					invalidateSportPlan();
 				} else {
-					await db.discoveryContent.update({ where: { id: params.id }, data: syncData });
+					await prisma.discoveryContent.update({ where: { id: params.id }, data: syncData });
 				}
 				Object.assign(row, syncData);
 			} catch (err) {
@@ -81,31 +82,30 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 		}
 	}
 
-	const initial: UpdateVideoSchema =
-		kind === 'workout'
-			? {
-					kind: 'workout',
-					cloudflareUid: row.cloudflareUid,
-					title: row.title,
-					sessionType: row.sessionType ?? null,
-					position: row.position,
-					isOptional: row.isOptional ?? false,
-					category: null,
-					order: 0,
-					attachToProgramDay: false,
-					programDayAttach: undefined
-				}
-			: {
-					kind: 'discovery',
-					cloudflareUid: row.cloudflareUid,
-					title: row.title,
-					position: null,
-					isOptional: false,
-					category: row.category,
-					order: row.order ?? 0,
-					attachToProgramDay: false,
-					programDayAttach: undefined
-				};
+	const initial: UpdateVideoSchema = !('category' in row)
+		? {
+				kind: 'workout',
+				cloudflareUid: row.cloudflareUid,
+				title: row.title,
+				sessionType: row.sessionType,
+				position: row.position,
+				isOptional: row.isOptional,
+				category: null,
+				order: 0,
+				attachToProgramDay: false,
+				programDayAttach: undefined
+			}
+		: {
+				kind: 'discovery',
+				cloudflareUid: row.cloudflareUid,
+				title: row.title,
+				position: null,
+				isOptional: false,
+				category: row.category,
+				order: row.order,
+				attachToProgramDay: false,
+				programDayAttach: undefined
+			};
 
 	const form = await superValidate(initial, zod(updateVideoSchema));
 
@@ -158,8 +158,7 @@ export const actions: Actions = {
 			console.error('[admin/videos/[kind]/[id]] updateVideo error', err);
 			return fail(500, {
 				form,
-				message:
-					err instanceof Error ? err.message : 'Erreur lors de la mise à jour.'
+				message: err instanceof Error ? err.message : 'Erreur lors de la mise à jour.'
 			});
 		}
 	},
@@ -177,18 +176,18 @@ export const actions: Actions = {
 			const details = await getVideoDetails(row.cloudflareUid);
 			if (!details) return fail(404, { message: 'Vidéo absente côté Cloudflare.' });
 
-		const syncData = {
-			durationSeconds: details.duration ?? null,
-			status: details.status === 'ready' ? 'ready' : details.status,
-			thumbnailUrl: details.thumbnail ?? null
-		};
-		if (kind === 'workout') {
-			await db.workoutVideo.update({ where: { id: params.id }, data: syncData });
-			invalidateSportPlan();
-		} else {
-			await db.discoveryContent.update({ where: { id: params.id }, data: syncData });
-		}
-		return { success: true };
+			const syncData = {
+				durationSeconds: details.duration ?? null,
+				status: details.status === 'ready' ? 'ready' : details.status,
+				thumbnailUrl: details.thumbnail ?? null
+			};
+			if (kind === 'workout') {
+				await prisma.workoutVideo.update({ where: { id: params.id }, data: syncData });
+				invalidateSportPlan();
+			} else {
+				await prisma.discoveryContent.update({ where: { id: params.id }, data: syncData });
+			}
+			return { success: true };
 		} catch (err) {
 			console.error('[admin/videos/[kind]/[id]] sync error', err);
 			return fail(500, { message: 'Erreur de synchronisation Cloudflare.' });
@@ -223,7 +222,9 @@ export const actions: Actions = {
 			return { success: true, dayIndex: result.dayIndex };
 		} catch (err) {
 			console.error('[admin/videos/[kind]/[id]] attachToDay error', err);
-			return fail(500, { error: err instanceof Error ? err.message : 'Erreur lors du rattachement.' });
+			return fail(500, {
+				error: err instanceof Error ? err.message : 'Erreur lors du rattachement.'
+			});
 		}
 	},
 

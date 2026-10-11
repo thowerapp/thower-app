@@ -93,64 +93,7 @@
 		font-weight: 700;
 	}
 
-	.titleHome {
-		font-family: 'Open Sans Variable', sans-serif;
-		font-style: italic;
-		font-size: clamp(2rem, 8vw, 3.5rem);
-		-webkit-text-stroke: 1px var(--foreground);
-		color: transparent;
-		text-transform: uppercase;
-		font-weight: 900;
-		letter-spacing: -0.02em;
-		line-height: 1.1;
-	}
-
 	:global(.intro-card) {
 		border-left: 3px solid var(--primary);
-	}
-
-	.intro-quote {
-		font-size: 1rem;
-		line-height: 1.6;
-	}
-
-	.intro-quote-cyan {
-		color: #3ab8b8 !important;
-	}
-
-	.intro-steps-preview {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-		gap: 0.5rem;
-		margin-top: 0.5rem;
-	}
-
-	.intro-step-item {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.4rem 0.6rem;
-		border-radius: 8px;
-		background: #0a0a0a;
-		color: #c9a84c;
-		font-size: 0.8rem;
-	}
-
-	.intro-step-num {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.25rem;
-		height: 1.25rem;
-		border-radius: 50%;
-		background: #c9a84c;
-		color: #0a0a0a;
-		font-size: 0.7rem;
-		font-weight: 700;
-		flex-shrink: 0;
-	}
-
-	.intro-quote-cyan {
-		color: #3ab8b8 !important;
 	}
 </style>

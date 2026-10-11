@@ -12,10 +12,6 @@ let repairAlreadyRun = false;
  */
 export async function repairVideoCloudflareBsonFields(): Promise<void> {
 	if (repairAlreadyRun) return;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
-	if (!db?.$runCommandRaw) return;
-
 	const pipeline = [
 		{
 			$set: {
@@ -50,7 +46,7 @@ export async function repairVideoCloudflareBsonFields(): Promise<void> {
 
 	for (const collection of COLLECTIONS) {
 		try {
-			await db.$runCommandRaw({
+			await prisma.$runCommandRaw({
 				update: collection,
 				updates: [{ q: {}, u: pipeline, multi: true }]
 			});

@@ -4,8 +4,6 @@ import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 
 /** Mise à jour des métadonnées d'une vidéo (sans toucher à l'UID Cloudflare). */
 export async function updateVideo(id: string, data: VideoFormCoreInput) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
 
 	if (data.kind === 'workout') {
 		if (!data.position) {
@@ -14,7 +12,7 @@ export async function updateVideo(id: string, data: VideoFormCoreInput) {
 		if (!data.sessionType) {
 			throw new Error('sessionType est requis pour une vidéo sport.');
 		}
-		const updated = await db.workoutVideo.update({
+		const updated = await prisma.workoutVideo.update({
 			where: { id },
 			data: {
 				title: data.title,
@@ -30,7 +28,7 @@ export async function updateVideo(id: string, data: VideoFormCoreInput) {
 	if (!data.category) {
 		throw new Error('category est requis pour une vidéo Découverte.');
 	}
-	return db.discoveryContent.update({
+	return prisma.discoveryContent.update({
 		where: { id },
 		data: {
 			category: data.category,
@@ -41,10 +39,8 @@ export async function updateVideo(id: string, data: VideoFormCoreInput) {
 }
 
 export async function getVideoById(kind: 'workout' | 'discovery', id: string) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
 	if (kind === 'workout') {
-		return db.workoutVideo.findUnique({ where: { id } });
+		return prisma.workoutVideo.findUnique({ where: { id } });
 	}
-	return db.discoveryContent.findUnique({ where: { id } });
+	return prisma.discoveryContent.findUnique({ where: { id } });
 }

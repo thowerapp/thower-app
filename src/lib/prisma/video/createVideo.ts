@@ -9,8 +9,6 @@ import type { ChecklistTaskSchema, VideoFormCoreInput } from '$lib/schema/video/
  * apparaître dans la checklist des jours `fromDay`–`untilDay`.
  */
 export async function createVideo(data: VideoFormCoreInput, checklist?: ChecklistTaskSchema) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
 
 	if (data.kind === 'workout') {
 		if (!data.position) {
@@ -19,7 +17,7 @@ export async function createVideo(data: VideoFormCoreInput, checklist?: Checklis
 		if (!data.sessionType) {
 			throw new Error('sessionType est requis pour une vidéo sport.');
 		}
-		const created = await db.workoutVideo.create({
+		const created = await prisma.workoutVideo.create({
 			data: {
 				cloudflareUid: data.cloudflareUid,
 				title: data.title,
@@ -38,7 +36,7 @@ export async function createVideo(data: VideoFormCoreInput, checklist?: Checklis
 	}
 	let dailyTasks: object | undefined;
 	if (checklist) {
-		const last = await db.dailyTask.findFirst({
+		const last = await prisma.dailyTask.findFirst({
 			orderBy: { order: 'desc' },
 			select: { order: true }
 		});
@@ -55,7 +53,7 @@ export async function createVideo(data: VideoFormCoreInput, checklist?: Checklis
 		};
 	}
 
-	return db.discoveryContent.create({
+	return prisma.discoveryContent.create({
 		data: {
 			category: data.category,
 			title: data.title,

@@ -85,7 +85,7 @@
 		})[v]
 	}));
 
-	const cf = data.cloudflareDetails;
+	const cf = $derived(data.cloudflareDetails);
 
 	function formatDuration(n: number | null | undefined): string {
 		if (!n || n <= 0) return '—';

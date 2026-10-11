@@ -51,8 +51,7 @@ export const actions: Actions = {
 		const form = await superValidate(formData, zod(deleteRecipeSchema));
 
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			await (prisma as any).recipe.delete({ where: { id } });
+			await prisma.recipe.delete({ where: { id } });
 			invalidateRecipeCatalog();
 			return message(form, 'Recette supprimée.');
 		} catch (error) {

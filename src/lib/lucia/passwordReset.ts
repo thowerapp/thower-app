@@ -85,7 +85,8 @@ export async function validatePasswordResetSessionToken(
 		picture: result.user.picture ?? null,
 		role: result.user.role,
 		isMfaEnabled: result.user.isMfaEnabled,
-		totpKey: result.user.totpKey ?? null
+		totpKey: result.user.totpKey ?? null,
+		subscriptionEndsAt: result.user.subscriptionEndsAt
 	};
 
 	return { session, user };

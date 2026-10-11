@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { zod } from '$lib/superforms-zod';
 import { wellBeingSchema, type WellBeingSchema } from '$lib/schema/well-being/wellBeingSchema';
-import { getProfileByUserId, type UserProfileSnapshot } from '$lib/prisma/profile/getProfileByUserId';
+import { getProfileByUserId } from '$lib/prisma/profile/getProfileByUserId';
 import { upsertProfile } from '$lib/prisma/profile/upsertProfile';
 import { onboardingTrace } from '$lib/server/onboarding/onboardingLog';
 import type { Actions, RequestEvent } from './$types';
@@ -17,15 +17,7 @@ export const load = async (event: RequestEvent) => {
 	}
 
 	const profile = await getProfileByUserId(event.locals.user.id);
-	const p = profile as UserProfileSnapshot & {
-		stressLevel?: number | null;
-		sleepQuality?: number | null;
-		bodyConfidence?: number | null;
-		digestionQuality?: number | null;
-		happinessLevel?: number | null;
-		readinessToChange?: number | null;
-		addictionsText?: string | null;
-	} | null;
+	const p = profile;
 
 	const initialData: WellBeingSchema = {
 		stressLevel: p?.stressLevel ?? undefined,

@@ -16,25 +16,9 @@ export async function getBodyMeasurementsByUserId(
 	userId: string,
 	take = 20
 ): Promise<BodyMeasurementSnapshot[]> {
-	const client = prisma as unknown as {
-		bodyMeasurement?: {
-			findMany: (args: {
-				where: { userId: string };
-				orderBy: { createdAt: 'desc' };
-				take: number;
-			}) => Promise<unknown[]>;
-		};
-	};
-	if (!client?.bodyMeasurement) {
-		console.warn(
-			'[getBodyMeasurementsByUserId] prisma.bodyMeasurement is undefined. Run: npx prisma generate'
-		);
-		return [];
-	}
-	const rows = await client.bodyMeasurement.findMany({
+	return prisma.bodyMeasurement.findMany({
 		where: { userId },
 		orderBy: { createdAt: 'desc' },
 		take
 	});
-	return rows as BodyMeasurementSnapshot[];
 }

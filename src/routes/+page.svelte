@@ -44,8 +44,7 @@
   function scrollToEl(id: string) {
     const anchor = document.getElementById(id);
     if (!anchor) return;
-    const state = get(SmoothScrollBarStore as any);
-    const sb = state?.smoothScroll as Scrollbar | null;
+    const sb = get(SmoothScrollBarStore).smoothScroll;
     if (sb) {
       sb.scrollIntoView(anchor, { offsetTop: 0 });
     } else {
@@ -571,20 +570,20 @@
 
 <section id="social">
   <div class="social-band">
-    <a href="#" class="social-link" aria-label="Instagram">
+    <a href="https://www.instagram.com/thower/" target="_blank" rel="noopener noreferrer" class="social-link" aria-label="Instagram">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
         <rect x="2" y="2" width="20" height="20" rx="5"/>
         <circle cx="12" cy="12" r="5"/>
         <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
       </svg>
     </a>
-    <a href="#" class="social-link" aria-label="YouTube">
+    <a href="#social" class="social-link" aria-label="YouTube">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
         <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/>
         <polygon points="9.75,15.02 15.5,12 9.75,8.98" fill="currentColor" stroke="none"/>
       </svg>
     </a>
-    <a href="#" class="social-link" aria-label="TikTok">
+    <a href="#social" class="social-link" aria-label="TikTok">
       <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
         <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.69a8.18 8.18 0 0 0 4.77 1.52V6.76a4.85 4.85 0 0 1-1-.07z"/>
       </svg>
@@ -674,13 +673,10 @@
   .video-embed { width: 100%; max-width: 860px; position: relative; }
   .video-embed::before { content: ''; display: block; padding-top: 56.25%; }
   .video-embed iframe,
-  .video-embed video,
   .video-embed .video-ph { position: absolute; inset: 0; width: 100%; height: 100%; }
   .video-embed.compact { max-width: 680px; }
   .video-ph { background: rgba(10,10,10,0.85); border: 1px solid rgba(201,168,76,0.2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
-  .video-ph.teal-ph { border-color: rgba(58,184,184,0.2); }
   .video-ph-label { font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(240,237,232,0.3); }
-  .video-ph-label.teal-label { color: rgba(58,184,184,0.45); }
 
   /* ── SEC 2 : La Révélation ── */
   #sec2 { padding: 120px 48px 100px; gap: 56px; border-top: 1px solid rgba(255,255,255,0.05); }
@@ -761,10 +757,6 @@
   :global(.google-btn) { width: 100% !important; border: 1px solid rgba(58,184,184,0.2) !important; color: rgba(240,237,232,0.7) !important; font-family: 'DM Sans', sans-serif !important; transition: all 0.2s !important; cursor: none !important; }
   :global(.google-btn:hover) { border-color: var(--teal) !important; color: var(--teal) !important; background: rgba(58,184,184,0.05) !important; }
   .google-icon { width: 18px; height: 18px; margin-right: 8px; }
-  .field-input { display: none; }
-  .field-error { display: none; }
-  .form-submit { display: none; }
-  .form-note { margin-top: 14px; font-size: 0.75rem; color: rgba(240,237,232,0.25); line-height: 1.6; }
   .highlight-word { color: var(--teal); }
 
   /* ── Social ── */

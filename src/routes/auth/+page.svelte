@@ -77,7 +77,7 @@
 			: null
 	);
 	const isGoogleUser = $derived(!!data?.user?.googleId);
-	const measurementOnboardingHref = resolve('/auth/measurement?new=1');
+	const measurementOnboardingHref = `${resolve('/auth/measurement')}?new=1`;
 	const measurementHref = resolve('/auth/measurement');
 
 	$effect(() => {
@@ -772,23 +772,6 @@
 		color: rgba(240,237,232,.65);
 		font-weight: 500;
 	}
-
-	/* ─── LOCKED MSG ─── */
-	.locked-msg {
-		font-size: .82rem;
-		font-weight: 300;
-		color: rgba(240,237,232,.35);
-		text-align: center;
-		line-height: 1.7;
-		padding: 24px;
-		border: 1px solid rgba(255,255,255,.06);
-	}
-	.locked-msg a {
-		color: var(--white);
-		text-decoration: underline;
-		text-underline-offset: 3px;
-	}
-	.locked-msg a:hover { color: var(--gold); }
 
 	.profile-link {
 		display: inline-block;

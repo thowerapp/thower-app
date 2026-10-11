@@ -1,4 +1,18 @@
-export const serializeData = (obj: any): any => {
+/** Type obtenu après `serializeData` : dates et octets en chaînes, propriétés `undefined` en `null`. */
+export type Serialized<T> = T extends Date
+	? string
+	: T extends Uint8Array
+		? string
+		: T extends readonly (infer U)[]
+			? Serialized<U>[]
+			: T extends object
+				? { [K in keyof T]: Serialized<Exclude<T[K], undefined>> | (undefined extends T[K] ? null : never) }
+				: T;
+
+export const serializeData = <T>(obj: T): Serialized<T> => serializeValue(obj);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const serializeValue = (obj: any): any => {
 	if (!obj || typeof obj !== 'object') return obj;
 
 	if (obj instanceof Date) {
@@ -14,13 +28,13 @@ export const serializeData = (obj: any): any => {
 	}
 
 	if (Array.isArray(obj)) {
-		return obj.map(serializeData);
+		return obj.map(serializeValue);
 	}
 
 	return Object.fromEntries(
 		Object.entries(obj).map(([key, value]) => [
 			key,
-			serializeData(value !== undefined ? value : null)
+			serializeValue(value !== undefined ? value : null)
 		])
 	);
 };

@@ -19,12 +19,6 @@ export async function listProgramDayItemsForVideo(
 	kind: 'workout' | 'discovery',
 	videoId: string
 ): Promise<ProgramDayItemForVideo[]> {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
-	if (!db?.programDayItem) {
-		throw new Error('Prisma client has no "programDayItem" model. Run: npx prisma generate');
-	}
-
 	let where: Record<string, unknown>;
 	if (kind === 'discovery') {
 		where = { discoveryContentId: videoId };
@@ -32,7 +26,7 @@ export async function listProgramDayItemsForVideo(
 		where = { workoutVideoId: videoId };
 	}
 
-	const rows = await db.programDayItem.findMany({
+	const rows = await prisma.programDayItem.findMany({
 		where,
 		select: {
 			id: true,

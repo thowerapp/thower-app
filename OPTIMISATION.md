@@ -83,7 +83,7 @@ Admin (attach/detach vidéos, séances)
 - [x] **N13** Fonctions d'affichage des repas (`positionLabel`, `positionOrder`, `defaultTimeLabel`, `mealMacrosRounded`) extraites dans `src/lib/nutrition/mealDisplay.ts` (testé) et utilisées par le cadencier, la page jour et la page de choix de repas ; les `TOTAL_DAYS = 91` locaux utilisent `TOTAL_PROGRAM_DAYS`.
 - [ ] **N14** Décision : `weightLossGoalKg` est saisi et stocké mais n'entre dans aucun calcul (cibles basées sur le % de masse grasse).
 - [ ] **N15** Décision : second paiement (+91 jours alloués) génère `J92..J182` jamais affichés (index plafonné à 91, cadencier à 13 semaines, pas de reset de `programStartDate`).
-- [x] **N16** (partiel) Casts supprimés dans la génération nutrition, le rapprochement Stripe, le journal de génération, le cadencier, la liste de courses, les points et de nombreuses enveloppes de `src/lib/prisma/*`. `svelte-check` : 106 → 68 erreurs. Reste 33 fichiers : `lib/prisma/video` (4), `programDayItem` (3), `discoveryContent` (3), `userVideoProgress` (2), pages `decouverte/*/[id]` (5), `courses`, `auth/measurement`, API vidéo, `lib/prisma/measurement/*` (modèle absent du schéma : code mort à confirmer).
+- [x] **N16** Plus aucun cast du client Prisma (`prisma as any`, gardes `db?.modele`, enveloppes `as unknown as`) ni `as any` dans le code applicatif. `serializeData` et l'adaptateur `superforms-zod` sont typés (`form.data` et les `load` sérialisés suivent leur schéma). Les 5 pages `decouverte/*/[id]` (import `'./'` cassé) passent par `src/lib/server/discovery/discoveryVideo.ts` et `DiscoveryVideoPage.svelte`. Code mort `lib/prisma/measurement/*` supprimé. `svelte-check` : 0 erreur, 0 avertissement (68 erreurs et 63 avertissements avant) ; ESLint `src` : 318 → 295.
 
 ## 5. Transverses (hors sport/nutrition, identifiés dans la première analyse)
 
@@ -94,6 +94,7 @@ Admin (attach/detach vidéos, séances)
 - [x] **T5** `hooks.server.ts` ne fait plus qu'une lecture par requête : Lucia porte maintenant les attributs utilisateur (`emailVerified`, `registered2FA`, `googleId`, `name`, `picture`, `subscriptionEndsAt`) et de session (`twoFactorVerified`, `oauthProvider`) via `getUserAttributes` / `getSessionAttributes`, projetés vers `event.locals` par `toLocalsAuth` (`src/lib/lucia/locals.ts`). Les deux relectures redondantes (`getUserByIdPrisma`, `findSessionById`) sont supprimées.
 - [x] **T6** `validateChecklist` dupliqué dans `user/+page.server.ts` et `user/journee/+page.server.ts` remplacé par `validateDailyChecklist` (`src/lib/server/dailyChecklist.ts`), qui gère aussi le double envoi simultané (409 au lieu d'une erreur 500, sans points en double).
 - [x] **T7** Les actions de formulaire `/admin/**` et les API `/api/admin/**` ne passaient pas par le layout admin : seule la session était exigée. Garde ajouté dans `hooks.server.ts` (`adminWriteGuard` : toute écriture non-GET d'un non-`ADMIN` renvoie 403).
+- [x] **T8** Rattrapage Stripe depuis les mensurations (`syncRecentPaidCheckoutSessionsForUser`) : `checkout.sessions.list` n'accepte pas `client_reference_id`, l'appel échouait toujours. Remplacé par les sessions terminées des 7 derniers jours, filtrées sur l'utilisateur.
 
 ## 6. Ordre de travail proposé
 
@@ -136,7 +137,7 @@ Objectif : trancher les points laissés ouverts, puis écrire les tests automati
 - [ ] **T-d (N3b)** Fait : candidats bornés à 12 (~1,5 s pour 91 jours). Valider la qualité des journées sur un échantillon de profils réels.
 - [ ] **T-e (T4)** Dates : checklist en minuit UTC, programme en minuit Europe/Paris. Unifier sur Paris ? (migration des `DailyTaskCompletion.date` existants à prévoir)
 - [ ] **T-f (T3 reste)** Montants centralisés (`POINTS`). Décider si un `awardPoints` unique reste utile.
-- [ ] **T-g (N16)** Casts restants (33 fichiers, surtout vidéo / découverte) à retirer avec un `prisma generate` forcé en CI ; confirmer la suppression du code mort `lib/prisma/measurement/*`.
+- [x] **T-g (N16)** Fait : casts retirés, `lib/prisma/measurement/*` supprimé. Reste à imposer `svelte-check` à 0 en CI.
 - [ ] **T-h (S14, S15)** Fait dans le code : index au schéma (à pousser en base) et garde 403 sur les API vidéo sport. Vérifier les index après `db push`.
 - [ ] **T-i** Reprise initiale des comptes existants : sans `nutritionTargetsKey`, chaque compte est recalé une fois à sa prochaine génération ou sauvegarde des mensurations (écritures limitées aux portions périmées).
 
@@ -185,15 +186,16 @@ Objectif : trancher les points laissés ouverts, puis écrire les tests automati
 
 **Critère de fin** : tous les points de 8.1 sont tranchés ou explicitement reportés, les actions de déploiement sont faites, et la liste 8.2 est verte en CI.
 
-## 9. Reprise sur une autre machine (état au 2026-10-11)
+## 9. Reprise sur une autre machine (état au 2026-10-11, vérifié avec le `.env`)
 
-**Récupérer le travail** : tout le code est dans le commit `42f0e58` de la branche `optimisation` ; seul ce fichier est modifié hors commit. Le committer et pousser la branche avant de changer de machine.
+**Récupérer le travail** : branche `optimisation` (ne jamais fusionner avec `main`). Vérifié avec le `.env` : compilation OK ; la base de dev (`thowerappDev`) est un replica set, mais le schéma n'y est pas encore poussé (`user_sport_overrides` et les deux nouveaux index absents).
 
 **Mise en route** : `npm ci` (le `postinstall` lance `prisma generate`), pas de `.env` nécessaire pour les tests. Variables d'environnement utiles : voir `.env.example` (dont `CRON_SECRET`).
 
 **Vérifications de référence** (à relancer avant et après toute modification)
 - Tests : `DATABASE_URL="mongodb://127.0.0.1:1/dummy" npx vitest --run src` : 246 tests passent. L'URL factice évite toute écriture dans une vraie base ; `vite.config.ts` exclut les fichiers `_tmp-*.spec.ts`.
-- Types : `npm run check > /tmp/check.log 2>&1; grep "svelte-check found" /tmp/check.log` : 68 erreurs, toutes antérieures aux optimisations ; ne doit pas augmenter.
+- Types : `npm run check` : 0 erreur, 0 avertissement ; doit rester à 0.
+- Les tests de planification (`planNutritionDays`, `rescaleUserMeals`) ont un délai de 30 s : plus de 5 s sur une machine lente quand la suite tourne en parallèle.
 
 **Règles de travail**
 - Ne jamais lancer `prisma db push --accept-data-loss` ; l'utilisateur pousse le schéma lui-même.
@@ -203,7 +205,8 @@ Objectif : trancher les points laissés ouverts, puis écrire les tests automati
 **Reste à faire, par ordre**
 
 1. *Code, sans décision préalable*
-   - [ ] **N16** : retirer les casts Prisma restants (33 fichiers listés à la ligne N16 ci-dessus) ; la baisse se mesure au nombre d'erreurs `svelte-check`. Supprimer `lib/prisma/measurement/*` seulement après confirmation (modèle absent du schéma).
+   - [x] **N16** : fait (voir la ligne N16).
+   - [ ] ESLint : 295 erreurs restantes sur `src` (surtout `no-navigation-without-resolve`, `require-each-key`, variables inutilisées), toutes antérieures aux optimisations.
 2. *Code, après décision de l'utilisateur* (ne pas implémenter sans réponse)
    - [ ] **N14** (D1) : faire piloter les cibles nutritionnelles par `weightLossGoalKg`, ou retirer le champ.
    - [ ] **N15** (D2) : second paiement (jours J92 à J182 jamais affichés) : prolonger le programme, réinitialiser `programStartDate`, ou plafonner l'allocation à 91.
@@ -211,4 +214,4 @@ Objectif : trancher les points laissés ouverts, puis écrire les tests automati
 3. *Déploiement* (section 8.1, « Actions de déploiement ») : `prisma db push` sans `--accept-data-loss`, définir `CRON_SECRET` dans Vercel, vérifier les index et que la base est un replica set.
 4. *Bilan* : trancher D1 à D10 et T-a à T-i (section 8.1), puis écrire les tests de la section 8.2 (socle d'abord : base Mongo éphémère en replica set, séparation `test:unit` / `test:integration`, compteur de requêtes).
 
-**Ce qui est terminé** (ne pas refaire) : S1 à S15, N1 à N13, N3b, N7 (choix provisoire, voir D3), T1 à T3, T5 à T7. N9 a été mesuré sans changement nécessaire.
+**Ce qui est terminé** (ne pas refaire) : S1 à S15, N1 à N13, N3b, N7 (choix provisoire, voir D3), N16, T1 à T3, T5 à T7. N9 a été mesuré sans changement nécessaire.

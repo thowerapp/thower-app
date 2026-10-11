@@ -172,18 +172,6 @@
     --gray: #2a2a2a;
   }
 
-  html {
-    scroll-behavior: smooth;
-  }
-
-  body {
-    background: var(--black);
-    color: var(--white);
-    font-family: 'DM Sans', sans-serif;
-    overflow-x: hidden;
-    cursor: none;
-  }
-
   /* ── Layout ── */
   .wrapper {
     width: 100vw;

@@ -101,18 +101,16 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		// Si la vidéo est référencée par un item du programme 91j non encore complété,
 		// on coche automatiquement l'item (logique gamification "vidéo du jour").
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const db = prisma as any;
 			const where =
 				kind === 'discovery'
 					? { discoveryContentId: params.id }
 					: { workoutVideoId: params.id };
-			const items = await db.programDayItem.findMany({
+			const items = await prisma.programDayItem.findMany({
 				where,
 				select: { id: true }
 			});
 			for (const item of items) {
-				await db.userProgramDayItemCompletion
+				await prisma.userProgramDayItemCompletion
 					.create({ data: { userId, programDayItemId: item.id } })
 					.catch(() => {
 						/* ignore unique constraint : déjà coché */

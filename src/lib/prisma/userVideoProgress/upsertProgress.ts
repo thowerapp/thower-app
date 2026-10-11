@@ -45,18 +45,16 @@ export type UpsertVideoProgressResult = {
 export async function upsertVideoProgress(
 	input: UpsertVideoProgressInput
 ): Promise<UpsertVideoProgressResult> {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
 	const now = new Date();
 
 	if (input.kind === 'workout') {
-		const video = await db.workoutVideo.findUnique({
+		const video = await prisma.workoutVideo.findUnique({
 			where: { id: input.workoutVideoId },
 			select: { id: true, durationSeconds: true }
 		});
 		if (!video) throw new Error('WorkoutVideo introuvable.');
 
-		const existing = await db.userVideoProgress.findFirst({
+		const existing = await prisma.userVideoProgress.findFirst({
 			where: { userId: input.userId, workoutVideoId: input.workoutVideoId }
 		});
 		const previousMax = existing?.maxPositionSec ?? 0;
@@ -76,12 +74,12 @@ export async function upsertVideoProgress(
 		};
 
 		if (existing) {
-			await db.userVideoProgress.update({
+			await prisma.userVideoProgress.update({
 				where: { id: existing.id },
 				data
 			});
 		} else {
-			await db.userVideoProgress.create({
+			await prisma.userVideoProgress.create({
 				data: {
 					userId: input.userId,
 					workoutVideoId: input.workoutVideoId,
@@ -98,13 +96,13 @@ export async function upsertVideoProgress(
 		};
 	}
 
-	const content = await db.discoveryContent.findUnique({
+	const content = await prisma.discoveryContent.findUnique({
 		where: { id: input.discoveryContentId },
 		select: { id: true, durationSeconds: true }
 	});
 	if (!content) throw new Error('DiscoveryContent introuvable.');
 
-	const existing = await db.userVideoProgress.findFirst({
+	const existing = await prisma.userVideoProgress.findFirst({
 		where: { userId: input.userId, discoveryContentId: input.discoveryContentId }
 	});
 	const previousMax = existing?.maxPositionSec ?? 0;
@@ -124,12 +122,12 @@ export async function upsertVideoProgress(
 	};
 
 	if (existing) {
-		await db.userVideoProgress.update({
+		await prisma.userVideoProgress.update({
 			where: { id: existing.id },
 			data
 		});
 	} else {
-		await db.userVideoProgress.create({
+		await prisma.userVideoProgress.create({
 			data: {
 				userId: input.userId,
 				discoveryContentId: input.discoveryContentId,

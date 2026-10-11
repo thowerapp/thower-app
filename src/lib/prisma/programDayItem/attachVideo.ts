@@ -35,20 +35,18 @@ export async function attachVideoToDay(
 	if (!Number.isInteger(input.dayIndex) || input.dayIndex < 1 || input.dayIndex > 91) {
 		throw new Error('dayIndex doit être un entier entre 1 et 91.');
 	}
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
 
-	let program = await db.program.findFirst({ where: { active: true }, select: { id: true } });
+	let program = await prisma.program.findFirst({ where: { active: true }, select: { id: true } });
 	if (!program) {
-		program = await db.program.create({ data: {}, select: { id: true } });
+		program = await prisma.program.create({ data: {}, select: { id: true } });
 	}
 
-	let programDay = await db.programDay.findFirst({
+	let programDay = await prisma.programDay.findFirst({
 		where: { programId: program.id, dayIndex: input.dayIndex },
 		select: { id: true }
 	});
 	if (!programDay) {
-		programDay = await db.programDay.create({
+		programDay = await prisma.programDay.create({
 			data: { programId: program.id, dayIndex: input.dayIndex },
 			select: { id: true }
 		});
@@ -59,7 +57,7 @@ export async function attachVideoToDay(
 			? { programDayId: programDay.id, discoveryContentId: input.videoId }
 			: { programDayId: programDay.id, workoutVideoId: input.videoId };
 
-	const existing = await db.programDayItem.findFirst({
+	const existing = await prisma.programDayItem.findFirst({
 		where: dedupWhere,
 		select: { id: true }
 	});
@@ -67,7 +65,7 @@ export async function attachVideoToDay(
 		return { programDayItemId: existing.id, created: false, dayIndex: input.dayIndex };
 	}
 
-	const created = await db.programDayItem.create({
+	const created = await prisma.programDayItem.create({
 		data: {
 			programDayId: programDay.id,
 			type: input.type,

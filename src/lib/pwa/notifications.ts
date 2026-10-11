@@ -49,7 +49,7 @@ export interface ShowNotificationOptions {
 /**
  * Convertit une clé VAPID base64 (URL-safe) en Uint8Array pour PushManager.subscribe().
  */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 	const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
 	const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
 	const rawData = atob(base64);

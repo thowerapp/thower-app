@@ -5,7 +5,7 @@
 	import CloudflareVideoPlayer from '$lib/components/CloudflareVideoPlayer.svelte';
 	import { fireElement } from '$lib/utils/particles';
 
-	let { data } = $props<{ data: PageData }>();
+	let { data }: { data: PageData } = $props();
 
 	function fire(e: MouseEvent) {
 		fireElement(e.currentTarget as HTMLElement, e);
@@ -40,15 +40,15 @@
 			: 0
 	);
 
-	const sessionVideos = $derived(data.videos ?? []);
-	const preCount = $derived(sessionVideos.filter((v: { position: string }) => v.position === 'PRE').length);
+	const sessionVideos = $derived(data.videos);
+	const preCount = $derived(sessionVideos.filter((v) => v.position === 'PRE').length);
 
 	/** « Pré-séance 2 » quand l'admin en a rattaché plusieurs sur le jour. */
 	function videoLabel(index: number): string {
 		const v = sessionVideos[index];
 		const base = posLabel[v.position] ?? v.position;
 		if (v.position !== 'PRE' || preCount < 2) return base;
-		const rank = sessionVideos.slice(0, index + 1).filter((sv: { position: string }) => sv.position === 'PRE').length;
+		const rank = sessionVideos.slice(0, index + 1).filter((sv) => sv.position === 'PRE').length;
 		return `${base} ${rank}`;
 	}
 

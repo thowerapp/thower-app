@@ -11,8 +11,7 @@ export const GET: RequestHandler = async ({ request }) => {
 		return new Response('Unauthorized', { status: 401 });
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const subs = await (prisma as any).pushSubscription.findMany({
+	const subs = await prisma.pushSubscription.findMany({
 		select: { endpoint: true, p256dh: true, auth: true }
 	});
 

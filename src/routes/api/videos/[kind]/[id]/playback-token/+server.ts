@@ -20,16 +20,14 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	if (kind === 'workout' && !(await hasSportAccess(locals.user.id, locals.user.role))) {
 		throw error(403, "L'offre sport n'est pas active sur ce compte.");
 	}
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
 
 	const row =
 		kind === 'workout'
-			? await db.workoutVideo.findUnique({
+			? await prisma.workoutVideo.findUnique({
 					where: { id: params.id },
 					select: { cloudflareUid: true, status: true }
 				})
-			: await db.discoveryContent.findUnique({
+			: await prisma.discoveryContent.findUnique({
 					where: { id: params.id },
 					select: { cloudflareUid: true, status: true, active: true }
 				});
@@ -55,17 +53,17 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 				thumbnailUrl: details.thumbnail ?? null
 			};
 			if (kind === 'workout') {
-				await db.workoutVideo.update({ where: { id: params.id }, data: syncData });
+				await prisma.workoutVideo.update({ where: { id: params.id }, data: syncData });
 				invalidateSportPlan();
 			} else {
-				await db.discoveryContent.update({ where: { id: params.id }, data: syncData });
+				await prisma.discoveryContent.update({ where: { id: params.id }, data: syncData });
 			}
 			row.status = 'ready';
 		} else {
 			throw error(409, 'Vidéo non encore prête (transcodage en cours côté Cloudflare).');
 		}
 	}
-	if (kind === 'discovery' && row.active === false) {
+	if ('active' in row && !row.active) {
 		throw error(403, 'Vidéo désactivée.');
 	}
 

@@ -8,13 +8,11 @@ import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
  * éviter une vidéo orpheline côté Cloudflare.
  */
 export async function deleteVideo(kind: 'workout' | 'discovery', id: string) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
 
 	const row =
 		kind === 'workout'
-			? await db.workoutVideo.findUnique({ where: { id }, select: { cloudflareUid: true } })
-			: await db.discoveryContent.findUnique({ where: { id }, select: { cloudflareUid: true } });
+			? await prisma.workoutVideo.findUnique({ where: { id }, select: { cloudflareUid: true } })
+			: await prisma.discoveryContent.findUnique({ where: { id }, select: { cloudflareUid: true } });
 
 	if (!row) return;
 
@@ -23,11 +21,11 @@ export async function deleteVideo(kind: 'workout' | 'discovery', id: string) {
 	}
 
 	if (kind === 'workout') {
-		await db.workoutVideo.delete({ where: { id } });
+		await prisma.workoutVideo.delete({ where: { id } });
 		invalidateSportPlan();
 		return;
 	}
 
-	await db.programDayItem.deleteMany({ where: { discoveryContentId: id } });
-	await db.discoveryContent.delete({ where: { id } });
+	await prisma.programDayItem.deleteMany({ where: { discoveryContentId: id } });
+	await prisma.discoveryContent.delete({ where: { id } });
 }

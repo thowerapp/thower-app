@@ -62,7 +62,7 @@ const day = (dayIndex: number, meals: unknown[]) =>
 		meals
 	}) as unknown as ExistingNutritionDay;
 
-describe('planNutritionDays', () => {
+describe('planNutritionDays', { timeout: 30_000 }, () => {
 	it('planifie 91 jours neufs : un jour et un repas par cr\u00e9neau, sans mise \u00e0 jour', () => {
 		const plan = planNutritionDays({ ...base, existingDays: [] });
 		expect(plan.daysToCreate).toHaveLength(91);

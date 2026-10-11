@@ -22,26 +22,6 @@ import { computeLevel } from '$lib/utils/levels';
 const OID = /^[a-f\d]{24}$/i;
 type VideoProgressState = 'preparing' | 'not_started' | 'in_progress' | 'validated';
 
-function getUserVideoProgressDelegate(): {
-	findMany: (args: unknown) => Promise<unknown[]>;
-	count: (args: unknown) => Promise<number>;
-} | null {
-	const maybeDelegate = (
-		prisma as unknown as {
-			userVideoProgress?: {
-				findMany?: (args: unknown) => Promise<unknown[]>;
-				count?: (args: unknown) => Promise<number>;
-			};
-		}
-	).userVideoProgress;
-
-	if (!maybeDelegate?.findMany || !maybeDelegate?.count) return null;
-	return {
-		findMany: maybeDelegate.findMany,
-		count: maybeDelegate.count
-	};
-}
-
 /** Créneau sport de l'utilisateur sur un jour (séance + jour source des vidéos), ou null. */
 async function resolveSlotForDay(userId: string, dayIndex: number, programStart: Date | null) {
 	const { slots } = await resolveSportWeek({
@@ -99,7 +79,6 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 	const sessionVideos = await getSportVideosForProgramDay(slot.contentDayIndex, userId);
 	const videoIds = sessionVideos.map((v) => v.id);
-	const progressDelegate = getUserVideoProgressDelegate();
 
 	const [userDay, progressRows] = await Promise.all([
 		prisma.userWorkoutDay.findFirst({
@@ -111,8 +90,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				dayIndex: true
 			}
 		}),
-		videoIds.length > 0 && progressDelegate
-			? progressDelegate.findMany({
+		videoIds.length > 0
+			? prisma.userVideoProgress.findMany({
 					where: { userId, workoutVideoId: { in: videoIds } },
 					select: {
 						workoutVideoId: true,
@@ -124,15 +103,11 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	]);
 
 	const progressByVideoId = new Map<string, { completedAt: Date | null; maxPositionSec: number }>();
-	for (const r of progressRows as {
-		workoutVideoId: string | null;
-		completedAt: Date | null;
-		maxPositionSec: number;
-	}[]) {
+	for (const r of progressRows) {
 		if (r.workoutVideoId) {
 			progressByVideoId.set(r.workoutVideoId, {
 				completedAt: r.completedAt,
-				maxPositionSec: r.maxPositionSec ?? 0
+				maxPositionSec: r.maxPositionSec
 			});
 		}
 	}
@@ -312,17 +287,14 @@ export const actions: Actions = {
 		const mandatoryVideoIds = sessionVideos
 			.filter((video) => video.position !== 'PRE')
 			.map((video) => video.id);
-		const progressDelegate = getUserVideoProgressDelegate();
-		if (mandatoryVideoIds.length > 0) {
-			const completedMandatoryCount = progressDelegate
-				? await progressDelegate.count({
-						where: {
-							userId,
-							workoutVideoId: { in: mandatoryVideoIds },
-							completedAt: { not: null }
-						}
-					})
-				: 0;
+			if (mandatoryVideoIds.length > 0) {
+			const completedMandatoryCount = await prisma.userVideoProgress.count({
+				where: {
+					userId,
+					workoutVideoId: { in: mandatoryVideoIds },
+					completedAt: { not: null }
+				}
+			});
 
 			if (completedMandatoryCount < mandatoryVideoIds.length) {
 				return fail(409, {

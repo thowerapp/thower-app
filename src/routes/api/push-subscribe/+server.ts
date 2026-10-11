@@ -27,8 +27,7 @@ export const POST: RequestHandler = async (event) => {
 		);
 	}
 	try {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		await (prisma as any).pushSubscription.upsert({
+		await prisma.pushSubscription.upsert({
 			where: {
 				userId_endpoint: { userId: event.locals.user.id, endpoint }
 			},

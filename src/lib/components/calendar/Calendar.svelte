@@ -1,13 +1,13 @@
 <div class="calendar">
 	{#each headers as header}
-	<span class="day-name" role="button" tabindex="0" on:click={()=>dispatch('headerClick',header)} on:keydown={(e)=>e.key==='Enter'||e.key===' '?dispatch('headerClick',header):undefined}>{header}</span>
+	<span class="day-name" role="button" tabindex="0" onclick={()=>dispatch('headerClick',header)} onkeydown={(e)=>e.key==='Enter'||e.key===' '?dispatch('headerClick',header):undefined}>{header}</span>
 	{/each}
 
 	{#each days as day}
 		{#if day.enabled}
-			<span class="day" role="button" tabindex="0" on:click={()=>dispatch('dayClick',day)} on:keydown={(e)=>e.key==='Enter'||e.key===' '?dispatch('dayClick',day):undefined}>{day.name}</span>
+			<span class="day" role="button" tabindex="0" onclick={()=>dispatch('dayClick',day)} onkeydown={(e)=>e.key==='Enter'||e.key===' '?dispatch('dayClick',day):undefined}>{day.name}</span>
 		{:else}
-			<span class="day day-disabled" role="button" tabindex="0" on:click={()=>dispatch('dayClick',day)} on:keydown={(e)=>e.key==='Enter'||e.key===' '?dispatch('dayClick',day):undefined}>{day.name}</span>
+			<span class="day day-disabled" role="button" tabindex="0" onclick={()=>dispatch('dayClick',day)} onkeydown={(e)=>e.key==='Enter'||e.key===' '?dispatch('dayClick',day):undefined}>{day.name}</span>
 		{/if}
 	{/each}
 
@@ -15,8 +15,8 @@
 		<section
 			role="button"
 			tabindex="0"
-			on:click={()=>dispatch('itemClick',item)}
-			on:keydown={(e)=>e.key==='Enter'||e.key===' '?dispatch('itemClick',item):undefined}
+			onclick={()=>dispatch('itemClick',item)}
+			onkeydown={(e)=>e.key==='Enter'||e.key===' '?dispatch('itemClick',item):undefined}
 			class="task {item.className}"
       style="grid-column: {item.startCol} / span {item.len};      
       grid-row: {item.startRow};  

@@ -19,10 +19,9 @@
 	let { data }: PageProps = $props();
 
 	type OfferRow = { id: string; slug: string; name: string; amountCentsMonthly: number; amountCentsAnnual: number };
-	type PlanInfo = { amountCents: number; label: string; description: string };
 
-	const offers = $derived((data as unknown as { offers?: OfferRow[] })?.offers ?? []);
-	const SUBSCRIPTION_PLANS = $derived((data as unknown as { SUBSCRIPTION_PLANS?: Record<string, PlanInfo> })?.SUBSCRIPTION_PLANS ?? {});
+	const offers = $derived(data.offers);
+	const SUBSCRIPTION_PLANS = $derived(data.SUBSCRIPTION_PLANS);
 
 	let selectedOfferSlugs = $state<string[]>([]);
 
@@ -46,7 +45,7 @@
 	}
 
 	const plan = $derived.by(() => {
-		const base = (SUBSCRIPTION_PLANS as Record<string, PlanInfo>).quarterly;
+		const base = SUBSCRIPTION_PLANS.quarterly;
 		if (!base || selectedOfferSlugs.length === 0) return null;
 		const selected = offers.filter((p) => selectedOfferSlugs.includes(p.slug));
 		const quarterlyCents = selected.reduce((s, p) => s + p.amountCentsMonthly * 3, 0);
@@ -63,9 +62,9 @@
 	const success = $derived($page.url.searchParams.get('success') === '1');
 	const canceled = $derived($page.url.searchParams.get('canceled') === '1');
 	const errorMessage = $derived($page.form?.message);
-	const hasValidPayment = $derived((data as unknown as { hasValidPayment?: boolean })?.hasValidPayment ?? false);
-	const subscriptionEndsAt = $derived((data as unknown as { subscriptionEndsAt?: string | Date | null })?.subscriptionEndsAt ?? null);
-	const entitlements = $derived((data as unknown as { entitlements?: { nutrition: boolean; sport: boolean } })?.entitlements ?? { nutrition: false, sport: false });
+	const hasValidPayment = $derived(data.hasValidPayment);
+	const subscriptionEndsAt = $derived(data.subscriptionEndsAt);
+	const entitlements = $derived(data.entitlements);
 	const subscriptionLabel = $derived(
 		subscriptionEndsAt
 			? new Date(subscriptionEndsAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })

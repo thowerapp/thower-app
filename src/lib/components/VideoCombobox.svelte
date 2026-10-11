@@ -34,12 +34,12 @@
 		value = $bindable(''),
 		name = 'discoveryContentId',
 		placeholder = 'Choisir une vidéo…'
-	} = $props<{
+	}: {
 		videos: VideoOption[];
 		value?: string;
 		name?: string;
 		placeholder?: string;
-	}>();
+	} = $props();
 
 	let open = $state(false);
 	let search = $state('');

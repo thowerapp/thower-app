@@ -4,11 +4,11 @@ import EmberCanvas from '$lib/components/EmberCanvas.svelte';
 import { fireElement } from '$lib/utils/particles';
 import { enhance } from '$app/forms';
 
-let { data } = $props<{ data: PageData }>();
+let { data }: { data: PageData } = $props();
 
 function fire(e: MouseEvent) { fireElement(e.currentTarget as HTMLElement, e); }
 
-let optOutIds = $state(new Set(data.optOutIds ?? []));
+let optOutIds = $derived(new Set(data.optOutIds ?? []));
 
 function isOptOut(taskId: string) { return optOutIds.has(taskId); }
 
@@ -23,7 +23,7 @@ function scoreBar(val: number | null | undefined): string {
   return '▮'.repeat(val) + '▯'.repeat(10 - val);
 }
 
-function daysSince(date: string | null | undefined): number | null {
+function daysSince(date: Date | string | null | undefined): number | null {
   if (!date) return null;
   return Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000);
 }

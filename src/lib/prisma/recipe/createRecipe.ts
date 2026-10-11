@@ -34,18 +34,8 @@ export type CreateRecipeData = {
 };
 
 export async function createRecipe(data: CreateRecipeData) {
-	const client = prisma as unknown as {
-		recipe?: {
-			create: (args: {
-				data: unknown;
-			}) => Promise<unknown>;
-		};
-	};
-	if (!client?.recipe) {
-		throw new Error('Prisma client has no "recipe" model. Run: npx prisma generate');
-	}
 	const { ingredients, ...rest } = data;
-	const created = await client.recipe.create({
+	const created = await prisma.recipe.create({
 		data: {
 			...rest,
 			requiredKitchenEquipment: data.requiredKitchenEquipment ?? [],

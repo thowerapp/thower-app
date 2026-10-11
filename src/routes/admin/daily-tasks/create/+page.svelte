@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from '$lib/superforms-zod';
 	import * as Form from '$shadcn/form';
@@ -10,7 +11,7 @@
 	import ArrowLeft from 'lucide-svelte/icons/arrow-left';
 	import ClipboardList from 'lucide-svelte/icons/clipboard-list';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 
 	const taskForm = $derived.by(() =>
 		superForm(data.form, {

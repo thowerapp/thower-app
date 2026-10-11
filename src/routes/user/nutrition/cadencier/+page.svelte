@@ -380,7 +380,6 @@
 	.jt-left { flex: 1; min-width: 0; }
 	.jt-label { font-size: .625rem; font-weight: 600; color: var(--tx); font-family: var(--fb); }
 	.jt-sub { font-size: .5rem; color: var(--txd); margin-top: 2px; font-family: var(--fb); line-height: 1.3; }
-	.jt-sub strong { color: var(--g); font-weight: 700; }
 	/* Pill toggle */
 	.jt-pill {
 		width: 34px; height: 18px;

@@ -47,14 +47,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		data.durationSeconds = payload.duration;
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
 
 	const [workoutUpdated, discoveryUpdated] = await Promise.all([
-		db.workoutVideo
+		prisma.workoutVideo
 			.updateMany({ where: { cloudflareUid: uid }, data })
 			.catch(() => ({ count: 0 })),
-		db.discoveryContent
+		prisma.discoveryContent
 			.updateMany({ where: { cloudflareUid: uid }, data })
 			.catch(() => ({ count: 0 }))
 	]);

@@ -21,6 +21,10 @@ export const allergenEnum = z.enum(ALLERGEN_VALUES);
 
 export type AllergenValue = z.infer<typeof allergenEnum>;
 
+export function isAllergenValue(value: string): value is AllergenValue {
+	return (ALLERGEN_VALUES as readonly string[]).includes(value);
+}
+
 export const ALLERGEN_LABELS: Record<AllergenValue, string> = {
 	gluten: 'Gluten',
 	crustaces: 'Crustacés',

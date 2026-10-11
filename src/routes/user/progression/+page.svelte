@@ -586,8 +586,6 @@ const checkInMetricsComplete = $derived(
 /* Barème points */
 .pts-row { display: flex; align-items: baseline; gap: 4px; }
 .pts-val { color: var(--cy); font-weight: 700; text-shadow: 0 0 6px rgba(0,229,255,.3); }
-.pts-alt { font-size: .5rem; color: var(--txd); }
-
 
 /* Photos d'inscription dropdown */
 .inscrip-toggle {

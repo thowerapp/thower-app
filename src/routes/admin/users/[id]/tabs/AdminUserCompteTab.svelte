@@ -4,6 +4,7 @@
 	import { Input } from '$shadcn/input';
 	import { Button } from '$shadcn/button';
 	import type { SuperForm } from 'sveltekit-superforms';
+	import type { AdminUpdateUser } from '$lib/schema/users/userSchema';
 	import type { UserSelected } from '../types';
 	import { fmtDate } from '../types';
 
@@ -12,7 +13,7 @@
 		updateUserForm
 	}: {
 		userSelected: UserSelected;
-		updateUserForm: SuperForm<Record<string, unknown>>;
+		updateUserForm: SuperForm<AdminUpdateUser>;
 	} = $props();
 
 	const roleOptions = ['ADMIN', 'CLIENT'] as const;

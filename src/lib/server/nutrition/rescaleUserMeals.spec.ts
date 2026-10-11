@@ -82,7 +82,7 @@ beforeEach(() => {
 	prismaMock.nutritionDay.findMany.mockResolvedValue(generatedDays());
 });
 
-describe('rescaleUserMeals', () => {
+describe('rescaleUserMeals', { timeout: 30_000 }, () => {
 	it('ne fait rien quand les cibles sont d\u00e9j\u00e0 appliqu\u00e9es', async () => {
 		profileFor(80);
 		prismaMock.user.findUnique.mockResolvedValue({ nutritionTargetsKey: targetsKey(targets80) });

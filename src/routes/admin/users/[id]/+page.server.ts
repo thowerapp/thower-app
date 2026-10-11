@@ -208,17 +208,17 @@ export const load: PageServerLoad = async ({ params }) => {
 	userSelected.programDayItemCompletions = raw.programDayItemCompletions ?? [];
 	userSelected.pushSubscriptions = raw.pushSubscriptions ?? [];
 	userSelected.challenges = raw.challenges ?? [];
-	const initialData = {
-		id: userSelected.id,
-		email: userSelected.email ?? '',
-		username: userSelected.username ?? null,
-		name: userSelected.name ?? null,
-		picture: userSelected.picture ?? null,
-		role: userSelected.role || 'CLIENT',
-		isMfaEnabled: userSelected.isMfaEnabled ?? false,
-		emailVerified: userSelected.emailVerified ?? false,
-		subscriptionEndsAt: toDatetimeLocal(userSelected.subscriptionEndsAt as string | null) ?? null,
-		passwordHash: null as string | null
+	const initialData: AdminUpdateUser = {
+		id: userFetched.id,
+		email: userFetched.email,
+		username: userFetched.username,
+		name: userFetched.name,
+		picture: userFetched.picture,
+		role: userFetched.role,
+		isMfaEnabled: userFetched.isMfaEnabled,
+		emailVerified: userFetched.emailVerified,
+		subscriptionEndsAt: toDatetimeLocal(userFetched.subscriptionEndsAt?.toISOString()),
+		passwordHash: null
 	};
 
 	const formSchema = await superValidate(initialData, zod(adminUpdateUserSchema));

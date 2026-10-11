@@ -10,11 +10,14 @@ import { incUserNutritionDaysAllocatedMongo } from '$lib/server/mongo/incUserNut
 import { scheduleProgramGenerationAfterPayment } from '$lib/server/program-generation';
 import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
 import { shouldResumeProgramGeneration } from '$lib/server/program-generation/generationLock';
-import { programGenTrace } from '$lib/server/program-generation/programGenerationLog';
+import { programGenTrace, type ProgramGenSource } from '$lib/server/program-generation/programGenerationLog';
 import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { logPaymentStatus, onboardingTrace } from '$lib/server/onboarding/onboardingLog';
 
 const VALID_PLANS: PlanId[] = ['quarterly'];
+
+/** Fenêtre de recherche des sessions payées quand le webhook n’a pas tourné. */
+const SYNC_LOOKBACK_SECONDS = 7 * 24 * 60 * 60;
 
 export type CheckoutReconcileSource = 'webhook' | 'return_url' | 'measurement_sync';
 
@@ -22,11 +25,13 @@ function sessionUserId(session: Stripe.Checkout.Session): string | null {
 	return session.metadata?.userId ?? session.client_reference_id ?? null;
 }
 
+function programGenSource(source: CheckoutReconcileSource): ProgramGenSource {
+	return source === 'webhook' ? 'webhook' : 'internal';
+}
+
 function dispatchGeneration(userId: string, source: CheckoutReconcileSource) {
 	return dispatchProgramGeneration(null, () =>
-		scheduleProgramGenerationAfterPayment(userId, {
-			source: source === 'webhook' ? 'webhook' : 'internal'
-		})
+		scheduleProgramGenerationAfterPayment(userId, { source: programGenSource(source) })
 	);
 }
 
@@ -40,7 +45,8 @@ export async function reconcilePaidCheckoutSession(
 ): Promise<boolean> {
 	const checkoutUserId = sessionUserId(session) ?? undefined;
 	programGenTrace('trigger', {
-		source,
+		source: programGenSource(source),
+		reconcileSource: source,
 		action: 'checkout.session.reconcile',
 		sessionId: session.id,
 		paymentStatus: session.payment_status,
@@ -219,11 +225,13 @@ export async function syncRecentPaidCheckoutSessionsForUser(userId: string): Pro
 	}
 
 	try {
-		const listed = await stripe.checkout.sessions.list({
-			client_reference_id: userId,
-			limit: 10,
+		// L'API ne filtre pas par client_reference_id : sessions terminées récentes, filtrées ensuite.
+		const recent = await stripe.checkout.sessions.list({
+			created: { gte: Math.floor(Date.now() / 1000) - SYNC_LOOKBACK_SECONDS },
+			limit: 100,
 			status: 'complete'
 		});
+		const listed = { data: recent.data.filter((s) => sessionUserId(s) === userId) };
 
 		onboardingTrace('stripe_reconcile', {
 			userId,

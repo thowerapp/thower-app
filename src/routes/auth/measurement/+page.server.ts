@@ -6,6 +6,7 @@ import {
 	type MeasurementSchema
 } from '$lib/schema/measurement/measurementSchema';
 import { normalizeStringList } from '$lib/schema/measurement/normalizeStringList';
+import { isAllergenValue } from '$lib/schema/recipe/allergens';
 import { getProfileByUserId } from '$lib/prisma/profile/getProfileByUserId';
 import { upsertProfile } from '$lib/prisma/profile/upsertProfile';
 import { createBodyMeasurement } from '$lib/prisma/bodyMeasurement/createBodyMeasurement';
@@ -41,15 +42,7 @@ async function replaceInitialProgressPhotos(userId: string, data: MeasurementSch
 	if (photos.length === 0) return;
 
 	const angles = photos.map((photo) => photo.angle);
-	const client = prisma as {
-		progressPhoto?: {
-			deleteMany: (args: {
-				where: { userId: string; month: number; angle: { in: PhotoAngle[] } };
-			}) => Promise<unknown>;
-		};
-	};
-
-	await client.progressPhoto?.deleteMany({
+	await prisma.progressPhoto.deleteMany({
 		where: {
 			userId,
 			month: 0,
@@ -114,7 +107,7 @@ export const load = async (event: RequestEvent) => {
 		frontUrl: '',
 		sideUrl: '',
 		backUrl: '',
-		allergens: profile?.allergens ?? [],
+		allergens: normalizeStringList(profile?.allergens).filter(isAllergenValue),
 		breakfastEnabled: false,
 		age: lastBody?.age ?? undefined,
 		heightCm: lastBody?.heightCm ?? undefined,
@@ -135,25 +128,24 @@ export const load = async (event: RequestEvent) => {
 		breadManagement: profile?.breadManagement ?? undefined,
 		sportActivity: profile?.sportActivity ?? undefined,
 		// Bien-être
-		stressLevel: (profile as { stressLevel?: number | null } | null)?.stressLevel ?? undefined,
-		sleepQuality: (profile as { sleepQuality?: number | null } | null)?.sleepQuality ?? undefined,
-		bodyConfidence: (profile as { bodyConfidence?: number | null } | null)?.bodyConfidence ?? undefined,
-		digestionQuality: (profile as { digestionQuality?: number | null } | null)?.digestionQuality ?? undefined,
-		happinessLevel: (profile as { happinessLevel?: number | null } | null)?.happinessLevel ?? undefined,
-		readinessToChange: (profile as { readinessToChange?: number | null } | null)?.readinessToChange ?? undefined,
+		stressLevel: profile?.stressLevel ?? undefined,
+		sleepQuality: profile?.sleepQuality ?? undefined,
+		bodyConfidence: profile?.bodyConfidence ?? undefined,
+		digestionQuality: profile?.digestionQuality ?? undefined,
+		happinessLevel: profile?.happinessLevel ?? undefined,
+		readinessToChange: profile?.readinessToChange ?? undefined,
 		// Alimentation & équipement
-		kitchenEquipment: (profile as { kitchenEquipment?: string[] } | null)?.kitchenEquipment ?? [],
-		disgustingFoods: (profile as { disgustingFoods?: string | null } | null)?.disgustingFoods ?? undefined,
-		otherAllergens: (profile as { otherAllergens?: string | null } | null)?.otherAllergens ?? undefined,
+		kitchenEquipment: profile?.kitchenEquipment ?? [],
+		disgustingFoods: profile?.disgustingFoods ?? undefined,
+		otherAllergens: profile?.otherAllergens ?? undefined,
 		// Objectifs détaillés
-		physicalObjective: (profile as { physicalObjective?: string | null } | null)?.physicalObjective ?? undefined,
-		eventMotivation: (profile as { eventMotivation?: string | null } | null)?.eventMotivation ?? undefined,
+		physicalObjective: profile?.physicalObjective ?? undefined,
+		eventMotivation: profile?.eventMotivation ?? undefined,
 		// Addictions
-		addictionsText: (profile as { addictionsText?: string | null } | null)?.addictionsText ?? undefined
+		addictionsText: profile?.addictionsText ?? undefined
 	};
 
 	initialData.objectives = normalizeStringList(initialData.objectives);
-	initialData.allergens = normalizeStringList(initialData.allergens);
 	initialData.kitchenEquipment = normalizeStringList(initialData.kitchenEquipment);
 
 	const measurementForm = await superValidate(initialData, zod(measurementSchema));
@@ -167,7 +159,7 @@ export const load = async (event: RequestEvent) => {
 		userId,
 		source: 'measurement',
 		measurementCount: bodyMeasurements.length,
-		hasWellBeing: !!(profile as { stressLevel?: number | null } | null)?.stressLevel,
+		hasWellBeing: !!profile?.stressLevel,
 		hasValidPayment,
 		syncedFromStripe
 	});
@@ -196,7 +188,7 @@ export const actions: Actions = {
 
 		const data = form.data as MeasurementSchema;
 		const objectives = normalizeStringList(data.objectives);
-		const allergens = normalizeStringList(data.allergens);
+		const allergens = normalizeStringList(data.allergens).filter(isAllergenValue);
 		const kitchenEquipment = normalizeStringList(data.kitchenEquipment);
 
 		await upsertProfile(event.locals.user.id, {

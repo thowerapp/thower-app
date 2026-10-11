@@ -11,7 +11,7 @@ export const ADMIN_EMAIL = 'admin@thower.com';
 const PASSWORD_HASH =
 	'$argon2id$v=19$m=19456,t=2,p=1$2h/u9dvpXqr5PiPa19tlBA$ZUYyS8+NjOxTodAaDO1ez5oVToWRfKCQWRabAe8sIgk';
 
-/** @param {Buffer | string} data */
+/** @param {Buffer | string} data @param {Uint8Array} key */
 function encrypt(data, key) {
 	const iv = randomBytes(16);
 	const cipher = createCipheriv('aes-128-gcm', key, iv);

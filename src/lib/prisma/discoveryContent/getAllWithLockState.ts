@@ -24,17 +24,13 @@ export async function getAllDiscoveryWithLockState(
 	currentDayIndex: number,
 	completedIds: Set<string>
 ): Promise<DiscoveryItemWithLock[]> {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const db = prisma as any;
-	if (!db?.discoveryContent) return [];
-
 	const [allLinked, unlockedLinked, visibleTaskLinked, all] = await Promise.all([
-		db.programDayItem.findMany({
+		prisma.programDayItem.findMany({
 			where: { discoveryContentId: { not: null } },
 			select: { discoveryContentId: true },
 			distinct: ['discoveryContentId']
 		}),
-		db.programDayItem.findMany({
+		prisma.programDayItem.findMany({
 			where: {
 				discoveryContentId: { not: null },
 				programDay: { dayIndex: { lte: currentDayIndex } }
@@ -42,7 +38,7 @@ export async function getAllDiscoveryWithLockState(
 			select: { discoveryContentId: true },
 			distinct: ['discoveryContentId']
 		}),
-		db.dailyTask.findMany({
+		prisma.dailyTask.findMany({
 			where: {
 				active: true,
 				discoveryContentId: { not: null },
@@ -54,7 +50,7 @@ export async function getAllDiscoveryWithLockState(
 			select: { discoveryContentId: true },
 			distinct: ['discoveryContentId']
 		}),
-		db.discoveryContent.findMany({
+		prisma.discoveryContent.findMany({
 			where: { category, active: true, ...notSeedVideo },
 			orderBy: { order: 'asc' },
 			select: {
@@ -66,13 +62,13 @@ export async function getAllDiscoveryWithLockState(
 	]);
 
 	const programManagedIds = new Set<string>(
-		allLinked.map((r: { discoveryContentId: string }) => r.discoveryContentId).filter(Boolean)
+		allLinked.flatMap((r) => (r.discoveryContentId ? [r.discoveryContentId] : []))
 	);
 	const unlockedIds = new Set<string>(
-		unlockedLinked.map((r: { discoveryContentId: string }) => r.discoveryContentId).filter(Boolean)
+		unlockedLinked.flatMap((r) => (r.discoveryContentId ? [r.discoveryContentId] : []))
 	);
 	const taskUnlockedIds = new Set<string>(
-		visibleTaskLinked.map((r: { discoveryContentId: string }) => r.discoveryContentId).filter(Boolean)
+		visibleTaskLinked.flatMap((r) => (r.discoveryContentId ? [r.discoveryContentId] : []))
 	);
 
 	return all.map((v: { id: string; title: string; order: number; durationSeconds: number | null; thumbnailUrl: string | null; cloudflareUid: string; status: string }) => {

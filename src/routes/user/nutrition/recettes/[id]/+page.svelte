@@ -4,9 +4,7 @@
 	let { data, form: formResult } = $props();
 
 	const recipe = $derived(data.recipe);
-	let isFavorite = $state(data.isFavorite);
-
-	$effect(() => { isFavorite = data.isFavorite; });
+	let isFavorite = $derived(data.isFavorite);
 
 	const categoryLabels: Record<string, string> = {
 		BREAKFAST: 'P’tit déj ou collation',

@@ -59,9 +59,7 @@ export const actions: Actions = {
 		}
 
 		// Vérifier que l'UID n'est pas déjà en DB (doublon)
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const db = prisma as any;
-		const existing = await db.discoveryContent.findUnique({ where: { cloudflareUid: uid } });
+		const existing = await prisma.discoveryContent.findUnique({ where: { cloudflareUid: uid } });
 		if (existing) {
 			return fail(409, { message: `Vidéo ${uid} déjà enregistrée.` });
 		}
@@ -72,7 +70,7 @@ export const actions: Actions = {
 				: null;
 
 		try {
-			await db.discoveryContent.create({
+			await prisma.discoveryContent.create({
 				data: {
 					cloudflareUid: uid,
 					title: title ?? uid,
@@ -102,12 +100,10 @@ export const actions: Actions = {
 			return fail(403, { message: 'Accès refusé.' });
 		}
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const db = prisma as any;
 
 		try {
-			await db.workoutVideo.deleteMany({});
-			await db.discoveryContent.deleteMany({});
+			await prisma.workoutVideo.deleteMany({});
+			await prisma.discoveryContent.deleteMany({});
 			invalidateSportPlan();
 		} catch (err) {
 			console.error('[admin/videos/sync] purgeAll error', err);

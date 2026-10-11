@@ -64,19 +64,3 @@ const ptsChecklist = $derived(
     <div class="u-sl">Total jour</div>
   </div>
 </div>
-
-<style>
-.vid-card { display:flex; align-items:center; gap:12px; padding:12px 18px; border-bottom:1px solid var(--br); text-decoration:none; -webkit-tap-highlight-color:transparent; }
-.vid-card:active { background:rgba(200,130,20,.04); }
-.vid-thumb-wrap { position:relative; width:80px; height:50px; flex-shrink:0; border-radius:4px; overflow:hidden; background:var(--s2); }
-.vid-thumb { width:100%; height:100%; object-fit:cover; display:block; }
-.vid-thumb-empty { width:100%; height:100%; background:var(--s2); }
-.vid-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.22); }
-.vid-done-dot { width:10px; height:10px; border-radius:50%; background:var(--g); }
-.vid-info { flex:1; }
-.vid-badge { font-size:.4rem; color:var(--g); letter-spacing:.12em; text-transform:uppercase; font-family:var(--fb); margin-bottom:3px; }
-.vid-title { font-size:.75rem; color:var(--tx); font-family:var(--fb); font-weight:600; line-height:1.3; }
-.vid-pts { font-size:.6875rem; color:var(--txd); font-family:var(--fb); flex-shrink:0; }
-.vid-pts.earned { color:var(--g); }
-.vid-watched .vid-overlay { background:rgba(0,0,0,.35); }
-</style>

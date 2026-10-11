@@ -18,7 +18,7 @@ export async function autoCompleteVideoTask(
 	discoveryContentId: string
 ): Promise<number> {
 	const todayStart = startOfUtcDay();
-	const task = await (prisma as any).dailyTask.findFirst({
+	const task = await prisma.dailyTask.findFirst({
 		where: {
 			type: 'VIDEO',
 			active: true,

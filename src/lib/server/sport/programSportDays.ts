@@ -139,6 +139,47 @@ function toSlotSession(s: SlotSession): SlotSession {
 }
 
 /**
+ * Type de séance choisi par l'admin sur les vidéos d'un jour : Vidéo 1, puis Vidéo 2, puis pré-séances.
+ * Null si aucune vidéo du jour n'en porte (fiches héritées).
+ */
+export function explicitSessionType(videos: SessionWorkoutVideoRow[]): WorkoutSessionType | null {
+	for (const position of ['VID1', 'VID2', 'PRE'] as const) {
+		const found = videos.find((v) => v.position === position && v.sessionType != null);
+		if (found) return found.sessionType;
+	}
+	return null;
+}
+
+/**
+ * Type de séance de chaque jour sport d'une semaine.
+ * Le type posé par l'admin prime (stable si un jour est ajouté ou retiré) ; sans type exploitable,
+ * le jour prend la première séance A/B/C encore libre dans la semaine (C si toutes sont prises).
+ */
+export function assignWeekSessionTypes(
+	days: Map<number, SessionWorkoutVideoRow[]>,
+	availableTypes: ReadonlySet<WorkoutSessionType>
+): Map<number, WorkoutSessionType> {
+	const assigned = new Map<number, WorkoutSessionType>();
+	const taken = new Set<WorkoutSessionType>();
+	const sortedDays = [...days.keys()].sort((a, b) => a - b);
+
+	for (const day of sortedDays) {
+		const type = explicitSessionType(days.get(day)!);
+		if (type && availableTypes.has(type)) {
+			assigned.set(day, type);
+			taken.add(type);
+		}
+	}
+	for (const day of sortedDays) {
+		if (assigned.has(day)) continue;
+		const type = WEEKLY_SESSION_TYPES.find((t) => !taken.has(t)) ?? WEEKLY_SESSION_TYPES[2];
+		assigned.set(day, type);
+		taken.add(type);
+	}
+	return assigned;
+}
+
+/**
  * Place les séances d'une semaine (fonction pure).
  * - Chaque jour source `d` (jour rattaché) donne une séance.
  * - Si l'utilisateur a une ligne pour ce jour source (déplacée ou validée), la séance est
@@ -348,9 +389,11 @@ export async function resolveSportWeek(params: {
 	const { sessionCatalog } = plan;
 	const sportDays = daysInRange(plan, weekStart, weekEnd);
 	const sessionByContentDay = new Map<number, SlotSession>();
-	let rank = 0;
-	for (const day of sportDays.keys()) {
-		const type = WEEKLY_SESSION_TYPES[Math.min(rank++, WEEKLY_SESSION_TYPES.length - 1)];
+	const typeByDay = assignWeekSessionTypes(
+		sportDays,
+		new Set(sessionCatalog.map((s) => s.type))
+	);
+	for (const [day, type] of typeByDay) {
 		const session =
 			pickSessionForType(sessionCatalog, type, week) ??
 			pickSessionForType(sessionCatalog, 'MAIN_A', week) ??

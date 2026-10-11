@@ -35,7 +35,7 @@ Admin (attach/detach vidéos, séances)
 - [x] **S5** Pré-requis A → B → C borné à la semaine sport (`isPrerequisiteMet`, `src/lib/server/sport/workoutCompletion.ts`), utilisé par le `load` et l'action.
 - [x] **S6** Anti double validation : `completeWorkoutDay` réserve la validation (`updateMany` sur `completedAt` nul ou absent) et crée le `PointEvent` dans la même transaction ; un conflit concurrent (P2002/P2034) renvoie 409 sans points.
 - [x] **S7** Source unique des points séance : `WORKOUT_COMPLETION_POINTS` dans `workoutCompletion.ts`, utilisée par le planning et la page séance.
-- [ ] **S8** Affectation A/B/C explicite sur le jour du plan, au lieu de la déduire du rang dans la semaine (un ajout/retrait admin décale la séance de tous les users en cours).
+- [x] **S8** Affectation A/B/C fondée sur le `sessionType` déjà choisi par l'admin sur les vidéos du jour (`assignWeekSessionTypes`, sans changement de schéma) ; repli sur le rang A/B/C pour les jours sans type exploitable. La page admin `programme-sport` avertit quand deux jours d'une même semaine portent le même type.
 
 ### P2 : éléments personnalisés par user
 

@@ -48,8 +48,8 @@ Admin (attach/detach vidéos, séances)
 ### P3 : nettoyage
 
 - [x] **S13** La date de départ du programme est posée dès la validation du paiement/des mensurations (`scheduleProgramGenerationAfterPayment`), avant et indépendamment de la génération nutrition : le sport ne dépend plus de son succès.
-- [ ] **S14** Index Mongo : `program_day_items(type, workoutVideoId)` et `user_workout_days(userId, dayIndex)` si absents.
-- [ ] **S15** `requireSportAccess` cohérent sur toutes les actions (le layout couvre déjà les `load`).
+- [x] **S14** Index ajoutés au schéma : `program_day_items(type, workoutVideoId)` et `user_workout_days(userId, dayIndex)` (`user_sport_overrides(userId)` existait). À pousser en base (`prisma db push`).
+- [x] **S15** Les actions sport avaient déjà `requireSportAccess`. Manquait : les API vidéo `workout` (jeton de lecture, progression) ne vérifiaient pas l'offre sport ; elles répondent maintenant 403 (`hasSportAccess`, `programAccessGuard.ts`).
 
 ## 4. Nutrition
 
@@ -64,14 +64,14 @@ Admin (attach/detach vidéos, séances)
 ### P1 : performance de la génération
 
 - [x] **N3** `generateNutritionDaysForUser` planifie en mémoire (`planNutritionDays`, pur et testé) puis écrit par lots : 1 lecture des jours/repas existants, `createMany` des jours, 1 relecture des ids, `createMany` des repas (300 par lot), mises à jour en transactions de 60. Environ 5 requêtes au lieu de ~550 pour 91 jours.
-- [ ] **N3b** Coût CPU du calcul (mesuré en test, hors base) : ~1,7 à 2 s pour 91 jours, surtout `pickDayRecipes` (jusqu'à 6 tirages évalués par `fitDay`). À réduire si besoin (moins de tirages, cache des évaluations).
+- [x] **N3b** Candidats évalués par créneau bornés à 12 (`MAX_CANDIDATES`, échantillon tiré avec la graine de l'utilisateur) : ~2 s → ~1,5 s pour 91 jours sur le catalogue de seed, coût plafonné quand le catalogue grandit. Mesuré : les tirages supplémentaires coûtent peu (la plupart des jours atteignent le score cible d'emblée), les candidats pèsent davantage (3 candidats : ~0,7 s ; 12 : ~1,3 à 1,5 s). À revoir si la qualité des journées baisse.
 - [x] **N4** `generateShoppingListFromPlanning` remplace la liste dans une transaction (suppression, création, articles) : un échec laisse l'ancienne liste intacte. Les cases cochées sont conservées à la régénération automatique (clé ingrédient + unité) ; le bouton « Régénérer » de la page courses supprime d'abord la liste et repart donc de zéro. Reste à faire : alléger la lecture 1..91 (recette + ingrédients dupliqués par repas).
 - [x] **N5** `refreshStaleDays`, le rattrapage du petit-déjeuner et `regenerateShoppingListsForRecipe` régénèrent chaque liste une seule fois (`regenerateShoppingListsOverlappingDays`, dédupliquée par plage) au lieu d'une fois par jour modifié. Les écritures dans les `load` GET restent à sortir (N7).
 - [x] **N6** `rescaleUserMeals` ne recalcule plus si les cibles sont celles déjà appliquées (`User.nutritionTargetsKey`, empreinte des cibles + version de l'algorithme) et `refitDays` ne réécrit que les portions périmées (`isStalePortion`) ; transactions bornées à 60 mises à jour. `rescale:all-meals` utilise `force`. Schéma à pousser en base (`prisma db push`, sans `--accept-data-loss`).
 
 ### P2 : runtime
 
-- [ ] **N7** Aucune écriture dans les `load` GET (`cadencier`, `cadencier/[day]` : `refreshStaleDays`, `backfillMissingBreakfastMeals`). Déclencher le recalcul à la modification du profil ou en tâche dédiée.
+- [x] **N7** (choix provisoire, voir D3) (1) la génération produit toujours 3 repas par jour dès qu'un petit-déjeuner utilisable existe, donc le rattrapage du petit-déjeuner à l'affichage ne concerne plus que les anciens comptes ; (2) `rescaleUserMeals` régénère les listes de courses des jours modifiés (elles restaient périmées après un recalage) et ne tourne que si les cibles changent ; (3) `refreshStaleDays` à l'affichage reste comme filet de sécurité et n'écrit que si des portions sont périmées.
 - [x] **N8** Le cadencier et la page jour chargent profil, poids et cibles une seule fois (en parallèle) et les passent à `refreshStaleDays(…, targets)` : 2 requêtes en moins par navigation.
 - [x] **N9** Mesuré : `fitDay` coûte ~4 ms par recette (≈120 ms pour les 29 recettes du seed) à chaque ouverture de la page de choix de repas. Acceptable : pas de changement ; à revoir si le catalogue dépasse ~150 recettes (calcul à la sélection ou mémoïsation par journée).
 - [x] **N10** Cache serveur du catalogue de recettes (`getCatalogRecipes`, TTL 60 s, `src/lib/server/nutrition/recipeCatalog.ts`) utilisé par la page de choix de repas et le rattrapage du petit-déjeuner ; invalidé à la création, modification et suppression d'une recette. Cache TTL générique `src/lib/server/cache/ttlCache.ts`, réutilisé par le plan sport. La génération du programme relit le catalogue en base (données fraîches).
@@ -83,13 +83,13 @@ Admin (attach/detach vidéos, séances)
 - [x] **N13** Fonctions d'affichage des repas (`positionLabel`, `positionOrder`, `defaultTimeLabel`, `mealMacrosRounded`) extraites dans `src/lib/nutrition/mealDisplay.ts` (testé) et utilisées par le cadencier, la page jour et la page de choix de repas ; les `TOTAL_DAYS = 91` locaux utilisent `TOTAL_PROGRAM_DAYS`.
 - [ ] **N14** Décision : `weightLossGoalKg` est saisi et stocké mais n'entre dans aucun calcul (cibles basées sur le % de masse grasse).
 - [ ] **N15** Décision : second paiement (+91 jours alloués) génère `J92..J182` jamais affichés (index plafonné à 91, cadencier à 13 semaines, pas de reset de `programStartDate`).
-- [ ] **N16** Retirer les casts `as unknown as Prisma.UserSelect`, `(prisma as any)` : forcer `prisma generate` en CI.
+- [x] **N16** (partiel) Casts supprimés dans la génération nutrition, le rapprochement Stripe, le journal de génération, le cadencier, la liste de courses, les points et de nombreuses enveloppes de `src/lib/prisma/*`. `svelte-check` : 106 → 68 erreurs. Reste 33 fichiers : `lib/prisma/video` (4), `programDayItem` (3), `discoveryContent` (3), `userVideoProgress` (2), pages `decouverte/*/[id]` (5), `courses`, `auth/measurement`, API vidéo, `lib/prisma/measurement/*` (modèle absent du schéma : code mort à confirmer).
 
 ## 5. Transverses (hors sport/nutrition, identifiés dans la première analyse)
 
 - [x] **T1** `api/cron/daily-notification` exige `Authorization: Bearer ${CRON_SECRET}` (Vercel l'envoie automatiquement quand la variable existe) ; sans secret : 401 en production, libre en dev (`src/lib/server/cronAuth.ts`). **À faire : définir `CRON_SECRET` dans Vercel**, sinon les rappels push s'arrêtent.
 - [x] **T2** Page `/acces-expire` créée (message, lien de renouvellement vers `/auth/subscription`, redirection vers `/user` si l'accès est valide).
-- [x] **T3** Les totaux de points (`user`, `progression`, `parametres/profil`, séance) passent par `getTotalPointsForUser` (`aggregate`) au lieu de `findMany` + `reduce`. Reste : un module unique `awardPoints` pour les autres créations de `PointEvent` (photos, progression, admin, vidéo).
+- [x] **T3** Les totaux de points (`user`, `progression`, `parametres/profil`, séance) passent par `getTotalPointsForUser` (`aggregate`) au lieu de `findMany` + `reduce`. Reste : un module unique `awardPoints` pour les autres créations de `PointEvent` (photos, progression, admin, vidéo). Montants par action centralisés dans `src/lib/server/pointsConfig.ts` (`POINTS`).
 - [ ] **T4** Dates : checklist en minuit UTC (`startOfUtcDay`) vs programme en minuit Europe/Paris.
 - [x] **T5** `hooks.server.ts` ne fait plus qu'une lecture par requête : Lucia porte maintenant les attributs utilisateur (`emailVerified`, `registered2FA`, `googleId`, `name`, `picture`, `subscriptionEndsAt`) et de session (`twoFactorVerified`, `oauthProvider`) via `getUserAttributes` / `getSessionAttributes`, projetés vers `event.locals` par `toLocalsAuth` (`src/lib/lucia/locals.ts`). Les deux relectures redondantes (`getUserByIdPrisma`, `findSessionById`) sont supprimées.
 - [x] **T6** `validateChecklist` dupliqué dans `user/+page.server.ts` et `user/journee/+page.server.ts` remplacé par `validateDailyChecklist` (`src/lib/server/dailyChecklist.ts`), qui gère aussi le double envoi simultané (409 au lieu d'une erreur 500, sans points en double).
@@ -113,14 +113,16 @@ Admin (attach/detach vidéos, séances)
 
 ## 8. Bilan final (à faire quand les optimisations sont terminées)
 
-Objectif : trancher les points laissés ouverts, puis écrire les tests automatisés qui prouvent que le tout fonctionne comme voulu. Jusqu'ici, les 244 tests unitaires s'exécutent avec une base simulée (mocks) : ils vérifient la logique, pas le comportement réel de MongoDB, de Prisma, de Stripe ni de Vercel.
+Objectif : trancher les points laissés ouverts, puis écrire les tests automatisés qui prouvent que le tout fonctionne comme voulu. Jusqu'ici, les 246 tests unitaires s'exécutent avec une base simulée (mocks) : ils vérifient la logique, pas le comportement réel de MongoDB, de Prisma, de Stripe ni de Vercel.
 
 ### 8.1 Points non déterminés à trancher
 
 **Décisions produit**
 - [ ] **D1 (N14)** `weightLossGoalKg` est saisi et stocké mais n'entre dans aucun calcul (cibles basées sur le % de masse grasse). Le faire piloter la cible calorique, le conserver à titre indicatif, ou le retirer du formulaire ?
 - [ ] **D2 (N15)** Second paiement : `nutritionDaysAllocated` passe à 182 et la génération crée J92..J182, jamais affichés (index plafonné à 91, cadencier sur 13 semaines, pas de reset de `programStartDate`). Redémarrer un programme de 91 jours, ou plafonner l'allocation ?
-- [ ] **D3 (N7)** Quand recalculer les portions : à la modification du profil (avec repli à l'affichage), en tâche dédiée, ou garder le recalage à l'affichage ? Aujourd'hui les `load` GET du cadencier écrivent encore en base (`refreshStaleDays`, rattrapage du petit-déjeuner).
+- [ ] **D3 (N7)** Choix provisoire appliqué : recalcul quand les données changent (génération, mensurations, régénération admin) + recalage à l'affichage comme filet de sécurité. À confirmer, ou à remplacer par une tâche dédiée.
+- [ ] **D9** Trois repas par jour toujours générés (petit-déjeuner inclus même si `breakfastEnabled` est faux, le jeûne le masque) : à confirmer côté produit.
+- [ ] **D10** L'API vidéo sport refuse (403) un compte sans l'offre sport : confirmer qu'aucun compte légitime n'y accède sans offre (anciens paiements sans slug = les deux offres, déjà couvert).
 - [ ] **D4** Séances de type Découverte : une séance Découverte réelle rapporte 50 points comme une séance normale, le créneau virtuel D en rapporte 0. Quelle règle ?
 - [ ] **D5** Jours sport sans type admin dans une semaine qui en contient avec type : l'ordre A/B peut s'inverser (un jour sans type devant un jour Séance 1 devient Séance 2). Rendre le type obligatoire, ou accepter ?
 - [ ] **D6 (S12b)** Aucun rôle coach n'existe : seul `ADMIN` crée des personnalisations de plan sport. Créer un rôle `COACH` (périmètre, accès aux fiches) ou rester sur `ADMIN` ?
@@ -131,15 +133,15 @@ Objectif : trancher les points laissés ouverts, puis écrire les tests automati
 - [ ] **T-a** TTL des caches par instance (60 s : plan sport, catalogue de recettes) : acceptable, ou besoin d'une invalidation partagée entre instances ?
 - [ ] **T-b** Bail du verrou de génération (10 min) et `maxDuration` 300 s : cohérents avec le plan Vercel utilisé ?
 - [ ] **T-c** Seconde passe de génération (paiement arrivé pendant une génération) : fenêtre résiduelle entre la dernière lecture et `DONE`. À couvrir par une reprise périodique ?
-- [ ] **T-d (N3b)** Coût CPU de `pickDayRecipes` (~2 s pour 91 jours) : réduire le nombre de tirages ou accepter ?
+- [ ] **T-d (N3b)** Fait : candidats bornés à 12 (~1,5 s pour 91 jours). Valider la qualité des journées sur un échantillon de profils réels.
 - [ ] **T-e (T4)** Dates : checklist en minuit UTC, programme en minuit Europe/Paris. Unifier sur Paris ? (migration des `DailyTaskCompletion.date` existants à prévoir)
-- [ ] **T-f (T3 reste)** Module unique `awardPoints` pour les autres créations de `PointEvent` (photos, progression, admin, vidéo, tâche vidéo auto).
-- [ ] **T-g (N16)** Retirer les casts `as unknown as Prisma.UserSelect` / `(prisma as any)` : 6 à 8 fichiers, à faire avec un `prisma generate` forcé en CI.
-- [ ] **T-h (S14, S15)** Index Mongo (`program_day_items`, `user_workout_days`, `user_sport_overrides`) et garde `requireSportAccess` sur toutes les actions sport.
+- [ ] **T-f (T3 reste)** Montants centralisés (`POINTS`). Décider si un `awardPoints` unique reste utile.
+- [ ] **T-g (N16)** Casts restants (33 fichiers, surtout vidéo / découverte) à retirer avec un `prisma generate` forcé en CI ; confirmer la suppression du code mort `lib/prisma/measurement/*`.
+- [ ] **T-h (S14, S15)** Fait dans le code : index au schéma (à pousser en base) et garde 403 sur les API vidéo sport. Vérifier les index après `db push`.
 - [ ] **T-i** Reprise initiale des comptes existants : sans `nutritionTargetsKey`, chaque compte est recalé une fois à sa prochaine génération ou sauvegarde des mensurations (écritures limitées aux portions périmées).
 
 **Actions de déploiement (non faites)**
-- [ ] `prisma db push` (sans `--accept-data-loss`) : `UserSportOverride`, `programGenStatus`, `programGenStartedAt`, `programGenFinishedAt`, `nutritionTargetsKey`.
+- [ ] `prisma db push` (sans `--accept-data-loss`) : `UserSportOverride`, `programGenStatus`, `programGenStartedAt`, `programGenFinishedAt`, `nutritionTargetsKey`, index `program_day_items(type, workoutVideoId)` et `user_workout_days(userId, dayIndex)`.
 - [ ] Définir `CRON_SECRET` dans Vercel (sinon `/api/cron/daily-notification` répond 401 et les rappels push s'arrêtent).
 - [ ] Vérifier l'existence de la collection et des index après le push ; vérifier que la base est un replica set (transactions interactives).
 
@@ -156,6 +158,8 @@ Objectif : trancher les points laissés ouverts, puis écrire les tests automati
 - [ ] Rapprochement Stripe (Stripe simulé) : webhook rejoué, crédit unique, abonnement prolongé, génération relancée seulement si non terminée, retour de checkout et mensurations concurrents.
 - [ ] Liste de courses : remplacement atomique (échec simulé en cours d'écriture, ancienne liste intacte), cases cochées conservées, une seule régénération par plage, suppression en cascade des articles.
 - [ ] Recalage des portions : empreinte identique sans effet, changement de poids réécrit seulement les repas périmés, repas mangés ou manuels inchangés, transactions bornées.
+- [ ] Génération : 3 repas par jour pour un compte sans `breakfastEnabled` ; le recalage régénère les listes de courses des jours modifiés (et pas quand aucune portion ne change).
+- [ ] API vidéo sport : 403 sans l'offre sport (jeton de lecture, progression), 200 avec l'offre, admin autorisé.
 - [ ] Validation de séance : double clic simultané (un seul `PointEvent`), pré-requis A → B → C par semaine, validation d'une ligne existante et création d'une ligne absente, filtre `isSet` sur `completedAt` absent.
 - [ ] Checklist du jour : double envoi simultané (409, pas de points en double), tâches de repli ignorées.
 - [ ] Plan sport : snapshot et invalidation (rattachement, détachement, statut Cloudflare), affectation A/B/C par type admin et repli par rang, personnalisations `HIDE` / `REPLACE` / `ADD` appliquées à un seul utilisateur sans toucher aux autres.
@@ -180,3 +184,31 @@ Objectif : trancher les points laissés ouverts, puis écrire les tests automati
 - [ ] Reproduire le chargement du cadencier sans aucune écriture une fois D3 tranché.
 
 **Critère de fin** : tous les points de 8.1 sont tranchés ou explicitement reportés, les actions de déploiement sont faites, et la liste 8.2 est verte en CI.
+
+## 9. Reprise sur une autre machine (état au 2026-10-11)
+
+**Récupérer le travail** : tout le code est dans le commit `42f0e58` de la branche `optimisation` ; seul ce fichier est modifié hors commit. Le committer et pousser la branche avant de changer de machine.
+
+**Mise en route** : `npm ci` (le `postinstall` lance `prisma generate`), pas de `.env` nécessaire pour les tests. Variables d'environnement utiles : voir `.env.example` (dont `CRON_SECRET`).
+
+**Vérifications de référence** (à relancer avant et après toute modification)
+- Tests : `DATABASE_URL="mongodb://127.0.0.1:1/dummy" npx vitest --run src` : 246 tests passent. L'URL factice évite toute écriture dans une vraie base ; `vite.config.ts` exclut les fichiers `_tmp-*.spec.ts`.
+- Types : `npm run check > /tmp/check.log 2>&1; grep "svelte-check found" /tmp/check.log` : 68 erreurs, toutes antérieures aux optimisations ; ne doit pas augmenter.
+
+**Règles de travail**
+- Ne jamais lancer `prisma db push --accept-data-loss` ; l'utilisateur pousse le schéma lui-même.
+- Ne pas committer sans demande ; le dépôt utilise des tabulations et un formateur automatique : relire un fichier avant de l'éditer.
+- Aucune base réelle en local : tout est validé avec des mocks, d'où le plan de tests d'intégration 8.2.
+
+**Reste à faire, par ordre**
+
+1. *Code, sans décision préalable*
+   - [ ] **N16** : retirer les casts Prisma restants (33 fichiers listés à la ligne N16 ci-dessus) ; la baisse se mesure au nombre d'erreurs `svelte-check`. Supprimer `lib/prisma/measurement/*` seulement après confirmation (modèle absent du schéma).
+2. *Code, après décision de l'utilisateur* (ne pas implémenter sans réponse)
+   - [ ] **N14** (D1) : faire piloter les cibles nutritionnelles par `weightLossGoalKg`, ou retirer le champ.
+   - [ ] **N15** (D2) : second paiement (jours J92 à J182 jamais affichés) : prolonger le programme, réinitialiser `programStartDate`, ou plafonner l'allocation à 91.
+   - [ ] **T4** (T-e) : unifier les dates sur Europe/Paris (checklist en minuit UTC aujourd'hui) ; demande une migration des `DailyTaskCompletion.date` existants.
+3. *Déploiement* (section 8.1, « Actions de déploiement ») : `prisma db push` sans `--accept-data-loss`, définir `CRON_SECRET` dans Vercel, vérifier les index et que la base est un replica set.
+4. *Bilan* : trancher D1 à D10 et T-a à T-i (section 8.1), puis écrire les tests de la section 8.2 (socle d'abord : base Mongo éphémère en replica set, séparation `test:unit` / `test:integration`, compteur de requêtes).
+
+**Ce qui est terminé** (ne pas refaire) : S1 à S15, N1 à N13, N3b, N7 (choix provisoire, voir D3), T1 à T3, T5 à T7. N9 a été mesuré sans changement nécessaire.

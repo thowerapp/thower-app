@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server';
+import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 import type { ProgramDayItemType } from '@prisma/client';
 
 export type AttachVideoToDayInput = {
@@ -77,6 +78,7 @@ export async function attachVideoToDay(
 		},
 		select: { id: true }
 	});
+	invalidateSportPlan();
 
 	return { programDayItemId: created.id, created: true, dayIndex: input.dayIndex };
 }

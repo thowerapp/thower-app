@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server';
 import type { VideoFormCoreInput } from '$lib/schema/video/videoAdminSchema';
+import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 
 /** Mise à jour des métadonnées d'une vidéo (sans toucher à l'UID Cloudflare). */
 export async function updateVideo(id: string, data: VideoFormCoreInput) {
@@ -13,7 +14,7 @@ export async function updateVideo(id: string, data: VideoFormCoreInput) {
 		if (!data.sessionType) {
 			throw new Error('sessionType est requis pour une vidéo sport.');
 		}
-		return db.workoutVideo.update({
+		const updated = await db.workoutVideo.update({
 			where: { id },
 			data: {
 				title: data.title,
@@ -22,6 +23,8 @@ export async function updateVideo(id: string, data: VideoFormCoreInput) {
 				isOptional: data.isOptional ?? false
 			}
 		});
+		invalidateSportPlan();
+		return updated;
 	}
 
 	if (!data.category) {

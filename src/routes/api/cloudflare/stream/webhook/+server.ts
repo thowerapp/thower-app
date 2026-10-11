@@ -2,6 +2,7 @@ import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { verifyStreamWebhookSignature } from '$lib/server/cloudflare-stream';
 import { prisma } from '$lib/server';
+import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 
 /**
  * Webhook Cloudflare Stream : appelé à chaque transition d'état (ready, error, …).
@@ -61,6 +62,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	console.log(
 		`[stream-webhook] uid=${uid} state=${state} workout=${workoutUpdated.count} discovery=${discoveryUpdated.count}`
 	);
+	if (workoutUpdated.count > 0) invalidateSportPlan();
 
 	return json({ ok: true });
 };

@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { getSportDaysInRange } from '$lib/server/sport/programSportDays';
+import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 import { TOTAL_PROGRAM_DAYS } from '$lib/utils/programDay';
 
 /** Récap lecture seule : ce que l'utilisateur verra sur chaque jour de séance (J1…J91). */
@@ -9,6 +10,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, '/admin');
 	}
 
+	// L'admin doit voir l'état réel (autre instance, statut Cloudflare), pas le cache.
+	invalidateSportPlan();
 	const sportDays = await getSportDaysInRange(1, TOTAL_PROGRAM_DAYS);
 
 	const days = [...sportDays.entries()].map(([dayIndex, videos]) => {

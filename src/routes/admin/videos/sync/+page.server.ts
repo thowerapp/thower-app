@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server';
+import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 import { listCloudflareVideos } from '$lib/server/cloudflare-stream';
 import { getAllAdminVideos } from '$lib/prisma/video/getAllAdminVideos';
 import { serializeData } from '$lib/utils/serializeData';
@@ -107,6 +108,7 @@ export const actions: Actions = {
 		try {
 			await db.workoutVideo.deleteMany({});
 			await db.discoveryContent.deleteMany({});
+			invalidateSportPlan();
 		} catch (err) {
 			console.error('[admin/videos/sync] purgeAll error', err);
 			return fail(500, { message: 'Erreur lors de la purge.' });

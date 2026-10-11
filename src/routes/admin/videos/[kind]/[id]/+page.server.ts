@@ -19,6 +19,7 @@ import { listProgramDayItemsForVideo } from '$lib/prisma/programDayItem/listForV
 import { attachVideoToDay } from '$lib/prisma/programDayItem/attachVideo';
 import { detachProgramDayItem } from '$lib/prisma/programDayItem/detach';
 import { prisma } from '$lib/server';
+import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -55,6 +56,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 			try {
 				if (kind === 'workout') {
 					await db.workoutVideo.update({ where: { id: params.id }, data: syncData });
+					invalidateSportPlan();
 				} else {
 					await db.discoveryContent.update({ where: { id: params.id }, data: syncData });
 				}
@@ -182,6 +184,7 @@ export const actions: Actions = {
 		};
 		if (kind === 'workout') {
 			await db.workoutVideo.update({ where: { id: params.id }, data: syncData });
+			invalidateSportPlan();
 		} else {
 			await db.discoveryContent.update({ where: { id: params.id }, data: syncData });
 		}

@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server';
 import { deleteStreamVideo } from '$lib/server/cloudflare-stream';
+import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 
 /**
  * Supprime d’abord la vidéo sur Cloudflare Stream (404 = déjà retirée, OK),
@@ -23,6 +24,7 @@ export async function deleteVideo(kind: 'workout' | 'discovery', id: string) {
 
 	if (kind === 'workout') {
 		await db.workoutVideo.delete({ where: { id } });
+		invalidateSportPlan();
 		return;
 	}
 

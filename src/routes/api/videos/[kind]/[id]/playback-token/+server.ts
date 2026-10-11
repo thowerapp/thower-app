@@ -3,6 +3,7 @@ import { error, json } from '@sveltejs/kit';
 import { videoKindEnum } from '$lib/schema/video/videoAdminSchema';
 import { createSignedPlaybackToken, getStreamEmbedUrl, getVideoDetails } from '$lib/server/cloudflare-stream';
 import { prisma } from '$lib/server';
+import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 
 /**
  * Délivre un token de lecture signé Cloudflare pour la vidéo demandée.
@@ -51,6 +52,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			};
 			if (kind === 'workout') {
 				await db.workoutVideo.update({ where: { id: params.id }, data: syncData });
+				invalidateSportPlan();
 			} else {
 				await db.discoveryContent.update({ where: { id: params.id }, data: syncData });
 			}

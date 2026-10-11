@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server';
+import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 import type { ProgramDayItemType } from '@prisma/client';
 
 export type CreateProgramDayItemData = {
@@ -18,7 +19,7 @@ export async function createProgramDayItem(data: CreateProgramDayItemData) {
 	if (!client?.programDayItem) {
 		throw new Error('Prisma client has no "programDayItem" model. Run: npx prisma generate');
 	}
-	return client.programDayItem.create({
+	const created = await client.programDayItem.create({
 		data: {
 			programDayId: data.programDayId,
 			type: data.type,
@@ -31,4 +32,6 @@ export async function createProgramDayItem(data: CreateProgramDayItemData) {
 			workoutVideoId: data.workoutVideoId ?? undefined
 		}
 	});
+	invalidateSportPlan();
+	return created;
 }

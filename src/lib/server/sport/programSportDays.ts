@@ -1,7 +1,8 @@
 import { prisma } from '$lib/server';
 import type { WorkoutSessionType, WorkoutVideoPosition } from '@prisma/client';
 import { isSeedCloudflareUid } from '$lib/prisma/video/seedVideo';
-import { sportWeekBounds, TOTAL_PROGRAM_WEEKS } from '$lib/utils/programDay';
+import { sportWeekBounds, TOTAL_PROGRAM_DAYS, TOTAL_PROGRAM_WEEKS } from '$lib/utils/programDay';
+import { cachedSportPlan } from './sportPlanCache';
 
 /*
  * Séances sport = jours du programme sur lesquels l'admin a rattaché des vidéos
@@ -259,11 +260,56 @@ async function fetchSportItems(
 	}));
 }
 
+/** Plan sport global : identique pour tous les users, donc chargé une fois et mis en cache. */
+type SportPlan = {
+	/** Jours triés ; les jours sans vidéo exploitable sont absents. */
+	videosByDay: Map<number, SessionWorkoutVideoRow[]>;
+	sessionCatalog: SessionCatalogRow[];
+};
+
+async function loadSportPlan(): Promise<SportPlan> {
+	const [items, sessionCatalog] = await Promise.all([
+		fetchSportItems({ gte: 1, lte: TOTAL_PROGRAM_DAYS }),
+		prisma.workoutSession.findMany({
+			where: { active: true, type: { in: [...PLANNER_SESSION_TYPES] } },
+			select: { id: true, name: true, type: true, weekNumber: true, order: true },
+			orderBy: [{ order: 'asc' }, { createdAt: 'asc' }]
+		})
+	]);
+
+	const itemsByDay = new Map<number, SportItemRow[]>();
+	for (const item of items) {
+		const list = itemsByDay.get(item.dayIndex) ?? [];
+		list.push(item);
+		itemsByDay.set(item.dayIndex, list);
+	}
+
+	const videosByDay = new Map<number, SessionWorkoutVideoRow[]>();
+	for (const [day, dayItems] of [...itemsByDay.entries()].sort((a, b) => a[0] - b[0])) {
+		const videos = orderSportVideos(dayItems);
+		if (videos.length > 0) videosByDay.set(day, videos);
+	}
+	return { videosByDay, sessionCatalog };
+}
+
+function getSportPlan(): Promise<SportPlan> {
+	return cachedSportPlan(loadSportPlan);
+}
+
+function daysInRange(plan: SportPlan, from: number, to: number) {
+	const days = new Map<number, SessionWorkoutVideoRow[]>();
+	for (const [day, videos] of plan.videosByDay) {
+		if (day >= from && day <= to) days.set(day, videos);
+	}
+	return days;
+}
+
 /** Vidéos d'une séance pour un jour source du programme (1..91). */
 export async function getSportVideosForProgramDay(
 	dayIndex: number
 ): Promise<SessionWorkoutVideoRow[]> {
-	return orderSportVideos(await fetchSportItems(dayIndex));
+	const plan = await getSportPlan();
+	return [...(plan.videosByDay.get(dayIndex) ?? [])];
 }
 
 /** Jours sport d'une plage → vidéos ordonnées. Les jours sans vidéo exploitable sont absents. */
@@ -271,20 +317,7 @@ export async function getSportDaysInRange(
 	from: number,
 	to: number
 ): Promise<Map<number, SessionWorkoutVideoRow[]>> {
-	const items = await fetchSportItems({ gte: from, lte: to });
-	const byDay = new Map<number, SportItemRow[]>();
-	for (const item of items) {
-		const list = byDay.get(item.dayIndex) ?? [];
-		list.push(item);
-		byDay.set(item.dayIndex, list);
-	}
-
-	const days = new Map<number, SessionWorkoutVideoRow[]>();
-	for (const [day, dayItems] of [...byDay.entries()].sort((a, b) => a[0] - b[0])) {
-		const videos = orderSportVideos(dayItems);
-		if (videos.length > 0) days.set(day, videos);
-	}
-	return days;
+	return daysInRange(await getSportPlan(), from, to);
 }
 
 /** Séances d'une semaine sport pour un utilisateur (planning, déplacement, page séance). */
@@ -296,13 +329,8 @@ export async function resolveSportWeek(params: {
 	const { userId, programStart, week } = params;
 	const { mondayDayIndex, weekStart, weekEnd } = sportWeekBounds(programStart, week);
 
-	const [sportDays, sessionCatalog, userRows] = await Promise.all([
-		getSportDaysInRange(weekStart, weekEnd),
-		prisma.workoutSession.findMany({
-			where: { active: true, type: { in: [...PLANNER_SESSION_TYPES] } },
-			select: { id: true, name: true, type: true, weekNumber: true, order: true },
-			orderBy: [{ order: 'asc' }, { createdAt: 'asc' }]
-		}),
+	const [plan, userRows] = await Promise.all([
+		getSportPlan(),
 		prisma.userWorkoutDay.findMany({
 			where: { userId, dayIndex: { gte: weekStart, lte: weekEnd } },
 			select: {
@@ -317,6 +345,8 @@ export async function resolveSportWeek(params: {
 		})
 	]);
 
+	const { sessionCatalog } = plan;
+	const sportDays = daysInRange(plan, weekStart, weekEnd);
 	const sessionByContentDay = new Map<number, SlotSession>();
 	let rank = 0;
 	for (const day of sportDays.keys()) {

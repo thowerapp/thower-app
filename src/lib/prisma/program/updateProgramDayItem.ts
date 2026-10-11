@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server';
+import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 
 export type UpdateProgramDayItemData = {
 	order?: number;
@@ -12,7 +13,7 @@ export async function updateProgramDayItem(itemId: string, data: UpdateProgramDa
 	if (!client?.programDayItem) {
 		throw new Error('Prisma client has no "programDayItem" model. Run: npx prisma generate');
 	}
-	return client.programDayItem.update({
+	const updated = await client.programDayItem.update({
 		where: { id: itemId },
 		data: {
 			order: data.order,
@@ -21,4 +22,6 @@ export async function updateProgramDayItem(itemId: string, data: UpdateProgramDa
 			stepsThreshold: data.stepsThreshold
 		}
 	});
+	invalidateSportPlan();
+	return updated;
 }

@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server';
+import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 
 /**
  * Supprime un `ProgramDayItem` (détache donc la vidéo du jour).
@@ -12,4 +13,5 @@ export async function detachProgramDayItem(programDayItemId: string): Promise<vo
 		throw new Error('Prisma client has no "programDayItem" model. Run: npx prisma generate');
 	}
 	await db.programDayItem.delete({ where: { id: programDayItemId } });
+	invalidateSportPlan();
 }

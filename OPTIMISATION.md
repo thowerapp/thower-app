@@ -4,8 +4,8 @@ Branche de travail : `optimisation`. Analyse basée sur la lecture du code (aucu
 
 ## 1. Constat
 
-- **Sport** : le contenu est déjà global (`ProgramDayItem` → `WorkoutVideo`, défini par l'admin). Il n'y a **pas de génération par user** : au paiement, seul `programStartDate` est posé (`ensureProgramStartDate`). `UserWorkoutDay` n'est créé qu'au déplacement ou à la validation d'une séance. Le coût vient de la **lecture** : le plan global est recalculé pour chaque user et chaque requête, et il n'existe pas de mécanisme propre pour des éléments personnalisés par user.
-- **Nutrition** : entièrement personnalisée, générée au paiement (91 jours, ~273 repas + liste de courses). La boucle de génération fait ~550 requêtes séquentielles, sans verrou ni état, et plusieurs `load` GET écrivent en base.
+* **Sport** : le contenu est déjà global (`ProgramDayItem` → `WorkoutVideo`, défini par l'admin). Il n'y a **pas de génération par user** : au paiement, seul `programStartDate` est posé (`ensureProgramStartDate`). `UserWorkoutDay` n'est créé qu'au déplacement ou à la validation d'une séance. Le coût vient de la **lecture** : le plan global est recalculé pour chaque user et chaque requête, et il n'existe pas de mécanisme propre pour des éléments personnalisés par user.
+* **Nutrition** : entièrement personnalisée, générée au paiement (91 jours, \~273 repas + liste de courses). La boucle de génération fait \~550 requêtes séquentielles, sans verrou ni état, et plusieurs `load` GET écrivent en base.
 
 ## 2. Architecture cible du sport
 
@@ -17,25 +17,28 @@ Admin (attach/detach vidéos, séances)
    → pages /user/sport, séance, journée
 ```
 
-- **Couche 1, plan global** : une seule vérité pour tous, indexée par `dayIndex` relatif (valable quelle que soit la date de départ).
-- **Couche 2, éléments personnalisés** : modèle d'override par user, fusionné au plan par une fonction pure (prolonge `placeSportWeek`).
-- **Aucune génération sport par user** : le paiement pose seulement `programStartDate` et l'entitlement.
+* **Couche 1, plan global** : une seule vérité pour tous, indexée par `dayIndex` relatif (valable quelle que soit la date de départ).
+* **Couche 2, éléments personnalisés** : modèle d'override par user, fusionné au plan par une fonction pure (prolonge `placeSportWeek`).
+* **Aucune génération sport par user** : le paiement pose seulement `programStartDate` et l'entitlement.
 
 ## 3. Sport
 
 ### P0 : gains immédiats, risque faible
-- [ ] **S1** Snapshot global du plan sport (vidéos ordonnées par `dayIndex` + affectation des séances par semaine) : remplace `fetchSportItems` relu à chaque page. (`src/lib/server/sport/programSportDays.ts`)
-- [ ] **S2** Invalidation du snapshot à l'écriture admin : `attachVideoToDay`, `detachProgramDayItem`, mise à jour d'une vidéo, webhook Cloudflare (`status`, `durationSeconds`). Un compteur de version suffit.
+
+- [x] **S1** Snapshot global du plan sport (vidéos ordonnées par `dayIndex` + catalogue de séances), mis en cache par instance (TTL 60 s) : remplace `fetchSportItems` et la lecture de `workoutSession` à chaque page. (`src/lib/server/sport/sportPlanCache.ts`, `programSportDays.ts`)
+- [x] **S2** Invalidation du cache à l'écriture admin : `attachVideoToDay`, `detachProgramDayItem`, `createProgramDayItem`, `updateProgramDayItem`, `updateVideo`/`deleteVideo` (workout), synchro de statut Cloudflare (webhook, page admin vidéo, `playback-token`), purge. La page admin `programme-sport` force une relecture. Les autres instances serverless rattrapent au plus tard après le TTL.
 - [ ] **S3** Total de points via `getTotalPointsForUser` (`aggregate`) dans la page séance au lieu de `pointEvent.findMany` + `reduce`.
-- [ ] **S4** Page séance : réutiliser le plan résolu au lieu de `resolveSportWeek` puis `getSportVideosForProgramDay` (~8 requêtes → ~4).
+- [x] **S4** Page séance : `resolveSportWeek` ne fait plus qu'une requête (`userWorkoutDay`) ; `getSportVideosForProgramDay` lit le plan en mémoire.
 
 ### P1 : bugs et cohérence
+
 - [ ] **S5** Pré-requis A → B → C borné à la semaine (aujourd'hui `findFirst` sur tout l'historique : A validée en semaine 1 débloque B et C pour toujours).
 - [ ] **S6** Anti double validation : `createPointEvent` conditionné à la création effective de la complétion (`updateMany` conditionnel sur `completedAt: null`, ou événement dédupliqué par clé `sessionId:dayIndex`).
 - [ ] **S7** Source unique des points séance (50 en dur dans `user/sport/+page.server.ts` et dans la page séance).
 - [ ] **S8** Affectation A/B/C explicite sur le jour du plan, au lieu de la déduire du rang dans la semaine (un ajout/retrait admin décale la séance de tous les users en cours).
 
 ### P2 : éléments personnalisés par user
+
 - [ ] **S9** Nouveau modèle d'override (`UserSportOverride` ou équivalent) : `userId`, `dayIndex`, `kind` (`ADD` / `HIDE` / `REPLACE` / `MOVE`), `workoutVideoId` ou `sessionId` optionnel, `label`, `points`, `createdBy`.
 - [ ] **S10** Fusion pure et testable `resolveSport(plan, overrides, userRows)` ; les cas de `programSportDays.spec.ts` servent de non-régression.
 - [ ] **S11** Migration douce : `UserWorkoutDay` conservé pour l'historique des validations, déplacements lus des deux sources pendant la transition.
@@ -43,6 +46,7 @@ Admin (attach/detach vidéos, séances)
 - [ ] **S12b** Décision à prendre : l'override peut-il être créé par l'user lui-même (déplacer/masquer) ou seulement par l'admin ? (permissions + validation)
 
 ### P3 : nettoyage
+
 - [ ] **S13** Sortir le sport de `generateProgramForUser` : `ensureProgramStartDate` indépendant, appelé au paiement.
 - [ ] **S14** Index Mongo : `program_day_items(type, workoutVideoId)` et `user_workout_days(userId, dayIndex)` si absents.
 - [ ] **S15** `requireSportAccess` cohérent sur toutes les actions (le layout couvre déjà les `load`).
@@ -50,6 +54,7 @@ Admin (attach/detach vidéos, séances)
 ## 4. Nutrition
 
 ### P0 : fiabilité de la génération
+
 - [ ] **N1** État de génération sur le user (`idle` / `running` / `done` / `failed` + horodatage) : sert de verrou atomique (`updateMany` conditionnel, comme `claimNutritionSegmentCredit`) et d'indicateur UI (aujourd'hui « Non planifié »).
 - [ ] **N2** Webhook Stripe : `reconcilePaidCheckoutSession` attend la génération en synchrone, sans `waitUntil` ni `maxDuration`. Utiliser `dispatchProgramGeneration` + `maxDuration`, et permettre le rejeu si l'état n'est pas `done` (un retry Stripe sort aujourd'hui sur « déjà crédité » sans relancer).
 - [ ] **N2b** `maxDuration` sur `/auth/subscription` (seul `/auth/measurement` en a un).
@@ -57,12 +62,14 @@ Admin (attach/detach vidéos, séances)
 - [ ] **N2d** Verrou contre les générations concurrentes (webhook + retour checkout + measurement) : P2002 sur `[userId, dayIndex]` et `[nutritionDayId, position]`.
 
 ### P1 : performance de la génération
-- [ ] **N3** Réécrire la boucle de `generateNutritionDaysForUser` : un `findMany` des jours + repas existants sur 1..N, calcul en mémoire (`fitDay`, `pickDayRecipes`), puis `createMany` par lots (~550 requêtes → quelques-unes).
+
+- [ ] **N3** Réécrire la boucle de `generateNutritionDaysForUser` : un `findMany` des jours + repas existants sur 1..N, calcul en mémoire (`fitDay`, `pickDayRecipes`), puis `createMany` par lots (\~550 requêtes → quelques-unes).
 - [ ] **N4** Liste de courses (`generateShoppingListFromPlanning`) : écriture atomique (aujourd'hui `deleteMany` puis `create`), conservation des `isChecked` (réinitialisés à chaque régénération), allègement de la lecture 1..91 (recette + ingrédients dupliqués par repas).
 - [ ] **N5** `refreshStaleDays` : une seule régénération de liste par plage au lieu d'une par jour modifié (jusqu'à 7 régénérations complètes d'une liste 1..91).
 - [ ] **N6** `rescaleUserMeals` uniquement si les cibles (poids, % MG, activité, pain) ont changé ; ne pas le relancer à chaque génération ni à chaque sauvegarde de `/auth/measurement`.
 
 ### P2 : runtime
+
 - [ ] **N7** Aucune écriture dans les `load` GET (`cadencier`, `cadencier/[day]` : `refreshStaleDays`, `backfillMissingBreakfastMeals`). Déclencher le recalcul à la modification du profil ou en tâche dédiée.
 - [ ] **N8** Mutualiser profil / poids / cibles entre le layout nutrition et les pages enfants (`parent()`) au lieu de les relire 2-3 fois par navigation.
 - [ ] **N9** `edit-meal` : `fitDay` est exécuté pour chaque recette du catalogue à chaque `load`. Calculer à la sélection ou limiter / mettre en cache.
@@ -70,6 +77,7 @@ Admin (attach/detach vidéos, séances)
 - [ ] **N11** `requireNutritionAccess` sur l'action `save` de `edit-meal` (aujourd'hui seulement `locals.user`).
 
 ### P3 : dette et décisions produit
+
 - [ ] **N12** Dédupliquer `normalize`, `parseTextTerms`, `recipeConflictsUser`, `catalogPickSeed`, `mulberry32`, `recipeCatalogSelect` entre `generateNutrition91Days.ts` et `ensureBreakfastMeal.ts` ; utiliser `recipeFilterUtils.ts` (testé mais importé par aucun code de prod).
 - [ ] **N13** Dédupliquer `positionLabel` / `positionOrder` / `defaultTimeLabel` / mapping des macros entre `cadencier` et `cadencier/[day]` ; remplacer les `TOTAL_DAYS = 91` locaux par `TOTAL_PROGRAM_DAYS`.
 - [ ] **N14** Décision : `weightLossGoalKg` est saisi et stocké mais n'entre dans aucun calcul (cibles basées sur le % de masse grasse).
@@ -87,6 +95,7 @@ Admin (attach/detach vidéos, séances)
 
 ## 6. Ordre de travail proposé
 
+
 1. **S1 + S2 + S4** : snapshot du plan global et invalidation.
 2. **S5 + S6 + S7** : bugs de validation sport.
 3. **S8, puis S9 + S10 + S12** : conception de l'override user (décision S12b d'abord).
@@ -98,7 +107,9 @@ Admin (attach/detach vidéos, séances)
 
 ## 7. Points de validation avant de coder
 
-- S12b : qui crée un override (user, admin, coach) ?
-- N14 : `weightLossGoalKg` doit-il piloter la cible calorique ?
-- N15 : un second paiement redémarre-t-il un programme de 91 jours ?
-- Mongo en replica set (Atlas) pour les transactions de lots : déjà utilisé dans `rescaleUserMeals` (7 jours par transaction, limite de 60 s).
+* S12b : qui crée un override (user, admin, coach) ?
+* N14 : `weightLossGoalKg` doit-il piloter la cible calorique ?
+* N15 : un second paiement redémarre-t-il un programme de 91 jours ?
+* Mongo en replica set (Atlas) pour les transactions de lots : déjà utilisé dans `rescaleUserMeals` (7 jours par transaction, limite de 60 s).
+
+

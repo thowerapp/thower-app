@@ -2,6 +2,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
+import { getTotalPointsForUser } from '$lib/prisma/pointEvent/getTotalPointsForUser';
 import { currentProgramDayIndex } from '$lib/utils/programDay';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -9,7 +10,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 
-	const [user, profile, measurements, pointEvents, userBadges, dailyTasks, optOuts] = await Promise.all([
+	const [user, profile, measurements, totalPoints, userBadges, dailyTasks, optOuts] = await Promise.all([
 		prisma.user.findUnique({
 			where: { id: userId },
 			select: {
@@ -60,7 +61,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				createdAt: true,
 			}
 		}),
-		prisma.pointEvent.findMany({ where: { userId }, select: { amount: true } }),
+		getTotalPointsForUser(userId),
 		prisma.userBadge.findMany({
 			where: { userId },
 			include: { badge: { select: { name: true } } },
@@ -78,7 +79,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	]);
 
 	// Calcul statut (spec : 6 statuts basés sur scorePercent)
-	const totalPoints = pointEvents.reduce((s, e) => s + e.amount, 0);
 	const [activeTasks, completions] = await Promise.all([
 		prisma.dailyTask.count({ where: { active: true } }),
 		prisma.dailyTaskCompletion.count({ where: { userId } })

@@ -2,6 +2,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
+import { getTotalPointsForUser } from '$lib/prisma/pointEvent/getTotalPointsForUser';
 import { z } from 'zod';
 import { currentProgramDayIndex } from '$lib/utils/programDay';
 
@@ -16,7 +17,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// a besoin de currentMonth qui vient de `user`) : une seule vague.
 	const [
 		user,
-		pointEvents,
+		totalPoints,
 		workoutCount,
 		userBadges,
 		activeTaskDetails,
@@ -25,7 +26,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		monthlyCheckIns
 	] = await Promise.all([
 		prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true } }),
-		prisma.pointEvent.findMany({ where: { userId }, select: { amount: true } }),
+		getTotalPointsForUser(userId),
 		prisma.userWorkoutDay.count({ where: { userId, completedAt: { not: null } } }),
 		prisma.userBadge.findMany({
 			where: { userId },
@@ -47,7 +48,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const programStart = user?.programStartDate ?? null;
 	const currentDayIndex = currentProgramDayIndex(programStart);
 	const currentWeek = currentDayIndex > 0 ? Math.ceil(currentDayIndex / 7) : 1;
-	const totalPoints = pointEvents.reduce((s, e) => s + e.amount, 0);
 
 	const activeTasks = activeTaskDetails.length;
 	const scorePercent =

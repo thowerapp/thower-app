@@ -89,10 +89,10 @@ Admin (attach/detach vidéos, séances)
 
 - [x] **T1** `api/cron/daily-notification` exige `Authorization: Bearer ${CRON_SECRET}` (Vercel l'envoie automatiquement quand la variable existe) ; sans secret : 401 en production, libre en dev (`src/lib/server/cronAuth.ts`). **À faire : définir `CRON_SECRET` dans Vercel**, sinon les rappels push s'arrêtent.
 - [x] **T2** Page `/acces-expire` créée (message, lien de renouvellement vers `/auth/subscription`, redirection vers `/user` si l'accès est valide).
-- [ ] **T3** Points : un module unique `awardPoints`, `aggregate` pour le total (4 pages font `findMany` + `reduce`).
+- [x] **T3** Les totaux de points (`user`, `progression`, `parametres/profil`, séance) passent par `getTotalPointsForUser` (`aggregate`) au lieu de `findMany` + `reduce`. Reste : un module unique `awardPoints` pour les autres créations de `PointEvent` (photos, progression, admin, vidéo).
 - [ ] **T4** Dates : checklist en minuit UTC (`startOfUtcDay`) vs programme en minuit Europe/Paris.
 - [ ] **T5** `hooks.server.ts` : 3 lectures DB par requête (session, user, session Prisma).
-- [ ] **T6** `validateChecklist` dupliqué entre `user/+page.server.ts` et `user/journee/+page.server.ts`.
+- [x] **T6** `validateChecklist` dupliqué dans `user/+page.server.ts` et `user/journee/+page.server.ts` remplacé par `validateDailyChecklist` (`src/lib/server/dailyChecklist.ts`), qui gère aussi le double envoi simultané (409 au lieu d'une erreur 500, sans points en double).
 - [x] **T7** Les actions de formulaire `/admin/**` et les API `/api/admin/**` ne passaient pas par le layout admin : seule la session était exigée. Garde ajouté dans `hooks.server.ts` (`adminWriteGuard` : toute écriture non-GET d'un non-`ADMIN` renvoie 403).
 
 ## 6. Ordre de travail proposé

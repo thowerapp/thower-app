@@ -4,6 +4,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
+import { validateDailyChecklist } from '$lib/server/dailyChecklist';
 import { currentProgramDayIndex, startOfUtcDay } from '$lib/utils/programDay';
 import { isSeedCloudflareUid } from '$lib/prisma/video/seedVideo';
 
@@ -133,67 +134,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	validateChecklist: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, { message: 'Non authentifié.' });
-
-		const userId = locals.user.id;
-		const todayStart = startOfUtcDay();
-
-		const formData = await request.formData();
-		const checkedIds = formData
-			.getAll('taskIds')
-			.map((value) => String(value))
-			.filter((value) => value.length > 0 && !value.startsWith('__'));
-
-		if (checkedIds.length === 0) {
-			return fail(400, { message: 'Aucune tâche sélectionnée.' });
-		}
-
-		// Seulement les tâches STANDARD parmi les IDs soumis
-		// (les tâches VIDEO sont auto-complétées via le heartbeat vidéo)
-		const tasks = await prisma.dailyTask.findMany({
-			where: { id: { in: checkedIds }, active: true, type: 'STANDARD' },
-			select: { id: true, points: true }
-		});
-
-		if (tasks.length === 0) {
-			return fail(400, { message: 'Aucune tâche valide sélectionnée.' });
-		}
-
-		// Guard 409 : seulement sur les tâches STANDARD soumises (pas les VIDEO auto-complétées)
-		const taskIds = tasks.map((t) => t.id);
-		const existing = await prisma.dailyTaskCompletion.count({
-			where: { userId, date: todayStart, taskId: { in: taskIds } }
-		});
-		if (existing > 0) {
-			return fail(409, { message: 'Checklist déjà validée pour aujourd\'hui.' });
-		}
-
-		const totalPoints = tasks.reduce((sum, task) => sum + task.points, 0);
-
-		await prisma.$transaction([
-			prisma.dailyTaskCompletion.createMany({
-				data: tasks.map((task) => ({
-					userId,
-					taskId: task.id,
-					date: todayStart
-				}))
-			}),
-			...(totalPoints > 0
-				? [
-						prisma.pointEvent.create({
-							data: {
-								userId,
-								type: 'DAILY_TASK',
-								amount: totalPoints,
-								metadata: {
-									source: 'journee-checklist',
-									date: todayStart.toISOString()
-								}
-							}
-						})
-					]
-				: [])
-		]);
-
-		return { success: true, pointsEarned: totalPoints };
+		const taskIds = (await request.formData()).getAll('taskIds').map(String);
+		const result = await validateDailyChecklist(locals.user.id, taskIds, 'journee-checklist');
+		if (!result.ok) return fail(result.status, { message: result.message });
+		return { success: true, pointsEarned: result.pointsEarned };
 	}
 };

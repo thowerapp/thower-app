@@ -27,14 +27,14 @@ Admin (attach/detach vidéos, séances)
 
 - [x] **S1** Snapshot global du plan sport (vidéos ordonnées par `dayIndex` + catalogue de séances), mis en cache par instance (TTL 60 s) : remplace `fetchSportItems` et la lecture de `workoutSession` à chaque page. (`src/lib/server/sport/sportPlanCache.ts`, `programSportDays.ts`)
 - [x] **S2** Invalidation du cache à l'écriture admin : `attachVideoToDay`, `detachProgramDayItem`, `createProgramDayItem`, `updateProgramDayItem`, `updateVideo`/`deleteVideo` (workout), synchro de statut Cloudflare (webhook, page admin vidéo, `playback-token`), purge. La page admin `programme-sport` force une relecture. Les autres instances serverless rattrapent au plus tard après le TTL.
-- [ ] **S3** Total de points via `getTotalPointsForUser` (`aggregate`) dans la page séance au lieu de `pointEvent.findMany` + `reduce`.
+- [x] **S3** Total de points via `getTotalPointsForUser` (`aggregate`) dans la page séance au lieu de `pointEvent.findMany` + `reduce`.
 - [x] **S4** Page séance : `resolveSportWeek` ne fait plus qu'une requête (`userWorkoutDay`) ; `getSportVideosForProgramDay` lit le plan en mémoire.
 
 ### P1 : bugs et cohérence
 
-- [ ] **S5** Pré-requis A → B → C borné à la semaine (aujourd'hui `findFirst` sur tout l'historique : A validée en semaine 1 débloque B et C pour toujours).
-- [ ] **S6** Anti double validation : `createPointEvent` conditionné à la création effective de la complétion (`updateMany` conditionnel sur `completedAt: null`, ou événement dédupliqué par clé `sessionId:dayIndex`).
-- [ ] **S7** Source unique des points séance (50 en dur dans `user/sport/+page.server.ts` et dans la page séance).
+- [x] **S5** Pré-requis A → B → C borné à la semaine sport (`isPrerequisiteMet`, `src/lib/server/sport/workoutCompletion.ts`), utilisé par le `load` et l'action.
+- [x] **S6** Anti double validation : `completeWorkoutDay` réserve la validation (`updateMany` sur `completedAt` nul ou absent) et crée le `PointEvent` dans la même transaction ; un conflit concurrent (P2002/P2034) renvoie 409 sans points.
+- [x] **S7** Source unique des points séance : `WORKOUT_COMPLETION_POINTS` dans `workoutCompletion.ts`, utilisée par le planning et la page séance.
 - [ ] **S8** Affectation A/B/C explicite sur le jour du plan, au lieu de la déduire du rang dans la semaine (un ajout/retrait admin décale la séance de tous les users en cours).
 
 ### P2 : éléments personnalisés par user

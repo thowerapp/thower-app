@@ -10,12 +10,16 @@ import {
 import { serializeData } from '$lib/utils/serializeData';
 import { requireSportAccess } from '$lib/server/programAccessGuard';
 import { VIDEO_COMPLETION_THRESHOLD } from '$lib/prisma/userVideoProgress/upsertProgress';
-import { createPointEvent } from '$lib/prisma/pointEvent/createEvent';
+import { getTotalPointsForUser } from '$lib/prisma/pointEvent/getTotalPointsForUser';
 import { getSportVideosForProgramDay, resolveSportWeek } from '$lib/server/sport/programSportDays';
+import {
+	completeWorkoutDay,
+	isPrerequisiteMet,
+	WORKOUT_COMPLETION_POINTS
+} from '$lib/server/sport/workoutCompletion';
 import { computeLevel } from '$lib/utils/levels';
 
 const OID = /^[a-f\d]{24}$/i;
-const WORKOUT_COMPLETION_POINTS = 50;
 type VideoProgressState = 'preparing' | 'not_started' | 'in_progress' | 'validated';
 
 function getUserVideoProgressDelegate(): {
@@ -55,15 +59,12 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 	const userId = locals.user.id;
 
-	const [user, pointEvents] = await Promise.all([
+	const [user, totalPoints] = await Promise.all([
 		prisma.user.findUnique({
 			where: { id: userId },
 			select: { programStartDate: true }
 		}),
-		prisma.pointEvent.findMany({
-			where: { userId },
-			select: { amount: true }
-		})
+		getTotalPointsForUser(userId)
 	]);
 
 	const rawDay = url.searchParams.get('day');
@@ -202,25 +203,25 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const optionalValidated = optionalVideos.filter(
 		(v) => progressByVideoId.get(v.id)?.completedAt != null
 	).length;
-	const totalPoints = pointEvents.reduce((sum, event) => sum + event.amount, 0);
 	const { levelData, levelPercent } = computeLevel(totalPoints);
 	const canWatchSession = dayIndex <= currentUnlockedDayIndex;
 
-	// Ordre 1→2→3 : vérifier que la séance prérequise est validée
+	// Ordre 1→2→3 dans la semaine : vérifier que la séance prérequise est validée
 	let prerequisiteBlocked = false;
 	let prerequisiteMessage: string | null = null;
-	if (session.type === 'MAIN_B' || session.type === 'MAIN_C') {
-		const requiredPrevType = session.type === 'MAIN_B' ? 'MAIN_A' : 'MAIN_B';
-		const prevCompleted = await prisma.userWorkoutDay.findFirst({
-			where: { userId, completedAt: { not: null }, session: { type: requiredPrevType } }
-		});
-		if (!prevCompleted) {
-			prerequisiteBlocked = true;
-			prerequisiteMessage =
-				session.type === 'MAIN_B'
-					? 'Valide la séance 1 avant d\'accéder à la séance 2.'
-					: 'Valide la séance 2 avant d\'accéder à la séance 3.';
-		}
+	if (
+		!(await isPrerequisiteMet({
+			userId,
+			sessionType: session.type,
+			dayIndex,
+			programStart: user?.programStartDate ?? null
+		}))
+	) {
+		prerequisiteBlocked = true;
+		prerequisiteMessage =
+			session.type === 'MAIN_B'
+				? 'Valide la séance 1 avant d\'accéder à la séance 2.'
+				: 'Valide la séance 2 avant d\'accéder à la séance 3.';
 	}
 
 	return serializeData({
@@ -272,7 +273,6 @@ export const actions: Actions = {
 		}
 
 		const userId = locals.user.id;
-		const now = new Date();
 
 		const session = await prisma.workoutSession.findUnique({
 			where: { id: sessionId },
@@ -299,20 +299,21 @@ export const actions: Actions = {
 			return fail(409, { message: 'Cette séance est déjà validée.' });
 		}
 
-		// Ordre 1→2→3
-		if (session.type === 'MAIN_B' || session.type === 'MAIN_C') {
-			const requiredPrevType = session.type === 'MAIN_B' ? 'MAIN_A' : 'MAIN_B';
-			const prevCompleted = await prisma.userWorkoutDay.findFirst({
-				where: { userId, completedAt: { not: null }, session: { type: requiredPrevType } }
+		// Ordre 1→2→3 dans la semaine
+		if (
+			!(await isPrerequisiteMet({
+				userId,
+				sessionType: session.type,
+				dayIndex: dayIdx,
+				programStart: user?.programStartDate ?? null
+			}))
+		) {
+			return fail(409, {
+				message:
+					session.type === 'MAIN_B'
+						? 'Valide la séance 1 avant de valider la séance 2.'
+						: 'Valide la séance 2 avant de valider la séance 3.'
 			});
-			if (!prevCompleted) {
-				return fail(409, {
-					message:
-						session.type === 'MAIN_B'
-							? 'Valide la séance 1 avant de valider la séance 2.'
-							: 'Valide la séance 2 avant de valider la séance 3.'
-				});
-			}
 		}
 
 		const mandatoryVideoIds = sessionVideos
@@ -350,41 +351,17 @@ export const actions: Actions = {
 			scheduledDate = programDayUtcDate(user.programStartDate, dayIdx);
 		}
 
-		await prisma.userWorkoutDay.upsert({
-			where: {
-				userId_sessionId_dayIndex: {
-					userId,
-					sessionId,
-					dayIndex: dayIdx
-				}
-			},
-			create: {
-				userId,
-				sessionId,
-				dayIndex: dayIdx,
-				contentDayIndex: slot.contentDayIndex,
-				scheduledDate: scheduledDate ?? undefined,
-				completedAt: now,
-				isLocked: true
-			},
-			update: {
-				contentDayIndex: slot.contentDayIndex,
-				completedAt: now,
-				scheduledDate: scheduledDate ?? undefined,
-				isLocked: true
-			}
-		});
-
-		await createPointEvent({
+		const completed = await completeWorkoutDay({
 			userId,
-			type: 'WORKOUT_COMPLETE',
-			amount: WORKOUT_COMPLETION_POINTS,
-			metadata: {
-				sessionId,
-				sessionName: session.name,
-				dayIndex: dayIdx
-			}
+			sessionId,
+			sessionName: session.name,
+			dayIndex: dayIdx,
+			contentDayIndex: slot.contentDayIndex,
+			scheduledDate
 		});
+		if (!completed) {
+			return fail(409, { message: 'Cette séance est déjà validée.' });
+		}
 
 		return {
 			success: true,

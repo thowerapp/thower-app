@@ -44,3 +44,19 @@ export function recipeConflictsUser(
 			ingredientNames.some((ing) => ing.includes(term))
 	);
 }
+
+export type RecipeFilterProfile = {
+	allergens?: string[] | null;
+	otherAllergens?: string | null;
+	disgustingFoods?: string | null;
+};
+
+/** Recettes sans conflit avec les allergènes déclarés, les allergènes libres et les aliments détestés du profil. */
+export function filterRecipesForUser<R extends FilterRecipe>(
+	recipes: R[],
+	profile: RecipeFilterProfile | null | undefined
+): R[] {
+	const userAllergens = profile?.allergens ?? [];
+	const freeTerms = [...parseTextTerms(profile?.otherAllergens), ...parseTextTerms(profile?.disgustingFoods)];
+	return recipes.filter((r) => !recipeConflictsUser(r, userAllergens, freeTerms));
+}

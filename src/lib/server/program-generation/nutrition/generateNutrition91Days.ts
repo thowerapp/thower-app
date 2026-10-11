@@ -4,6 +4,7 @@ import { NUTRITION_SEGMENT_DAYS } from '$lib/nutrition/nutritionPlanConstants';
 import { mealTargetsFromProfile } from '$lib/server/nutrition/userMealTargets';
 import { fitRecipeSelect } from '$lib/server/nutrition/rescaleUserMeals';
 import { planNutritionDays, type CatalogRecipe } from './planNutritionDays';
+import { filterRecipesForUser } from './recipeFilterUtils';
 import { programGenLog, programGenTrace, programGenWarn } from '../programGenerationLog';
 
 /** Documents par `createMany` de repas. */
@@ -58,47 +59,6 @@ const recipeCatalogSelect = {
 	ingredients: { select: { name: true, quantityG: true, category: true }, orderBy: { order: 'asc' } }
 } as unknown as Prisma.RecipeSelect;
 
-/** Normalise une chaîne : minuscules + suppression des diacritiques. */
-function normalize(str: string): string {
-	return str
-		.toLowerCase()
-		.normalize('NFD')
-		.replace(/[\u0300-\u036f]/g, '');
-}
-
-/** Parse un champ texte libre (virgules, points-virgules, sauts de ligne) en termes normalisés non vides. */
-function parseTextTerms(text: string | null | undefined): string[] {
-	if (!text) return [];
-	return text
-		.split(/[,;\n]+/)
-		.map((t) => normalize(t.trim()))
-		.filter((t) => t.length > 0);
-}
-
-/**
- * Retourne true si la recette entière doit être exclue :
- * - Correspondance exacte sur les codes allergènes enum
- * - OU l'un des termes libres (otherAllergens, disgustingFoods) est contenu
- *   dans le nom de la recette ou le nom d'un ingrédient (insensible à la casse et aux accents).
- */
-function recipeConflictsUser(
-	recipe: CatalogRecipe,
-	userAllergens: string[],
-	freeTerms: string[]
-): boolean {
-	const avoid = new Set(userAllergens);
-	if (recipe.allergens.some((a) => avoid.has(a))) return true;
-
-	if (freeTerms.length === 0) return false;
-	const recipeName = normalize(recipe.name);
-	const ingredientNames = recipe.ingredients.map((i) => normalize(i.name));
-	return freeTerms.some(
-		(term) =>
-			recipeName.includes(term) ||
-			ingredientNames.some((ing) => ing.includes(term))
-	);
-}
-
 /**
  * Génère les journées nutrition 1..targetDays (NutritionDay + Meal) depuis le catalogue admin.
  * Exclut les recettes contenant un allergène déclaré par l’utilisateur.
@@ -121,10 +81,6 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 
 	const intermittentFastingDefault = profile?.intermittentFastingMorning === true;
 	const userAllergens = profile?.allergens ?? [];
-	const userFreeTerms = [
-		...parseTextTerms(profile?.otherAllergens),
-		...parseTextTerms(profile?.disgustingFoods)
-	];
 
 	programGenLog('N2/ Profil nutrition (extrait)', {
 		userId,
@@ -167,7 +123,7 @@ export async function generateNutritionDaysForUser(userId: string, targetDays: n
 		select: recipeCatalogSelect
 	})) as unknown as CatalogRecipe[];
 
-	const recipes = recipesRaw.filter((r) => !recipeConflictsUser(r, userAllergens, userFreeTerms));
+	const recipes = filterRecipesForUser(recipesRaw, profile);
 
 	programGenLog('N5/ Catalogue recettes admin', {
 		userId,

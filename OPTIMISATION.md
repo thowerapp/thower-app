@@ -79,7 +79,7 @@ Admin (attach/detach vidéos, séances)
 
 ### P3 : dette et décisions produit
 
-- [ ] **N12** Dédupliquer `normalize`, `parseTextTerms`, `recipeConflictsUser`, `catalogPickSeed`, `mulberry32`, `recipeCatalogSelect` entre `generateNutrition91Days.ts` et `ensureBreakfastMeal.ts` ; utiliser `recipeFilterUtils.ts` (testé mais importé par aucun code de prod).
+- [x] **N12** Une seule copie, testée : le filtre allergènes (`filterRecipesForUser` dans `recipeFilterUtils.ts`, utilisé par la génération et le rattrapage du petit-déjeuner) et le tirage pseudo-aléatoire (`seededRandom.ts`, utilisé par `planNutritionDays` et `ensureBreakfastMeal`). Le type `CatalogRecipe` local de `ensureBreakfastMeal` est remplacé par celui du planificateur.
 - [ ] **N13** Dédupliquer `positionLabel` / `positionOrder` / `defaultTimeLabel` / mapping des macros entre `cadencier` et `cadencier/[day]` ; remplacer les `TOTAL_DAYS = 91` locaux par `TOTAL_PROGRAM_DAYS`.
 - [ ] **N14** Décision : `weightLossGoalKg` est saisi et stocké mais n'entre dans aucun calcul (cibles basées sur le % de masse grasse).
 - [ ] **N15** Décision : second paiement (+91 jours alloués) génère `J92..J182` jamais affichés (index plafonné à 91, cadencier à 13 semaines, pas de reset de `programStartDate`).

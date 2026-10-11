@@ -6,19 +6,9 @@ import { mealTargetsFromProfile } from './userMealTargets';
 import type { MealPortion } from '$lib/nutrition/mealPortion';
 import { fitDay } from '$lib/nutrition/dayPlanner';
 import { refitDaysById } from './rescaleUserMeals';
-
-type CatalogRecipe = {
-	id: string;
-	referenceYieldG: number | null;
-	nutritionKcal: number | null;
-	nutritionProteinG: number | null;
-	nutritionCarbsG: number | null;
-	nutritionFatG: number | null;
-	nutritionFiberG: number | null;
-	allergens: string[];
-	ingredients: { name: string; quantityG: number | null; category: string | null }[];
-	name: string;
-};
+import type { CatalogRecipe } from '$lib/server/program-generation/nutrition/planNutritionDays';
+import { filterRecipesForUser } from '$lib/server/program-generation/nutrition/recipeFilterUtils';
+import { catalogPickSeed, mulberry32 } from '$lib/server/program-generation/nutrition/seededRandom';
 
 export type BreakfastProfileInput = {
 	allergens: string[];
@@ -42,67 +32,6 @@ type MealCreatePayload = {
 	recipeId: string;
 } & MealPortion;
 
-function normalize(str: string): string {
-	return str
-		.toLowerCase()
-		.normalize('NFD')
-		.replace(/[\u0300-\u036f]/g, '');
-}
-
-function parseTextTerms(text: string | null | undefined): string[] {
-	if (!text) return [];
-	return text
-		.split(/[,;\n]+/)
-		.map((t) => normalize(t.trim()))
-		.filter((t) => t.length > 0);
-}
-
-function recipeConflictsUser(
-	recipe: CatalogRecipe,
-	userAllergens: string[],
-	freeTerms: string[]
-): boolean {
-	const avoid = new Set(userAllergens);
-	if (recipe.allergens.some((a) => avoid.has(a))) return true;
-	if (freeTerms.length === 0) return false;
-	const recipeName = normalize(recipe.name);
-	const ingredientNames = recipe.ingredients.map((i) => normalize(i.name));
-	return freeTerms.some(
-		(term) =>
-			recipeName.includes(term) ||
-			ingredientNames.some((ing) => ing.includes(term))
-	);
-}
-
-function filterBreakfastRecipes(profile: BreakfastProfileInput, recipesRaw: CatalogRecipe[]): CatalogRecipe[] {
-	const userAllergens = profile.allergens ?? [];
-	const freeTerms = [
-		...parseTextTerms(profile.otherAllergens),
-		...parseTextTerms(profile.disgustingFoods)
-	];
-	return recipesRaw.filter((r) => !recipeConflictsUser(r, userAllergens, freeTerms));
-}
-
-function catalogPickSeed(userId: string, dayIndex: number, position: string, slotIndex: number): number {
-	const s = `${userId}\0${dayIndex}\0${position}\0${slotIndex}`;
-	let h = 2166136261 >>> 0;
-	for (let i = 0; i < s.length; i++) {
-		h ^= s.charCodeAt(i);
-		h = Math.imul(h, 16777619) >>> 0;
-	}
-	return h >>> 0;
-}
-
-function mulberry32(initial: number): () => number {
-	let a = initial >>> 0;
-	return () => {
-		a = (a + 0x6d2b79f5) >>> 0;
-		let t = Math.imul(a ^ (a >>> 15), 1 | a);
-		t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
-		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-	};
-}
-
 function pickRandomFromPool<T>(items: T[], seed: number): T | null {
 	if (items.length === 0) return null;
 	const rng = mulberry32(seed);
@@ -118,7 +47,7 @@ export async function loadBreakfastBackfillContextFromProfile(
 ): Promise<BreakfastBackfillContext | null> {
 	const recipesRaw = (await getCatalogRecipes()).filter((r) => r.category === 'BREAKFAST');
 
-	const breakfastRecipes = filterBreakfastRecipes(profile, recipesRaw);
+	const breakfastRecipes = filterRecipesForUser(recipesRaw, profile);
 	if (breakfastRecipes.length === 0) {
 		return null;
 	}

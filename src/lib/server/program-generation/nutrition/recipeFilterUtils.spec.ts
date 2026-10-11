@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { normalize, parseTextTerms, recipeConflictsUser, type FilterRecipe } from './recipeFilterUtils';
+import {
+	filterRecipesForUser,
+	normalize,
+	parseTextTerms,
+	recipeConflictsUser,
+	type FilterRecipe
+} from './recipeFilterUtils';
 
 function makeRecipe(name: string, ingredients: string[], allergens: string[] = []): FilterRecipe {
 	return { name, allergens, ingredients: ingredients.map((n) => ({ name: n })) };
@@ -127,5 +133,26 @@ describe('recipeConflictsUser — combinaison allergens enum + termes libres', (
 	it("n'exclut pas si ni allergens ni freeTerms ne correspondent", () => {
 		const r = makeRecipe('Poulet vapeur', ['poulet', 'courgette'], ['soja']);
 		expect(recipeConflictsUser(r, ['gluten'], parseTextTerms('champignon'))).toBe(false);
+	});
+});
+
+describe('filterRecipesForUser', () => {
+	const recipes: (FilterRecipe & { id: string })[] = [
+		{ id: 'a', name: 'Poulet curry', allergens: [], ingredients: [{ name: 'Poulet' }, { name: 'Lait de coco' }] },
+		{ id: 'b', name: 'Salade de thon', allergens: ['FISH'], ingredients: [{ name: 'Thon' }] },
+		{ id: 'c', name: 'Omelette', allergens: ['EGGS'], ingredients: [{ name: 'Œufs' }] }
+	];
+
+	it('retire les allergènes déclarés', () => {
+		expect(filterRecipesForUser(recipes, { allergens: ['FISH'] }).map((r) => r.id)).toEqual(['a', 'c']);
+	});
+
+	it('retire les termes libres (allergènes et aliments détestés), sans tenir compte des accents', () => {
+		const out = filterRecipesForUser(recipes, { otherAllergens: 'coco', disgustingFoods: 'THON; ' });
+		expect(out.map((r) => r.id)).toEqual(['c']);
+	});
+
+	it('garde tout sans profil', () => {
+		expect(filterRecipesForUser(recipes, null)).toHaveLength(3);
 	});
 });

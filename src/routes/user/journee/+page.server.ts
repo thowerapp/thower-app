@@ -5,14 +5,14 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import { validateDailyChecklist } from '$lib/server/dailyChecklist';
-import { currentProgramDayIndex, startOfUtcDay } from '$lib/utils/programDay';
+import { currentProgramDayIndex, todayStartParis } from '$lib/utils/programDay';
 import { isSeedCloudflareUid } from '$lib/prisma/video/seedVideo';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
 
 	const userId = locals.user.id;
-	const todayStart = startOfUtcDay();
+	const todayStart = todayStartParis();
 
 	const [tasks, optOuts, completions, user] = await Promise.all([
 		prisma.dailyTask.findMany({

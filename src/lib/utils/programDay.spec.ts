@@ -13,15 +13,29 @@ import {
 	sportWeekNumberForDay,
 	todayStartParis,
 	shortWeekdayFrUtc,
-	startOfUtcDay
+	parisDayStartFromISODate,
+	parisISODate
 } from './programDay';
 
-describe('startOfUtcDay', () => {
-	it('accepte un appel sans argument', () => {
-		const d = startOfUtcDay();
-		expect(Number.isNaN(d.getTime())).toBe(false);
-		expect(d.getUTCHours()).toBe(0);
-		expect(d.getUTCMinutes()).toBe(0);
+describe('parisDayStartFromISODate', () => {
+	it('donne minuit Paris en été (UTC+2) et en hiver (UTC+1)', () => {
+		expect(parisDayStartFromISODate('2026-07-14')?.toISOString()).toBe('2026-07-13T22:00:00.000Z');
+		expect(parisDayStartFromISODate('2026-01-05')?.toISOString()).toBe('2026-01-04T23:00:00.000Z');
+	});
+
+	it('refuse une date invalide', () => {
+		expect(parisDayStartFromISODate('pas une date')).toBeNull();
+	});
+});
+
+describe('parisISODate', () => {
+	it('rattache 0 h 30 à Paris au jour Paris, pas à la veille UTC', () => {
+		// 2026-07-14 00:30 à Paris = 2026-07-13 22:30 UTC
+		expect(parisISODate(new Date('2026-07-13T22:30:00.000Z'))).toBe('2026-07-14');
+	});
+
+	it('relit le jour d’un minuit Paris stocké', () => {
+		expect(parisISODate(todayStartParis(new Date('2026-01-05T12:00:00.000Z')))).toBe('2026-01-05');
 	});
 });
 

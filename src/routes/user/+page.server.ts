@@ -3,7 +3,7 @@ import { prisma } from '$lib/server';
 import { getTotalPointsForUser } from '$lib/prisma/pointEvent/getTotalPointsForUser';
 import { validateDailyChecklist } from '$lib/server/dailyChecklist';
 import type { PageServerLoad, Actions } from './$types';
-import { startOfUtcDay } from '$lib/utils/programDay';
+import { todayStartParis } from '$lib/utils/programDay';
 import { computeLevel } from '$lib/utils/levels';
 import { isSeedCloudflareUid } from '$lib/prisma/video/seedVideo';
 
@@ -121,7 +121,7 @@ export const actions: Actions = {
 		if (!locals.user) return fail(401);
 		if (process.env.NODE_ENV === 'production') return fail(403);
 		const userId = locals.user.id;
-		const todayStart = startOfUtcDay();
+		const todayStart = todayStartParis();
 
 		await prisma.$transaction([
 			prisma.dailyTaskCompletion.deleteMany({ where: { userId, date: todayStart } }),

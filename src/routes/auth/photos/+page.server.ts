@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { createProgressPhoto } from '$lib/prisma/progressPhoto/createProgressPhoto';
 import { prisma } from '$lib/server';
 import { POINTS } from '$lib/server/pointsConfig';
+import { awardPoints } from '$lib/server/awardPoints';
 
 const submitPhotosSchema = z.object({
 	frontUrl: z.string().startsWith('/api/cloudflare/r2/image/photos/', 'URL photo avant invalide'),
@@ -48,6 +49,10 @@ export const actions: Actions = {
 		console.log(`[photos action] saving — user=${locals.user.id} front=${frontUrl} side=${sideUrl} back=${backUrl}`);
 
 		try {
+			// Points une seule fois : pas de nouveau crédit si des photos d'inscription existent déjà.
+			const alreadySubmitted =
+				(await prisma.progressPhoto.count({ where: { userId: locals.user.id, month: 0 } })) > 0;
+
 			// Créer les 3 ProgressPhoto avec month: 0 (inscription)
 			await Promise.all([
 				createProgressPhoto({
@@ -69,17 +74,15 @@ export const actions: Actions = {
 					month: 0
 				}),
 				// Points pour photos soumises
-				prisma.pointEvent.create({
-					data: {
-						userId: locals.user.id,
-						type: 'PHOTO_UPLOAD',
-						amount: POINTS.PHOTO_UPLOAD,
-						metadata: {
-							source: 'auth-photos-submission',
-							timestamp: new Date().toISOString()
-						}
-					}
-				})
+				...(alreadySubmitted
+					? []
+					: [
+							awardPoints({
+								userId: locals.user.id,
+								type: 'PHOTO_UPLOAD',
+								metadata: { source: 'auth-photos-submission', timestamp: new Date().toISOString() }
+							})
+						])
 			]);
 		} catch (error) {
 			console.error('[photos action] ✗ DB error', error);

@@ -22,12 +22,6 @@ const WEEKDAY_SHORT_EN: Record<string, number> = {
 	Sat: 6
 };
 
-export function startOfUtcDay(d: Date = new Date()): Date {
-	const x = new Date(d);
-	x.setUTCHours(0, 0, 0, 0);
-	return x;
-}
-
 export function civilDateInTimeZone(
 	date: Date,
 	timeZone: string = PROGRAM_TIMEZONE
@@ -118,6 +112,19 @@ export function nextMondayStartParis(from: Date = new Date()): Date {
 export function todayStartParis(from: Date = new Date()): Date {
 	const civil = civilDateInTimeZone(from);
 	return zonedMidnightUtc(civil.year, civil.month, civil.day);
+}
+
+/** Minuit Europe/Paris d'une date civile `AAAA-MM-JJ` (null si invalide). */
+export function parisDayStartFromISODate(isoDate: string): Date | null {
+	const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate);
+	if (!m) return null;
+	return zonedMidnightUtc(Number(m[1]), Number(m[2]), Number(m[3]));
+}
+
+/** Date civile Europe/Paris (`AAAA-MM-JJ`) d'un instant. */
+export function parisISODate(date: Date): string {
+	const c = civilDateInTimeZone(date);
+	return `${c.year}-${String(c.month).padStart(2, '0')}-${String(c.day).padStart(2, '0')}`;
 }
 
 /**

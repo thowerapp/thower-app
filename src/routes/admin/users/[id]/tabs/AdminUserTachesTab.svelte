@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { parisISODate } from '$lib/utils/programDay';
 	import * as Card from '$shadcn/card';
 	import * as Table from '$shadcn/table';
 	import type { AdminUserOptions, UserSelected } from '../types';
@@ -6,8 +7,9 @@
 
 	let { userSelected, adminOptions }: { userSelected: UserSelected; adminOptions: AdminUserOptions } = $props();
 
+	/** Jour Europe/Paris de la complétion (la date est stockée à minuit Paris). */
 	function toDateInput(iso: string | null | undefined): string {
-		return iso ? iso.slice(0, 10) : '';
+		return iso ? parisISODate(new Date(iso)) : '';
 	}
 
 	function toDateTimeLocal(iso: string | null | undefined): string {

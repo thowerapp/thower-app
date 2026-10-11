@@ -3,6 +3,7 @@ import type { WorkoutSessionType } from '@prisma/client';
 import { prisma } from '$lib/server';
 import { POINTS } from '$lib/server/pointsConfig';
 import { sportWeekBounds, sportWeekNumberForDay } from '$lib/utils/programDay';
+import { awardPoints } from '$lib/server/awardPoints';
 
 /** Points gagnés à la validation d'une séance sport (source unique). */
 export const WORKOUT_COMPLETION_POINTS = POINTS.WORKOUT_COMPLETE;
@@ -96,14 +97,10 @@ export async function completeWorkoutDay(params: {
 			}
 
 			if (points > 0) {
-				await tx.pointEvent.create({
-					data: {
-						userId,
-						type: 'WORKOUT_COMPLETE',
-						amount: points,
-						metadata: { sessionId, sessionName, dayIndex }
-					}
-				});
+				await awardPoints(
+					{ userId, type: 'WORKOUT_COMPLETE', amount: points, metadata: { sessionId, sessionName, dayIndex } },
+					tx
+				);
 			}
 			return true;
 		});

@@ -5,14 +5,14 @@ import { prisma } from '$lib/server';
 import { getTotalPointsForUser } from '$lib/prisma/pointEvent/getTotalPointsForUser';
 import { POINTS } from '$lib/server/pointsConfig';
 import { z } from 'zod';
-import { currentProgramDayIndex } from '$lib/utils/programDay';
+import { currentProgramDayIndex, todayStartParis } from '$lib/utils/programDay';
+import { awardPoints } from '$lib/server/awardPoints';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
 
 	const userId = locals.user.id;
-	const todayStartProg = new Date();
-	todayStartProg.setUTCHours(0, 0, 0, 0);
+	const todayStartProg = todayStartParis();
 
 	// Aucune de ces requêtes ne dépend d'une autre (seule photosByAngle, ci-dessous,
 	// a besoin de currentMonth qui vient de `user`) : une seule vague.
@@ -239,13 +239,10 @@ export const actions: Actions = {
 			}
 
 			// Créer l'événement de points
-			await prisma.pointEvent.create({
-				data: {
-					userId: locals.user.id,
-					type: 'MONTHLY_CHECKIN',
-					amount: POINTS.MONTHLY_CHECKIN,
-					metadata: { source: 'monthly-checkin', month: currentMonth }
-				}
+			await awardPoints({
+				userId: locals.user.id,
+				type: 'MONTHLY_CHECKIN',
+				metadata: { source: 'monthly-checkin', month: currentMonth }
 			});
 
 			return { success: true, message: `Check-in soumis et +${POINTS.MONTHLY_CHECKIN} points gagnés !` };

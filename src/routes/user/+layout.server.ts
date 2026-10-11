@@ -11,14 +11,14 @@ import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBody
 import {
 	currentProgramDayIndex,
 	isProgramAwaitingStart,
-	startOfUtcDay
+	todayStartParis
 } from '$lib/utils/programDay';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
 
 	const userId = locals.user.id;
-	const todayStart = startOfUtcDay();
+	const todayStart = todayStartParis();
 
 	const [bodyMeasurements, fetchedProgramAccess, user] = await Promise.all([
 		getBodyMeasurementsByUserId(userId, 1),

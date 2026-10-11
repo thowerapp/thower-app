@@ -30,6 +30,7 @@ Branche `optimisation` (ne jamais fusionner avec `main`). État au 2026-10-11, v
 - [ ] `npx prisma db push` (jamais `--accept-data-loss`) : collection `user_sport_overrides`, champs `programGenStatus`, `programGenStartedAt`, `programGenFinishedAt`, `nutritionTargetsKey`, index `program_day_items(type, workoutVideoId)` et `user_workout_days(userId, dayIndex)`. Sur `thowerappDev`, rien n'est encore poussé (replica set : OK).
 - [ ] Définir `CRON_SECRET` dans Vercel, sinon `/api/cron/daily-notification` répond 401 et les rappels push s'arrêtent.
 - [ ] Après le push, vérifier la collection et les index.
+- [ ] Au déploiement de T-e : `npm run migrate:checklist-dates -- --apply` sur chaque base (relançable sans effet).
 
 ## 3. Décisions (tranchées le 2026-10-11)
 
@@ -49,8 +50,8 @@ Branche `optimisation` (ne jamais fusionner avec `main`). État au 2026-10-11, v
 4. [x] **D4** Découverte : facultative, ne rapporte que les points de ses vidéos (10 pts) ; une séance Découverte réelle ne crédite plus les 50 pts de séance.
 5. [x] **D5** Page admin `programme-sport` : alerte sur les vidéos rattachées sans `sessionType`.
 6. [x] **D11** Accueil : masquer YouTube et TikTok tant qu'ils n'ont pas d'URL (Instagram seul).
-7. [ ] **T-f** Module unique `awardPoints` (montant depuis `POINTS`, métadonnées, anti-doublon) pour toutes les créations de `PointEvent`.
-8. [ ] **T-e** Dates de la checklist au jour Europe/Paris, comme le programme ; script de migration des `DailyTaskCompletion.date` existants (lancé par l'utilisateur).
+7. [x] **T-f** `awardPoints` (`src/lib/server/awardPoints.ts`) : seule voie de création d'un `PointEvent` (hors édition admin), montant par défaut depuis `POINTS`, utilisable seule, en lot `$transaction([...])` ou avec un `tx`. `createPointEvent` supprimé. Bug corrigé : renvoyer ses photos d'inscription recréditait 50 pts à chaque fois.
+8. [x] **T-e** Checklist datée à minuit Europe/Paris (`todayStartParis`) partout, y compris la saisie et l'affichage admin (`parisDayStartFromISODate`, `parisISODate`) ; `startOfUtcDay` supprimé. Migration des dates existantes : `npm run migrate:checklist-dates` (simulation), puis `-- --apply` (base de dev : 0 complétion).
 9. [ ] **D2** Renouvellement = nouveau cycle de 91 jours : à la fin du cycle en cours, départ le lundi suivant, J1..J91 régénérés et plan sport rejoué ; numéro de cycle pour conserver l'historique (repas, séances, checklist). Changement de schéma à concevoir avant de coder.
 10. [ ] **T-c** Rattrapage dans le cron quotidien : relance la génération des comptes aux jours alloués incomplets, en `FAILED` ou en `RUNNING` expiré.
 
@@ -59,7 +60,7 @@ Branche `optimisation` (ne jamais fusionner avec `main`). État au 2026-10-11, v
 
 ## 4. Tests à écrire
 
-Les 248 tests actuels utilisent une base simulée : ils vérifient la logique, pas MongoDB, Prisma, Stripe ni Vercel.
+Les 255 tests actuels utilisent une base simulée : ils vérifient la logique, pas MongoDB, Prisma, Stripe ni Vercel.
 
 **Socle**
 - [ ] Base Mongo éphémère en replica set (`mongodb-memory-server`, `scripts/dev-mongo.mjs`) avec un jeu de données de base.
@@ -95,7 +96,7 @@ Les 248 tests actuels utilisent une base simulée : ils vérifient la logique, p
 ## 5. Reprise
 
 - **Mise en route** : `npm ci` (lance `prisma generate`). Variables : `.env.example` (dont `CRON_SECRET`).
-- **Tests** : `DATABASE_URL="mongodb://127.0.0.1:1/dummy" npx vitest --run src` : 248 tests. L'URL factice empêche toute écriture en base ; les fichiers `_tmp-*.spec.ts` sont exclus.
+- **Tests** : `DATABASE_URL="mongodb://127.0.0.1:1/dummy" npx vitest --run src` : 255 tests. L'URL factice empêche toute écriture en base ; les fichiers `_tmp-*.spec.ts` sont exclus.
 - **Types** : `npm run check` : 0 erreur, 0 avertissement, à garder à 0.
 - **ESLint** : 295 erreurs sur `src`, toutes antérieures aux optimisations (surtout `no-navigation-without-resolve`, `require-each-key`, variables inutilisées).
 - **Règles** : ne jamais lancer `prisma db push --accept-data-loss` (l'utilisateur pousse le schéma) ; ne pas committer sans demande ; tabulations et formateur automatique : relire un fichier avant de l'éditer.

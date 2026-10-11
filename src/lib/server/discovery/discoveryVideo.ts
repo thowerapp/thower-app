@@ -1,8 +1,8 @@
 import type { DiscoveryCategory } from '@prisma/client';
 import { prisma } from '$lib/server';
-import { POINTS } from '$lib/server/pointsConfig';
 import { upsertVideoProgress } from '$lib/prisma/userVideoProgress/upsertProgress';
 import { autoCompleteVideoTask } from '$lib/prisma/dailyTask/autoCompleteVideoTask';
+import { awardPoints } from '$lib/server/awardPoints';
 
 export type DiscoveryVideoView = {
 	id: string;
@@ -69,13 +69,6 @@ export async function markDiscoveryWatched(
 	});
 	if (linkedTask) return autoCompleteVideoTask(userId, discoveryContentId);
 
-	await prisma.pointEvent.create({
-		data: {
-			userId,
-			type: 'VIDEO_WATCHED',
-			amount: POINTS.VIDEO_WATCHED,
-			metadata: { discoveryContentId, source }
-		}
-	});
-	return POINTS.VIDEO_WATCHED;
+	const award = await awardPoints({ userId, type: 'VIDEO_WATCHED', metadata: { discoveryContentId, source } });
+	return award.amount;
 }

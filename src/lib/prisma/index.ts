@@ -69,7 +69,6 @@ export {
 } from './shoppingList/regenerateOverlappingDay';
 
 // Gamification
-export { createPointEvent, type CreatePointEventData } from './pointEvent/createEvent';
 export { getTotalPointsForUser } from './pointEvent/getTotalPointsForUser';
 export { getActiveRewards } from './pointReward/getActiveRewards';
 export { getBadges } from './badge/getBadges';

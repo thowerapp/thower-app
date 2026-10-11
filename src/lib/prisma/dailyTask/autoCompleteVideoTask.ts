@@ -1,10 +1,7 @@
 import { prisma } from '$lib/server';
+import { awardPoints } from '$lib/server/awardPoints';
+import { todayStartParis } from '$lib/utils/programDay';
 
-function startOfUtcDay(d: Date = new Date()): Date {
-	const r = new Date(d);
-	r.setUTCHours(0, 0, 0, 0);
-	return r;
-}
 
 /**
  * Après qu'une vidéo de découverte a été regardée à 80 %+,
@@ -17,7 +14,7 @@ export async function autoCompleteVideoTask(
 	userId: string,
 	discoveryContentId: string
 ): Promise<number> {
-	const todayStart = startOfUtcDay();
+	const todayStart = todayStartParis();
 	const task = await prisma.dailyTask.findFirst({
 		where: {
 			type: 'VIDEO',
@@ -43,13 +40,11 @@ export async function autoCompleteVideoTask(
 		}),
 		...(points > 0
 			? [
-					prisma.pointEvent.create({
-						data: {
-							userId,
-							type: 'VIDEO_WATCHED',
-							amount: points,
-							metadata: { discoveryContentId, source: 'daily-task-video' }
-						}
+					awardPoints({
+						userId,
+						type: 'VIDEO_WATCHED',
+						amount: points,
+						metadata: { discoveryContentId, source: 'daily-task-video' }
 					})
 				]
 			: [])

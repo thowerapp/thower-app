@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server';
-import { startOfUtcDay } from '$lib/utils/programDay';
+import { todayStartParis } from '$lib/utils/programDay';
+import { awardPoints } from '$lib/server/awardPoints';
 
 export type ChecklistResult =
 	| { ok: true; pointsEarned: number }
@@ -15,7 +16,7 @@ export async function validateDailyChecklist(
 	rawTaskIds: string[],
 	source: string
 ): Promise<ChecklistResult> {
-	const todayStart = startOfUtcDay();
+	const todayStart = todayStartParis();
 	// Les ids `__…` sont les tâches de repli affichées quand aucune tâche n'existe en base.
 	const checkedIds = rawTaskIds.filter((id) => id.length > 0 && !id.startsWith('__'));
 	if (checkedIds.length === 0) return { ok: false, status: 400, message: 'Aucune tâche sélectionnée.' };
@@ -40,13 +41,11 @@ export async function validateDailyChecklist(
 			}),
 			...(pointsEarned > 0
 				? [
-						prisma.pointEvent.create({
-							data: {
-								userId,
-								type: 'DAILY_TASK',
-								amount: pointsEarned,
-								metadata: { source, date: todayStart.toISOString() }
-							}
+						awardPoints({
+							userId,
+							type: 'DAILY_TASK',
+							amount: pointsEarned,
+							metadata: { source, date: todayStart.toISOString() }
 						})
 					]
 				: [])

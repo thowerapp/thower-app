@@ -10,7 +10,7 @@ import { prisma } from '$lib/server';
 import { hashPassword } from '$lib/lucia/password';
 import { dispatchProgramGeneration } from '$lib/server/program-generation/dispatchProgramGeneration';
 import { regenerateFutureProgramForUser } from '$lib/server/program-generation/regenerateFutureProgramForUser';
-import { civilDateInTimeZone, zonedMidnightUtc } from '$lib/utils/programDay';
+import { civilDateInTimeZone, zonedMidnightUtc, parisDayStartFromISODate, todayStartParis } from '$lib/utils/programDay';
 import { rescaleDayMeals } from '$lib/server/nutrition/rescaleUserMeals';
 import {
 	adminBodyMeasurementDeleteSchema,
@@ -610,12 +610,13 @@ export const actions: Actions = {
 				where: { id },
 				data: {
 					...data,
-					date: toDate(date) ?? undefined,
+					date: (date && parisDayStartFromISODate(date)) ?? undefined,
 					completedAt: toDate(completedAt) ?? undefined
 				}
 			});
 		} else {
-			const taskDate = toDate(date) ?? new Date();
+			// Jour de checklist = minuit Europe/Paris, comme les complétions faites par l'utilisateur.
+			const taskDate = (date && parisDayStartFromISODate(date)) ?? todayStartParis();
 			await prisma.dailyTaskCompletion.upsert({
 				where: { userId_taskId_date: { userId, taskId: data.taskId, date: taskDate } },
 				create: { userId, ...data, date: taskDate, completedAt: toDate(completedAt) ?? undefined },

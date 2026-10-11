@@ -3,25 +3,16 @@ import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { videoKindEnum } from '$lib/schema/video/videoAdminSchema';
 import { upsertVideoProgress } from '$lib/prisma/userVideoProgress/upsertProgress';
-import { createPointEvent } from '$lib/prisma/pointEvent/createEvent';
 import { autoCompleteVideoTask } from '$lib/prisma/dailyTask/autoCompleteVideoTask';
 import { prisma } from '$lib/server';
-import { POINTS } from '$lib/server/pointsConfig';
 import { hasSportAccess } from '$lib/server/programAccessGuard';
+import { awardPoints } from '$lib/server/awardPoints';
 
-function startOfUtcDay(): Date {
-	const d = new Date();
-	d.setUTCHours(0, 0, 0, 0);
-	return d;
-}
 
 const bodySchema = z.object({
 	positionSec: z.number().min(0).max(86400),
 	ended: z.boolean().optional()
 });
-
-/** Points attribués à la première complétion d'une vidéo (cohérent avec le seed). */
-const VIDEO_COMPLETION_POINTS = POINTS.VIDEO_WATCHED;
 
 /**
  * Heartbeat de progression vidéo + complétion.
@@ -63,11 +54,11 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	);
 
 	if (result.completedNow) {
-		const meta: Record<string, unknown> = { kind, videoId: params.id };
+		const meta = { kind, videoId: params.id };
 
 		// Checklist jour : si cette vidéo est rattachée à la DailyTask VIDEO du jour,
 		// autoCompleteVideoTask est l'unique source de points (task.points) — on ne
-		// doit pas aussi attribuer les VIDEO_COMPLETION_POINTS génériques ci-dessous,
+		// doit pas aussi attribuer les points VIDEO_WATCHED génériques ci-dessous,
 		// sous peine de compter les points en double.
 		let awardedByDailyTask = false;
 		if (kind === 'discovery') {
@@ -87,14 +78,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 		if (!awardedByDailyTask) {
 			try {
-				await createPointEvent({
-					userId,
-					type: 'VIDEO_WATCHED',
-					amount: VIDEO_COMPLETION_POINTS,
-					metadata: meta
-				});
+				await awardPoints({ userId, type: 'VIDEO_WATCHED', metadata: meta });
 			} catch (err) {
-				console.error('[videos/progress] createPointEvent error', err);
+				console.error('[videos/progress] awardPoints error', err);
 			}
 		}
 

@@ -62,24 +62,27 @@ Branche `optimisation` (ne jamais fusionner avec `main`). État au 2026-10-11, v
 
 ## 4. Tests à écrire
 
-Les 268 tests actuels utilisent une base simulée : ils vérifient la logique, pas MongoDB, Prisma, Stripe ni Vercel.
+Deux suites : `npm run test:unit` (270 tests, base simulée, logique seule) et `npm run test:integration` (16 tests, vraie base MongoDB éphémère en replica set, ~40 s). Stripe et Vercel restent simulés.
 
 **Socle**
-- [ ] Base Mongo éphémère en replica set (`mongodb-memory-server`, `scripts/dev-mongo.mjs`) avec un jeu de données de base.
-- [ ] Commandes `test:unit` et `test:integration`, toutes deux en CI, ainsi que `svelte-check` à 0.
-- [ ] Compteur de requêtes Prisma pour imposer un budget par page et par flux.
+- [x] Base MongoDB éphémère en replica set (`vitest.integration.config.ts`, `src/lib/server/testing/integration/`) : port fixe 27027, `DATABASE_URL` imposée avant le chargement de SvelteKit (le `.env` n'est jamais lu) et garde-fou qui refuse toute base autre que `127.0.0.1/thower_test`. Collections et index déduits de `prisma/schema.prisma` (`parseSchemaIndexes`, noms identiques à `db push`, qui est trop lent et se bloque ici). Base vidée avant chaque test. Fabriques : utilisateur payant, tâche, séance, catalogue de recettes du seed, profil nutrition.
+- [x] Commandes `test:unit` (exclut `*.integration.spec.ts`) et `test:integration` ; `npm test` enchaîne unitaires, intégration et e2e.
+- [x] Compteur de requêtes Prisma (`countQueries`, actif seulement avec `PRISMA_COUNT_QUERIES=1`).
+- [ ] CI : aucune n'existe (pas de `.github/workflows`) ; y lancer `check`, `test:unit` et `test:integration`.
 
 **Intégration**
-- [ ] Génération 91 jours : pas de doublon, idempotence, reprise après interruption, ≈ 5 requêtes d'écriture ; 3 repas par jour.
-- [ ] Verrou : générations concurrentes, bail expiré, `FAILED` puis reprise, paiement concurrent.
+- [x] Génération 91 jours : 91 jours × 3 repas, aucun doublon, ≤ 10 écritures, idempotence (0 écriture), reprise d'un jour interrompu, prolongation jusqu'à 182 jours.
+- [x] Verrou : 20 rondes de 5 réservations simultanées (un seul gagnant), compte sans état, bail en cours ou expiré. Constat : Prisma traduit `updateMany` en `aggregate` + `update` sur MongoDB ; l'atomicité tient en pratique (vérifiée sous concurrence).
+- [ ] Verrou : `FAILED` puis reprise, paiement concurrent pendant la génération.
 - [ ] Stripe simulé : webhook rejoué, crédit unique, abonnement prolongé, rattrapage depuis les mensurations ; renouvellement : un seul cycle ajouté (même rejoué), départ correct à l'heure ou en retard.
 - [ ] Cycle 2 de bout en bout : cadencier J1..J91 sur les jours 92..182, séances et vidéos à refaire, historique du cycle 1 intact, mois de suivi 4..6, rattrapage cron des jours 92..182.
 - [ ] Liste de courses : remplacement atomique, cases conservées, une régénération par plage.
 - [ ] Recalage : empreinte identique sans effet, seuls les repas périmés réécrits, listes régénérées.
-- [ ] Séance : double clic (un seul `PointEvent`), pré-requis par semaine, `completedAt` absent.
-- [ ] Checklist : double envoi (409, pas de points en double).
+- [x] Séance : double clic (un seul `PointEvent`), ligne à `completedAt` absent, Découverte sans points, pré-requis par semaine et par cycle.
+- [x] Checklist : double envoi simultané (une validation, un 409, points une fois), tâches de repli ignorées.
+- [x] Codes d'accès : 10 rondes de deux envois simultanés du même code (un seul bénéficiaire, une seule transaction).
 - [ ] Plan sport : invalidation du snapshot, affectation A/B/C, personnalisations limitées à un utilisateur.
-- [ ] `createMany` avec champs composites (`complements`, `ingredientGrams`).
+- [x] `createMany` avec champs composites (`complements`, `ingredientGrams`) relus à l'identique.
 
 **Sécurité**
 - [ ] Écritures admin par un non-admin : 403. Actions nutrition / sport sans offre : refusées. API vidéo sport : 403 sans offre.
@@ -99,7 +102,8 @@ Les 268 tests actuels utilisent une base simulée : ils vérifient la logique, p
 ## 5. Reprise
 
 - **Mise en route** : `npm ci` (lance `prisma generate`). Variables : `.env.example` (dont `CRON_SECRET`).
-- **Tests** : `DATABASE_URL="mongodb://127.0.0.1:1/dummy" npx vitest --run src` : 268 tests. L'URL factice empêche toute écriture en base ; les fichiers `_tmp-*.spec.ts` sont exclus.
+- **Tests unitaires** : `DATABASE_URL="mongodb://127.0.0.1:1/dummy" npx vitest --run src` : 270 tests. L'URL factice empêche toute écriture en base ; `_tmp-*.spec.ts` et `*.integration.spec.ts` sont exclus.
+- **Tests d'intégration** : `npm run test:integration` (~40 s, MongoDB téléchargé au premier lancement). Sur un CPU sans AVX : `MONGOMS_VERSION=4.4.29` avec la `libssl1.1` locale (voir `scripts/dev-mongo.mjs`).
 - **Types** : `npm run check` : 0 erreur, 0 avertissement, à garder à 0.
 - **ESLint** : 295 erreurs sur `src`, toutes antérieures aux optimisations (surtout `no-navigation-without-resolve`, `require-each-key`, variables inutilisées).
 - **Règles** : ne jamais lancer `prisma db push --accept-data-loss` (l'utilisateur pousse le schéma) ; ne pas committer sans demande ; tabulations et formateur automatique : relire un fichier avant de l'éditer.

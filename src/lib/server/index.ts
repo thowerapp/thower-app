@@ -9,5 +9,7 @@ if (!databaseUrl) {
 export const prisma = new PrismaClient({
 	datasources: {
 		db: { url: databaseUrl }
-	}
+	},
+	// Tests d'intégration uniquement : expose chaque requête pour mesurer un budget (`countQueries`).
+	...(env.PRISMA_COUNT_QUERIES === '1' ? { log: [{ emit: 'event' as const, level: 'query' as const }] } : {})
 });

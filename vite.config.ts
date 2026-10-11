@@ -38,7 +38,8 @@ export default defineConfig({
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}'],
 		// Sonde e2e qui écrit dans la base réelle : à lancer à la main uniquement.
-		exclude: ['**/node_modules/**', 'src/**/_tmp-*.spec.ts']
+		// Les *.integration.spec.ts tournent sur une base éphémère : npm run test:integration.
+		exclude: ['**/node_modules/**', 'src/**/_tmp-*.spec.ts', 'src/**/*.integration.spec.ts']
 	},
 
 	server: {

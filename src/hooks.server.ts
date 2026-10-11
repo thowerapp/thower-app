@@ -28,10 +28,10 @@ function formatTimestamp(): string {
 
 function log(level: LogLevel, context: string, ...args: unknown[]) {
 	if (!DEBUG && level === 'DEBUG') return;
-	
+
 	const timestamp = formatTimestamp();
 	const prefix = `[${timestamp}] [${level}] [${context}]`;
-	
+
 	switch (level) {
 		case 'ERROR':
 			console.error(prefix, ...args);
@@ -104,7 +104,7 @@ const cookieGuard: Handle = async ({ event, resolve }) => {
 const authHandle: Handle = async ({ event, resolve }) => {
 	log('DEBUG', 'Auth', 'Starting authentication process');
 	log('DEBUG', 'Auth', 'Request URL:', event.url.pathname);
-	
+
 	/* 1. Extraction du cookie session */
 	const sid = event.cookies.get(auth.sessionCookieName);
 	log('DEBUG', 'Auth', 'Session ID from cookie:', sid);
@@ -118,7 +118,7 @@ const authHandle: Handle = async ({ event, resolve }) => {
 			log('DEBUG', 'Auth', 'Validating session with ID:', sid);
 			const res = await auth.validateSession(sid);
 			log('DEBUG', 'Auth', 'Session validation result:', res);
-			
+
 			const luciaSession = res.session;
 			const luciaUser = res.user;
 
@@ -220,13 +220,13 @@ const authHandle: Handle = async ({ event, resolve }) => {
 		user: event.locals.user,
 		role: event.locals.role,
 		isMfaEnabled: event.locals.isMfaEnabled,
-		registered2FA: event.locals.registered2FA,
+		registered2FA: event.locals.registered2FA
 	});
 
 	/* 3. Redirections MFA */
 	if (user && user.isMfaEnabled) {
 		log('DEBUG', 'Auth', 'Checking MFA requirements for user:', user.id);
-		
+
 		if (!user.registered2FA) {
 			log('INFO', 'Auth', 'User needs 2FA setup, redirecting to /auth/2fa/setup');
 			if (!event.url.pathname.startsWith('/auth/2fa/setup')) {
@@ -245,7 +245,29 @@ const authHandle: Handle = async ({ event, resolve }) => {
 };
 
 /* -------------------------------------------------------------------------- */
+/*  Admin : les actions de formulaire et les API n'exécutent pas le layout     */
+/* -------------------------------------------------------------------------- */
+
+const adminWriteGuard: Handle = async ({ event, resolve }) => {
+	const { pathname } = event.url;
+	const isAdminArea =
+		pathname === '/admin' || pathname.startsWith('/admin/') || pathname.startsWith('/api/admin/');
+	const isRead = event.request.method === 'GET' || event.request.method === 'HEAD';
+	if (isAdminArea && !isRead && event.locals.role !== 'ADMIN') {
+		log('WARN', 'AdminGuard', 'Blocked non-admin write on', pathname);
+		return new Response('Forbidden', { status: 403 });
+	}
+	return resolve(event);
+};
+
+/* -------------------------------------------------------------------------- */
 /*  Chaîne finale                                                             */
 /* -------------------------------------------------------------------------- */
 
-export const handle: Handle = sequence(devtoolsGuard, cookieGuard, rateLimit, authHandle);
+export const handle: Handle = sequence(
+	devtoolsGuard,
+	cookieGuard,
+	rateLimit,
+	authHandle,
+	adminWriteGuard
+);

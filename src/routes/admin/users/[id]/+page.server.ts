@@ -28,7 +28,9 @@ import {
 	adminUserChallengeSchema,
 	adminUserProfileSchema,
 	adminVideoProgressSchema,
-	adminWorkoutDaySchema
+	adminWorkoutDaySchema,
+	adminSportOverrideDeleteSchema,
+	adminSportOverrideSchema
 } from '$lib/schema/admin/adminUserEditionSchema';
 
 function toDatetimeLocal(isoOrNull: string | null | undefined): string | null {
@@ -36,11 +38,13 @@ function toDatetimeLocal(isoOrNull: string | null | undefined): string | null {
 	return isoOrNull.slice(0, 16);
 }
 
-function formDataToObject(formData: FormData): Record<string, FormDataEntryValue | FormDataEntryValue[]> {
+function formDataToObject(
+	formData: FormData
+): Record<string, FormDataEntryValue | FormDataEntryValue[]> {
 	const data: Record<string, FormDataEntryValue | FormDataEntryValue[]> = {};
 	for (const key of new Set(formData.keys())) {
 		const values = formData.getAll(key);
-		data[key] = values.length > 1 ? values : values[0] ?? '';
+		data[key] = values.length > 1 ? values : (values[0] ?? '');
 	}
 	return data;
 }
@@ -78,13 +82,13 @@ async function dispatchAdminFutureRegeneration(event: RequestEvent, userId: stri
 }
 
 export const load: PageServerLoad = async ({ params }) => {
-
 	const includeRelations = {
 		profile: true,
 		bodyMeasurements: { orderBy: { createdAt: 'desc' as const }, take: 50 },
 		transactions: { orderBy: { createdAt: 'desc' as const }, take: 20 },
 		sessions: true,
 		workoutDays: { orderBy: { dayIndex: 'asc' as const }, take: 400, include: { session: true } },
+		sportOverrides: { orderBy: { dayIndex: 'asc' as const } },
 		pointEvents: { orderBy: { createdAt: 'desc' as const }, take: 30 },
 		progressPhotos: true,
 		userBadges: { include: { badge: true } },
@@ -118,7 +122,11 @@ export const load: PageServerLoad = async ({ params }) => {
 			}
 		},
 		shoppingLists: { take: 20, include: { items: true } },
-		dailyTaskCompletions: { orderBy: { completedAt: 'desc' as const }, take: 20, include: { task: true } },
+		dailyTaskCompletions: {
+			orderBy: { completedAt: 'desc' as const },
+			take: 20,
+			include: { task: true }
+		},
 		dailyTaskOptOuts: { include: { task: true } },
 		videoProgress: { take: 100, include: { workoutVideo: true, discoveryContent: true } },
 		monthlyCheckIns: { orderBy: { month: 'asc' as const } },
@@ -126,7 +134,15 @@ export const load: PageServerLoad = async ({ params }) => {
 		pushSubscriptions: { take: 20 },
 		challenges: { include: { challenge: true } }
 	};
-	const [userFetched, recipeCatalog, dailyTasks, badges, programDayItems, adminChallenges] = await Promise.all([
+	const [
+		userFetched,
+		recipeCatalog,
+		dailyTasks,
+		badges,
+		programDayItems,
+		adminChallenges,
+		workoutVideos
+	] = await Promise.all([
 		prisma.user.findUnique({
 			where: { id: params.id },
 			include: includeRelations as Parameters<typeof prisma.user.findUnique>[0]['include']
@@ -138,8 +154,15 @@ export const load: PageServerLoad = async ({ params }) => {
 		}),
 		prisma.dailyTask.findMany({ orderBy: { order: 'asc' } }),
 		prisma.badge.findMany({ orderBy: { name: 'asc' } }),
-		prisma.programDayItem.findMany({ take: 400, orderBy: [{ programDayId: 'asc' }, { order: 'asc' }] }),
-		prisma.adminChallenge.findMany({ orderBy: { startAt: 'desc' } })
+		prisma.programDayItem.findMany({
+			take: 400,
+			orderBy: [{ programDayId: 'asc' }, { order: 'asc' }]
+		}),
+		prisma.adminChallenge.findMany({ orderBy: { startAt: 'desc' } }),
+		prisma.workoutVideo.findMany({
+			select: { id: true, title: true, position: true, sessionType: true, status: true },
+			orderBy: [{ sessionType: 'asc' }, { title: 'asc' }]
+		})
 	]);
 	if (!userFetched) {
 		return fail(404, { message: 'User not found' });
@@ -157,20 +180,25 @@ export const load: PageServerLoad = async ({ params }) => {
 	userSelected.transactions = raw.transactions ?? [];
 	userSelected.sessions = raw.sessions ?? [];
 	userSelected.workoutDays = raw.workoutDays ?? [];
+	userSelected.sportOverrides = raw.sportOverrides ?? [];
 	userSelected.pointEvents = raw.pointEvents ?? [];
 	userSelected.progressPhotos = raw.progressPhotos ?? [];
 	userSelected.userBadges = raw.userBadges ?? [];
 	userSelected.favoriteRecipes = raw.favoriteRecipes ?? [];
 	userSelected.recipes = raw.recipes ?? [];
 	// Garantir la structure meals[].recipe.name pour le calendrier (éviter perte à la sérialisation)
-	const rawNutrition = raw.nutritionDays as Array<{ meals?: Array<{ position?: string; recipe?: { name?: string } | null }> }> | null | undefined;
-	userSelected.nutritionDays = rawNutrition?.map((nd) => ({
-		...nd,
-		meals: (nd?.meals ?? []).map((m) => ({
-			...m,
-			recipe: m?.recipe ?? null
-		}))
-	})) ?? [];
+	const rawNutrition = raw.nutritionDays as
+		| Array<{ meals?: Array<{ position?: string; recipe?: { name?: string } | null }> }>
+		| null
+		| undefined;
+	userSelected.nutritionDays =
+		rawNutrition?.map((nd) => ({
+			...nd,
+			meals: (nd?.meals ?? []).map((m) => ({
+				...m,
+				recipe: m?.recipe ?? null
+			}))
+		})) ?? [];
 
 	userSelected.shoppingLists = raw.shoppingLists ?? [];
 	userSelected.dailyTaskCompletions = raw.dailyTaskCompletions ?? [];
@@ -203,7 +231,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			dailyTasks,
 			badges,
 			programDayItems,
-			adminChallenges
+			adminChallenges,
+			workoutVideos
 		})
 	};
 };
@@ -240,7 +269,8 @@ export const actions: Actions = {
 	updateProgramSettings: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminProgramSettingsSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Données invalides' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Données invalides' });
 
 		const data = parsed.data;
 		const current = await prisma.user.findUnique({
@@ -299,14 +329,17 @@ export const actions: Actions = {
 			}
 		});
 
-		const dispatchMode = affectsProgram ? await dispatchAdminFutureRegeneration(event, data.id) : null;
+		const dispatchMode = affectsProgram
+			? await dispatchAdminFutureRegeneration(event, data.id)
+			: null;
 		return { success: true, regenerated: affectsProgram, dispatchMode };
 	},
 
 	updateProfile: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminUserProfileSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Profil invalide' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Profil invalide' });
 
 		const data = parsed.data;
 		const current = await prisma.userProfile.findUnique({ where: { userId: data.id } });
@@ -345,7 +378,8 @@ export const actions: Actions = {
 	upsertBodyMeasurement: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminBodyMeasurementSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Mensuration invalide' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Mensuration invalide' });
 
 		const data = parsed.data;
 		const userId = event.params.id;
@@ -380,7 +414,8 @@ export const actions: Actions = {
 	deleteBodyMeasurement: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminBodyMeasurementDeleteSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Mensuration invalide' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Mensuration invalide' });
 		if (parsed.data.confirmRegenerate !== '1') {
 			return fail(400, { message: 'Confirmation de régénération requise' });
 		}
@@ -394,7 +429,8 @@ export const actions: Actions = {
 	upsertProgressPhoto: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminProgressPhotoSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Photo invalide' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Photo invalide' });
 		const userId = event.params.id;
 		if (!userId) return fail(400, { message: 'User manquant' });
 		const { id, uploadedAt, ...data } = parsed.data;
@@ -414,7 +450,8 @@ export const actions: Actions = {
 	upsertMonthlyCheckIn: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminMonthlyCheckInSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Check-in invalide' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Check-in invalide' });
 		const userId = event.params.id;
 		if (!userId) return fail(400, { message: 'User manquant' });
 		const { id, submittedAt, ...data } = parsed.data;
@@ -436,7 +473,8 @@ export const actions: Actions = {
 	updateNutritionDay: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminNutritionDaySchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Jour nutrition invalide' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Jour nutrition invalide' });
 		const day = await prisma.nutritionDay.update({
 			where: { id: parsed.data.id },
 			data: { intermittentFasting: parsed.data.intermittentFasting },
@@ -450,7 +488,8 @@ export const actions: Actions = {
 	updateMeal: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminMealSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Repas invalide' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Repas invalide' });
 		const { id, eatenAt, ...data } = parsed.data;
 		await prisma.meal.update({
 			where: { id },
@@ -459,10 +498,56 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
+	addSportOverride: async (event) => {
+		// Les actions ne passent pas par le layout admin : le rôle est vérifié ici.
+		if (event.locals.role !== 'ADMIN' || !event.locals.user) {
+			return fail(403, { message: 'Accès refusé.' });
+		}
+		const userId = event.params.id;
+		if (!userId) return fail(400, { message: 'User manquant' });
+
+		const formData = await event.request.formData();
+		const parsed = adminSportOverrideSchema.safeParse(formDataToObject(formData));
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Personnalisation invalide' });
+
+		const { dayIndex, kind, note } = parsed.data;
+		const workoutVideoIds = kind === 'HIDE' ? [] : [...new Set(parsed.data.workoutVideoIds)];
+		if (workoutVideoIds.length > 0) {
+			const found = await prisma.workoutVideo.count({ where: { id: { in: workoutVideoIds } } });
+			if (found !== workoutVideoIds.length) return fail(400, { message: 'Vidéo introuvable.' });
+		}
+
+		// Un seul override par jour source : le nouveau remplace l'ancien.
+		await prisma.$transaction([
+			prisma.userSportOverride.deleteMany({ where: { userId, dayIndex } }),
+			prisma.userSportOverride.create({
+				data: { userId, dayIndex, kind, workoutVideoIds, note, createdById: event.locals.user.id }
+			})
+		]);
+		return { success: true };
+	},
+
+	deleteSportOverride: async (event) => {
+		if (event.locals.role !== 'ADMIN' || !event.locals.user) {
+			return fail(403, { message: 'Accès refusé.' });
+		}
+		const userId = event.params.id;
+		if (!userId) return fail(400, { message: 'User manquant' });
+
+		const formData = await event.request.formData();
+		const parsed = adminSportOverrideDeleteSchema.safeParse(formDataToObject(formData));
+		if (!parsed.success) return fail(400, { message: 'Identifiant invalide' });
+
+		await prisma.userSportOverride.deleteMany({ where: { id: parsed.data.id, userId } });
+		return { success: true };
+	},
+
 	updateWorkoutDay: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminWorkoutDaySchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Séance invalide' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Séance invalide' });
 		const { id, scheduledDate, completedAt, ...data } = parsed.data;
 		await prisma.userWorkoutDay.update({
 			where: { id },
@@ -478,7 +563,8 @@ export const actions: Actions = {
 	upsertPointEvent: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminPointEventSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Points invalides' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Points invalides' });
 		const userId = event.params.id;
 		if (!userId) return fail(400, { message: 'User manquant' });
 		const { id, createdAt, ...data } = parsed.data;
@@ -502,7 +588,8 @@ export const actions: Actions = {
 	updateUserBadge: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminUserBadgeSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Badge invalide' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Badge invalide' });
 		await prisma.userBadge.update({
 			where: { id: parsed.data.id },
 			data: { progress: parsed.data.progress, unlockedAt: toDate(parsed.data.unlockedAt) }
@@ -513,14 +600,19 @@ export const actions: Actions = {
 	upsertDailyTaskCompletion: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminDailyTaskCompletionSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Tâche invalide' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Tâche invalide' });
 		const userId = event.params.id;
 		if (!userId) return fail(400, { message: 'User manquant' });
 		const { id, date, completedAt, ...data } = parsed.data;
 		if (id) {
 			await prisma.dailyTaskCompletion.update({
 				where: { id },
-				data: { ...data, date: toDate(date) ?? undefined, completedAt: toDate(completedAt) ?? undefined }
+				data: {
+					...data,
+					date: toDate(date) ?? undefined,
+					completedAt: toDate(completedAt) ?? undefined
+				}
 			});
 		} else {
 			const taskDate = toDate(date) ?? new Date();
@@ -536,7 +628,8 @@ export const actions: Actions = {
 	upsertDailyTaskOptOut: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminDailyTaskOptOutSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Opt-out invalide' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Opt-out invalide' });
 		const userId = event.params.id;
 		if (!userId) return fail(400, { message: 'User manquant' });
 		const { id, taskId } = parsed.data;
@@ -555,7 +648,10 @@ export const actions: Actions = {
 	updateVideoProgress: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminVideoProgressSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Progression vidéo invalide' });
+		if (!parsed.success)
+			return fail(400, {
+				message: parsed.error.errors[0]?.message ?? 'Progression vidéo invalide'
+			});
 		const { id, lastHeartbeatAt, completedAt, ...data } = parsed.data;
 		await prisma.userVideoProgress.update({
 			where: { id },
@@ -571,7 +667,10 @@ export const actions: Actions = {
 	upsertProgramDayItemCompletion: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminProgramDayItemCompletionSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Validation programme invalide' });
+		if (!parsed.success)
+			return fail(400, {
+				message: parsed.error.errors[0]?.message ?? 'Validation programme invalide'
+			});
 		const userId = event.params.id;
 		if (!userId) return fail(400, { message: 'User manquant' });
 		const { id, completedAt, ...data } = parsed.data;
@@ -593,7 +692,8 @@ export const actions: Actions = {
 	updateUserChallenge: async (event) => {
 		const formData = await event.request.formData();
 		const parsed = adminUserChallengeSchema.safeParse(formDataToObject(formData));
-		if (!parsed.success) return fail(400, { message: parsed.error.errors[0]?.message ?? 'Défi invalide' });
+		if (!parsed.success)
+			return fail(400, { message: parsed.error.errors[0]?.message ?? 'Défi invalide' });
 		await prisma.userChallenge.update({
 			where: { id: parsed.data.id },
 			data: { completedAt: toDate(parsed.data.completedAt) }
@@ -722,7 +822,11 @@ export const actions: Actions = {
 					: null
 		};
 
-		if (passwordHash != null && typeof passwordHash === 'string' && String(passwordHash).trim() !== '') {
+		if (
+			passwordHash != null &&
+			typeof passwordHash === 'string' &&
+			String(passwordHash).trim() !== ''
+		) {
 			updateData.passwordHash = await hashPassword(passwordHash);
 		}
 

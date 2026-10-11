@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server';
+import { invalidateSportPlan } from '$lib/server/sport/sportPlanCache';
 import type { ChecklistTaskSchema, VideoFormCoreInput } from '$lib/schema/video/videoAdminSchema';
 
 /**
@@ -18,7 +19,7 @@ export async function createVideo(data: VideoFormCoreInput, checklist?: Checklis
 		if (!data.sessionType) {
 			throw new Error('sessionType est requis pour une vidéo sport.');
 		}
-		return db.workoutVideo.create({
+		const created = await db.workoutVideo.create({
 			data: {
 				cloudflareUid: data.cloudflareUid,
 				title: data.title,
@@ -28,6 +29,8 @@ export async function createVideo(data: VideoFormCoreInput, checklist?: Checklis
 				status: 'pending'
 			}
 		});
+		invalidateSportPlan();
+		return created;
 	}
 
 	if (!data.category) {
@@ -35,7 +38,10 @@ export async function createVideo(data: VideoFormCoreInput, checklist?: Checklis
 	}
 	let dailyTasks: object | undefined;
 	if (checklist) {
-		const last = await db.dailyTask.findFirst({ orderBy: { order: 'desc' }, select: { order: true } });
+		const last = await db.dailyTask.findFirst({
+			orderBy: { order: 'desc' },
+			select: { order: true }
+		});
 		dailyTasks = {
 			create: {
 				label: checklist.label?.trim() || `Regarde la vidéo : ${data.title}`,

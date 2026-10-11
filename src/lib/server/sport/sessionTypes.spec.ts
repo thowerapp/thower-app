@@ -10,7 +10,10 @@ import {
 
 type Type = SessionWorkoutVideoRow['sessionType'];
 
-function video(position: SessionWorkoutVideoRow['position'], sessionType: Type): SessionWorkoutVideoRow {
+function video(
+	position: SessionWorkoutVideoRow['position'],
+	sessionType: Type
+): SessionWorkoutVideoRow {
 	return {
 		id: `${position}-${sessionType}`,
 		title: 't',
@@ -29,7 +32,11 @@ const ALL = new Set<NonNullable<Type>>(['MAIN_A', 'MAIN_B', 'MAIN_C', 'DISCOVERY
 describe('explicitSessionType', () => {
 	it('privil\u00e9gie la vid\u00e9o 1, puis la vid\u00e9o 2, puis les pr\u00e9-s\u00e9ances', () => {
 		expect(
-			explicitSessionType([video('PRE', 'MAIN_C'), video('VID1', 'MAIN_B'), video('VID2', 'MAIN_A')])
+			explicitSessionType([
+				video('PRE', 'MAIN_C'),
+				video('VID1', 'MAIN_B'),
+				video('VID2', 'MAIN_A')
+			])
 		).toBe('MAIN_B');
 		expect(explicitSessionType([video('PRE', 'MAIN_C'), video('VID2', 'MAIN_A')])).toBe('MAIN_A');
 		expect(explicitSessionType([video('PRE', 'MAIN_C')])).toBe('MAIN_C');

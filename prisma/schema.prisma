@@ -186,6 +186,7 @@ model User {
 
   // Sport (lot 3)
   workoutDays               UserWorkoutDay[]
+  sportOverrides            UserSportOverride[]
 
   // Nutrition (lot 4 & 5)
   nutritionDays             NutritionDay[]
@@ -575,6 +576,31 @@ model UserWorkoutDay {
   @@unique([userId, sessionId, dayIndex])
   @@index([userId])
   @@map("user_workout_days")
+}
+
+/// Action d'un override sur un jour du plan sport global
+enum SportOverrideKind {
+  HIDE    /// retire la séance du jour pour cet utilisateur
+  REPLACE /// remplace les vidéos du jour par `workoutVideoIds`
+  ADD     /// ajoute `workoutVideoIds` aux vidéos du jour (ou crée la séance si le plan n'en a pas)
+}
+
+/// Personnalisation du plan sport global pour un utilisateur, posée par un admin/coach.
+/// `dayIndex` = jour source du plan (celui dont les vidéos sont jouées), pas le jour d'affichage.
+model UserSportOverride {
+  id              String            @id @default(auto()) @map("_id") @db.ObjectId
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String            @db.ObjectId
+  dayIndex        Int
+  kind            SportOverrideKind
+  workoutVideoIds String[]          @db.ObjectId
+  note            String?
+  createdById     String            @db.ObjectId
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([userId])
+  @@map("user_sport_overrides")
 }
 
 /// Suivi de progression unifié d'une vidéo Cloudflare Stream (sport ou découverte)

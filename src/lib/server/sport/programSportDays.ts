@@ -3,6 +3,7 @@ import type { WorkoutSessionType, WorkoutVideoPosition } from '@prisma/client';
 import { isSeedCloudflareUid } from '$lib/prisma/video/seedVideo';
 import { sportWeekBounds, TOTAL_PROGRAM_DAYS, TOTAL_PROGRAM_WEEKS } from '$lib/utils/programDay';
 import { cachedSportPlan } from './sportPlanCache';
+import { applySportOverrides, type SportOverrideRow } from './sportOverrides';
 
 /*
  * Séances sport = jours du programme sur lesquels l'admin a rattaché des vidéos
@@ -306,15 +307,29 @@ type SportPlan = {
 	/** Jours triés ; les jours sans vidéo exploitable sont absents. */
 	videosByDay: Map<number, SessionWorkoutVideoRow[]>;
 	sessionCatalog: SessionCatalogRow[];
+	/** Toutes les vidéos sport (même non rattachées) : source des ajouts personnalisés. */
+	videosById: Map<string, SessionWorkoutVideoRow>;
 };
 
 async function loadSportPlan(): Promise<SportPlan> {
-	const [items, sessionCatalog] = await Promise.all([
+	const [items, sessionCatalog, allVideos] = await Promise.all([
 		fetchSportItems({ gte: 1, lte: TOTAL_PROGRAM_DAYS }),
 		prisma.workoutSession.findMany({
 			where: { active: true, type: { in: [...PLANNER_SESSION_TYPES] } },
 			select: { id: true, name: true, type: true, weekNumber: true, order: true },
 			orderBy: [{ order: 'asc' }, { createdAt: 'asc' }]
+		}),
+		prisma.workoutVideo.findMany({
+			select: {
+				id: true,
+				title: true,
+				position: true,
+				status: true,
+				cloudflareUid: true,
+				durationSeconds: true,
+				isOptional: true,
+				sessionType: true
+			}
 		})
 	]);
 
@@ -330,7 +345,13 @@ async function loadSportPlan(): Promise<SportPlan> {
 		const videos = orderSportVideos(dayItems);
 		if (videos.length > 0) videosByDay.set(day, videos);
 	}
-	return { videosByDay, sessionCatalog };
+
+	const videosById = new Map<string, SessionWorkoutVideoRow>();
+	for (const video of allVideos) {
+		if (isSeedCloudflareUid(video.cloudflareUid)) continue;
+		videosById.set(video.id, { ...video, order: 0 });
+	}
+	return { videosByDay, sessionCatalog, videosById };
 }
 
 function getSportPlan(): Promise<SportPlan> {
@@ -345,12 +366,30 @@ function daysInRange(plan: SportPlan, from: number, to: number) {
 	return days;
 }
 
-/** Vidéos d'une séance pour un jour source du programme (1..91). */
+/** Personnalisations du plan posées par un admin pour cet utilisateur, dans l'ordre de création. */
+async function getUserSportOverrides(userId: string): Promise<SportOverrideRow[]> {
+	return prisma.userSportOverride.findMany({
+		where: { userId },
+		select: { dayIndex: true, kind: true, workoutVideoIds: true },
+		orderBy: { createdAt: 'asc' }
+	});
+}
+
+/**
+ * Vidéos d'une séance pour un jour source du programme (1..91).
+ * Avec `userId`, les personnalisations de cet utilisateur sont appliquées.
+ */
 export async function getSportVideosForProgramDay(
-	dayIndex: number
+	dayIndex: number,
+	userId?: string
 ): Promise<SessionWorkoutVideoRow[]> {
 	const plan = await getSportPlan();
-	return [...(plan.videosByDay.get(dayIndex) ?? [])];
+	const base = plan.videosByDay.get(dayIndex) ?? [];
+	if (!userId) return [...base];
+
+	const overrides = (await getUserSportOverrides(userId)).filter((o) => o.dayIndex === dayIndex);
+	const days = applySportOverrides(new Map([[dayIndex, base]]), overrides, plan.videosById);
+	return [...(days.get(dayIndex) ?? [])];
 }
 
 /** Jours sport d'une plage → vidéos ordonnées. Les jours sans vidéo exploitable sont absents. */
@@ -370,7 +409,7 @@ export async function resolveSportWeek(params: {
 	const { userId, programStart, week } = params;
 	const { mondayDayIndex, weekStart, weekEnd } = sportWeekBounds(programStart, week);
 
-	const [plan, userRows] = await Promise.all([
+	const [plan, userRows, userOverrides] = await Promise.all([
 		getSportPlan(),
 		prisma.userWorkoutDay.findMany({
 			where: { userId, dayIndex: { gte: weekStart, lte: weekEnd } },
@@ -383,16 +422,18 @@ export async function resolveSportWeek(params: {
 				isLocked: true,
 				session: { select: { id: true, name: true, type: true, active: true } }
 			}
-		})
+		}),
+		getUserSportOverrides(userId)
 	]);
 
 	const { sessionCatalog } = plan;
-	const sportDays = daysInRange(plan, weekStart, weekEnd);
-	const sessionByContentDay = new Map<number, SlotSession>();
-	const typeByDay = assignWeekSessionTypes(
-		sportDays,
-		new Set(sessionCatalog.map((s) => s.type))
+	const sportDays = applySportOverrides(
+		daysInRange(plan, weekStart, weekEnd),
+		userOverrides.filter((o) => o.dayIndex >= weekStart && o.dayIndex <= weekEnd),
+		plan.videosById
 	);
+	const sessionByContentDay = new Map<number, SlotSession>();
+	const typeByDay = assignWeekSessionTypes(sportDays, new Set(sessionCatalog.map((s) => s.type)));
 	for (const [day, type] of typeByDay) {
 		const session =
 			pickSessionForType(sessionCatalog, type, week) ??

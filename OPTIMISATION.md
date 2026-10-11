@@ -4,8 +4,8 @@ Branche de travail : `optimisation`. Analyse basée sur la lecture du code (aucu
 
 ## 1. Constat
 
-* **Sport** : le contenu est déjà global (`ProgramDayItem` → `WorkoutVideo`, défini par l'admin). Il n'y a **pas de génération par user** : au paiement, seul `programStartDate` est posé (`ensureProgramStartDate`). `UserWorkoutDay` n'est créé qu'au déplacement ou à la validation d'une séance. Le coût vient de la **lecture** : le plan global est recalculé pour chaque user et chaque requête, et il n'existe pas de mécanisme propre pour des éléments personnalisés par user.
-* **Nutrition** : entièrement personnalisée, générée au paiement (91 jours, \~273 repas + liste de courses). La boucle de génération fait \~550 requêtes séquentielles, sans verrou ni état, et plusieurs `load` GET écrivent en base.
+- **Sport** : le contenu est déjà global (`ProgramDayItem` → `WorkoutVideo`, défini par l'admin). Il n'y a **pas de génération par user** : au paiement, seul `programStartDate` est posé (`ensureProgramStartDate`). `UserWorkoutDay` n'est créé qu'au déplacement ou à la validation d'une séance. Le coût vient de la **lecture** : le plan global est recalculé pour chaque user et chaque requête, et il n'existe pas de mécanisme propre pour des éléments personnalisés par user.
+- **Nutrition** : entièrement personnalisée, générée au paiement (91 jours, \~273 repas + liste de courses). La boucle de génération fait \~550 requêtes séquentielles, sans verrou ni état, et plusieurs `load` GET écrivent en base.
 
 ## 2. Architecture cible du sport
 
@@ -17,9 +17,9 @@ Admin (attach/detach vidéos, séances)
    → pages /user/sport, séance, journée
 ```
 
-* **Couche 1, plan global** : une seule vérité pour tous, indexée par `dayIndex` relatif (valable quelle que soit la date de départ).
-* **Couche 2, éléments personnalisés** : modèle d'override par user, fusionné au plan par une fonction pure (prolonge `placeSportWeek`).
-* **Aucune génération sport par user** : le paiement pose seulement `programStartDate` et l'entitlement.
+- **Couche 1, plan global** : une seule vérité pour tous, indexée par `dayIndex` relatif (valable quelle que soit la date de départ).
+- **Couche 2, éléments personnalisés** : modèle d'override par user, fusionné au plan par une fonction pure (prolonge `placeSportWeek`).
+- **Aucune génération sport par user** : le paiement pose seulement `programStartDate` et l'entitlement.
 
 ## 3. Sport
 
@@ -39,11 +39,11 @@ Admin (attach/detach vidéos, séances)
 
 ### P2 : éléments personnalisés par user
 
-- [ ] **S9** Nouveau modèle d'override (`UserSportOverride` ou équivalent) : `userId`, `dayIndex`, `kind` (`ADD` / `HIDE` / `REPLACE` / `MOVE`), `workoutVideoId` ou `sessionId` optionnel, `label`, `points`, `createdBy`.
-- [ ] **S10** Fusion pure et testable `resolveSport(plan, overrides, userRows)` ; les cas de `programSportDays.spec.ts` servent de non-régression.
-- [ ] **S11** Migration douce : `UserWorkoutDay` conservé pour l'historique des validations, déplacements lus des deux sources pendant la transition.
-- [ ] **S12** UI admin (onglet Sport de `admin/users/[id]`) : ajouter, masquer, remplacer par user.
-- [ ] **S12b** Décision à prendre : l'override peut-il être créé par l'user lui-même (déplacer/masquer) ou seulement par l'admin ? (permissions + validation)
+- [x] **S9** Modèle `UserSportOverride` (`HIDE` / `REPLACE` / `ADD`, jour source du plan, `workoutVideoIds`, `note`, `createdById`). Un seul réglage par jour source. Le schéma est à pousser en base (`prisma db push`, sans `--accept-data-loss`) pour créer l'index `userId`.
+- [x] **S10** Fusion pure `applySportOverrides` (`src/lib/server/sport/sportOverrides.ts`) : le plan partagé n'est jamais modifié ; appliquée par `resolveSportWeek` et `getSportVideosForProgramDay(dayIndex, userId)`. Les vidéos viennent du snapshot (`videosById`).
+- [x] **S11** Sans objet : `UserWorkoutDay` reste la source des déplacements et validations, les overrides agissent sur le contenu du jour source ; aucune migration.
+- [x] **S12** UI admin : carte « Personnalisation du plan sport » dans l'onglet Sport de `admin/users/[id]` (actions `addSportOverride` / `deleteSportOverride`, réservées au rôle `ADMIN`).
+- [x] **S12b** Décision : seuls admin / coach créent des overrides (l'utilisateur ne peut pas). Il n'existe pas de rôle coach : seul `ADMIN` écrit pour l'instant, `createdById` garde l'auteur pour un futur rôle.
 
 ### P3 : nettoyage
 
@@ -92,9 +92,9 @@ Admin (attach/detach vidéos, séances)
 - [ ] **T4** Dates : checklist en minuit UTC (`startOfUtcDay`) vs programme en minuit Europe/Paris.
 - [ ] **T5** `hooks.server.ts` : 3 lectures DB par requête (session, user, session Prisma).
 - [ ] **T6** `validateChecklist` dupliqué entre `user/+page.server.ts` et `user/journee/+page.server.ts`.
+- [x] **T7** Les actions de formulaire `/admin/**` et les API `/api/admin/**` ne passaient pas par le layout admin : seule la session était exigée. Garde ajouté dans `hooks.server.ts` (`adminWriteGuard` : toute écriture non-GET d'un non-`ADMIN` renvoie 403).
 
 ## 6. Ordre de travail proposé
-
 
 1. **S1 + S2 + S4** : snapshot du plan global et invalidation.
 2. **S5 + S6 + S7** : bugs de validation sport.
@@ -107,9 +107,7 @@ Admin (attach/detach vidéos, séances)
 
 ## 7. Points de validation avant de coder
 
-* S12b : qui crée un override (user, admin, coach) ?
-* N14 : `weightLossGoalKg` doit-il piloter la cible calorique ?
-* N15 : un second paiement redémarre-t-il un programme de 91 jours ?
-* Mongo en replica set (Atlas) pour les transactions de lots : déjà utilisé dans `rescaleUserMeals` (7 jours par transaction, limite de 60 s).
-
-
+- S12b : tranché (admin / coach seulement).
+- N14 : `weightLossGoalKg` doit-il piloter la cible calorique ?
+- N15 : un second paiement redémarre-t-il un programme de 91 jours ?
+- Mongo en replica set (Atlas) pour les transactions de lots : déjà utilisé dans `rescaleUserMeals` (7 jours par transaction, limite de 60 s).

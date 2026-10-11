@@ -22,6 +22,7 @@ export interface UserSelected {
 	transactions?: TransactionSelected[];
 	sessions?: SessionSelected[];
 	workoutDays?: WorkoutDaySelected[];
+	sportOverrides?: SportOverrideSelected[];
 	pointEvents?: PointEventSelected[];
 	progressPhotos?: ProgressPhotoSelected[];
 	userBadges?: UserBadgeSelected[];
@@ -108,6 +109,15 @@ export interface WorkoutDaySelected {
 	completedAt?: string | null;
 	isLocked: boolean;
 	session?: { name: string } | null;
+}
+
+export interface SportOverrideSelected {
+	id: string;
+	dayIndex: number;
+	kind: 'HIDE' | 'REPLACE' | 'ADD';
+	workoutVideoIds: string[];
+	note?: string | null;
+	createdAt?: string;
 }
 
 export interface PointEventSelected {
@@ -261,13 +271,36 @@ export interface AdminUserOptions {
 	recipeCatalog?: Array<{ id: string; name: string; category?: string; isCustom?: boolean }>;
 	dailyTasks?: Array<{ id: string; label: string; points?: number; active?: boolean }>;
 	badges?: Array<{ id: string; name: string; slug: string }>;
-	programDayItems?: Array<{ id: string; type?: string; label?: string | null; points?: number; order?: number }>;
+	programDayItems?: Array<{
+		id: string;
+		type?: string;
+		label?: string | null;
+		points?: number;
+		order?: number;
+	}>;
 	adminChallenges?: Array<{ id: string; name: string; active?: boolean }>;
+	workoutVideos?: Array<{
+		id: string;
+		title: string;
+		position: string;
+		sessionType?: string | null;
+		status?: string;
+	}>;
 }
 
 export const MONTH_NAMES = [
-	'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-	'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+	'Janvier',
+	'Février',
+	'Mars',
+	'Avril',
+	'Mai',
+	'Juin',
+	'Juillet',
+	'Août',
+	'Septembre',
+	'Octobre',
+	'Novembre',
+	'Décembre'
 ];
 
 export const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];

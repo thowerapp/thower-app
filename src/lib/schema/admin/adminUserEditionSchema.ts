@@ -30,15 +30,12 @@ const booleanFromForm = z.preprocess(
 	z.boolean()
 );
 
-const optionalBooleanFromForm = z.preprocess(
-	(val) => {
-		if (val === '' || val === undefined || val === null) return undefined;
-		if (val === true || val === 'on' || val === 'true' || val === '1') return true;
-		if (val === false || val === 'off' || val === 'false' || val === '0') return false;
-		return undefined;
-	},
-	z.boolean().optional()
-);
+const optionalBooleanFromForm = z.preprocess((val) => {
+	if (val === '' || val === undefined || val === null) return undefined;
+	if (val === true || val === 'on' || val === 'true' || val === '1') return true;
+	if (val === false || val === 'off' || val === 'false' || val === '0') return false;
+	return undefined;
+}, z.boolean().optional());
 
 const parseStringArray = (val: unknown): string[] => {
 	if (Array.isArray(val)) return val.map(String).filter(Boolean);
@@ -188,6 +185,26 @@ export const adminWorkoutDaySchema = z.object({
 	completedAt: optionalDateString,
 	isLocked: booleanFromForm.default(false)
 });
+
+const objectId = z.string().regex(/^[a-f\d]{24}$/i, 'Identifiant invalide.');
+
+/** Personnalisation du plan sport d'un utilisateur (un seul override par jour source). */
+export const adminSportOverrideSchema = z
+	.object({
+		dayIndex: z.coerce.number().int().min(1).max(91),
+		kind: z.enum(['HIDE', 'REPLACE', 'ADD']),
+		workoutVideoIds: z.preprocess(
+			(val) => (val === undefined || val === '' ? [] : Array.isArray(val) ? val : [val]),
+			z.array(objectId).max(20)
+		),
+		note: optionalString
+	})
+	.refine((d) => d.kind === 'HIDE' || d.workoutVideoIds.length > 0, {
+		message: 'Choisis au moins une vidéo.',
+		path: ['workoutVideoIds']
+	});
+
+export const adminSportOverrideDeleteSchema = z.object({ id: objectId });
 
 export const adminPointEventSchema = z.object({
 	id: z.string().optional(),

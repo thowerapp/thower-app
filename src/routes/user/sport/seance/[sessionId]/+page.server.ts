@@ -97,7 +97,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		throw error(404, 'Séance introuvable.');
 	}
 
-	const sessionVideos = await getSportVideosForProgramDay(slot.contentDayIndex);
+	const sessionVideos = await getSportVideosForProgramDay(slot.contentDayIndex, userId);
 	const videoIds = sessionVideos.map((v) => v.id);
 	const progressDelegate = getUserVideoProgressDelegate();
 
@@ -123,10 +123,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			: Promise.resolve([])
 	]);
 
-	const progressByVideoId = new Map<
-		string,
-		{ completedAt: Date | null; maxPositionSec: number }
-	>();
+	const progressByVideoId = new Map<string, { completedAt: Date | null; maxPositionSec: number }>();
 	for (const r of progressRows as {
 		workoutVideoId: string | null;
 		completedAt: Date | null;
@@ -156,7 +153,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		const prog = progressByVideoId.get(v.id);
 		const videoCompleted = prog?.completedAt != null;
 		const maxPositionSec = prog?.maxPositionSec ?? 0;
-		const durationSec = v.durationSeconds != null && v.durationSeconds > 0 ? v.durationSeconds : null;
+		const durationSec =
+			v.durationSeconds != null && v.durationSeconds > 0 ? v.durationSeconds : null;
 
 		let progressState: VideoProgressState;
 		if (status !== 'ready') {
@@ -170,9 +168,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		}
 
 		const watchedPercent =
-			durationSec != null
-				? Math.min(100, Math.round((maxPositionSec / durationSec) * 100))
-				: null;
+			durationSec != null ? Math.min(100, Math.round((maxPositionSec / durationSec) * 100)) : null;
 
 		return {
 			id: v.id,
@@ -220,8 +216,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		prerequisiteBlocked = true;
 		prerequisiteMessage =
 			session.type === 'MAIN_B'
-				? 'Valide la séance 1 avant d\'accéder à la séance 2.'
-				: 'Valide la séance 2 avant d\'accéder à la séance 3.';
+				? "Valide la séance 1 avant d'accéder à la séance 2."
+				: "Valide la séance 2 avant d'accéder à la séance 3.";
 	}
 
 	return serializeData({
@@ -264,10 +260,7 @@ export const actions: Actions = {
 
 		const fd = await request.formData();
 		const raw = fd.get('dayIndex');
-		const dayIdx =
-			raw != null && raw !== ''
-				? Number.parseInt(String(raw), 10)
-				: NaN;
+		const dayIdx = raw != null && raw !== '' ? Number.parseInt(String(raw), 10) : NaN;
 		if (!Number.isInteger(dayIdx) || dayIdx < 1 || dayIdx > 91) {
 			return fail(400, { message: 'Jour programme invalide.' });
 		}
@@ -289,7 +282,7 @@ export const actions: Actions = {
 			return fail(404, { message: 'Pas de séance prévue ce jour.' });
 		}
 
-		const sessionVideos = await getSportVideosForProgramDay(slot.contentDayIndex);
+		const sessionVideos = await getSportVideosForProgramDay(slot.contentDayIndex, userId);
 
 		const existingWorkoutDay = await prisma.userWorkoutDay.findFirst({
 			where: { userId, sessionId, dayIndex: dayIdx },
@@ -323,18 +316,17 @@ export const actions: Actions = {
 		if (mandatoryVideoIds.length > 0) {
 			const completedMandatoryCount = progressDelegate
 				? await progressDelegate.count({
-				where: {
-					userId,
-					workoutVideoId: { in: mandatoryVideoIds },
-					completedAt: { not: null }
-				}
-			  })
+						where: {
+							userId,
+							workoutVideoId: { in: mandatoryVideoIds },
+							completedAt: { not: null }
+						}
+					})
 				: 0;
 
 			if (completedMandatoryCount < mandatoryVideoIds.length) {
 				return fail(409, {
-					message:
-						'Valide d’abord Séance 1 et Séance 2 avant de confirmer la séance.'
+					message: 'Valide d’abord Séance 1 et Séance 2 avant de confirmer la séance.'
 				});
 			}
 		}

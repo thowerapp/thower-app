@@ -56,17 +56,18 @@ export const actions: Actions = {
 				ended: true
 			});
 
+			// Tâche checklist liée : cochée à chaque visionnage (une fois par jour), pas seulement au premier.
+			const linkedTask = await (prisma as any).dailyTask.findFirst({
+				where: { type: 'VIDEO', active: true, discoveryContentId: id },
+				select: { id: true }
+			});
+
+			if (linkedTask) {
+				const taskPts = await autoCompleteVideoTask(userId, id);
+				return { success: true, pointsEarned: taskPts };
+			}
+
 			if (result.completedNow) {
-				const linkedTask = await (prisma as any).dailyTask.findFirst({
-					where: { type: 'VIDEO', active: true, discoveryContentId: id },
-					select: { id: true }
-				});
-
-				if (linkedTask) {
-					const taskPts = await autoCompleteVideoTask(userId, id);
-					return { success: true, pointsEarned: taskPts };
-				}
-
 				await (prisma as any).pointEvent?.create({
 					data: {
 						userId,

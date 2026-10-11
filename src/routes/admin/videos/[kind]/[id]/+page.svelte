@@ -58,11 +58,9 @@
 	const categoryOptions = discoveryCategoryEnum.options.map((v) => ({
 		value: v,
 		label: ({
-			MEDITATION: 'Méditation',
-			MINDSET: 'Mindset',
-			BREATHWORK: 'Breathwork',
+			BONUS: 'Séance bonus',
 			MOTIVATION: 'Motivation',
-			EXPLICATION: 'Explication'
+			EXPLICATION: 'Tuto et explication'
 		})[v]
 	}));
 
@@ -81,7 +79,7 @@
 			MAIN_A: 'Séance 1',
 			MAIN_B: 'Séance 2',
 			MAIN_C: 'Séance 3',
-			DISCOVERY: 'Découverte'
+			DISCOVERY: 'Séance bonus'
 		})[v]
 	}));
 
@@ -140,7 +138,7 @@
 		<div>
 			<h1 class="text-2xl font-bold">Modifier la vidéo</h1>
 			<p class="text-sm text-muted-foreground">
-				Type : <span class="font-medium">{data.kind === 'workout' ? 'Sport' : 'Découverte'}</span>
+				Type : <span class="font-medium">{data.kind === 'workout' ? 'Sport' : 'Séance bonus'}</span>
 			</p>
 		</div>
 	</div>
@@ -266,7 +264,7 @@
 
 		{#if $form.kind === 'discovery'}
 			<fieldset class="rounded-lg border p-4 space-y-4">
-				<legend class="px-2 text-sm font-semibold">Paramètres Découverte</legend>
+				<legend class="px-2 text-sm font-semibold">Paramètres Séance bonus</legend>
 
 				<div class="grid grid-cols-2 gap-4">
 					<Form.Field name="category" form={videoForm}>

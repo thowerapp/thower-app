@@ -327,7 +327,7 @@
 					</div>
 					<div class="u-li-s">
 						{#if isOptionalSessionLetter(row.sessionLetter)}Séance facultative · {/if}
-						{#if row.sessionLetter === 'D'}Mindset · Breathwork · Méditation{:else if row.points}&plus;{row.points} pts à gagner{/if}
+						{#if row.sessionLetter === 'D'}Séances bonus{:else if row.points}&plus;{row.points} pts à gagner{/if}
 					</div>
 				</div>
 				<div class="u-li-r"><div class="u-arr"></div></div>
@@ -345,7 +345,7 @@
 					</div>
 					<div class="u-li-s">
 						{#if isOptionalSessionLetter(row.sessionLetter)}Séance facultative · {/if}
-						{#if row.sessionLetter === 'D'}Mindset · Breathwork · Méditation{:else}À faire{/if}
+						{#if row.sessionLetter === 'D'}Séances bonus{:else}À faire{/if}
 						{#if row.points} · &plus;{row.points} pts{/if}
 					</div>
 				</div>

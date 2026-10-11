@@ -233,9 +233,9 @@ async function main() {
 	}
 
 	const discoveryDefs = [
-		{ category: 'BREATHWORK', title: 'Respiration anti-stress (seed prog.)', cloudflareUid: 'cf_seed_prog_bw_0', order: 0, active: true },
-		{ category: 'MINDSET', title: 'Mindset — discipline quotidienne (seed)', cloudflareUid: 'cf_seed_prog_ms_1', order: 0, active: true },
-		{ category: 'BREATHWORK', title: 'Cohérence cardiaque 5 min (seed)', cloudflareUid: 'cf_seed_prog_bw_2', order: 1, active: true },
+		{ category: 'BONUS', title: 'Respiration anti-stress (seed prog.)', cloudflareUid: 'cf_seed_prog_bw_0', order: 0, active: true },
+		{ category: 'BONUS', title: 'Mindset — discipline quotidienne (seed)', cloudflareUid: 'cf_seed_prog_ms_1', order: 0, active: true },
+		{ category: 'BONUS', title: 'Cohérence cardiaque 5 min (seed)', cloudflareUid: 'cf_seed_prog_bw_2', order: 1, active: true },
 		{
 			category: 'MOTIVATION',
 			title: 'Bienvenue dans le programme',

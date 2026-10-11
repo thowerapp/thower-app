@@ -57,28 +57,30 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 				}
 	);
 
+	// Checklist jour : si cette vidéo est rattachée à la DailyTask VIDEO du jour,
+	// autoCompleteVideoTask est l'unique source de points (task.points) — on ne
+	// doit pas aussi attribuer les VIDEO_COMPLETION_POINTS génériques ci-dessous,
+	// sous peine de compter les points en double.
+	// Appelée à chaque visionnage (reachedNow) et pas seulement au premier : la tâche
+	// d'une plage de jours doit se cocher chaque jour (une complétion max par jour).
+	let awardedByDailyTask = false;
+	if (kind === 'discovery' && (result.completedNow || result.reachedNow)) {
+		try {
+			const linkedTask = await prisma.dailyTask.findFirst({
+				where: { type: 'VIDEO', active: true, discoveryContentId: params.id },
+				select: { id: true }
+			});
+			if (linkedTask) {
+				awardedByDailyTask = true;
+				await autoCompleteVideoTask(userId, params.id);
+			}
+		} catch (err) {
+			console.error('[videos/progress] autoCompleteVideoTask error', err);
+		}
+	}
+
 	if (result.completedNow) {
 		const meta: Record<string, unknown> = { kind, videoId: params.id };
-
-		// Checklist jour : si cette vidéo est rattachée à la DailyTask VIDEO du jour,
-		// autoCompleteVideoTask est l'unique source de points (task.points) — on ne
-		// doit pas aussi attribuer les VIDEO_COMPLETION_POINTS génériques ci-dessous,
-		// sous peine de compter les points en double.
-		let awardedByDailyTask = false;
-		if (kind === 'discovery') {
-			try {
-				const linkedTask = await prisma.dailyTask.findFirst({
-					where: { type: 'VIDEO', active: true, discoveryContentId: params.id },
-					select: { id: true }
-				});
-				if (linkedTask) {
-					awardedByDailyTask = true;
-					await autoCompleteVideoTask(userId, params.id);
-				}
-			} catch (err) {
-				console.error('[videos/progress] autoCompleteVideoTask error', err);
-			}
-		}
 
 		if (!awardedByDailyTask) {
 			try {

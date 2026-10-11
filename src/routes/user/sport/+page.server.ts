@@ -179,7 +179,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				hasProgramSession: true,
 				sessionId: null,
 				sessionLetter: 'D',
-				sessionName: 'Découverte',
+				sessionName: 'Séance bonus',
 				points: 0,
 				completedAtISO: null,
 				isToday: virtualDDay === currentDayIndex,

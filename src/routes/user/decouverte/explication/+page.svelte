@@ -9,9 +9,9 @@ const videos = $derived((data.videos ?? []) as Video[]);
 <div class="back-row">
 <a href="/user/decouverte" class="back-lnk">
 <svg width="12" height="12" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="var(--txd)" stroke-width="1.5" stroke-linecap="round"/></svg>
-<span class="back-lbl">Découverte</span>
+<span class="back-lbl">Séance bonus</span>
 </a>
-<div class="back-head">Explication</div>
+<div class="back-head">Tuto et explication</div>
 </div>
 <div class="sh">
 	<div class="sh-t">Comprendre · Apprendre</div>

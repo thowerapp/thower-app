@@ -25,7 +25,7 @@ export async function updateVideo(id: string, data: VideoFormCoreInput) {
 	}
 
 	if (!data.category) {
-		throw new Error('category est requis pour une vidéo Découverte.');
+		throw new Error('category est requis pour une vidéo Séance bonus.');
 	}
 	return db.discoveryContent.update({
 		where: { id },

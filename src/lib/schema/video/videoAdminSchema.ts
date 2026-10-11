@@ -50,7 +50,7 @@ export const videoFormCoreSchema = videoFormCoreBaseSchema.superRefine((d, ctx) 
 	if (d.kind === 'discovery' && !d.category) {
 		ctx.addIssue({
 			code: z.ZodIssueCode.custom,
-			message: 'Catégorie requise pour une vidéo Découverte.',
+			message: 'Catégorie requise pour une vidéo Séance bonus.',
 			path: ['category']
 		});
 	}
@@ -100,7 +100,7 @@ const refineChecklistIfEnabled = (
 	if (d.kind !== 'discovery') {
 		ctx.addIssue({
 			code: z.ZodIssueCode.custom,
-			message: 'Seule une vidéo Découverte peut apparaître dans la checklist.',
+			message: 'Seule une vidéo Séance bonus peut apparaître dans la checklist.',
 			path: ['addToChecklist']
 		});
 	}

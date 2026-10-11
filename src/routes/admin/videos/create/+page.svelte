@@ -61,8 +61,8 @@
 		},
 		{
 			value: 'discovery',
-			label: 'Hub Découverte',
-			hint: 'Dans l’onglet Découverte (méditation, mindset, breathwork…).'
+			label: 'Hub Séance bonus',
+			hint: 'Dans l’onglet Séance bonus (séances bonus, motivation, tutos…).'
 		},
 		{
 			value: 'checklist',
@@ -87,11 +87,9 @@
 	const categoryOptions = discoveryCategoryEnum.options.map((v) => ({
 		value: v,
 		label: ({
-			MEDITATION: 'Méditation',
-			MINDSET: 'Mindset',
-			BREATHWORK: 'Breathwork',
+			BONUS: 'Séance bonus',
 			MOTIVATION: 'Motivation',
-			EXPLICATION: 'Explication'
+			EXPLICATION: 'Tuto et explication'
 		})[v]
 	}));
 
@@ -110,7 +108,7 @@
 			MAIN_A: 'Séance 1',
 			MAIN_B: 'Séance 2',
 			MAIN_C: 'Séance 3',
-			DISCOVERY: 'Découverte'
+			DISCOVERY: 'Séance bonus'
 		})[v]
 	}));
 
@@ -372,7 +370,7 @@
 		{#if $form.kind === 'discovery'}
 			<fieldset class="rounded-lg border p-4 space-y-4">
 				<legend class="px-2 text-sm font-semibold">
-					{placement === 'checklist' ? 'Catégorie (où la retrouver dans Découverte)' : 'Paramètres Découverte'}
+					{placement === 'checklist' ? 'Catégorie (où la retrouver dans Séance bonus)' : 'Paramètres Séance bonus'}
 				</legend>
 
 			<Form.Field name="category" form={videoForm}>

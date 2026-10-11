@@ -40,7 +40,7 @@ const sectionLabels: Record<string, string> = {
   user:           'Accueil',
   nutrition:      'Nutrition',
   sport:          'Sport',
-  decouverte:     'Découverte',
+  decouverte:     'Séance bonus',
   journee:        'Journée',
   progression:    'Progression',
   parametres:     'Paramètres',
@@ -54,9 +54,8 @@ const sectionLabels: Record<string, string> = {
   defis:          'Défis',
   'defi-30-jours': '30 jours',
   jeune:          'Jeûne',
-  mindset:        'Mindset',
-  meditation:     'Méditation',
-  breathwork:     'Breathwork',
+  bonus:          'Séance bonus',
+  explication:    'Tuto et explication',
 };
 
 // Les 4 tabs principaux n'ont pas besoin d'un bouton retour (on navigue via le bottom nav)
@@ -157,7 +156,7 @@ onMount(() => {
   <nav class="bottom-nav">
     <a href="/user/decouverte" class="ni" class:on={currentTab === 'decouverte'} onclick={handleNavClick} data-sveltekit-preload-code="eager" data-sveltekit-preload-data="tap">
       <div class="ndot"></div>
-      <div class="nlbl">Découverte</div>
+      <div class="nlbl">Séance bonus</div>
       <div class="nbar"></div>
     </a>
     <a href="/user/journee" class="ni" class:on={currentTab === 'journee'} onclick={handleNavClick} data-sveltekit-preload-code="eager" data-sveltekit-preload-data="tap">

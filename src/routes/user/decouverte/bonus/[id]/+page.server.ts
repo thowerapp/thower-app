@@ -1,5 +1,5 @@
 import { redirect, fail } from '@sveltejs/kit';
-import type { PageServerLoad, Actions } from './';
+import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
 import { upsertVideoProgress } from '$lib/prisma/userVideoProgress/upsertProgress';
 import { autoCompleteVideoTask } from '$lib/prisma/dailyTask/autoCompleteVideoTask';
@@ -10,15 +10,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const { id } = params;
 
 	const db = prisma as any;
-	if (!db?.discoveryContent) throw redirect(302, '/user/decouverte/meditation');
+	if (!db?.discoveryContent) throw redirect(302, '/user/decouverte/bonus');
 
 	const content = await db.discoveryContent.findUnique({
 		where: { id },
 		select: { id: true, title: true, cloudflareUid: true, thumbnailUrl: true, category: true, active: true }
 	});
 
-	if (!content || !content.active || content.category !== 'MEDITATION') {
-		throw redirect(302, '/user/decouverte/meditation');
+	if (!content || !content.active || content.category !== 'BONUS') {
+		throw redirect(302, '/user/decouverte/bonus');
 	}
 
 	const progress = await db.userVideoProgress?.findFirst({
@@ -56,23 +56,24 @@ export const actions: Actions = {
 				ended: true
 			});
 
+			// Tâche checklist liée : cochée à chaque visionnage (une fois par jour), pas seulement au premier.
+			const linkedTask = await (prisma as any).dailyTask.findFirst({
+				where: { type: 'VIDEO', active: true, discoveryContentId: id },
+				select: { id: true }
+			});
+
+			if (linkedTask) {
+				const taskPts = await autoCompleteVideoTask(userId, id);
+				return { success: true, pointsEarned: taskPts };
+			}
+
 			if (result.completedNow) {
-				const linkedTask = await (prisma as any).dailyTask.findFirst({
-					where: { type: 'VIDEO', active: true, discoveryContentId: id },
-					select: { id: true }
-				});
-
-				if (linkedTask) {
-					const taskPts = await autoCompleteVideoTask(userId, id);
-					return { success: true, pointsEarned: taskPts };
-				}
-
 				await (prisma as any).pointEvent?.create({
 					data: {
 						userId,
 						type: 'VIDEO_WATCHED',
 						amount: 10,
-						metadata: { discoveryContentId: id, source: 'meditation' }
+						metadata: { discoveryContentId: id, source: 'bonus' }
 					}
 				});
 				return { success: true, pointsEarned: 10 };

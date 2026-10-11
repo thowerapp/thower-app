@@ -25,15 +25,13 @@
 
 	const kindLabels: Record<string, string> = {
 		workout: 'Sport',
-		discovery: 'Découverte'
+		discovery: 'Séance bonus'
 	};
 
 	const categoryLabels: Record<string, string> = {
-		MEDITATION: 'Méditation',
-		MINDSET: 'Mindset',
-		BREATHWORK: 'Breathwork',
+		BONUS: 'Séance bonus',
 		MOTIVATION: 'Motivation',
-		EXPLICATION: 'Explication'
+		EXPLICATION: 'Tuto et explication'
 	};
 
 	const positionLabels: Record<string, string> = {

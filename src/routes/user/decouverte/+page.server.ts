@@ -10,19 +10,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 	try {
 		const currentDayIndex = await getCurrentDayIndex(userId);
 
-		const [meditation, mindset, breathwork, motivation, explication] = await Promise.all([
-			getDiscoveryContentByCategoryProgressive('MEDITATION', currentDayIndex),
-			getDiscoveryContentByCategoryProgressive('MINDSET', currentDayIndex),
-			getDiscoveryContentByCategoryProgressive('BREATHWORK', currentDayIndex),
+		const [bonus, motivation, explication] = await Promise.all([
+			getDiscoveryContentByCategoryProgressive('BONUS', currentDayIndex),
 			getDiscoveryContentByCategoryProgressive('MOTIVATION', currentDayIndex),
 			getDiscoveryContentByCategoryProgressive('EXPLICATION', currentDayIndex)
 		]);
 
 		return {
 			counts: {
-				meditation:  { total: meditation.length  },
-				mindset:     { total: mindset.length     },
-				breathwork:  { total: breathwork.length  },
+				bonus:       { total: bonus.length       },
 				motivation:  { total: motivation.length  },
 				explication: { total: explication.length }
 			}
@@ -30,9 +26,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	} catch {
 		return {
 			counts: {
-				meditation:  { total: 0 },
-				mindset:     { total: 0 },
-				breathwork:  { total: 0 },
+				bonus:       { total: 0 },
 				motivation:  { total: 0 },
 				explication: { total: 0 }
 			}

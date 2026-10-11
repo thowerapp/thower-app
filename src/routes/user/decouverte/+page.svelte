@@ -3,7 +3,7 @@ import type { PageData } from './$types';
 let { data } = $props<{ data: PageData }>();
 
 type Counts = { total: number };
-const counts = $derived(data.counts as { meditation: Counts; mindset: Counts; breathwork: Counts; motivation: Counts; explication: Counts } | undefined);
+const counts = $derived(data.counts as { bonus: Counts; motivation: Counts; explication: Counts } | undefined);
 
 function countLabel(c: Counts | undefined): string {
 	if (!c) return '';
@@ -16,13 +16,13 @@ function countLabel(c: Counts | undefined): string {
 <svg width="12" height="12" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="var(--txd)" stroke-width="1.5" stroke-linecap="round"/></svg>
 <span class="u-back-lbl">Accueil</span>
 </a>
-<div class="u-back-head">Découverte</div>
+<div class="u-back-head">Séance bonus</div>
 </div>
 
 <div class="hero">
 <div class="hero-top">
 <div>
-<div class="hero-title">Découverte</div>
+<div class="hero-title">Séance bonus</div>
 <div class="hero-sub">Bibliothèques · Pratiques</div>
 </div>
 <svg class="logo-svg" viewBox="0 0 44 38" fill="none">
@@ -41,37 +41,19 @@ function countLabel(c: Counts | undefined): string {
 </div>
 <div class="arr-wrap"><div class="arr"></div></div>
 </a>
-<a href="/user/decouverte/meditation" class="dec-card">
+<a href="/user/decouverte/bonus" class="dec-card">
 <div class="dec-icon"><div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--g)"></div></div>
 <div class="dec-body">
-<div class="dec-t">Méditation</div>
-<div class="dec-s">Pleine conscience · Guidée</div>
-<div class="dec-c">{countLabel(counts?.meditation)}</div>
-</div>
-<div class="arr-wrap"><div class="arr"></div></div>
-</a>
-<a href="/user/decouverte/mindset" class="dec-card">
-<div class="dec-icon"><div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:13px solid var(--cy)"></div></div>
-<div class="dec-body">
-<div class="dec-t">Mindset</div>
-<div class="dec-s">Motivation · Discipline</div>
-<div class="dec-c">{countLabel(counts?.mindset)}</div>
-</div>
-<div class="arr-wrap"><div class="arr"></div></div>
-</a>
-<a href="/user/decouverte/breathwork" class="dec-card">
-<div class="dec-icon"><div style="width:14px;height:14px;border:2px solid var(--g);border-radius:2px"></div></div>
-<div class="dec-body">
-<div class="dec-t">Breathwork</div>
-<div class="dec-s">Cohérence · Anti-stress</div>
-<div class="dec-c">{countLabel(counts?.breathwork)}</div>
+<div class="dec-t">Séance bonus</div>
+<div class="dec-s">Séances · Pratiques</div>
+<div class="dec-c">{countLabel(counts?.bonus)}</div>
 </div>
 <div class="arr-wrap"><div class="arr"></div></div>
 </a>
 <a href="/user/decouverte/explication" class="dec-card">
 <div class="dec-icon"><div style="width:12px;height:12px;border:2px solid var(--cy);transform:rotate(45deg)"></div></div>
 <div class="dec-body">
-<div class="dec-t">Explication</div>
+<div class="dec-t">Tuto et explication</div>
 <div class="dec-s">Comprendre · Apprendre</div>
 <div class="dec-c">{countLabel(counts?.explication)}</div>
 </div>

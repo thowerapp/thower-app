@@ -1,12 +1,6 @@
 import { z } from 'zod';
 
-export const discoveryCategoryEnum = z.enum([
-	'MEDITATION',
-	'MINDSET',
-	'BREATHWORK',
-	'MOTIVATION',
-	'EXPLICATION'
-]);
+export const discoveryCategoryEnum = z.enum(['BONUS', 'MOTIVATION', 'EXPLICATION']);
 
 export const discoveryContentSchema = z.object({
 	category: discoveryCategoryEnum,

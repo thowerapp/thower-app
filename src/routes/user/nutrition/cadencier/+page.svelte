@@ -193,7 +193,7 @@
 						</div>
 						<div class="macro-box">
 							<div class="macro-val">{meal.carbsG}g</div>
-							<div class="macro-lbl">C</div>
+							<div class="macro-lbl">G</div>
 						</div>
 						<div class="macro-box">
 							<div class="macro-val">{meal.fatG}g</div>

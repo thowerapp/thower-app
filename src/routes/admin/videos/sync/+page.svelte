@@ -128,7 +128,7 @@
 				</table>
 			</div>
 			<p class="mt-2 text-xs text-muted-foreground">
-				Les vidéos sont importées avec le type <strong>Découverte / MOTIVATION</strong> et restent
+				Les vidéos sont importées avec le type <strong>Séance bonus / MOTIVATION</strong> et restent
 				<strong>inactives</strong> jusqu'à configuration dans la fiche d'édition.
 			</p>
 		</div>

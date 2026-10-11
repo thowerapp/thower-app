@@ -9,7 +9,7 @@
 	const videos = $derived((data.videos ?? []) as Video[]);
 	const unlockedCount = $derived(videos.filter(v => !v.locked).length);
 
-	onMount(() => fireNewlyUnlocked('thower_locked_mindset', videos));
+	onMount(() => fireNewlyUnlocked('thower_locked_bonus', videos));
 
 	function onLockedClick() {
 		toast.info('Contenu verrouillé', {
@@ -21,12 +21,12 @@
 <div class="back-row">
 <a href="/user/decouverte" class="back-lnk">
 <svg width="12" height="12" viewBox="0 0 14 14"><path d="M9 2L4 7l5 5" stroke="var(--txd)" stroke-width="1.5" stroke-linecap="round"/></svg>
-<span class="back-lbl">Découverte</span>
+<span class="back-lbl">Séance bonus</span>
 </a>
-<div class="back-head">Mindset</div>
+<div class="back-head">Séance bonus</div>
 </div>
 <div class="sh">
-	<div class="sh-t">Motivation · Discipline</div>
+	<div class="sh-t">Séances · Pratiques</div>
 	<div class="sh-s">{unlockedCount} / {videos.length} débloqué{unlockedCount > 1 ? 's' : ''}</div>
 </div>
 
@@ -40,11 +40,11 @@
 				<div class="lock-icon">🔒</div>
 			</button>
 		{:else}
-			<a href="/user/decouverte/mindset/{video.id}" class="mcell" class:done={video.completed} data-vid-id={video.id}>
+			<a href="/user/decouverte/bonus/{video.id}" class="mcell" class:done={video.completed} data-vid-id={video.id}>
 				{#if video.completed}
 					<div style="width:9px;height:9px;border-radius:50%;background:var(--g)"></div>
 				{:else}
-					<div style="width:9px;height:9px;background:var(--cy)"></div>
+					<div style="width:9px;height:9px;background:var(--gd)"></div>
 				{/if}
 				<div class="mc-t">{video.title}</div>
 			</a>

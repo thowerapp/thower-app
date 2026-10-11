@@ -14,18 +14,14 @@
 	}
 
 	const categoryLabels: Record<string, string> = {
-		MEDITATION: 'Méditation',
-		MINDSET: 'Mindset',
+		BONUS: 'Séance bonus',
 		MOTIVATION: 'Motivation',
-		BREATHWORK: 'Respiration',
-		EXPLICATION: 'Explication'
+		EXPLICATION: 'Tuto et explication'
 	};
 
 	const categoryColors: Record<string, string> = {
-		MEDITATION: 'bg-violet-100 text-violet-800',
-		MINDSET: 'bg-blue-100 text-blue-800',
+		BONUS: 'bg-violet-100 text-violet-800',
 		MOTIVATION: 'bg-orange-100 text-orange-800',
-		BREATHWORK: 'bg-teal-100 text-teal-800',
 		EXPLICATION: 'bg-gray-100 text-gray-700'
 	};
 

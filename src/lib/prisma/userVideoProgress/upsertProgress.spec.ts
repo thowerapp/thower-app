@@ -201,6 +201,35 @@ describe('upsertVideoProgress — discovery', () => {
 
 		expect(result.completedNow).toBe(false);
 	});
+
+	it('revisionnage déjà complété : reachedNow suit la position courante, pas le max', async () => {
+		const db = await getPrisma();
+		db.discoveryContent.findUnique.mockResolvedValue({ id: 'dc1', durationSeconds: 200 });
+		db.userVideoProgress.findFirst.mockResolvedValue({
+			id: 'prog1',
+			maxPositionSec: 200,
+			completedAt: new Date()
+		});
+
+		const start = await upsertVideoProgress({
+			kind: 'discovery',
+			userId: 'u1',
+			discoveryContentId: 'dc1',
+			positionSec: 15
+		});
+		expect(start.completedNow).toBe(false);
+		expect(start.reachedNow).toBe(false);
+
+		const end = await upsertVideoProgress({
+			kind: 'discovery',
+			userId: 'u1',
+			discoveryContentId: 'dc1',
+			positionSec: 170
+		});
+		expect(end.completedNow).toBe(false);
+		expect(end.alreadyCompleted).toBe(true);
+		expect(end.reachedNow).toBe(true);
+	});
 });
 
 describe('upsertVideoProgress — progression max croissante', () => {

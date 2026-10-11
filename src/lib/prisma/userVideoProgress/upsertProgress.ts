@@ -34,6 +34,8 @@ export type UpsertVideoProgressResult = {
 	maxPositionSec: number;
 	completedNow: boolean;
 	alreadyCompleted: boolean;
+	/** Seuil atteint par CE visionnage (position courante, pas le max historique) — vrai aussi en revisionnage. */
+	reachedNow: boolean;
 	durationSeconds: number | null;
 };
 
@@ -94,6 +96,7 @@ export async function upsertVideoProgress(
 			maxPositionSec: newMax,
 			completedNow: shouldComplete,
 			alreadyCompleted: !!existing?.completedAt,
+			reachedNow: computeCompletion(Math.max(0, input.positionSec), video.durationSeconds ?? null, input.ended === true, false),
 			durationSeconds: video.durationSeconds ?? null
 		};
 	}
@@ -142,6 +145,7 @@ export async function upsertVideoProgress(
 		maxPositionSec: newMax,
 		completedNow: shouldComplete,
 		alreadyCompleted: !!existing?.completedAt,
+		reachedNow: computeCompletion(Math.max(0, input.positionSec), content.durationSeconds ?? null, input.ended === true, false),
 		durationSeconds: content.durationSeconds ?? null
 	};
 }

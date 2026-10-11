@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const currentDayIndex = await getCurrentDayIndex(userId);
 	const completedIds = await getCompletedDiscoveryContentIds(userId);
-	const videos = await getAllDiscoveryWithLockState('MEDITATION', currentDayIndex, new Set(completedIds));
+	const videos = await getAllDiscoveryWithLockState('BONUS', currentDayIndex, new Set(completedIds));
 
 	return { videos };
 };

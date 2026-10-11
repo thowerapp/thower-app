@@ -4,7 +4,7 @@ export const SESSION_TYPE_LABELS: Record<string, string> = {
 	MAIN_A: 'Séance 1',
 	MAIN_B: 'Séance 2',
 	MAIN_C: 'Séance 3',
-	DISCOVERY: 'Découverte'
+	DISCOVERY: 'Séance bonus'
 };
 
 /** `[1, 2, 3, 8]` → `J1–J3, J8` */

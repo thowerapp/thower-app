@@ -91,7 +91,7 @@ Admin (attach/detach vidéos, séances)
 - [x] **T2** Page `/acces-expire` créée (message, lien de renouvellement vers `/auth/subscription`, redirection vers `/user` si l'accès est valide).
 - [x] **T3** Les totaux de points (`user`, `progression`, `parametres/profil`, séance) passent par `getTotalPointsForUser` (`aggregate`) au lieu de `findMany` + `reduce`. Reste : un module unique `awardPoints` pour les autres créations de `PointEvent` (photos, progression, admin, vidéo).
 - [ ] **T4** Dates : checklist en minuit UTC (`startOfUtcDay`) vs programme en minuit Europe/Paris.
-- [ ] **T5** `hooks.server.ts` : 3 lectures DB par requête (session, user, session Prisma).
+- [x] **T5** `hooks.server.ts` ne fait plus qu'une lecture par requête : Lucia porte maintenant les attributs utilisateur (`emailVerified`, `registered2FA`, `googleId`, `name`, `picture`, `subscriptionEndsAt`) et de session (`twoFactorVerified`, `oauthProvider`) via `getUserAttributes` / `getSessionAttributes`, projetés vers `event.locals` par `toLocalsAuth` (`src/lib/lucia/locals.ts`). Les deux relectures redondantes (`getUserByIdPrisma`, `findSessionById`) sont supprimées.
 - [x] **T6** `validateChecklist` dupliqué dans `user/+page.server.ts` et `user/journee/+page.server.ts` remplacé par `validateDailyChecklist` (`src/lib/server/dailyChecklist.ts`), qui gère aussi le double envoi simultané (409 au lieu d'une erreur 500, sans points en double).
 - [x] **T7** Les actions de formulaire `/admin/**` et les API `/api/admin/**` ne passaient pas par le layout admin : seule la session était exigée. Garde ajouté dans `hooks.server.ts` (`adminWriteGuard` : toute écriture non-GET d'un non-`ADMIN` renvoie 403).
 

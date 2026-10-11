@@ -27,7 +27,19 @@ export const auth = new Lucia(adapter, {
 		email: dbUser.email,
 		username: dbUser.username,
 		role: dbUser.role,
-		isMfaEnabled: dbUser.isMfaEnabled
+		isMfaEnabled: dbUser.isMfaEnabled,
+		emailVerified: dbUser.emailVerified,
+		registered2FA: dbUser.totpKey !== null,
+		googleId: dbUser.googleId,
+		name: dbUser.name,
+		picture: dbUser.picture,
+		subscriptionEndsAt: dbUser.subscriptionEndsAt
+	}),
+
+	/* Évite de relire la session en base pour ces champs à chaque requête */
+	getSessionAttributes: (dbSession) => ({
+		twoFactorVerified: dbSession.twoFactorVerified,
+		oauthProvider: dbSession.oauthProvider ?? null
 	})
 });
 
@@ -38,9 +50,19 @@ declare module 'lucia' {
 		DatabaseUserAttributes: {
 			id: string;
 			email: string;
-			username: string;
+			username: string | null;
 			role: string;
 			isMfaEnabled: boolean;
+			emailVerified: boolean;
+			totpKey: Uint8Array | null;
+			googleId: string | null;
+			name: string | null;
+			picture: string | null;
+			subscriptionEndsAt: Date | null;
+		};
+		DatabaseSessionAttributes: {
+			twoFactorVerified: boolean;
+			oauthProvider?: string | null;
 		};
 	}
 }

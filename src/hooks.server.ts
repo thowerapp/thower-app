@@ -8,11 +8,10 @@ import { redirect } from '@sveltejs/kit';
 
 import { RefillingTokenBucket } from '$lib/lucia/rate-limit';
 import { auth } from '$lib/lucia';
-import type { User } from '$lib/lucia/user';
+import type { UserForClient } from '$lib/lucia/user';
+import { toLocalsAuth } from '$lib/lucia/locals';
 import type { Session } from '$lib/lucia/session';
 
-import { getUserByIdPrisma } from '$lib/prisma/user/user';
-import { findSessionById } from '$lib/prisma/session/sessions';
 
 /* -------------------------------------------------------------------------- */
 /*  Debug & Logging                                                           */
@@ -111,7 +110,7 @@ const authHandle: Handle = async ({ event, resolve }) => {
 	log('DEBUG', 'Auth', 'All cookies:', event.request.headers.get('cookie'));
 
 	let session: Session | null = null;
-	let user: User | null = null;
+	let user: UserForClient | null = null;
 
 	if (sid) {
 		try {
@@ -125,73 +124,9 @@ const authHandle: Handle = async ({ event, resolve }) => {
 			log('DEBUG', 'Auth', 'Lucia session object:', luciaSession);
 			log('DEBUG', 'Auth', 'Lucia user object:', luciaUser);
 
-			/* Rafraîchissement des données utilisateur */
-			if (luciaUser) {
-				try {
-					log('DEBUG', 'Auth', 'Fetching fresh user data for ID:', luciaUser.id);
-					const freshUser = await getUserByIdPrisma(luciaUser.id);
-					log('DEBUG', 'Auth', 'Fresh user data:', freshUser);
-
-					if (freshUser) {
-						const registered2FA = freshUser.totpKey !== null;
-						log('DEBUG', 'Auth', 'User 2FA status:', {
-							registered2FA,
-							totpKey: !!freshUser.totpKey
-						});
-
-						// Ne pas inclure totpKey (Buffer) pour que l'objet soit sérialisable vers le client
-						user = {
-							id: freshUser.id,
-							email: freshUser.email,
-							username: freshUser.username,
-							emailVerified: freshUser.emailVerified,
-							registered2FA,
-							googleId: freshUser.googleId,
-							name: freshUser.name,
-							picture: freshUser.picture,
-							role: freshUser.role,
-							isMfaEnabled: freshUser.isMfaEnabled,
-							subscriptionEndsAt: freshUser.subscriptionEndsAt ?? null
-						};
-						log('DEBUG', 'Auth', 'Mapped user object:', user);
-					} else {
-						log('WARN', 'Auth', 'No fresh user data found for ID:', luciaUser.id);
-					}
-				} catch (error) {
-					log('ERROR', 'Auth', 'Error fetching fresh user data:', error);
-					// Ne pas faire échouer l'authentification si la récupération de données utilisateur échoue
-					// Forcer la déconnexion pour éviter des états incohérents
-					log('WARN', 'Auth', 'Forcing logout due to user data fetch error');
-					const blank = auth.createBlankSessionCookie();
-					event.cookies.set(blank.name, blank.value, { path: '/', ...blank.attributes });
-					user = null;
-					session = null;
-				}
-			}
-
-			/* Rafraîchissement des données de session */
-			if (luciaSession) {
-				try {
-					log('DEBUG', 'Auth', 'Fetching session data for ID:', luciaSession.id);
-					const dbSession = await findSessionById(luciaSession.id);
-					log('DEBUG', 'Auth', 'Database session data:', dbSession);
-
-					if (dbSession) {
-						session = {
-							id: dbSession.id,
-							userId: dbSession.userId,
-							expiresAt: dbSession.expiresAt,
-							twoFactorVerified: dbSession.twoFactorVerified,
-							oauthProvider: dbSession.oauthProvider,
-							fresh: luciaSession.fresh
-						};
-						log('DEBUG', 'Auth', 'Mapped session object:', session);
-					} else {
-						log('WARN', 'Auth', 'No session found in database for ID:', luciaSession.id);
-					}
-				} catch (error) {
-					log('ERROR', 'Auth', 'Error fetching session data:', error);
-				}
+			// Lucia lit déjà session et utilisateur en base à chaque requête : pas de seconde lecture.
+			if (luciaUser && luciaSession) {
+				({ user, session } = toLocalsAuth(luciaUser, luciaSession));
 			}
 		} catch (error) {
 			log('ERROR', 'Auth', 'Session validation error:', error);

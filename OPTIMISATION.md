@@ -47,7 +47,7 @@ Admin (attach/detach vidéos, séances)
 
 ### P3 : nettoyage
 
-- [ ] **S13** Sortir le sport de `generateProgramForUser` : `ensureProgramStartDate` indépendant, appelé au paiement.
+- [x] **S13** La date de départ du programme est posée dès la validation du paiement/des mensurations (`scheduleProgramGenerationAfterPayment`), avant et indépendamment de la génération nutrition : le sport ne dépend plus de son succès.
 - [ ] **S14** Index Mongo : `program_day_items(type, workoutVideoId)` et `user_workout_days(userId, dayIndex)` si absents.
 - [ ] **S15** `requireSportAccess` cohérent sur toutes les actions (le layout couvre déjà les `load`).
 
@@ -55,15 +55,16 @@ Admin (attach/detach vidéos, séances)
 
 ### P0 : fiabilité de la génération
 
-- [ ] **N1** État de génération sur le user (`idle` / `running` / `done` / `failed` + horodatage) : sert de verrou atomique (`updateMany` conditionnel, comme `claimNutritionSegmentCredit`) et d'indicateur UI (aujourd'hui « Non planifié »).
-- [ ] **N2** Webhook Stripe : `reconcilePaidCheckoutSession` attend la génération en synchrone, sans `waitUntil` ni `maxDuration`. Utiliser `dispatchProgramGeneration` + `maxDuration`, et permettre le rejeu si l'état n'est pas `done` (un retry Stripe sort aujourd'hui sur « déjà crédité » sans relancer).
-- [ ] **N2b** `maxDuration` sur `/auth/subscription` (seul `/auth/measurement` en a un).
-- [ ] **N2c** Supprimer ou exclure `src/lib/server/program-generation/_tmp-gen-test.spec.ts` du glob vitest (il écrit dans la base réelle dès que `DATABASE_URL` est défini).
-- [ ] **N2d** Verrou contre les générations concurrentes (webhook + retour checkout + measurement) : P2002 sur `[userId, dayIndex]` et `[nutritionDayId, position]`.
+- [x] **N1** État de génération sur le user (`programGenStatus` : `IDLE`/`RUNNING`/`DONE`/`FAILED`, `programGenStartedAt`, `programGenFinishedAt`, champs optionnels) et verrou atomique avec bail de 10 min (`src/lib/server/program-generation/generationLock.ts`). Une 2e passe rattrape un paiement arrivé pendant la génération. Le cadencier affiche « en cours » / « n'a pas abouti ». Schéma à pousser en base (`prisma db push`, sans `--accept-data-loss`).
+- [x] **N2** `reconcilePaidCheckoutSession` lance la génération via `dispatchProgramGeneration` (waitUntil) au lieu de l'attendre dans le webhook ; un rejeu (retry Stripe) relance la génération si elle a échoué, n'a pas démarré ou si le bail a expiré (`shouldResumeProgramGeneration`).
+- [x] **N2b** `maxDuration: 300` sur `/auth/subscription` et sur le webhook Stripe `/api/webhooks`.
+- [x] **N2c** `_tmp-gen-test.spec.ts` exclu de vitest (`src/**/_tmp-*.spec.ts` dans `vite.config.ts`) ; le fichier est conservé, à supprimer si tu n'en as plus besoin.
+- [x] **N2d** Verrou contre les générations concurrentes (webhook + retour checkout + measurement) : voir N1, un appel concurrent est ignoré (`schedule_skip_running`).
 
 ### P1 : performance de la génération
 
-- [ ] **N3** Réécrire la boucle de `generateNutritionDaysForUser` : un `findMany` des jours + repas existants sur 1..N, calcul en mémoire (`fitDay`, `pickDayRecipes`), puis `createMany` par lots (\~550 requêtes → quelques-unes).
+- [x] **N3** `generateNutritionDaysForUser` planifie en mémoire (`planNutritionDays`, pur et testé) puis écrit par lots : 1 lecture des jours/repas existants, `createMany` des jours, 1 relecture des ids, `createMany` des repas (300 par lot), mises à jour en transactions de 60. Environ 5 requêtes au lieu de ~550 pour 91 jours.
+- [ ] **N3b** Coût CPU du calcul (mesuré en test, hors base) : ~1,7 à 2 s pour 91 jours, surtout `pickDayRecipes` (jusqu'à 6 tirages évalués par `fitDay`). À réduire si besoin (moins de tirages, cache des évaluations).
 - [ ] **N4** Liste de courses (`generateShoppingListFromPlanning`) : écriture atomique (aujourd'hui `deleteMany` puis `create`), conservation des `isChecked` (réinitialisés à chaque régénération), allègement de la lecture 1..91 (recette + ingrédients dupliqués par repas).
 - [ ] **N5** `refreshStaleDays` : une seule régénération de liste par plage au lieu d'une par jour modifié (jusqu'à 7 régénérations complètes d'une liste 1..91).
 - [ ] **N6** `rescaleUserMeals` uniquement si les cibles (poids, % MG, activité, pain) ont changé ; ne pas le relancer à chaque génération ni à chaque sauvegarde de `/auth/measurement`.

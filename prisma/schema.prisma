@@ -182,6 +182,8 @@ model User {
   programGenStatus          ProgramGenStatus?
   programGenStartedAt       DateTime?
   programGenFinishedAt      DateTime?
+  /// Empreinte des cibles nutritionnelles appliquées au cadencier (évite un recalcul identique)
+  nutritionTargetsKey       String?
   createdAt                 DateTime                   @default(now())
 
   // Auth

@@ -21,13 +21,17 @@ async function main() {
 			});
 
 	if (users.length === 0) {
-		console.error(email ? `Aucun utilisateur avec l'email ${email}` : 'Aucun utilisateur avec un planning nutrition');
+		console.error(
+			email
+				? `Aucun utilisateur avec l'email ${email}`
+				: 'Aucun utilisateur avec un planning nutrition'
+		);
 		process.exitCode = 1;
 		return;
 	}
 
 	for (const user of users) {
-		await rescaleUserMeals(user.id);
+		await rescaleUserMeals(user.id, { force: true });
 		const lists = await prisma.shoppingList.findMany({
 			where: { userId: user.id },
 			select: { startDayIndex: true, endDayIndex: true }
@@ -37,7 +41,9 @@ async function main() {
 				includeReportedFromPrevious: true
 			});
 		}
-		console.log(`${user.email} → cadencier recalculé, ${lists.length} liste(s) de courses régénérée(s)`);
+		console.log(
+			`${user.email} → cadencier recalculé, ${lists.length} liste(s) de courses régénérée(s)`
+		);
 	}
 }
 

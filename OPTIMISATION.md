@@ -67,7 +67,7 @@ Admin (attach/detach vidéos, séances)
 - [ ] **N3b** Coût CPU du calcul (mesuré en test, hors base) : ~1,7 à 2 s pour 91 jours, surtout `pickDayRecipes` (jusqu'à 6 tirages évalués par `fitDay`). À réduire si besoin (moins de tirages, cache des évaluations).
 - [x] **N4** `generateShoppingListFromPlanning` remplace la liste dans une transaction (suppression, création, articles) : un échec laisse l'ancienne liste intacte. Les cases cochées sont conservées à la régénération automatique (clé ingrédient + unité) ; le bouton « Régénérer » de la page courses supprime d'abord la liste et repart donc de zéro. Reste à faire : alléger la lecture 1..91 (recette + ingrédients dupliqués par repas).
 - [x] **N5** `refreshStaleDays`, le rattrapage du petit-déjeuner et `regenerateShoppingListsForRecipe` régénèrent chaque liste une seule fois (`regenerateShoppingListsOverlappingDays`, dédupliquée par plage) au lieu d'une fois par jour modifié. Les écritures dans les `load` GET restent à sortir (N7).
-- [ ] **N6** `rescaleUserMeals` uniquement si les cibles (poids, % MG, activité, pain) ont changé ; ne pas le relancer à chaque génération ni à chaque sauvegarde de `/auth/measurement`.
+- [x] **N6** `rescaleUserMeals` ne recalcule plus si les cibles sont celles déjà appliquées (`User.nutritionTargetsKey`, empreinte des cibles + version de l'algorithme) et `refitDays` ne réécrit que les portions périmées (`isStalePortion`) ; transactions bornées à 60 mises à jour. `rescale:all-meals` utilise `force`. Schéma à pousser en base (`prisma db push`, sans `--accept-data-loss`).
 
 ### P2 : runtime
 

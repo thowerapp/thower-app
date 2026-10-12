@@ -4,6 +4,7 @@
  * Usage : npm run test:integration
  * Variables : MONGOMS_VERSION (défaut 7.0.14 ; 4.4.29 sur un CPU sans AVX), MONGOMS_PORT (défaut 27027).
  */
+import { readFileSync } from 'node:fs';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';
 
@@ -12,6 +13,8 @@ const port = Number(process.env.MONGOMS_PORT ?? 27027);
 process.env.DATABASE_URL = `mongodb://127.0.0.1:${port}/thower_test?replicaSet=testset&directConnection=true`;
 process.env.MONGOMS_PORT = String(port);
 process.env.PRISMA_COUNT_QUERIES = '1';
+// Clé factice des tests (la même que pour les e2e) : le code de chiffrement exige une clé au chargement.
+process.env.ENCRYPTION_KEY ??= readFileSync('e2e/env/.env', 'utf8').match(/^ENCRYPTION_KEY=(.*)$/m)?.[1]?.trim();
 
 export default defineConfig({
 	plugins: [sveltekit()],

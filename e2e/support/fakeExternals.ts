@@ -26,6 +26,10 @@ const state = {
 	streamVideos: new Map<string, StreamVideo>(),
 	streamCounter: 0,
 	streamRequests: [] as { method: string; path: string; body: unknown }[],
+	opencage: null as null | { formatted: string; components: Record<string, string> }[],
+		r2Objects: new Map<string, { type: string; body: Buffer }>(),
+	pushStatus: 201,
+	pushRequests: [] as { path: string; headers: http.IncomingHttpHeaders }[],
 	smtpUp: false,
 	smtpMessages: [] as { to: string[]; data: string }[]
 };
@@ -38,6 +42,16 @@ function reset() {
 	state.streamRequests.length = 0;
 	state.smtpUp = false;
 	state.smtpMessages.length = 0;
+	state.opencage = null;
+		state.r2Objects.clear();
+	state.pushStatus = 201;
+	state.pushRequests.length = 0;
+}
+
+async function readBodyBuffer(req: http.IncomingMessage): Promise<Buffer> {
+	const chunks: Buffer[] = [];
+	for await (const chunk of req) chunks.push(chunk as Buffer);
+	return Buffer.concat(chunks);
 }
 
 async function readBody(req: http.IncomingMessage): Promise<string> {
@@ -104,6 +118,22 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse) {
 	const url = new URL(req.url ?? '/', 'http://fake');
 	const path = url.pathname;
 	const method = req.method ?? 'GET';
+	const r2 = /^\/cloudflare\/client\/v4\/accounts\/[^/]+\/r2\/buckets\/[^/]+\/objects\/(.+)$/.exec(path);
+	if (r2) {
+		const key = decodeURIComponent(r2[1]);
+		if (method === 'PUT') {
+			state.r2Objects.set(key, { type: String(req.headers['content-type'] ?? ''), body: await readBodyBuffer(req) });
+			return send(res, 200, { success: true });
+		}
+		const object = state.r2Objects.get(key);
+		if (!object) return send(res, 404, { success: false });
+		if (method === 'DELETE') {
+			state.r2Objects.delete(key);
+			return send(res, 200, { success: true });
+		}
+		res.writeHead(200, { 'Content-Type': object.type });
+		return void res.end(object.body);
+	}
 	const raw = method === 'GET' || method === 'DELETE' ? '' : await readBody(req);
 
 	// ── Pilotage par les tests ────────────────────────────────────────────
@@ -135,6 +165,28 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse) {
 	if (path === '/__control/cloudflare/videos') {
 		state.streamVideos = new Map((JSON.parse(raw) as StreamVideo[]).map((v) => [v.uid, v]));
 		return send(res, 200, { ok: true });
+	}
+	if (path === '/__control/opencage/results') {
+		state.opencage = JSON.parse(raw) as typeof state.opencage;
+		return send(res, 200, { ok: true });
+	}
+		if (path === '/__control/r2/objects') {
+		return send(res, 200, [...state.r2Objects].map(([key, o]) => ({ key, type: o.type, size: o.body.length })));
+	}
+	if (path === '/__control/push/status') {
+		state.pushStatus = (JSON.parse(raw) as { status: number }).status;
+		return send(res, 200, { ok: true });
+	}
+	if (path === '/__control/push/requests') {
+		return send(res, 200, state.pushRequests);
+	}
+	if (path === '/opencage/geocode/v1/json') {
+		return send(res, 200, state.opencage === null ? {} : { results: state.opencage });
+	}
+	if (path.startsWith('/push/')) {
+		state.pushRequests.push({ path, headers: req.headers });
+		res.writeHead(state.pushStatus);
+		return void res.end();
 	}
 	if (path === '/__control/smtp/up') {
 		state.smtpUp = (JSON.parse(raw) as { enabled: boolean }).enabled;

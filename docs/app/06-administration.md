@@ -53,6 +53,15 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 | **PUB1** Contact public : message enregistré, champs invalides refusés, limite de 5 envois par minute. | `PUB1` |
 | **PUB2** Le sitemap liste les pages publiques, pas l'admin, l'authentification ni l'API. | `PUB2` |
 | **PUB3** La page des réglementations répond. | `PUB3` |
+| **API1** Abonnement push : session et champs obligatoires ; un même appareil n'est enregistré qu'une fois. | `API1` |
+| **API2** La clé publique Web Push est publiée. | `API2` |
+| **API3** Le cron exige son secret, envoie le rappel à chaque abonné et compte les échecs. | `API3` |
+| **API4** Sans abonné, le cron l'indique et rattrape tout de même les générations. | `API4` |
+| **API5** Recherche d'adresse : critère obligatoire, suggestions, aucun résultat. | `API5` |
+| **API6** Statut des photos d'inscription : session requise, présence des photos. | `API6` |
+| **API7** Envoi d'une photo (R2) : session, fichier, type et taille contrôlés ; stockage et lecture par son propriétaire. | `API7` |
+| **API8** Lecture d'une photo : propriétaire ou admin seulement, clé inconnue en 404. | `API8` |
+| **API9** En développement, la route de démonstration d'envoi vidéo renvoie une URL Cloudflare. | `API9` |
 | **CF1** Le jeton de lecture est signé par Cloudflare ; une vidéo marquée « pas prête » se resynchronise avec l'état réel côté Cloudflare.                                     | `CF1`  |
 | **CF2** Webhook Cloudflare : état, durée et vignette mis à jour ; une signature fausse est refusée.                                                                           | `CF2`  |
 | **CF3** Envoi d'une vidéo : l'admin obtient une URL d'envoi Cloudflare (simple, puis tus au-delà de 200 Mio) ; un non-admin est refusé.                                       | `CF3`  |

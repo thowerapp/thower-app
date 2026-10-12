@@ -67,7 +67,7 @@ Suites en place et reste à écrire : `ETAT-DU-PROJET.md` (section « Tests ») 
 ## 5. Reprise
 
 - **Mise en route** : `npm ci` (lance `prisma generate`). Variables : `.env.example` (dont `CRON_SECRET`).
-- **Tests unitaires** : `DATABASE_URL="mongodb://127.0.0.1:1/dummy" npx vitest --run src` : 290 tests. L'URL factice empêche toute écriture en base ; `_tmp-*.spec.ts` et `*.integration.spec.ts` sont exclus.
+- **Tests unitaires** : `DATABASE_URL="mongodb://127.0.0.1:1/dummy" npx vitest --run src` : 322 tests. L'URL factice empêche toute écriture en base ; `_tmp-*.spec.ts` et `*.integration.spec.ts` sont exclus.
 - **Tests d'intégration** : `npm run test:integration` (~40 s, MongoDB téléchargé au premier lancement). Sur un CPU sans AVX : `MONGOMS_VERSION=4.4.29` avec la `libssl1.1` locale (voir `scripts/dev-mongo.mjs`).
 - **Types** : `npm run check` : 0 erreur, 0 avertissement, à garder à 0.
 - **ESLint** : voir `ETAT-DU-PROJET.md` (dette technique).

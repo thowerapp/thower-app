@@ -24,7 +24,7 @@ const FAKE = process.env.E2E_FAKE_EXTERNALS_URL;
 
 if (FAKE) {
 	const fake = new URL(FAKE);
-	const fetchPrefixes = { 'oauth2.googleapis.com': '/google', 'api.cloudflare.com': '/cloudflare' };
+	const fetchPrefixes = { 'oauth2.googleapis.com': '/google', 'api.cloudflare.com': '/cloudflare', 'api.opencagedata.com': '/opencage' };
 
 	const realFetch = globalThis.fetch;
 	globalThis.fetch = function patchedFetch(input, init) {
@@ -44,12 +44,13 @@ if (FAKE) {
 			options && typeof options === 'object' && !(options instanceof URL)
 				? (options.host ?? options.hostname)
 				: null;
-		if (host === 'api.stripe.com') {
+		const httpsPrefixes = { 'api.stripe.com': '/stripe', 'push.fake.test': '/push' };
+if (host && httpsPrefixes[host]) {
 			const req = http.request(
 				{
 					host: fake.hostname,
 					port: fake.port,
-					path: `/stripe${options.path}`,
+					path: `${httpsPrefixes[host]}${options.path}`,
 					method: options.method,
 					headers: options.headers
 				},

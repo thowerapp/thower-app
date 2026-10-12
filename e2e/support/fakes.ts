@@ -30,6 +30,19 @@ export const fakes = {
 		up: (enabled = true) => control('smtp/up', { enabled }),
 		messages: () => control<{ to: string[]; data: string }[]>('smtp/messages')
 	},
+	/** Géocodage OpenCage : sans résultats définis, la réponse n'a aucun champ `results`. */
+	opencage: {
+		results: (results: { formatted: string; components: Record<string, string> }[]) => control('opencage/results', results)
+	},
+	/** Service de notifications push du navigateur (`https://push.fake.test/...`). */
+	push: {
+		status: (status: number) => control('push/status', { status }),
+		requests: () => control<{ path: string; headers: Record<string, string> }[]>('push/requests')
+	},
+		/** Objets du stockage R2 (photos) : clé, type et taille. */
+	r2: {
+		objects: () => control<{ key: string; type: string; size: number }[]>('r2/objects')
+	},
 	cloudflare: {
 		videos: (
 			videos: {

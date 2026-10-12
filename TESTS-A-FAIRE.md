@@ -1,23 +1,26 @@
 # Tests à faire pour une couverture de 100 %
 
-État au 12 octobre 2026 : 463 tests (290 unitaires, 16 d'intégration, 157 e2e). Cette liste regroupe ce qui n'est pas encore vérifié. Les cases cochées dans `OPTIMISATION.md` ne sont pas reprises ici.
+État au 12 octobre 2026 : 517 tests (322 unitaires, 23 d'intégration, 172 e2e). Cette liste regroupe ce qui n'est pas encore vérifié. Les cases cochées dans `OPTIMISATION.md` ne sont pas reprises ici.
 
 Les points des sections 1 et 2 sont issus d'un relevé des routes et actions serveur sans aucune référence dans `e2e/`. Ils sont à confirmer à la mesure (section 0).
 
 ## 0. Mesure
 
-Couverture des lignes de `src/lib`, `src/routes/**/*.ts` (actions, API) et `hooks.server.ts`, mesurée le 12 octobre 2026 : **77,0 %** des lignes de code (347 fichiers, 6 268 lignes de code). Unitaires 16,5 %, intégration 9,1 %, e2e 75,1 % (chevauchement possible). Les composants `.svelte` ne sont pas mesurés.
+Couverture des lignes de `src/lib`, `src/routes/**/*.ts` (actions, API) et `hooks.server.ts`, mesurée le 12 octobre 2026 : **82,1 %** des lignes de code (347 fichiers, 6 268 lignes de code). Unitaires 20,2 %, intégration 10,2 %, e2e 77,4 % (chevauchement possible). Les composants `.svelte` ne sont pas mesurés.
 
 Commandes : `npm run test:coverage:unit`, `npm run test:coverage:integration`, `npm run test:coverage:e2e` (serveur de dev instrumenté, environ 7 min), puis `npm run coverage:report` (fusion par ligne et liste des lignes manquantes dans `coverage/merged-uncovered.txt`).
 
-Plus gros écarts (lignes de code manquantes) : `src/lib/server` (82 % couvert, 182 lignes), `src/routes/auth` (83 %, 159), `src/lib/prisma` (75 %, 154), `src/routes/admin` (82 %, 147), `src/routes/user` (85 %, 137), `src/lib/lucia` (66 %, 118), `src/routes/api` (52 %, 114).
+Plus gros écarts (lignes de code manquantes) : `src/routes/auth` (83 % couvert, 159 lignes), `src/routes/admin` (82 %, 147), `src/lib/server` (86 %, 143), `src/lib/prisma` (79 %, 130), `src/lib/lucia` (66 %, 118), `src/routes/user` (92 %, 76), `src/lib/utils` (66 %, 73), `src/lib/schema` (78 %, 56).
 
 Une ligne de code est une ligne où commence une instruction. Les chiffres publiés plus tôt (46,4 % puis 51,6 %) étaient sous-estimés : le rapport comptait des lignes fantômes et plaçait les compteurs de l'e2e sur le code transformé. Le script remappe maintenant vers le source d'origine.
 
 - [x] Outil de couverture installé, rapports unitaire, intégration et e2e serveur, fusion par ligne.
-- [ ] Code exécuté dans le navigateur (`src/lib/pdf`, `pwa`, `animation`, `store`, `utils/particles`) : non mesuré par les e2e, qui n'instrumentent que le serveur. Récupérer `window.__coverage__` de chaque page dans les tests, ou le couvrir en unitaire.
+- [ ] Code exécuté dans le navigateur (`animation`, `store`, `utils/particles`, `components`, `client`) ; `pdf` et `pwa/notifications` sont couverts en unitaire avec un navigateur et jsPDF factices : non mesuré par les e2e, qui n'instrumentent que le serveur. Récupérer `window.__coverage__` de chaque page dans les tests, ou le couvrir en unitaire.
 - [ ] Fixer un seuil dans la CI, le relever à mesure que la liste ci-dessous avance.
 - [x] Auth : redirections selon l'état du compte, actions sans session, emails (vérification, renvoi, changement d'email, mot de passe oublié, inscription, contact) avec un faux serveur SMTP, limites de tentatives, 2FA (`AUT1` à `AUT25`).
+- [x] API et services (push, cron, géocodage, photos R2, statut des photos) et erreurs de l'espace utilisateur (`API1` à `API9`, `USR1` à `USR6`).
+- [x] Unitaires : facture PDF, notifications PWA, client Cloudflare Stream, lancement de génération, utilitaires ; intégration : comptes (`user.ts`).
+- [ ] Code mort à décider : `src/lib/server/photoValidatedEmail.ts` et `src/lib/server/nutrition/ensureBreakfastMeal.ts` ne sont appelés nulle part.
 - [ ] Mesurer aussi les branches pour l'e2e (le rapport fusionné ne compte que les lignes).
 
 ## 1. Fonctions annoncées mais absentes (décision avant tests)
@@ -52,11 +55,11 @@ Rien à tester tant que la fonction n'existe pas. Pour chacune : l'implémenter 
 **Utilisateur**
 
 - [x] Découverte : marquer une vidéo vue dans chacune des cinq bibliothèques (explication, motivation, mindset, méditation, breathwork).
-- [ ] Liste de courses : bouton « Régénérer » (cases cochées conservées).
-- [ ] Photos d'inscription : envoi, statut (`check-photo-status`), rejet des fichiers invalides.
-- [ ] Notifications : abonnement push (`push-subscribe`, `push-vapid-public`) et désabonnement.
-- [ ] Recherche d'adresse (`open-cage-data`).
-- [ ] Envoi d'une vidéo par l'utilisateur (`cloudflare/stream/upload-url`) : refusé si non autorisé.
+- [x] Liste de courses : bouton « Régénérer » (cases cochées conservées).
+- [x] Photos d'inscription : envoi, statut (`check-photo-status`), rejet des fichiers invalides.
+- [x] Notifications : abonnement push (`push-subscribe`, `push-vapid-public`) et désabonnement.
+- [x] Recherche d'adresse (`open-cage-data`).
+- [x] Envoi d'une vidéo par l'utilisateur (`cloudflare/stream/upload-url`) : refusé si non autorisé.
 - [ ] Mobile : menu du rôle de l'onglet Compte hors écran (défaut connu), à corriger puis tester à la souris.
 
 ## 3. Intégration (vraie base MongoDB éphémère)

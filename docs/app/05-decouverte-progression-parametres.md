@@ -36,6 +36,12 @@ Les bibliothèques de vidéos Découverte (`/user/decouverte`), la page Progress
 | **P1** Le profil reprend les dernières mensurations et le jour du programme ; une tâche désactivée dans « Checklist journalière » disparaît de la checklist du jour. | `P1` |
 | **P2** « Abonnement » mène à la souscription ; « Se déconnecter » ferme la session. | `P2` |
 | **P3** `/acces-expire` renvoie vers l'espace quand l'accès est valide (le cas expiré est couvert par `A4`). | `P3` |
+| **USR1** Déplacer une séance : jours invalides, hors plage, identiques, autre semaine ou sans séance refusés. | `USR1` |
+| **USR2** Démarrer le programme sport : la date de départ n'est posée qu'une fois. | `USR2` |
+| **USR3** Liste de courses : régénération sur un jour, trois jours, la semaine ou un nombre de jours ; refus sans jour alloué. | `USR3` |
+| **USR4** Jeûne : jour invalide ou sans cadencier refusé ; jeûne du matin réglable. | `USR4` |
+| **USR5** Favoris depuis la liste des recettes : ajout, retrait, identifiant obligatoire. | `USR5` |
+| **USR6** Bilan mensuel : données invalides, programme non démarré ou à venir refusés ; photos facultatives enregistrées. | `USR6` |
 
 ## Technique
 

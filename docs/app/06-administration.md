@@ -17,27 +17,27 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 
 ## Règles
 
-| Règle | Test |
-|---|---|
-| **AD1** Un compte non admin est renvoyé hors de `/admin`, et toute écriture admin lui est refusée (403). | `AD1` |
-| **AD2** La génération crée le nombre demandé de codes, non utilisés, avec leur note. | `AD2` |
-| **AD3** Une tâche créée par l'admin apparaît dans la checklist des utilisateurs. | `AD3` |
-| **AD4** Enregistrer une recette du catalogue conserve ses allergènes (codes anglais d'origine convertis en codes français). | `AD4` |
-| **AD5** Une personnalisation sport posée depuis la fiche d'un utilisateur est enregistrée avec son auteur et son motif ; elle ne concerne que cet utilisateur (zone 3, `S3`). | `AD5` |
-| **AD6** Le récap du programme sport signale un jour dont aucune vidéo n'est typée (ordre des séances déduit). | `AD6` |
-| **AD7** « Stopper le programme » enregistre la date et le motif. | `AD7` |
-| **AD8** Les ventes listent les paiements encaissés. | `AD8` |
-| **AD9** Onglet Compte : identité, rôle, abonnement et mot de passe modifiés par l'admin ; le nouveau mot de passe ouvre une session ; un email déjà pris est refusé. | `AD9` |
-| **AD10** Onglet Points : un événement ajouté par l'admin entre dans le total de l'utilisateur. | `AD10` |
-| **AD11** Onglet Profil : allergènes et objectif de perte enregistrés. | `AD11` |
-| **CF1** Le jeton de lecture est signé par Cloudflare ; une vidéo marquée « pas prête » se resynchronise avec l'état réel côté Cloudflare. | `CF1` |
-| **CF2** Webhook Cloudflare : état, durée et vignette mis à jour ; une signature fausse est refusée. | `CF2` |
-| **CF3** Envoi d'une vidéo : l'admin obtient une URL d'envoi Cloudflare (simple, puis tus au-delà de 200 Mio) ; un non-admin est refusé. | `CF3` |
-| **CF4** Synchronisation admin : les vidéos Cloudflare inconnues s'importent, inactives ; un doublon est refusé. | `CF4` |
-| **PDF1** Export du chiffre d'affaires : PDF téléchargé avec les paiements encaissés de la période ; une période invalide est signalée. | `PDF1` |
-| **PDF2** Bordereau de paiement (admin) : PDF avec montant et client. | `PDF2` |
-| **PDF3** Facture : le client télécharge la sienne, l'admin celle de n'importe quel client. | `PDF3` |
-| **PDF4** Un client ne peut pas télécharger la facture d'un autre client. | `PDF4` |
+| Règle                                                                                                                                                                         | Test   |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **AD1** Un compte non admin est renvoyé hors de `/admin`, et toute écriture admin lui est refusée (403).                                                                      | `AD1`  |
+| **AD2** La génération crée le nombre demandé de codes, non utilisés, avec leur note.                                                                                          | `AD2`  |
+| **AD3** Une tâche créée par l'admin apparaît dans la checklist des utilisateurs.                                                                                              | `AD3`  |
+| **AD4** Enregistrer une recette du catalogue conserve ses allergènes (codes anglais d'origine convertis en codes français).                                                   | `AD4`  |
+| **AD5** Une personnalisation sport posée depuis la fiche d'un utilisateur est enregistrée avec son auteur et son motif ; elle ne concerne que cet utilisateur (zone 3, `S3`). | `AD5`  |
+| **AD6** Le récap du programme sport signale un jour dont aucune vidéo n'est typée (ordre des séances déduit).                                                                 | `AD6`  |
+| **AD7** « Stopper le programme » enregistre la date et le motif.                                                                                                              | `AD7`  |
+| **AD8** Les ventes listent les paiements encaissés.                                                                                                                           | `AD8`  |
+| **AD9** Onglet Compte : identité, rôle, abonnement et mot de passe modifiés par l'admin ; le nouveau mot de passe ouvre une session ; un email déjà pris est refusé.          | `AD9`  |
+| **AD10** Onglet Points : un événement ajouté par l'admin entre dans le total de l'utilisateur.                                                                                | `AD10` |
+| **AD11** Onglet Profil : allergènes et objectif de perte enregistrés.                                                                                                         | `AD11` |
+| **CF1** Le jeton de lecture est signé par Cloudflare ; une vidéo marquée « pas prête » se resynchronise avec l'état réel côté Cloudflare.                                     | `CF1`  |
+| **CF2** Webhook Cloudflare : état, durée et vignette mis à jour ; une signature fausse est refusée.                                                                           | `CF2`  |
+| **CF3** Envoi d'une vidéo : l'admin obtient une URL d'envoi Cloudflare (simple, puis tus au-delà de 200 Mio) ; un non-admin est refusé.                                       | `CF3`  |
+| **CF4** Synchronisation admin : les vidéos Cloudflare inconnues s'importent, inactives ; un doublon est refusé.                                                               | `CF4`  |
+| **PDF1** Export du chiffre d'affaires : PDF téléchargé avec les paiements encaissés de la période ; une période invalide est signalée.                                        | `PDF1` |
+| **PDF2** Bordereau de paiement (admin) : PDF avec montant et client.                                                                                                          | `PDF2` |
+| **PDF3** Facture : le client télécharge la sienne, l'admin celle de n'importe quel client.                                                                                    | `PDF3` |
+| **PDF4** Un client ne peut pas télécharger la facture d'un autre client.                                                                                                      | `PDF4` |
 
 ## Technique
 
@@ -51,7 +51,7 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 - **Accueil en anglais** : « Latest Registrations », « Recent users who have joined the platform ».
 - **Arrêt du programme** : il est enregistré et affiché, mais ne décale pas les jours du programme de l'utilisateur.
 - **Personnalisation sport** : le formulaire de la fiche utilisateur n'a pas été testé dans le navigateur ; le test passe par l'action.
-- **Facture** : le nom de l'émetteur (« Xplicit Web »), son adresse et son logo (`/Logo-xplicit.png`, absent de `static/`) sont des valeurs de démonstration à remplacer.
+- **Facture** : l'émetteur s'appelle « Thower » ; son adresse (« 123 Rue des Affaires ») est une valeur de démonstration et son logo (`/Logo-xplicit.png`) est absent de `static/` : la facture se génère sans logo.
 - **Menu du rôle sur mobile** : la liste Admin / Client de l'onglet Compte s'ouvre hors de l'écran sur petit écran (les tests la commandent au clavier).
 - **Allergènes saisis à la main** : dans l'onglet Profil, un seul code inconnu vide toute la liste (le schéma remplace le tableau par `[]`) ; à remplacer par un refus explicite ou un sélecteur.
 

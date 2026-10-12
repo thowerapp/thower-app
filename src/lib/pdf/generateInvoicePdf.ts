@@ -24,7 +24,7 @@ export async function generateInvoicePdf(transaction: Transaction): Promise<void
 
 	const logoBase64 = await getBase64Image('/Logo-xplicit.png');
 
-	const companyName = 'Xplicit Web';
+	const companyName = 'Thower';
 	const companyAddress = '123 Rue des Affaires';
 	const companyCity = '75000 Paris, France';
 

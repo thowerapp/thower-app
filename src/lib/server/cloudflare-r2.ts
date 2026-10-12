@@ -31,17 +31,3 @@ export async function getFromR2(key: string): Promise<Response> {
 
 	return res;
 }
-
-export async function deleteFromR2(key: string): Promise<void> {
-	const res = await fetch(`${BASE_URL}/${encodeURIComponent(key)}`, {
-		method: 'DELETE',
-		headers: {
-			Authorization: `Bearer ${CLOUDFLARE_R2_API_TOKEN}`
-		}
-	});
-
-	if (!res.ok) {
-		const err = await res.text();
-		throw new Error(`R2 delete error ${res.status}: ${err}`);
-	}
-}

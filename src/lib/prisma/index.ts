@@ -108,7 +108,6 @@ export { getTransactionById } from './transaction/getTransactionById';
 export { getTransactionsByUserId } from './transaction/getTransactionsByUserId';
 export { getHasValidPaymentByUserId } from './transaction/getHasValidPaymentByUserId';
 export { getProgramOfferEntitlements } from './transaction/getProgramOfferEntitlements';
-export { getAllTransactions } from './transaction/getAllTransactions';
 export { getAllTransactionsDashboard } from './transaction/getAllTransactionsDashboard';
 
 // Redemption codes (accès accordé sans Stripe pour les paiements IRL)

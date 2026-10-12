@@ -34,7 +34,8 @@ export const findPasswordResetSession = async (sessionId: string) => {
 };
 
 export const deletePasswordResetSession = async (sessionId: string) => {
-	return await prisma.passwordResetSession.delete({
+	// deleteMany : une session déjà supprimée (cookie périmé) ne doit pas provoquer d'erreur.
+	return await prisma.passwordResetSession.deleteMany({
 		where: {
 			id: sessionId
 		}

@@ -23,6 +23,9 @@ Branche `optimisation` (ne jamais fusionner avec `main`). État au 2026-10-11, v
 - **T1** Cron protégé par `CRON_SECRET`. **T2** Page `/acces-expire`. **T3** Totaux de points par `aggregate`, montants dans `pointsConfig.ts`.
 - **T5** Une seule lecture d'authentification par requête (attributs portés par Lucia, `locals.ts`). **T6** Checklist du jour unique (`validateDailyChecklist`, 409 sur double envoi).
 - **T7** Garde `adminWriteGuard` : toute écriture `/admin/**` ou `/api/admin/**` d'un non-admin renvoie 403.
+- **T9** Accès : `userWriteGuard` (`src/hooks.server.ts`) exige un accès valide pour toute écriture `/user/**` et toute requête `/api/videos/**` ; `getProgramOfferEntitlements` ne donne plus aucun droit sans transaction payée (sauf admin). Avant, un compte non payant ou expiré pouvait appeler ces actions et gagner des points.
+- **T10** Allergènes (sécurité alimentaire) : les recettes du catalogue sont codées en anglais, le profil en français ; seuls gluten et sésame étaient reconnus. Codes normalisés à la comparaison (`normalizeAllergen`), filtre appliqué aussi au choix d'un repas, libellés français à l'affichage, allergènes conservés à l'enregistrement admin.
+- **T11** Documentation fonctionnelle et technique de toute l'application (`docs/app/`) avec 65 tests Playwright reliés à ses règles (base éphémère, services simulés, aucun appel au `.env`).
 - **T8** Rattrapage Stripe depuis les mensurations : `checkout.sessions.list` ne filtre pas par `client_reference_id` (l'appel échouait toujours) ; lecture des sessions terminées sur 7 jours filtrées par utilisateur. À tester avec un paiement Stripe en mode test.
 
 ## 2. Déploiement (à faire par l'utilisateur)
@@ -85,16 +88,16 @@ Deux suites : `npm run test:unit` (270 tests, base simulée, logique seule) et `
 - [x] `createMany` avec champs composites (`complements`, `ingredientGrams`) relus à l'identique.
 
 **Sécurité**
-- [ ] Écritures admin par un non-admin : 403. Actions nutrition / sport sans offre : refusées. API vidéo sport : 403 sans offre.
+- [x] Écritures admin par un non-admin : 403 (`AD1`). Écritures `/user/**` et API vidéo sans accès valide : 403 (`K5`–`K7`, `S8`). Pages nutrition / sport sans offre : renvoi vers la souscription (`S4`, `N6`).
 - [ ] Cron : 401 sans secret en production.
-- [ ] Lucia : email, Google, 2FA, session expirée, déconnexion ; `locals` identiques.
-- [ ] Accès expiré : `/acces-expire`, renouvellement, retour vers `/user`.
+- [~] Lucia : email, mot de passe, déconnexion, changement de mot de passe couverts (`C1`–`C9`). Reste : Google, 2FA, session expirée.
+- [x] Accès expiré : renvoi vers `/acces-expire`, retour vers `/user` si l'accès est valide (`A4`, `P3`).
 
 **Bout en bout (Playwright)**
-- [ ] Nouvel utilisateur : inscription → paiement simulé → onboarding → cadencier, courses, première séance.
-- [ ] Sport : déplacement, double validation, séance personnalisée visible pour un seul utilisateur.
-- [ ] Nutrition : changement de repas, jeûne, recalcul des portions et de la liste.
-- [ ] Admin : personnalisation du plan sport, rattachement d'une vidéo.
+- [x] Nouvel utilisateur : inscription, vérification, paiement simulé par webhook signé, formulaire de démarrage, cadencier généré (`e2e/01`).
+- [x] Sport : planning, déplacement, validation (une seule fois), ordre 1 → 2 → 3, séance future, personnalisation limitée à un utilisateur (`e2e/03`).
+- [x] Nutrition : changement de repas, jeûne et recalcul, allergies, courses, favoris, recette personnelle (`e2e/04`).
+- [x] Admin : accès, codes, tâches, recettes, personnalisation sport, récap sport, arrêt du programme, ventes (`e2e/06`). Reste : rattachement d'une vidéo (envoi Cloudflare).
 
 **Performance**
 - [ ] Durée de génération et nombre de requêtes par page (`/user`, cadencier, jour, séance, courses), budget vérifié en CI.

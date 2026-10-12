@@ -3,7 +3,7 @@ import { getUserTOTPKey } from '$lib/lucia/user';
 import { validatePasswordResetSessionRequest } from '$lib/lucia/passwordReset';
 import { setPasswordResetSessionAs2FAVerified } from '$lib/prisma/passwordResetSession/passwordResetSession';
 import { totpBucket } from '$lib/lucia/2fa';
-import { fail, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import { resetUser2FAWithRecoveryCode } from '$lib/lucia/2fa';
 import { recoveryCodeBucket } from '$lib/lucia/2fa';
 
@@ -51,38 +51,38 @@ async function totpAction(event: RequestEvent) {
 	const form = await superValidate(formData, zod(totpCodeSchema));
 
 	if (session === null) {
-		return message(form, 'Not authenticated');
+		return message(form, 'Session expirée : reconnectez-vous.');
 	}
 	if (!session.emailVerified || !user.registered2FA || session.twoFactorVerified) {
-		return message(form, 'Forbidden');
+		return message(form, 'Action non autorisée.');
 	}
 	if (!totpBucket.check(session.userId, 1)) {
-		return message(form, 'Too many requests');
+		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 	}
 
 	const code = formData.get('code');
 	if (typeof code !== 'string') {
-		return message(form, 'Invalid or missing fields');
+		return message(form, 'Champs manquants ou invalides.');
 	}
 	if (code === '') {
-		return message(form, 'Please enter your code');
+		return message(form, 'Saisissez votre code.');
 	}
 	const totpKey = await getUserTOTPKey(session.userId);
 	if (totpKey === null) {
-		return message(form, 'Forbidden');
+		return message(form, 'Action non autorisée.');
 	}
 	if (!totpBucket.consume(session.userId, 1)) {
-		return message(form, 'Too many requests');
+		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 	}
 
 	try {
 		const isValid = verifyTOTP(totpKey, 30, 6, code);
 
 		if (!isValid) {
-			return message(form, 'Invalid TOTP code');
+			return message(form, 'Code de double authentification incorrect.');
 		}
 	} catch (error) {
-		return fail(500, { message: 'Internal server error', form });
+		return message(form, 'Erreur serveur, réessayez.', { status: 500 });
 	}
 
 	totpBucket.reset(session.userId);
@@ -97,32 +97,32 @@ async function recoveryCodeAction(event: RequestEvent) {
 	const form = await superValidate(formData, zod(recoveryCodeSchema));
 
 	if (session === null) {
-		return message(form, 'Not authenticated');
+		return message(form, 'Session expirée : reconnectez-vous.');
 	}
 	if (!session.emailVerified || !user.registered2FA || session.twoFactorVerified) {
-		return message(form, 'Forbidden');
+		return message(form, 'Action non autorisée.');
 	}
 
 	if (!recoveryCodeBucket.check(session.userId, 1)) {
-		return message(form, 'Too many requests');
+		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 	}
 
 	const { code } = form.data;
 
 	if (typeof code !== 'string') {
-		return message(form, 'Invalid or missing fields');
+		return message(form, 'Champs manquants ou invalides.');
 	}
 	if (code === '') {
-		return message(form, 'Please enter your code');
+		return message(form, 'Saisissez votre code.');
 	}
 	if (!recoveryCodeBucket.consume(session.userId, 1)) {
-		return message(form, 'Too many requests');
+		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 	}
 
 	const valid = await resetUser2FAWithRecoveryCode(session.userId, code);
 
 	if (!valid) {
-		return message(form, 'Invalid code');
+		return message(form, 'Code incorrect.');
 	}
 
 	recoveryCodeBucket.reset(session.userId);

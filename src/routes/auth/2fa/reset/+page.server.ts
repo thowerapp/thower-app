@@ -33,31 +33,31 @@ export const actions: Actions = {
 		const form = await superValidate(formData, zod(verifyCodeSchema));
 
 		if (event.locals.session === null || event.locals.user === null) {
-			return message(form, 'Not authenticated');
+			return message(form, 'Session expirée : reconnectez-vous.');
 		}
 		if (
 			!event.locals.user.emailVerified ||
 			!event.locals.user.registered2FA ||
 			event.locals.session.twoFactorVerified
 		) {
-			return message(form, 'Forbidden');
+			return message(form, 'Action non autorisée.');
 		}
 		if (!recoveryCodeBucket.check(event.locals.user.id, 1)) {
-			return message(form, 'Too many requests');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 		}
 
 		if (typeof code !== 'string') {
-			return message(form, 'Invalid or missing fields');
+			return message(form, 'Champs manquants ou invalides.');
 		}
 		if (code === '') {
-			return message(form, 'Please enter your code');
+			return message(form, 'Saisissez votre code.');
 		}
 		if (!recoveryCodeBucket.consume(event.locals.user.id, 1)) {
-			return message(form, 'Too many requests');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 		}
 		const valid = await resetUser2FAWithRecoveryCode(event.locals.user.id, code);
 		if (!valid) {
-			return message(form, 'Invalid recovery code');
+			return message(form, 'Code de récupération incorrect.');
 		}
 		recoveryCodeBucket.reset(event.locals.user.id);
 		if (event.locals.user.isMfaEnabled) {

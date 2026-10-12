@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
 
 /**
  * Guard d'accès partagé — à appeler dans les load() et les form actions
@@ -51,19 +52,14 @@ export function checkUserAppAccess(
 }
 
 /**
- * Guard pour vérifier que le bien-être a été complété.
- * Utilisé après paiement pour enforcer l'ordre onboarding:
- * Paiement → Photos (optionnel) → Bien-être (requis) → Measurements
- * 
- * Si bien-être pas complété → redirection vers /auth/well-being
+ * Étapes d'onboarding qui suivent le paiement (photos, bien-être) : connecté, email vérifié,
+ * paiement valide (admin dispensé). À appeler dans le load et dans les actions.
  */
-export function checkWellBeingCompleted(
-	locals: App.Locals,
-	profile: { stressLevel?: number | null } | null
-): asserts locals is App.Locals & { user: NonNullable<App.Locals['user']> } {
-	checkAccess(locals);
-
-	if (!profile?.stressLevel) {
-		throw redirect(302, '/auth/well-being');
+export async function requirePaidOnboarding(locals: App.Locals): Promise<NonNullable<App.Locals['user']>> {
+	if (!locals.user || !locals.session) throw redirect(302, '/auth/login');
+	if (!locals.user.emailVerified) throw redirect(302, '/auth/verify-email');
+	if (locals.user.role !== 'ADMIN' && !(await getHasValidPaymentByUserId(locals.user.id))) {
+		throw redirect(302, '/auth/subscription');
 	}
+	return locals.user;
 }

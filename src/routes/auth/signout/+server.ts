@@ -1,19 +1,15 @@
 import { redirect } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { invalidateSession } from '$lib/lucia/session';
+import type { RequestEvent, RequestHandler } from './$types';
+import { deleteSessionTokenCookie, invalidateSession } from '$lib/lucia/session';
 
-async function signOut(cookies: Parameters<RequestHandler>[0]['cookies'], session: Parameters<RequestHandler>[0]['locals']['session']): Promise<never> {
-	if (session) {
-		await invalidateSession(session.id);
+async function signOut(event: RequestEvent): Promise<never> {
+	if (event.locals.session) {
+		await invalidateSession(event.locals.session.id);
 	}
-	cookies.delete('session', { path: '/' });
-	throw redirect(302, '/auth');
+	deleteSessionTokenCookie(event);
+	throw redirect(302, '/auth/login');
 }
 
-export const GET: RequestHandler = async ({ cookies, locals }) => {
-	return signOut(cookies, locals.session);
-};
+export const GET: RequestHandler = (event) => signOut(event);
 
-export const POST: RequestHandler = async ({ cookies, locals }) => {
-	return signOut(cookies, locals.session);
-};
+export const POST: RequestHandler = (event) => signOut(event);

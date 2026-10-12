@@ -173,11 +173,11 @@ export const load = async (event: RequestEvent) => {
 
 export const actions: Actions = {
 	save: async (event: RequestEvent) => {
+		const form = await superValidate(event, zod(measurementSchema));
 		if (event.locals.session === null || event.locals.user === null) {
-			return fail(401, { form: { message: 'Non authentifié' } });
+			return message(form, 'Session expirée : reconnectez-vous.', { status: 401 });
 		}
 
-		const form = await superValidate(event, zod(measurementSchema));
 		if (!form.valid) {
 			onboardingTrace('measurement_save', {
 				userId: event.locals.user.id,

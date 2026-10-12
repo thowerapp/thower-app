@@ -28,7 +28,7 @@
 <div class="li-b"><div class="li-t">Profil &amp; Données</div><div class="li-s">Objectif · Mesures · Allergies</div></div>
 <div class="li-r"><div class="arr"></div></div>
 </a>
-<a href="/user/parametres/abonnement" class="li">
+<a href="/auth/subscription" class="li">
 <div class="li-th"><div style="width:10px;height:10px;background:var(--gd)"></div></div>
 <div class="li-b"><div class="li-t">Abonnement</div><div class="li-s">Plan actif</div></div>
 <div class="li-r"><div class="arr"></div></div>

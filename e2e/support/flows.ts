@@ -83,3 +83,14 @@ export async function sendCheckoutCompleted(
 		headers: { 'content-type': 'application/json', 'stripe-signature': options.signature ?? signStripeWebhook(payload) }
 	});
 }
+
+/**
+ * Cadencier réel : catalogue de recettes du seed, puis génération par le cron de rattrapage
+ * (même code qu'en production), jusqu'à `days` jours générés.
+ */
+export async function generateNutritionPlan(request: APIRequestContext, userId: string, days = 91): Promise<void> {
+	if ((await db.recipe.count()) === 0) await seedRecipeCatalog();
+	const response = await request.get('/api/cron/daily-notification', { headers: { authorization: 'Bearer e2e-cron-secret' } });
+	expect(response.status()).toBe(200);
+	await expect.poll(() => db.nutritionDay.count({ where: { userId } }), { timeout: 90_000 }).toBe(days);
+}

@@ -62,30 +62,30 @@ export const load = async (event: PageServerLoadEvent) => {
 
 export const actions: Actions = {
 	password: async (event) => {
+		const form = await superValidate(event, zod(passwordSchema));
 		if (event.locals.session === null || event.locals.user === null) {
-			return fail(401, { form: { message: 'Not authenticated' } });
+			return message(form, 'Session expirée : reconnectez-vous.', { status: 401 });
 		}
 		if (
 			event.locals.user.isMfaEnabled &&
 			event.locals.user.registered2FA &&
 			!event.locals.session.twoFactorVerified
 		) {
-			return fail(403, { form: { message: 'Forbidden' } });
+			return message(form, 'Action non autorisée.', { status: 403 });
 		}
 		if (!passwordUpdateBucket.check(event.locals.session.id, 1)) {
-			return fail(429, { form: { message: 'Too many requests' } });
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 429 });
 		}
-		const form = await superValidate(event, zod(passwordSchema));
 		if (!form.valid) return fail(400, { form });
 		const password = form.data.password as string;
 		const new_password = form.data.new_password as string;
 		const passwordHash = await getUserPasswordHash(event.locals.user.id);
 		if (!passwordHash) {
-			return fail(400, { form: { message: 'Cannot change password', form } });
+			return message(form, 'Impossible de modifier le mot de passe de ce compte.', { status: 400 });
 		}
 		const validPassword = await verifyPasswordHash(passwordHash, password);
 		if (!validPassword) {
-			return fail(400, { form: { message: 'Incorrect password', form } });
+			return message(form, 'Mot de passe actuel incorrect.', { status: 400 });
 		}
 		passwordUpdateBucket.reset(event.locals.session.id);
 		await invalidateUserSessions(event.locals.user.id);
@@ -96,43 +96,48 @@ export const actions: Actions = {
 		};
 		const session = await createSession(sessionToken, event.locals.user.id, sessionFlags);
 		setSessionTokenCookie(event, sessionToken, session.expiresAt);
-		return message(form, 'Password modified successfully');
+		return message(form, 'Mot de passe modifié.');
 	},
 
 	email: async (event) => {
+		const form = await superValidate(event, zod(emailSchema));
 		if (event.locals.session === null || event.locals.user === null) {
-			return fail(401, { form: { message: 'Not authenticated' } });
+			return message(form, 'Session expirée : reconnectez-vous.', { status: 401 });
 		}
 		if (
 			event.locals.user.isMfaEnabled &&
 			event.locals.user.registered2FA &&
 			!event.locals.session.twoFactorVerified
 		) {
-			return fail(403, { form: { message: 'Forbidden' } });
+			return message(form, 'Action non autorisée.', { status: 403 });
 		}
 		if (!sendVerificationEmailBucket.check(event.locals.user.id, 1)) {
-			return fail(429, { form: { message: 'Too many requests' } });
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 429 });
 		}
-		const form = await superValidate(event, zod(emailSchema));
 		if (!form.valid) return fail(400, { form });
 		const email = form.data.email as string;
 		const emailAvailable = await checkEmailAvailability(email);
 		if (!emailAvailable) {
-			return fail(400, { form: { message: 'This email is already used', form } });
+			return message(form, 'Cet email est déjà utilisé.', { status: 400 });
 		}
 		const verificationRequest = await createEmailVerificationRequest(event.locals.user.id, email);
-		sendVerificationEmail(verificationRequest.email, verificationRequest.code);
+		try {
+			await sendVerificationEmail(verificationRequest.email, verificationRequest.code);
+		} catch (err) {
+			console.error('[auth/account] envoi du code de vérification', err);
+			return message(form, 'L’envoi de l’email a échoué, réessayez.', { status: 500 });
+		}
 		setEmailVerificationRequestCookie(event, verificationRequest);
 		redirect(302, '/auth/verify-email');
 	},
 
 	isMfaEnabled: async (event) => {
-		if (!event.locals.user) return fail(401, { form: { message: 'Not authenticated' } });
 		const form = await superValidate(event, zod(isMfaEnabledSchema));
+		if (!event.locals.user) return message(form, 'Session expirée : reconnectez-vous.', { status: 401 });
 		if (!form.valid) return fail(400, { form });
 		const currentStatus = await getUserMFA(event.locals.user.id);
 		const newMfaStatus = !(currentStatus?.isMfaEnabled ?? false);
 		await updateUserMFA(event.locals.user.id, { isMfaEnabled: newMfaStatus });
-		return message(form, { text: 'Authentication modifiée', newStatus: newMfaStatus });
+		return message(form, { text: 'Double authentification modifiée', newStatus: newMfaStatus });
 	}
 };

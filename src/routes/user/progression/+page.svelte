@@ -183,16 +183,16 @@ const checkInMetricsComplete = $derived(
 <!-- Système de points — règles -->
 <div class="u-sh"><div class="u-sh-t">Barème de points</div><div class="u-sh-s">Programme Méthode Thower</div></div>
 <div class="u-li">
-  <div class="u-li-b"><div class="u-li-s">Séance validée</div><div class="u-li-t pts-row"><span class="pts-val">+50 pts</span></div></div>
+  <div class="u-li-b"><div class="u-li-s">Séance validée</div><div class="u-li-t pts-row"><span class="pts-val">+{data.points.WORKOUT_COMPLETE} pts</span></div></div>
 </div>
 <div class="u-li">
-  <div class="u-li-b"><div class="u-li-s">Tâche journalière cochée</div><div class="u-li-t pts-row"><span class="pts-val">+10 pts</span></div></div>
+  <div class="u-li-b"><div class="u-li-s">Tâche journalière cochée</div><div class="u-li-t pts-row"><span class="pts-val">selon la tâche</span></div></div>
 </div>
 <div class="u-li">
-  <div class="u-li-b"><div class="u-li-s">Vidéo du jour regardée</div><div class="u-li-t pts-row"><span class="pts-val">+5 pts</span></div></div>
+  <div class="u-li-b"><div class="u-li-s">Vidéo regardée</div><div class="u-li-t pts-row"><span class="pts-val">+{data.points.VIDEO_WATCHED} pts</span></div></div>
 </div>
 <div class="u-li">
-  <div class="u-li-b"><div class="u-li-s">Photos de progression uploadées</div><div class="u-li-t pts-row"><span class="pts-val">+50 pts</span></div></div>
+  <div class="u-li-b"><div class="u-li-s">Photos de progression uploadées</div><div class="u-li-t pts-row"><span class="pts-val">+{data.points.PHOTO_UPLOAD} pts</span></div></div>
 </div>
 <div class="u-li">
   <div class="u-li-b"><div class="u-li-s">Badge débloqué</div><div class="u-li-t pts-row"><span class="pts-val">+100 pts</span></div></div>
@@ -203,7 +203,7 @@ const checkInMetricsComplete = $derived(
 
 <!-- Check-in mensuel — visible à partir du mois 2 uniquement -->
 {#if data.displayMonth >= 2 || data.programCycle > 1}
-<div class="u-sh"><div class="u-sh-t">Check-in mensuel</div><div class="u-sh-s">{data.checkInDue ? `Mois ${data.displayMonth} · À compléter · +50 pts` : `Mois ${data.displayMonth} · Complété ✓`}</div></div>
+<div class="u-sh"><div class="u-sh-t">Check-in mensuel</div><div class="u-sh-s">{data.checkInDue ? `Mois ${data.displayMonth} · À compléter · +${data.points.MONTHLY_CHECKIN} pts` : `Mois ${data.displayMonth} · Complété ✓`}</div></div>
 
 {#if data.checkInDue}
   <div style="padding: 18px; background: var(--s2); border-bottom: 1px solid var(--br); margin-bottom: 12px;">
@@ -215,7 +215,7 @@ const checkInMetricsComplete = $derived(
         return async ({ result, update }) => {
           submitCheckInLoading = false;
           if (result.type === 'success') {
-            toast.success('Check-in soumis ! +50 points gagnés.');
+            toast.success(`Check-in soumis ! +${data.points.MONTHLY_CHECKIN} points gagnés.`);
             await update();
             // Réinitialiser le formulaire
             checkInMetrics = { stressLevel: '', sleepQuality: '', bodyConfidence: '', digestionQuality: '', happinessLevel: '', readinessToChange: '' };

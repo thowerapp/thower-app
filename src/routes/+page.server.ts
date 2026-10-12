@@ -4,7 +4,7 @@
 // -----------------------------------------------------------------------------
 
 import { redirect, fail } from '@sveltejs/kit';
-import { superValidate } from 'sveltekit-superforms';
+import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from '$lib/superforms-zod';
 
 import { signupSchema } from '$lib/schema/auth/signupSchema';
@@ -50,17 +50,17 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
   signup: async (event) => {
+    const form = await superValidate(event, zod(signupSchema));
     log('POST / (signup) hit');
 
     const ip = event.request.headers.get('x-forwarded-for') ?? 'localhost';
-    if (!ipBucket.check(ip, 1)) return fail(429, { message: 'Too many requests' });
+    if (!ipBucket.check(ip, 1)) return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 429 });
 
-    const form = await superValidate(event, zod(signupSchema));
     log('Form received', form.data);
 
     if (!form.valid) {
       log('❌ Form validation failed:', form.errors);
-      return fail(400, { message: 'Erreurs de validation. Vérifiez vos données.' });
+      return fail(400, { form });
     }
 
     const email = form.data.email as string;
@@ -76,7 +76,7 @@ export const actions: Actions = {
       );
     }
 
-    if (!ipBucket.consume(ip, 1)) return fail(429, { message: 'Too many requests' });
+    if (!ipBucket.consume(ip, 1)) return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 429 });
 
     const user = await createUser(email, username, password);
     log('✅  User created', { id: user.id, email: user.email });

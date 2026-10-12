@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { z } from 'zod';
 import { createProgressPhoto } from '$lib/prisma/progressPhoto/createProgressPhoto';
 import { prisma } from '$lib/server';
+import { requirePaidOnboarding } from '$lib/server/access';
 import { POINTS } from '$lib/server/pointsConfig';
 import { awardPoints } from '$lib/server/awardPoints';
 
@@ -13,21 +14,13 @@ const submitPhotosSchema = z.object({
 });
 
 export const load: PageServerLoad = async ({ locals }) => {
-	// Guard : utilisateur doit être connecté
-	if (!locals.user) {
-		throw redirect(302, '/auth/login');
-	}
-
-	return {
-		user: locals.user
-	};
+	return { user: await requirePaidOnboarding(locals) };
 };
 
 export const actions: Actions = {
 	submitPhotos: async ({ locals, request }) => {
-		if (!locals.user) {
-			return fail(401, { message: 'Non authentifié.' });
-		}
+		await requirePaidOnboarding(locals);
+		if (!locals.user) return fail(401, { message: 'Session expirée : reconnectez-vous.' });
 
 		const formData = await request.formData();
 		const frontUrl = String(formData.get('frontUrl') ?? '');

@@ -7,7 +7,7 @@
 	import { zodClient } from '$lib/superforms-zod';
 	import { verifyCodeSchema } from '$lib/schema/auth/verifyCodeSchema';
 
-	let { data } = $props();
+	let { data, form } = $props();
 
 	const formOptions = {
 		validators: zodClient(verifyCodeSchema),
@@ -22,7 +22,13 @@
 <div class="w-screen h-screen ccc">
 	<div class="w-[300px] mx-auto p-6 border shadow-lg rounded-lg backdrop-blur-3xl">
 		<h1 class="text-2xl font-semibold mb-4">Vérifiez votre adresse email</h1>
-		<p class="mb-4 text-gray-700">Nous avons envoyé un code de 8 chiffres à {data.email}.</p>
+		{#if data.sendFailed}
+			<p class="mb-4 text-sm text-red-600" role="alert">
+				L’envoi du code à {data.email} a échoué. Utilisez « Renvoyer le code » ci-dessous.
+			</p>
+		{:else}
+			<p class="mb-4 text-gray-700">Nous avons envoyé un code de 8 chiffres à {data.email}.</p>
+		{/if}
 
 		<form method="post" use:verifyEnhance action="?/verifyCode" class="space-y-4">
 			<div>
@@ -53,5 +59,8 @@
 		<form method="post" use:enhance action="?/resendCode" class="mt-4">
 			<Button type="submit" class="w-full" variant="ghost">Renvoyer le code</Button>
 		</form>
+		{#if form?.resend?.message}
+			<p class="mt-2 text-sm text-gray-700" role="status">{form.resend.message}</p>
+		{/if}
 	</div>
 </div>

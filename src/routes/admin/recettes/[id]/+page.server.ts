@@ -4,6 +4,7 @@ import { message, superValidate, fail } from 'sveltekit-superforms';
 import { error, redirect } from '@sveltejs/kit';
 import { recipeSchema } from '$lib/schema/recipe/recipeSchema';
 import { prisma } from '$lib/server';
+import { normalizeAllergens } from '$lib/schema/recipe/allergens';
 import { invalidateRecipeCatalog } from '$lib/server/nutrition/recipeCatalog';
 import { regenerateShoppingListsForRecipe } from '$lib/prisma/shoppingList/regenerateOverlappingDay';
 import { serializeData } from '$lib/utils/serializeData';
@@ -33,7 +34,8 @@ export const load: PageServerLoad = async ({ params }) => {
 			nutritionCarbsG: recipe.nutritionCarbsG,
 			nutritionFatG: recipe.nutritionFatG,
 			nutritionFiberG: recipe.nutritionFiberG,
-			allergens: recipe.allergens ?? [],
+			// Codes anglais du catalogue d'origine convertis : sans cela le formulaire les perdait à l'enregistrement.
+			allergens: normalizeAllergens(recipe.allergens),
 			ingredients: recipe.ingredients.map(
 				(ing: {
 					name: string;

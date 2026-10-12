@@ -54,10 +54,49 @@ test.describe('Inscription et vérification de l’email', () => {
 	test('C4 · tant que l’email n’est pas vérifié, l’app renvoie vers la vérification', async ({ page, context }) => {
 		const user = await createUser({ emailVerified: false });
 		await loginAs(context, user.id);
-		for (const path of ['/auth', '/auth/subscription', '/auth/measurement', '/user']) {
+		for (const path of ['/auth', '/auth/subscription', '/auth/photos', '/auth/well-being', '/auth/measurement', '/user']) {
 			await page.goto(path);
 			await expect(page, `depuis ${path}`).toHaveURL(/\/auth\/verify-email/);
 		}
+	});
+});
+
+test.describe('Messages de compte', () => {
+	test('C7 · un envoi d’email en échec n’empêche pas la page ; « Renvoyer le code » affiche son résultat', async ({ page, context }) => {
+		const user = await createUser({ emailVerified: false });
+		await loginAs(context, user.id);
+		await page.goto('/auth/verify-email');
+		// Aucun email ne part en e2e : la page s'affiche et annonce l'échec au lieu d'une erreur 500.
+		await expect(page.getByRole('alert').filter({ hasText: /l’envoi du code .* a échoué/i })).toBeVisible();
+		await page.getByRole('button', { name: /renvoyer le code/i }).click();
+		// En e2e aucun email ne part : l'échec d'envoi doit être annoncé (en production : « Un nouveau code… »).
+		await expect(page.getByRole('status').filter({ hasText: /l’envoi de l’email a échoué|nouveau code/i })).toBeVisible();
+	});
+
+	test('C8 · un email inconnu à la connexion est signalé en français', async ({ page }) => {
+		await page.goto('/auth/login');
+		await page.locator('input[name=email]').fill(uniqueEmail('inconnu'));
+		await page.locator('input[name=password]').fill(DEFAULT_PASSWORD);
+		await page.getByRole('button', { name: /continuer/i }).click();
+		await expect(page.getByText('Aucun compte avec cet email : créez un compte.')).toBeVisible();
+	});
+
+	test('C9 · changement de mot de passe : erreur affichée puis succès, ancienne session fermée', async ({ page, context }) => {
+		const user = await createUser({ paid: true });
+		await loginAs(context, user.id);
+		await page.goto('/auth/account');
+
+		await page.locator('input[name=password]').fill('Mauvais2026x');
+		await page.locator('input[name=new_password]').fill('Nouveau2026x');
+		await page.locator('form[action="?/password"] button[type=submit]').click();
+		await expect(page.getByText('Mot de passe actuel incorrect.')).toBeVisible();
+
+		await page.locator('input[name=password]').fill(DEFAULT_PASSWORD);
+		await page.locator('input[name=new_password]').fill('Nouveau2026x');
+		await page.locator('form[action="?/password"] button[type=submit]').click();
+		await expect(page.getByText('Mot de passe modifié.')).toBeVisible();
+		// Les sessions existantes sont fermées, une nouvelle est ouverte pour ce navigateur.
+		expect(await db.session.count({ where: { userId: user.id } })).toBe(1);
 	});
 });
 
@@ -81,7 +120,7 @@ test.describe('Connexion', () => {
 		await page.locator('input[name=email]').fill(user.email);
 		await page.locator('input[name=password]').fill('Mauvais2026');
 		await page.getByRole('button', { name: /continuer/i }).click();
-		await expect(page.getByText(/invalid password/i)).toBeVisible();
+		await expect(page.getByText('Email ou mot de passe incorrect.')).toBeVisible();
 		expect(await db.session.count({ where: { userId: user.id } })).toBe(0);
 	});
 });
@@ -90,7 +129,7 @@ test.describe('Paiement et accès', () => {
 	test('P1 · sans paiement, l’espace et le formulaire renvoient vers la souscription', async ({ page, context }) => {
 		const user = await createUser();
 		await loginAs(context, user.id);
-		for (const path of ['/user', '/auth/measurement']) {
+		for (const path of ['/user', '/auth/photos', '/auth/well-being', '/auth/measurement']) {
 			await page.goto(path);
 			await expect(page, `depuis ${path}`).toHaveURL(/\/auth\/subscription/);
 		}

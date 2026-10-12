@@ -58,16 +58,13 @@ const ipBucket = new RefillingTokenBucket<string>(20, 1);
 
 export const actions: Actions = {
 	login: async (event: RequestEvent) => {
+		const form = await superValidate(event, zod(loginSchema));
 		// TODO: Assumes X-Forwarded-For is always included.
 		const clientIP = event.request.headers.get('X-Forwarded-For');
 		if (clientIP !== null && !ipBucket.check(clientIP, 1)) {
-			return fail(429, {
-				message: 'Too many requests',
-				email: ''
-			});
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 429 });
 		}
 
-		const form = await superValidate(event, zod(loginSchema));
 		const email = (form.data.email as string).trim().toLowerCase();
 		const password = form.data.password as string;
 
@@ -79,27 +76,27 @@ export const actions: Actions = {
 
 		if (user === null) {
 			logLogin('unknown email', email);
-			return message(form, "Veuillez creer un compte pour vous authentifier.");
+			return message(form, 'Aucun compte avec cet email : créez un compte.');
 		}
 
 		// Si l'utilisateur possède un googleId, c'est un utilisateur OAuth
 		if (user.googleId) {
-			return message(form, 'Connectez vous via Google OAuth');
+			return message(form, 'Ce compte utilise Google : connectez-vous avec Google.');
 		}
 
 		if (clientIP !== null && !ipBucket.consume(clientIP, 1)) {
-			return message(form, 'Too many requests');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 		}
 		if (!throttler.consume(user.id)) {
-			return message(form, 'Too many requests');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 		}
 		const passwordHash = await getUserPasswordHash(user.id ?? undefined, email);
 		if (passwordHash === null) {
-			return message(form, 'Invalid password');
+			return message(form, 'Email ou mot de passe incorrect.');
 		}
 		const validPassword = await verifyPasswordHash(passwordHash, password);
 		if (!validPassword) {
-			return message(form, 'Invalid password');
+			return message(form, 'Email ou mot de passe incorrect.');
 		}
 		throttler.reset(user.id);
 

@@ -31,7 +31,8 @@ Du premier passage sur le site jusqu'à l'ouverture de l'espace utilisateur (`/u
 | **C1** Après l'inscription, l'utilisateur arrive sur la vérification de l'email. Un code faux affiche « Code incorrect. » sans bloquer le formulaire, et le bon code mène au tableau de démarrage. | `C1` |
 | **C2** Le mot de passe doit faire au moins 8 caractères, avec une majuscule et un chiffre ; sinon aucun compte n'est créé. | `C2` |
 | **C3** Un email déjà inscrit renvoie vers la connexion (`/auth/login?reason=already_registered`). | `C3` |
-| **C4** Tant que l'email n'est pas vérifié, `/auth`, la souscription, le formulaire et l'espace renvoient vers la vérification. | `C4` |
+| **C4** Tant que l'email n'est pas vérifié, `/auth`, la souscription, les photos, le bien-être, le formulaire et l'espace renvoient vers la vérification. | `C4` |
+| **C7** Si l'email de vérification ne peut pas partir, la page s'affiche quand même et le signale ; « Renvoyer le code » affiche son résultat. | `C7` |
 | Le code expire au bout de 10 minutes ; une tentative après expiration envoie un nouveau code. | non couvert |
 | Inscription et connexion avec Google. | non couvert (nécessite un faux fournisseur OAuth) |
 | Double authentification (TOTP, codes de récupération) et mot de passe oublié. | non couvert |
@@ -41,13 +42,15 @@ Du premier passage sur le site jusqu'à l'ouverture de l'espace utilisateur (`/u
 | Règle | Test |
 |---|---|
 | **C5** Email et mot de passe ouvrent une session ; « Se déconnecter » la ferme (l'espace renvoie alors vers la connexion). | `C5` |
-| **C6** Un mauvais mot de passe affiche un message et ne crée aucune session. | `C6` |
+| **C6** Un mauvais mot de passe affiche « Email ou mot de passe incorrect. » et ne crée aucune session. | `C6` |
+| **C8** Un email inconnu affiche « Aucun compte avec cet email : créez un compte. » | `C8` |
+| **C9** Dans Mon compte, un mot de passe actuel faux est signalé comme une erreur ; un changement réussi ferme les autres sessions et garde celle du navigateur. | `C9` |
 
 ### Paiement et accès
 
 | Règle | Test |
 |---|---|
-| **P1** Sans paiement valide, `/user` et le formulaire de démarrage renvoient vers la souscription. | `P1` |
+| **P1** Sans paiement valide, `/user`, les photos, le bien-être et le formulaire de démarrage renvoient vers la souscription (l'admin est dispensé). | `P1` |
 | **P2** Un paiement confirmé par Stripe (webhook `checkout.session.completed`) crée une transaction payée, ouvre 3 mois d'accès et alloue 91 jours de nutrition. Un même événement rejoué ne crédite rien de plus. | `P2` |
 | **P3** L'offre Sport seule ouvre l'accès sans allouer de jours nutrition. | `P3` |
 | **P4** Un webhook à la signature invalide est rejeté (400), sans transaction. | `P4` |
@@ -75,11 +78,15 @@ Du premier passage sur le site jusqu'à l'ouverture de l'espace utilisateur (`/u
 
 ## Écarts connus
 
-- **Photos sans email vérifié** : `/auth/photos` reste accessible avant la vérification de l'email, contrairement aux autres pages du parcours.
-- **Messages en anglais** : la connexion (« Invalid password », « Too many requests ») et « Renvoyer le code » (messages jamais affichés).
+- **Pages historiques** : `/auth/photos` et `/auth/well-being` appartiennent à l'ancien parcours (photos, bien-être, puis mensurations). Le parcours actuel passe par le formulaire en 10 étapes. Elles ne sont plus liées depuis l'application mais restent protégées comme les autres étapes.
 - **Appel réseau en test** : la page des mensurations interroge l'API Stripe pour rattraper un paiement, même dans les tests e2e (clé factice refusée, sans effet).
 
 Corrigé lors de la mise en place de ces tests :
 
 - **Vérification de l'email** : après un mauvais code, le formulaire n'envoyait plus rien et aucun message ne s'affichait. Il fallait recharger la page. C'est couvert par `C1`.
 - **Blocage silencieux à l'enregistrement** : un champ invalide sur une étape précédente empêchait « Enregistrer » sans aucun message. C'est couvert par `D3`.
+- **Messages de compte** : environ 100 messages en anglais (connexion, 2FA, mot de passe oublié, paramètres) sont traduits à partir d'une table unique. Plusieurs actions renvoyaient leurs erreurs dans un format qui empêchait leur affichage et bloquait le formulaire (même défaut que la vérification d'email) : elles passent toutes par `message(form, …, { status })`. Dans Mon compte, les erreurs s'affichaient comme des succès. C'est couvert par `C6`, `C8` et `C9`.
+- **Email injoignable** : un échec d'envoi du code faisait tomber la page de vérification en erreur 500. C'est couvert par `C7`.
+- **Photos et bien-être** : accessibles sans email vérifié ni paiement. Ils passent désormais par `requirePaidOnboarding` (`src/lib/server/access.ts`), au chargement comme à l'envoi. C'est couvert par `C4` et `P1`.
+- **Code de récupération 2FA** : le tableau de démarrage le déchiffrait et l'envoyait au navigateur à chaque affichage, sans l'utiliser. Ce code mort est supprimé, avec trois actions dupliquées de Mon compte.
+- **Déconnexion** : elle effaçait un cookie `session` inexistant ; elle efface désormais le cookie `auth_session` et renvoie vers la connexion.

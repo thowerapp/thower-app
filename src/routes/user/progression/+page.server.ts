@@ -82,7 +82,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const daysVisible = Math.max(0, Math.min(currentDayIndex, until) - from + 1);
 		return sum + task.points * daysVisible;
 	}, 0);
-	const checkInPossiblePoints = Math.max(0, currentMonth - 1) * 50;
+	const checkInPossiblePoints = Math.max(0, currentMonth - 1) * POINTS.MONTHLY_CHECKIN;
 	const totalPossiblePoints = taskPossiblePoints + checkInPossiblePoints;
 
 	const achievedPercent =
@@ -125,6 +125,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		})),
 		photoMap,
 		inscriptionPhotoMap,
+		/** Barème affiché : montants réels attribués par `awardPoints`. */
+		points: POINTS,
 		currentMonth,
 		/** Mois affiché, relatif au cycle (1..3). */
 		displayMonth: currentMonth - (Math.max(1, cycle.cycle) - 1) * 3,

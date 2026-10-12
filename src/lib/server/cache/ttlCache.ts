@@ -4,9 +4,12 @@
  */
 export function createTtlCache(ttlMs: number) {
 	let entry: { loadedAt: number; value: Promise<unknown> } | null = null;
+	// Tests e2e : chaque test prépare ses propres données, un cache entre deux tests fausserait le résultat.
+	const disabled = process.env.THOWER_DISABLE_SERVER_CACHE === '1';
 
 	return {
 		get<T>(load: () => Promise<T>): Promise<T> {
+			if (disabled) return load();
 			const now = Date.now();
 			if (entry && now - entry.loadedAt < ttlMs) return entry.value as Promise<T>;
 

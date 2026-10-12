@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server';
+import { filterRecipesForUser } from '$lib/server/program-generation/nutrition/recipeFilterUtils';
 import { getUserProgramCycle } from '$lib/server/programCycle';
 import { absoluteDayIndex } from '$lib/utils/programCycle';
 import type { MealPosition } from '@prisma/client';
@@ -124,7 +125,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			where: { userId_dayIndex: { userId, dayIndex: absoluteDay } },
 			select: dayMealsSelect
 		}),
-		prisma.userProfile.findUnique({ where: { userId }, select: mealTargetsProfileSelect }),
+		prisma.userProfile.findUnique({
+			where: { userId },
+			select: { ...mealTargetsProfileSelect, allergens: true, otherAllergens: true, disgustingFoods: true }
+		}),
 		prisma.bodyMeasurement.findFirst({
 			where: { userId },
 			orderBy: { createdAt: 'desc' },
@@ -144,7 +148,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const fasting = nutritionDay?.intermittentFasting ?? false;
 	const frac = mealBudgetFraction(position, fasting);
 	// Chaque recette est proposée avec la journée recalculée autour d'elle (autres repas inchangés).
-	const recipes = catalog.filter((r) => r.category === category);
+	// Mêmes exclusions que la génération : allergènes déclarés, allergènes libres, aliments à éviter.
+	const recipes = filterRecipesForUser(
+		catalog.filter((r) => r.category === category),
+		profile
+	);
 	const recipesWithOptimalQ = recipes.map((full) => {
 		const { ingredients } = full;
 		const r = {

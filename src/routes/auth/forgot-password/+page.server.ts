@@ -42,20 +42,20 @@ export const actions: Actions = {
 
 		const clientIP = event.request.headers.get('X-Forwarded-For');
 		if (clientIP !== null && !ipBucket.check(clientIP, 1)) {
-			return message(form, 'Too many requests');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 		}
 
 		const user = await getUserFromEmail(email);
 
 		if (user === null) {
-			return message(form, 'Account does not exist');
+			return message(form, 'Aucun compte avec cet email.');
 		}
 		if (clientIP !== null && !ipBucket.consume(clientIP, 1)) {
-			return message(form, 'Too many requests');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 		}
 
 		if (!userBucket.consume(user.id, 1)) {
-			return message(form, 'Too many requests');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 		}
 
 		await invalidateUserPasswordResetSessions(user.id);

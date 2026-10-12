@@ -50,6 +50,7 @@ export const load = async (event) => {
 
 	let verificationRequest = await getUserEmailVerificationRequestFromRequest(event);
 	log('Initial request', verificationRequest);
+	let sendFailed = false;
 
 	if (verificationRequest === null || Date.now() >= verificationRequest.expiresAt.getTime()) {
 		log('Request missing or expired');
@@ -62,16 +63,21 @@ export const load = async (event) => {
 		verificationRequest = await createEmailVerificationRequest(freshUser.id, freshUser.email);
 		log('New verification request created', verificationRequest);
 
-		log('Calling sendVerificationEmail from load...');
-		await sendVerificationEmail(verificationRequest.email, verificationRequest.code);
-		log('sendVerificationEmail from load completed');
 		setEmailVerificationRequestCookie(event, verificationRequest);
+		// Un serveur d'email injoignable ne doit pas faire tomber la page : l'utilisateur peut renvoyer le code.
+		try {
+			await sendVerificationEmail(verificationRequest.email, verificationRequest.code);
+		} catch (err) {
+			log('sendVerificationEmail from load failed', err);
+			sendFailed = true;
+		}
 	}
 
 	log('load done → render form');
 	return {
 		verifyCode,
-		email: verificationRequest.email
+		email: verificationRequest.email,
+		sendFailed
 	};
 };
 
@@ -131,10 +137,13 @@ async function verifyCode(event: RequestEvent) {
 			verificationRequest.userId,
 			verificationRequest.email
 		);
-		log('Calling sendVerificationEmail (expired code)...');
-		await sendVerificationEmail(verificationRequest.email, verificationRequest.code);
-		log('sendVerificationEmail (expired) completed');
 		setEmailVerificationRequestCookie(event, verificationRequest);
+		try {
+			await sendVerificationEmail(verificationRequest.email, verificationRequest.code);
+		} catch (err) {
+			log('sendVerificationEmail (expired) failed', err);
+			return message(form, 'Ce code a expiré et l’envoi d’un nouveau code a échoué : réessayez avec « Renvoyer le code ».', { status: 500 });
+		}
 		return message(form, 'Ce code a expiré : un nouveau code vient de vous être envoyé.');
 	}
 
@@ -163,17 +172,17 @@ async function resendEmail(event: RequestEvent) {
 
 	if (event.locals.session === null || event.locals.user === null) {
 		log('No session/user');
-		return fail(401, { resend: { message: 'Not authenticated' } });
+		return fail(401, { resend: { message: 'Session expirée : reconnectez-vous.' } });
 	}
 
 	if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
 		log('2FA required but not verified');
-		return fail(403, { resend: { message: 'Forbidden' } });
+		return fail(403, { resend: { message: 'Action non autorisée.' } });
 	}
 
 	if (!sendVerificationEmailBucket.check(event.locals.user.id, 1)) {
 		log('Rate-limit resend check failed');
-		return fail(429, { resend: { message: 'Too many requests' } });
+		return fail(429, { resend: { message: 'Trop de tentatives, réessayez dans quelques minutes.' } });
 	}
 
 	let verificationRequest = await getUserEmailVerificationRequestFromRequest(event);
@@ -181,12 +190,12 @@ async function resendEmail(event: RequestEvent) {
 	if (verificationRequest === null) {
 		if (event.locals.user.emailVerified) {
 			log('User already verified → resend forbidden');
-			return fail(403, { resend: { message: 'Forbidden' } });
+			return fail(403, { resend: { message: 'Action non autorisée.' } });
 		}
 
 		if (!sendVerificationEmailBucket.consume(event.locals.user.id, 1)) {
 			log('Rate-limit consume failed on resend');
-			return fail(429, { resend: { message: 'Too many requests' } });
+			return fail(429, { resend: { message: 'Trop de tentatives, réessayez dans quelques minutes.' } });
 		}
 
 		verificationRequest = await createEmailVerificationRequest(
@@ -197,7 +206,7 @@ async function resendEmail(event: RequestEvent) {
 	} else {
 		if (!sendVerificationEmailBucket.consume(event.locals.user.id, 1)) {
 			log('Rate-limit consume failed on resend (existing request)');
-			return fail(429, { resend: { message: 'Too many requests' } });
+			return fail(429, { resend: { message: 'Trop de tentatives, réessayez dans quelques minutes.' } });
 		}
 
 		verificationRequest = await createEmailVerificationRequest(
@@ -213,14 +222,14 @@ async function resendEmail(event: RequestEvent) {
 		log('sendVerificationEmail (resend) completed');
 	} catch (err) {
 		log('sendVerificationEmail (resend) threw:', err);
-		return fail(500, { resend: { message: 'Failed to send email' } });
+		return fail(500, { resend: { message: 'L’envoi de l’email a échoué, réessayez.' } });
 	}
 	setEmailVerificationRequestCookie(event, verificationRequest);
 	log('Email resent to', verificationRequest.email);
 
 	return {
 		resend: {
-			message: 'A new code was sent to your inbox.'
+			message: 'Un nouveau code vient de vous être envoyé.'
 		}
 	};
 }

@@ -42,34 +42,34 @@ export const actions: Actions = {
 		// console.log(form, 'oiuhoiuh');
 
 		if (session === null) {
-			return message(form, 'Not authenticated');
+			return message(form, 'Session expirée : reconnectez-vous.');
 		}
 		if (session.emailVerified) {
-			return message(form, 'Forbidden');
+			return message(form, 'Action non autorisée.');
 		}
 		if (!bucket.check(session.userId, 1)) {
-			return message(form, 'Too many requests');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 		}
 
 		const { code } = form.data;
 
 		if (typeof code !== 'string') {
-			return message(form, 'Invalid or missing fields');
+			return message(form, 'Champs manquants ou invalides.');
 		}
 		if (code === '') {
-			return message(form, 'Please enter your code');
+			return message(form, 'Saisissez votre code.');
 		}
 		if (!bucket.consume(session.userId, 1)) {
-			return message(form, 'Too many requests');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 		}
 		if (code !== session.code) {
-			return message(form, 'Incorrect code');
+			return message(form, 'Code incorrect.');
 		}
 		bucket.reset(session.userId);
 		setPasswordResetSessionAsEmailVerified(session.id);
 		const emailMatches = setUserAsEmailVerifiedIfEmailMatches(session.userId, session.email);
 		if (!emailMatches) {
-			return message(form, 'Please restart the process');
+			return message(form, 'Recommencez la procédure depuis le début.');
 		}
 		return redirect(302, '/auth/reset-password/2fa');
 	}

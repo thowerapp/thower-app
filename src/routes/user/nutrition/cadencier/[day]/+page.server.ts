@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server';
+import { allergenLabels } from '$lib/schema/recipe/allergens';
 import { getUserProgramCycle } from '$lib/server/programCycle';
 import { absoluteDayIndex } from '$lib/utils/programCycle';
 import type { MealPosition } from '@prisma/client';
@@ -260,7 +261,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			description: r?.description ?? null,
 			totalTimeMin: r?.totalTimeMin ?? null,
 			instructions: r?.instructions ? scaleQuantitiesInText(r.instructions, factor) : null,
-			allergens: r?.allergens ?? [],
+			allergens: allergenLabels(r?.allergens),
 			ingredients,
 			complements: [
 				// Féculent ajouté : fusionné dans la ligne de l'ingrédient s'il fait partie de la recette.

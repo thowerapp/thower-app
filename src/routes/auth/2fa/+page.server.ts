@@ -1,5 +1,5 @@
 import { totpBucket } from '$lib/lucia/2fa';
-import { fail, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import { getUserTOTPKey } from '$lib/lucia/user';
 import { verifyTOTP } from '@oslojs/otp';
 import { setSessionAs2FAVerified } from '$lib/lucia/session';
@@ -36,11 +36,11 @@ export const actions: Actions = {
 		const form = await superValidate(formData, zod(totpCodeSchema));
 
 		if (!form.valid) {
-			return message(form, 'Invalid data');
+			return message(form, 'Données invalides.');
 		}
 
 		if (locals.session === null || locals.user === null) {
-			return message(form, 'Not authenticated');
+			return message(form, 'Session expirée : reconnectez-vous.');
 		}
 
 		if (
@@ -48,34 +48,34 @@ export const actions: Actions = {
 			!locals.user.registered2FA ||
 			locals.session.twoFactorVerified
 		) {
-			return message(form, 'Forbidden');
+			return message(form, 'Action non autorisée.');
 		}
 
 		if (!totpBucket.check(locals.user.id, 1)) {
-			return message(form, 'Too many requests');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 		}
 
 		const code = formData.get('code');
 		if (typeof code !== 'string') {
-			return message(form, 'Invalid or missing fields');
+			return message(form, 'Champs manquants ou invalides.');
 		}
 		if (code === '') {
-			return message(form, 'Please enter your code');
+			return message(form, 'Saisissez votre code.');
 		}
 		if (!totpBucket.consume(locals.user.id, 1)) {
-			return message(form, 'Too many requests');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 		}
 
 		const totpKey = await getUserTOTPKey(locals.user.id);
 		if (totpKey === null) {
-			return message(form, 'Forbidden');
+			return message(form, 'Action non autorisée.');
 		}
 
 		try {
 			const isValid = verifyTOTP(totpKey, 30, 6, code);
 
 			if (!isValid) {
-				return fail(400, { message: 'Invalid TOTP code', form });
+				return message(form, 'Code de double authentification incorrect.', { status: 400 });
 			}
 			// console.log('Vérification TOTP réussie.');
 		} catch (error: unknown) {
@@ -84,7 +84,7 @@ export const actions: Actions = {
 			} else {
 				console.error('Erreur inconnue lors de la vérification TOTP :', error);
 			}
-			return fail(500, { message: 'Internal server error', form });
+			return message(form, 'Erreur serveur, réessayez.', { status: 500 });
 		}
 
 		totpBucket.reset(locals.user.id);

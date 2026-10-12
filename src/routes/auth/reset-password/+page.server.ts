@@ -44,18 +44,18 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const form = await superValidate(formData, zod(resetPasswordSchema));
 		if (passwordResetSession === null) {
-			return message(form, 'Not authenticated');
+			return message(form, 'Session expirée : reconnectez-vous.');
 		}
 		if (!passwordResetSession.emailVerified) {
-			return message(form, 'Forbidden');
+			return message(form, 'Action non autorisée.');
 		}
 		if (user.registered2FA && !passwordResetSession.twoFactorVerified) {
-			return message(form, 'Forbidden');
+			return message(form, 'Action non autorisée.');
 		}
 
 		const password = formData.get('password');
 		if (typeof password !== 'string') {
-			return message(form, 'Invalid or missing fields');
+			return message(form, 'Champs manquants ou invalides.');
 		}
 		await invalidateUserPasswordResetSessions(passwordResetSession.userId);
 		await invalidateUserSessions(passwordResetSession.userId);

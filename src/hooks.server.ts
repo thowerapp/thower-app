@@ -5,6 +5,7 @@
 import type { Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
+import { getHasValidPaymentByUserId } from '$lib/prisma/transaction/getHasValidPaymentByUserId';
 
 import { RefillingTokenBucket } from '$lib/lucia/rate-limit';
 import { auth } from '$lib/lucia';
@@ -196,6 +197,27 @@ const adminWriteGuard: Handle = async ({ event, resolve }) => {
 };
 
 /* -------------------------------------------------------------------------- */
+/*  Espace utilisateur et API vidéo : les actions n'exécutent pas le layout   */
+/* -------------------------------------------------------------------------- */
+
+const userWriteGuard: Handle = async ({ event, resolve }) => {
+	const { pathname } = event.url;
+	const isUserArea = pathname === '/user' || pathname.startsWith('/user/');
+	const isRead = event.request.method === 'GET' || event.request.method === 'HEAD';
+	// Les API vidéo (jeton de lecture, progression, points) servent le contenu payant, lecture comprise.
+	const isVideoApi = pathname.startsWith('/api/videos/');
+	if ((isUserArea && !isRead) || isVideoApi) {
+		if (!event.locals.user) return new Response('Unauthorized', { status: 401 });
+		// Accès valide = paiement et abonnement non expiré (l'admin est dispensé), comme pour les pages.
+		if (event.locals.role !== 'ADMIN' && !(await getHasValidPaymentByUserId(event.locals.user.id))) {
+			log('WARN', 'UserGuard', 'Blocked write without valid access on', pathname);
+			return new Response('Forbidden', { status: 403 });
+		}
+	}
+	return resolve(event);
+};
+
+/* -------------------------------------------------------------------------- */
 /*  Chaîne finale                                                             */
 /* -------------------------------------------------------------------------- */
 
@@ -204,5 +226,6 @@ export const handle: Handle = sequence(
 	cookieGuard,
 	rateLimit,
 	authHandle,
-	adminWriteGuard
+	adminWriteGuard,
+	userWriteGuard
 );

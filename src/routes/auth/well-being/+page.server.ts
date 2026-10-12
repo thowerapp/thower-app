@@ -5,16 +5,12 @@ import { wellBeingSchema, type WellBeingSchema } from '$lib/schema/well-being/we
 import { getProfileByUserId } from '$lib/prisma/profile/getProfileByUserId';
 import { upsertProfile } from '$lib/prisma/profile/upsertProfile';
 import { onboardingTrace } from '$lib/server/onboarding/onboardingLog';
+import { requirePaidOnboarding } from '$lib/server/access';
 import type { Actions, RequestEvent } from './$types';
 
 export const load = async (event: RequestEvent) => {
-	if (event.locals.session === null || event.locals.user === null) {
-		return redirect(302, '/auth/login');
-	}
-
-	if (!event.locals.user.emailVerified) {
-		return redirect(302, '/auth/verify-email');
-	}
+	await requirePaidOnboarding(event.locals);
+	if (!event.locals.user) return redirect(302, '/auth/login');
 
 	const profile = await getProfileByUserId(event.locals.user.id);
 	const p = profile;
@@ -53,11 +49,12 @@ export const load = async (event: RequestEvent) => {
 
 export const actions: Actions = {
 	default: async (event: RequestEvent) => {
+		await requirePaidOnboarding(event.locals);
+		const form = await superValidate(event, zod(wellBeingSchema));
 		if (event.locals.session === null || event.locals.user === null) {
-			return fail(401, { form: { message: 'Non authentifié' } });
+			return message(form, 'Session expirée : reconnectez-vous.', { status: 401 });
 		}
 
-		const form = await superValidate(event, zod(wellBeingSchema));
 		if (!form.valid) {
 			onboardingTrace('well_being_save', {
 				userId: event.locals.user.id,

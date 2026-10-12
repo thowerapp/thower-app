@@ -1,5 +1,5 @@
 import { createTOTPKeyURI, verifyTOTP } from '@oslojs/otp';
-import { fail, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import { decodeBase64, encodeBase64 } from '@oslojs/encoding';
 import { updateUserTOTPKey } from '$lib/lucia/user';
 import { setSessionAs2FAVerified } from '$lib/lucia/session';
@@ -59,24 +59,24 @@ export const actions: Actions = {
 
 		if (event.locals.session === null || event.locals.user === null) {
 			console.warn('Utilisateur non authentifié ou session inexistante');
-			return message(form, 'Not authenticated');
+			return message(form, 'Session expirée : reconnectez-vous.');
 		}
 		if (!event.locals.user.emailVerified) {
 			console.warn('Email non vérifié pour l’utilisateur:', event.locals.user.email);
-			return message(form, 'Email not verified');
+			return message(form, 'Vérifiez d’abord votre email.');
 		}
 		if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
 			console.warn('2FA déjà configurée pour l’utilisateur:', event.locals.user.id);
-			return message(form, 'Two-factor already set up');
+			return message(form, 'La double authentification est déjà activée.');
 		}
 		if (!totpUpdateBucket.check(event.locals.user.id, 1)) {
 			console.warn('Trop de tentatives pour l’utilisateur:', event.locals.user.id);
-			return message(form, 'Too many requests');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
 		}
 
 		if (!form.valid) {
 			console.warn('Échec de la validation du formulaire:', form.errors);
-			return message(form, 'Form validation failed');
+			return message(form, 'Données invalides.');
 		}
 
 		const encodedTOTPKey = form.data.encodedTOTPKey as string;
@@ -86,7 +86,7 @@ export const actions: Actions = {
 
 		if (encodedTOTPKey.length !== 28) {
 			console.warn('Longueur de la clé encodée invalide:', encodedTOTPKey.length);
-			return message(form, 'Invalid encoded key length');
+			return message(form, 'Clé de double authentification invalide : recommencez.');
 		}
 
 		let key: Uint8Array;
@@ -95,12 +95,12 @@ export const actions: Actions = {
 			//console.log('Clé décodée avec succès:', key);
 		} catch (error) {
 			console.error('Erreur lors du décodage de la clé:', error);
-			return message(form, 'Invalid encoded key format');
+			return message(form, 'Clé de double authentification invalide : recommencez.');
 		}
 
 		if (key.byteLength !== 20) {
 			console.warn('Longueur de la clé invalide:', key.byteLength);
-			return message(form, 'Invalid key length');
+			return message(form, 'Clé de double authentification invalide : recommencez.');
 		}
 
 		try {
@@ -109,12 +109,12 @@ export const actions: Actions = {
 
 			if (!isValid) {
 				console.warn('Code TOTP invalide pour la clé:', key);
-				return message(form, 'Invalid TOTP code');
+				return message(form, 'Code de double authentification incorrect.');
 			}
 			//console.log('Code TOTP valide.');
 		} catch (error) {
 			console.error('Erreur lors de la validation du code TOTP:', error);
-			return fail(500, { message: 'Internal server error', form });
+			return message(form, 'Erreur serveur, réessayez.', { status: 500 });
 		}
 
 		try {
@@ -132,7 +132,7 @@ export const actions: Actions = {
 			event.locals.user.registered2FA = true;
 		} catch (error) {
 			console.error('Erreur lors de la mise à jour de la clé TOTP ou de la session:', error);
-			return fail(500, { message: 'Internal server error', form });
+			return message(form, 'Erreur serveur, réessayez.', { status: 500 });
 		}
 
 		//console.log('Redirection vers la page des codes de récupération.');

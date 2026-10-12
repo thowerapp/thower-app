@@ -3,7 +3,7 @@
 // -----------------------------------------------------------------------------
 
 import { redirect, fail } from '@sveltejs/kit';
-import { superValidate } from 'sveltekit-superforms';
+import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from '$lib/superforms-zod';
 
 import { signupSchema } from '$lib/schema/auth/signupSchema';
@@ -66,21 +66,19 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	signup: async (event) => {
+		const form = await superValidate(event, zod(signupSchema));
 		log('POST /signup hit');
 
 		/* ---------- 1. Rate-limit pré-check -------------------------------- */
 		const ip = event.request.headers.get('x-forwarded-for') ?? 'localhost';
-		if (!ipBucket.check(ip, 1)) return fail(429, { message: 'Too many requests' });
+		if (!ipBucket.check(ip, 1)) return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 429 });
 
 		/* ---------- 2. Validation Zod + Superforms ------------------------- */
-		const form = await superValidate(event, zod(signupSchema));
 		log('Form received', form.data);
 
 		if (!form.valid) {
 			log('❌ Form validation failed:', form.errors);
-			return fail(400, { 
-				message: 'Erreurs de validation. Vérifiez vos données.'
-			});
+			return fail(400, { form });
 		}
 
 		// Extraire toutes les données du formulaire pour éviter les problèmes de sérialisation
@@ -99,7 +97,7 @@ export const actions: Actions = {
 		}
 
 		/* Consommation réelle du token RL */
-		if (!ipBucket.consume(ip, 1)) return fail(429, { message: 'Too many requests' });
+		if (!ipBucket.consume(ip, 1)) return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 429 });
 
 		/* ---------- 4. Création de l’utilisateur --------------------------- */
 		const user = await createUser(email, username, password);

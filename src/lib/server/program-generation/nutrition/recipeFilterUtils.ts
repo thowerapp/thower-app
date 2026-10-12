@@ -1,3 +1,5 @@
+import { normalizeAllergens } from '$lib/schema/recipe/allergens';
+
 /** Normalise une chaîne : minuscules + suppression des diacritiques. */
 export function normalize(str: string): string {
 	return str
@@ -32,8 +34,9 @@ export function recipeConflictsUser(
 	userAllergens: string[],
 	freeTerms: string[]
 ): boolean {
-	const avoid = new Set(userAllergens);
-	if (recipe.allergens.some((a) => avoid.has(a))) return true;
+	// Codes comparés sous leur forme canonique : le catalogue d'origine est codé en anglais (eggs, milk…).
+	const avoid = new Set(normalizeAllergens(userAllergens));
+	if (normalizeAllergens(recipe.allergens).some((a) => avoid.has(a))) return true;
 
 	if (freeTerms.length === 0) return false;
 	const recipeName = normalize(recipe.name);

@@ -6,6 +6,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from '$lib/superforms-zod';
 	import { toast } from 'svelte-sonner';
+	import { page } from '$app/stores';
 	import { emailSchema, passwordSchema } from '$lib/schema/auth/settingsSchemas';
 	import { isMfaEnabledSchema } from '$lib/schema/users/MfaEnabledSchema.js';
 	import { Mail, KeyRound, ShieldCheck, ArrowLeft, Cog } from 'lucide-svelte';
@@ -37,10 +38,16 @@
 
 	let mfaFormRef = $state<HTMLFormElement | null>(null);
 
+	/** Les actions renvoient leurs erreurs avec un statut ≥ 400 : notification d'erreur, sinon de succès. */
+	function notify(text: string) {
+		if ($page.status >= 400) toast.error(text);
+		else toast.success(text);
+	}
+
 	$effect(() => {
-		if ($emailMessage) toast.success($emailMessage);
-		if ($passwordMessage) toast.success($passwordMessage);
-		if ($isMfaEnabledMessage && $isMfaEnabledMessage.text === 'Authentication modifiée') {
+		if ($emailMessage) notify($emailMessage);
+		if ($passwordMessage) notify($passwordMessage);
+		if ($isMfaEnabledMessage && $isMfaEnabledMessage.text === 'Double authentification modifiée') {
 			$isMfaEnabledData.isMfaEnabled = $isMfaEnabledMessage.newStatus;
 			toast.success($isMfaEnabledMessage.text);
 		}

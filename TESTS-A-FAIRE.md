@@ -1,16 +1,16 @@
 # Tests à faire pour une couverture de 100 %
 
-État au 12 octobre 2026 : 517 tests (322 unitaires, 23 d'intégration, 172 e2e). Cette liste regroupe ce qui n'est pas encore vérifié. Les cases cochées dans `OPTIMISATION.md` ne sont pas reprises ici.
+État au 12 octobre 2026 : 553 tests (345 unitaires, 32 d'intégration, 176 e2e). Cette liste regroupe ce qui n'est pas encore vérifié. Les cases cochées dans `OPTIMISATION.md` ne sont pas reprises ici.
 
 Les points des sections 1 et 2 sont issus d'un relevé des routes et actions serveur sans aucune référence dans `e2e/`. Ils sont à confirmer à la mesure (section 0).
 
 ## 0. Mesure
 
-Couverture des lignes de `src/lib`, `src/routes/**/*.ts` (actions, API) et `hooks.server.ts`, mesurée le 12 octobre 2026 : **82,1 %** des lignes de code (347 fichiers, 6 268 lignes de code). Unitaires 20,2 %, intégration 10,2 %, e2e 77,4 % (chevauchement possible). Les composants `.svelte` ne sont pas mesurés.
+Couverture des lignes de `src/lib`, `src/routes/**/*.ts` (actions, API) et `hooks.server.ts`, mesurée le 12 octobre 2026 : **84,8 %** des lignes de code (346 fichiers, 6 258 lignes de code). Unitaires 23,5 %, intégration 12,2 %, e2e 78,1 % (chevauchement possible). Les composants `.svelte` ne sont pas mesurés.
 
 Commandes : `npm run test:coverage:unit`, `npm run test:coverage:integration`, `npm run test:coverage:e2e` (serveur de dev instrumenté, environ 7 min), puis `npm run coverage:report` (fusion par ligne et liste des lignes manquantes dans `coverage/merged-uncovered.txt`).
 
-Plus gros écarts (lignes de code manquantes) : `src/routes/auth` (83 % couvert, 159 lignes), `src/routes/admin` (82 %, 147), `src/lib/server` (86 %, 143), `src/lib/prisma` (79 %, 130), `src/lib/lucia` (66 %, 118), `src/routes/user` (92 %, 76), `src/lib/utils` (66 %, 73), `src/lib/schema` (78 %, 56).
+Plus gros écarts (lignes de code manquantes) : `src/routes/auth` (83 % couvert, 159 lignes), `src/lib/prisma` (79 %, 131), `src/routes/admin` (85 %, 122), `src/lib/lucia` (76 %, 82), `src/lib/server` (92 %, 80), `src/routes/user` (91 %, 77), `src/lib/utils` (73 %, 59), `src/routes/api` (82 %, 44).
 
 Une ligne de code est une ligne où commence une instruction. Les chiffres publiés plus tôt (46,4 % puis 51,6 %) étaient sous-estimés : le rapport comptait des lignes fantômes et plaçait les compteurs de l'e2e sur le code transformé. Le script remappe maintenant vers le source d'origine.
 
@@ -20,7 +20,8 @@ Une ligne de code est une ligne où commence une instruction. Les chiffres publi
 - [x] Auth : redirections selon l'état du compte, actions sans session, emails (vérification, renvoi, changement d'email, mot de passe oublié, inscription, contact) avec un faux serveur SMTP, limites de tentatives, 2FA (`AUT1` à `AUT25`).
 - [x] API et services (push, cron, géocodage, photos R2, statut des photos) et erreurs de l'espace utilisateur (`API1` à `API9`, `USR1` à `USR6`).
 - [x] Unitaires : facture PDF, notifications PWA, client Cloudflare Stream, lancement de génération, utilitaires ; intégration : comptes (`user.ts`).
-- [ ] Code mort à décider : `src/lib/server/photoValidatedEmail.ts` et `src/lib/server/nutrition/ensureBreakfastMeal.ts` ne sont appelés nulle part.
+- [x] `src/lib/server/photoValidatedEmail.ts` supprimé (jamais appelé).
+- [x] Code jamais appelé supprimé : `updateUserSecurity.ts`, `getPublicIdFromUrl.ts`, `validateSessionToken` et `handleGoogleOAuth` (session et utilisateur), ainsi que les accès base devenus inutiles (`findSessionById`, `deleteSessionById`, `updateSessionExpiry`).
 - [ ] Mesurer aussi les branches pour l'e2e (le rapport fusionné ne compte que les lignes).
 
 ## 1. Fonctions annoncées mais absentes (décision avant tests)
@@ -46,7 +47,7 @@ Rien à tester tant que la fonction n'existe pas. Pour chacune : l'implémenter 
 - [x] Contact : liste, détail, suppression d'un message (`deleteContact`).
 - [x] Utilisateurs : liste, suppression d'un compte (`deleteUser`) et de ses données.
 - [x] Fiche utilisateur, onglets hors `AD1`–`AD11` : mensurations (ajout, suppression), photos de suivi, bilans mensuels, repas du cadencier (`updateNutritionDay`, `updateMeal`), séances (`updateWorkoutDay`), suppression d'une personnalisation sport, tâches (complétion, désactivation), progression vidéo, sessions et abonnements push, favoris, liste de courses, reprise du programme.
-- [ ] Calendrier de la fiche : valider un repas et une séance pour l'utilisateur (`complete-meal`, `complete-workout`), `program-summary`.
+- [x] Calendrier de la fiche : valider un repas et une séance pour l'utilisateur (`complete-meal`, `complete-workout`), `program-summary` (`AD32` à `AD35`).
 - [x] Tâches quotidiennes : modifier, activer / désactiver, supprimer.
 - [x] Recettes : créer, supprimer depuis l'admin.
 - [x] Vidéos : créer, modifier, supprimer, rattacher / détacher d'un jour, resynchroniser depuis Cloudflare, tout purger.
@@ -58,7 +59,7 @@ Rien à tester tant que la fonction n'existe pas. Pour chacune : l'implémenter 
 - [x] Liste de courses : bouton « Régénérer » (cases cochées conservées).
 - [x] Photos d'inscription : envoi, statut (`check-photo-status`), rejet des fichiers invalides.
 - [x] Notifications : abonnement push (`push-subscribe`, `push-vapid-public`) et désabonnement.
-- [x] Recherche d'adresse (`open-cage-data`).
+- [x] Recherche d'adresse (`/api/adresse`, API gouvernementale gratuite sans clé, session requise).
 - [x] Envoi d'une vidéo par l'utilisateur (`cloudflare/stream/upload-url`) : refusé si non autorisé.
 - [ ] Mobile : menu du rôle de l'onglet Compte hors écran (défaut connu), à corriger puis tester à la souris.
 

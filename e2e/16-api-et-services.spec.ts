@@ -109,27 +109,41 @@ test.describe('Notifications push', () => {
 });
 
 test.describe('Géocodage et statut des photos', () => {
-	test('API5 · recherche d’adresse : critère obligatoire, suggestions, aucun résultat', async ({
-		page
+	test('API5 · recherche d’adresse : session requise, critère obligatoire, suggestions, aucun résultat', async ({
+		page,
+		context
 	}) => {
-		expect((await page.request.get('/api/open-cage-data')).status()).toBe(400);
+		expect((await page.request.get('/api/adresse?q=test')).status()).toBe(401);
 
-		await fakes.opencage.results([
-			{ formatted: '10 Rue de Test, 75001 Paris', components: { city: 'Paris', postcode: '75001' } }
+		const user = await createOnboardedUser();
+		await loginAs(context, user.id);
+		expect((await page.request.get('/api/adresse')).status()).toBe(400);
+
+		await fakes.geocodage.results([
+			{
+				label: '10 Rue de Test 75001 Paris',
+				name: '10 Rue de Test',
+				postcode: '75001',
+				city: 'Paris',
+				context: '75, Paris, Île-de-France'
+			}
 		]);
-		const found = await page.request.get('/api/open-cage-data?q=10%20rue%20de%20test');
+		const found = await page.request.get('/api/adresse?q=10%20rue%20de%20test');
 		expect(found.status()).toBe(200);
 		expect(await found.json()).toEqual({
 			suggestions: [
 				{
-					formatted: '10 Rue de Test, 75001 Paris',
-					components: { city: 'Paris', postcode: '75001' }
+					label: '10 Rue de Test 75001 Paris',
+					name: '10 Rue de Test',
+					postcode: '75001',
+					city: 'Paris',
+					context: '75, Paris, Île-de-France'
 				}
 			]
 		});
 
 		await fakes.reset();
-		expect((await page.request.get('/api/open-cage-data?q=nulle%20part')).status()).toBe(404);
+		expect((await page.request.get('/api/adresse?q=nulle%20part')).status()).toBe(404);
 	});
 
 	test('API6 · statut des photos d’inscription : session requise, présence des photos', async ({

@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
 	absoluteDayIndex,
 	absoluteProgressMonth,
+	completedInCycle,
+	completedInCycleWhere,
+	cycleDayLabel,
 	nextCycleStart,
 	programCycleStarts,
 	resolveProgramCycle
@@ -68,5 +71,34 @@ describe('nextCycleStart', () => {
 	it('renouvellement après la fin : lundi suivant le paiement', () => {
 		// Mercredi 22 avril 2026 → lundi 27 avril 2026, minuit Paris.
 		expect(nextCycleStart([START], at('2026-04-22T10:00:00Z')).toISOString()).toBe('2026-04-26T22:00:00.000Z');
+	});
+});
+
+describe('programCycleStarts : ordre', () => {
+	it('trie les départs suivants dans l’ordre chronologique', () => {
+		const later = new Date('2026-07-06T22:00:00.000Z');
+		expect(programCycleStarts({ programStartDate: START, programCycleStarts: [later, CYCLE2] })).toEqual([START, CYCLE2, later]);
+	});
+});
+
+describe('cycle en cours : complétions et libellé', () => {
+	it('compte une complétion au cycle 1 sans condition, aux suivants seulement depuis leur départ', () => {
+		expect(completedInCycle(null, { cycle: 1, start: START })).toBe(false);
+		expect(completedInCycle(new Date('2025-01-01'), { cycle: 1, start: START })).toBe(true);
+		expect(completedInCycle(new Date('2025-01-01'), { cycle: 2, start: null })).toBe(true);
+		expect(completedInCycle(new Date(CYCLE2.getTime() - 1), { cycle: 2, start: CYCLE2 })).toBe(false);
+		expect(completedInCycle(CYCLE2, { cycle: 2, start: CYCLE2 })).toBe(true);
+	});
+
+	it('exprime le même filtre pour la base', () => {
+		expect(completedInCycleWhere({ cycle: 1, start: START })).toEqual({ not: null });
+		expect(completedInCycleWhere({ cycle: 2, start: null })).toEqual({ not: null });
+		expect(completedInCycleWhere({ cycle: 2, start: CYCLE2 })).toEqual({ gte: CYCLE2 });
+	});
+
+	it('affiche le cycle à partir du deuxième', () => {
+		expect(cycleDayLabel(1, 5)).toBe('Jour 5');
+		expect(cycleDayLabel(0, 5)).toBe('Jour 5');
+		expect(cycleDayLabel(2, 5)).toBe('Cycle 2 · Jour 5');
 	});
 });

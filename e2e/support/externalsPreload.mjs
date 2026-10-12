@@ -24,7 +24,7 @@ const FAKE = process.env.E2E_FAKE_EXTERNALS_URL;
 
 if (FAKE) {
 	const fake = new URL(FAKE);
-	const fetchPrefixes = { 'oauth2.googleapis.com': '/google', 'api.cloudflare.com': '/cloudflare', 'api.opencagedata.com': '/opencage' };
+	const fetchPrefixes = { 'oauth2.googleapis.com': '/google', 'api.cloudflare.com': '/cloudflare', 'data.geopf.fr': '/geopf' };
 
 	const realFetch = globalThis.fetch;
 	globalThis.fetch = function patchedFetch(input, init) {

@@ -33,3 +33,21 @@ describe('formatVideoDays', () => {
 		expect(formatVideoDays({ kind: 'discovery', days: [] })).toBe('—');
 	});
 });
+
+describe('formatVideoDays : plages ouvertes et séances', () => {
+	const task = (from: number | null, until: number | null) => ({ source: 'task' as const, from, until });
+
+	it('décrit les bornes ouvertes d’une tâche vidéo', () => {
+		expect(formatVideoDays({ kind: 'discovery', days: [task(null, null)] })).toBe('tous les jours');
+		expect(formatVideoDays({ kind: 'discovery', days: [task(5, null)] })).toBe('dès J5');
+		expect(formatVideoDays({ kind: 'discovery', days: [task(null, 7)] })).toBe('jusqu’à J7');
+		expect(formatVideoDays({ kind: 'discovery', days: [task(2, 9)] })).toBe('J2–J9');
+		expect(formatVideoDays({ kind: 'discovery', days: [] })).toBe('—');
+	});
+
+	it('ajoute la séance d’une vidéo de sport, ou « chaque semaine » sans jour précis', () => {
+		expect(formatVideoDays({ kind: 'workout', sessionType: 'MAIN_A', days: [{ source: 'day', dayIndex: 1 }] })).toBe('J1 · Séance 1');
+		expect(formatVideoDays({ kind: 'workout', sessionType: 'MAIN_C', days: [] })).toBe('Séance 3 · chaque semaine');
+		expect(formatVideoDays({ kind: 'workout', sessionType: 'AUTRE', days: [] })).toBe('AUTRE · chaque semaine');
+	});
+});

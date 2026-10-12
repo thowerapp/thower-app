@@ -6,7 +6,6 @@ import { decrypt } from './encryption';
 import { Role } from '@prisma/client';
 import {
 	createUserInDatabase,
-	createUserWithGoogleOAuth,
 	getUserByEmailPrisma,
 	getUserByGoogleIdPrisma,
 	getUserPasswordHashPrisma,
@@ -161,39 +160,6 @@ export async function resetUserRecoveryCode(userId: string): Promise<string> {
 	const encryptedCode = encryptString(recoveryCode);
 	await updateUserRecoveryCode(userId, Buffer.from(encryptedCode).toString('base64'));
 	return recoveryCode;
-}
-
-// Gestion des sessions OAuth
-export async function handleGoogleOAuth(
-	googleId: string,
-	email: string,
-	name: string,
-	picture: string
-): Promise<User> {
-	let user = await getUserFromGoogleId(googleId);
-
-	if (!user) {
-		const createdGoogleUser = await createUserWithGoogleOAuth(googleId, email, name, picture);
-		user = {
-			id: createdGoogleUser.id,
-			email: createdGoogleUser.email,
-			username: createdGoogleUser.username,
-			emailVerified: createdGoogleUser.emailVerified,
-			registered2FA: createdGoogleUser.totpKey !== null,
-			googleId: createdGoogleUser.googleId,
-			name: createdGoogleUser.name,
-			picture: createdGoogleUser.picture,
-			role: createdGoogleUser.role,
-			isMfaEnabled: createdGoogleUser.isMfaEnabled,
-			totpKey: createdGoogleUser.totpKey,
-			subscriptionEndsAt: null
-		};
-	}
-
-	if (!user) {
-		throw new Error('User not found after create');
-	}
-	return user;
 }
 
 export async function updateUserTOTPKey(userId: string, key: Uint8Array): Promise<void> {

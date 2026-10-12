@@ -18,6 +18,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
+	// Les lectures ne passent pas par le garde d'écriture admin ni par le layout : le rôle se vérifie ici.
+	if (locals.role !== 'ADMIN') {
+		return json({ error: 'Forbidden' }, { status: 403 });
+	}
 
 	const userId = params.id;
 

@@ -1,14 +1,9 @@
 import { ObjectId } from 'mongodb'; // Import ObjectId pour MongoDB
 import type { RequestEvent } from '@sveltejs/kit';
-import type { User } from './user';
-import { findUserByGoogleId, createUserWithGoogleOAuth } from '$lib/prisma/user/user';
 import {
 	createSessionInDB,
 	deleteSession,
-	deleteSessionById,
 	deleteSessionsByUserId,
-	findSessionById,
-	updateSessionExpiry,
 	verifyTwoFactorForSession
 } from '$lib/prisma/session/sessions';
 import { auth } from '.';
@@ -24,8 +19,6 @@ export interface Session extends SessionFlags {
 	oauthProvider: string | null;
 	fresh?: boolean;
 }
-
-type SessionValidationResult = { session: Session; user: User } | { session: null; user: null };
 
 // Génère un token de session (identifiant MongoDB valide)
 export function generateSessionToken(): string {
@@ -60,64 +53,6 @@ export async function createSession(
 	} catch (error) {
 		console.error('Erreur lors de la création de la session :', error);
 		throw new Error('Erreur lors de la création de la session.');
-	}
-}
-
-// Valide le token de session
-export async function validateSessionToken(token: string): Promise<SessionValidationResult> {
-	try {
-		const result = await findSessionById(token);
-
-		if (!result) {
-			return { session: null, user: null };
-		}
-
-		// Vérifie l'expiration de la session
-		if (Date.now() >= result.expiresAt.getTime()) {
-			await deleteSessionById(token);
-			return { session: null, user: null };
-		}
-
-		// Prolonge la session si elle est proche de l'expiration
-		if (Date.now() >= result.expiresAt.getTime() - 1000 * 60 * 60 * 24 * 15) {
-			const newExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
-			await updateSessionExpiry(token, newExpiresAt);
-			result.expiresAt = newExpiresAt;
-		}
-
-		const session: Session = {
-			id: result.id,
-			userId: result.userId,
-			expiresAt: result.expiresAt,
-			twoFactorVerified: result.twoFactorVerified,
-			oauthProvider: result.oauthProvider
-			// fresh: result.fresh // Retiré, car fresh vient de Lucia, pas de Prisma
-		};
-
-		const user: User = {
-			id: result.user.id,
-			email: result.user.email,
-			username: result.user.username,
-			emailVerified: result.user.emailVerified,
-			registered2FA: result.user.totpKey !== null,
-			googleId: result.user.googleId,
-			name: result.user.name,
-			picture: result.user.picture,
-			role: result.user.role,
-			isMfaEnabled: result.user.isMfaEnabled,
-			totpKey: result.user.totpKey,
-			subscriptionEndsAt: result.user.subscriptionEndsAt
-		};
-
-		return { session, user };
-	} catch (error: unknown) {
-		if (error instanceof Error) {
-			console.error('Erreur lors de la validation de la session :', error);
-			return { session: null, user: null };
-		} else {
-			console.error('Erreur inconnue lors de la validation de la session :', error);
-			return { session: null, user: null };
-		}
 	}
 }
 
@@ -186,41 +121,4 @@ export function deleteSessionTokenCookie(event: RequestEvent): void {
 // Marque la session comme vérifiée pour la 2FA
 export async function setSessionAs2FAVerified(sessionId: string): Promise<void> {
 	await verifyTwoFactorForSession(sessionId);
-}
-
-// Gestion des sessions OAuth pour Google
-export async function handleGoogleOAuth(
-	event: RequestEvent,
-	googleId: string,
-	email: string,
-	name: string,
-	picture: string
-): Promise<SessionValidationResult> {
-	const prismaUser = await findUserByGoogleId(googleId);
-	let user: User;
-
-	if (!prismaUser) {
-		const createdUser = await createUserWithGoogleOAuth(googleId, email, name, picture);
-		user = {
-			id: createdUser.id,
-			email: createdUser.email,
-			username: createdUser.username,
-			emailVerified: createdUser.emailVerified,
-			registered2FA: createdUser.totpKey !== null,
-			googleId: createdUser.googleId,
-			name: createdUser.name,
-			picture: createdUser.picture,
-			role: createdUser.role,
-			isMfaEnabled: createdUser.isMfaEnabled,
-			totpKey: createdUser.totpKey
-		} as User;
-	} else {
-		user = { ...prismaUser, registered2FA: prismaUser.totpKey != null } as User;
-	}
-
-	const token = generateSessionToken();
-	const session = await createSession(token, user.id, { twoFactorVerified: false }, 'google');
-	setSessionTokenCookie(event, token, session.expiresAt);
-
-	return { session, user };
 }

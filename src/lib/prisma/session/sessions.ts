@@ -13,26 +13,6 @@ export const createSessionInDB = async (data: {
 	});
 };
 
-export const findSessionById = async (token: string) => {
-	return await prisma.session.findUnique({
-		where: { id: token },
-		include: { user: true }
-	});
-};
-
-export const deleteSessionById = async (token: string) => {
-	return await prisma.session.delete({
-		where: { id: token }
-	});
-};
-
-export const updateSessionExpiry = async (token: string, newExpiresAt: Date) => {
-	return await prisma.session.update({
-		where: { id: token },
-		data: { expiresAt: newExpiresAt }
-	});
-};
-
 export const deleteSession = async (sessionId: string) => {
 	return await prisma.session.delete({
 		where: { id: sessionId }

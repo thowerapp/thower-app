@@ -30,9 +30,9 @@ export const fakes = {
 		up: (enabled = true) => control('smtp/up', { enabled }),
 		messages: () => control<{ to: string[]; data: string }[]>('smtp/messages')
 	},
-	/** Géocodage OpenCage : sans résultats définis, la réponse n'a aucun champ `results`. */
-	opencage: {
-		results: (results: { formatted: string; components: Record<string, string> }[]) => control('opencage/results', results)
+	/** Géocodage de la Géoplateforme : sans résultats définis, la réponse n'a aucune adresse. */
+	geocodage: {
+		results: (results: Record<string, string>[]) => control('geocodage/results', results)
 	},
 	/** Service de notifications push du navigateur (`https://push.fake.test/...`). */
 	push: {

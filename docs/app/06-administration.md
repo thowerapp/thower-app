@@ -53,11 +53,15 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 | **PUB1** Contact public : message enregistré, champs invalides refusés, limite de 5 envois par minute. | `PUB1` |
 | **PUB2** Le sitemap liste les pages publiques, pas l'admin, l'authentification ni l'API. | `PUB2` |
 | **PUB3** La page des réglementations répond. | `PUB3` |
+| **AD32** Calendrier de la fiche : cocher ou décocher un repas pour l'utilisateur. | `AD32` |
+| **AD33** Calendrier de la fiche : cocher ou décocher la séance d'un jour. | `AD33` |
+| **AD34** Le résumé du programme liste les jours de sport et de nutrition de l'utilisateur. | `AD34` |
+| **AD35** Ces trois adresses sont réservées aux admins : un client ne lit ni ne modifie le programme d'un autre. | `AD35` |
 | **API1** Abonnement push : session et champs obligatoires ; un même appareil n'est enregistré qu'une fois. | `API1` |
 | **API2** La clé publique Web Push est publiée. | `API2` |
 | **API3** Le cron exige son secret, envoie le rappel à chaque abonné et compte les échecs. | `API3` |
 | **API4** Sans abonné, le cron l'indique et rattrape tout de même les générations. | `API4` |
-| **API5** Recherche d'adresse : critère obligatoire, suggestions, aucun résultat. | `API5` |
+| **API5** Recherche d'adresse (`/api/adresse`) : session requise, critère obligatoire, suggestions, aucun résultat. | `API5` |
 | **API6** Statut des photos d'inscription : session requise, présence des photos. | `API6` |
 | **API7** Envoi d'une photo (R2) : session, fichier, type et taille contrôlés ; stockage et lecture par son propriétaire. | `API7` |
 | **API8** Lecture d'une photo : propriétaire ou admin seulement, clé inconnue en 404. | `API8` |
@@ -96,6 +100,7 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 
 Corrigé lors de la mise en place de ces tests :
 
+- **Résumé du programme lisible par tous** : `/admin/users/[id]/program-summary` ne vérifiait que la présence d'une session, donc n'importe quel compte connecté pouvait lire les repas et séances d'un autre. Le rôle ADMIN est maintenant exigé, ainsi que sur les deux adresses du calendrier (`AD35`).
 - **Contact** : la limite de débit du formulaire ne limitait rien (le seau se rechargeait toutes les 0,08 s au lieu de 12 s). Elle autorise maintenant 5 envois par minute et par adresse. C'est couvert par `PUB1`.
 - Enregistrer une recette du catalogue effaçait ses allergènes (zone 4). C'est couvert par `AD4`.
 - **Fiche utilisateur, onglet Compte** : les champs n'avaient pas de nom, donc rien n'était envoyé au serveur : « Enregistrer » renvoyait « Format email invalide » et remettait le formulaire à zéro. Les champs sont nommés et l'identifiant et le rôle sont envoyés. C'est couvert par `AD9`.

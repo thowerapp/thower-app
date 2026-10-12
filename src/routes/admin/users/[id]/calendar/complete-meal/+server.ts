@@ -8,6 +8,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
+	if (locals.role !== 'ADMIN') {
+		return json({ error: 'Forbidden' }, { status: 403 });
+	}
 
 	const body = await request.json().catch(() => ({}));
 	const mealId = typeof body.mealId === 'string' ? body.mealId : undefined;

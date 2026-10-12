@@ -26,7 +26,7 @@ const state = {
 	streamVideos: new Map<string, StreamVideo>(),
 	streamCounter: 0,
 	streamRequests: [] as { method: string; path: string; body: unknown }[],
-	opencage: null as null | { formatted: string; components: Record<string, string> }[],
+	geocodage: null as null | Record<string, string>[],
 		r2Objects: new Map<string, { type: string; body: Buffer }>(),
 	pushStatus: 201,
 	pushRequests: [] as { path: string; headers: http.IncomingHttpHeaders }[],
@@ -42,7 +42,7 @@ function reset() {
 	state.streamRequests.length = 0;
 	state.smtpUp = false;
 	state.smtpMessages.length = 0;
-	state.opencage = null;
+	state.geocodage = null;
 		state.r2Objects.clear();
 	state.pushStatus = 201;
 	state.pushRequests.length = 0;
@@ -166,8 +166,8 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse) {
 		state.streamVideos = new Map((JSON.parse(raw) as StreamVideo[]).map((v) => [v.uid, v]));
 		return send(res, 200, { ok: true });
 	}
-	if (path === '/__control/opencage/results') {
-		state.opencage = JSON.parse(raw) as typeof state.opencage;
+	if (path === '/__control/geocodage/results') {
+		state.geocodage = JSON.parse(raw) as typeof state.geocodage;
 		return send(res, 200, { ok: true });
 	}
 		if (path === '/__control/r2/objects') {
@@ -180,8 +180,8 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse) {
 	if (path === '/__control/push/requests') {
 		return send(res, 200, state.pushRequests);
 	}
-	if (path === '/opencage/geocode/v1/json') {
-		return send(res, 200, state.opencage === null ? {} : { results: state.opencage });
+	if (path === '/geopf/geocodage/search') {
+		return send(res, 200, { features: (state.geocodage ?? []).map((properties) => ({ properties })) });
 	}
 	if (path.startsWith('/push/')) {
 		state.pushRequests.push({ path, headers: req.headers });

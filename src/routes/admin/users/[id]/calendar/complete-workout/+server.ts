@@ -7,6 +7,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	if (!locals.user) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
+	if (locals.role !== 'ADMIN') {
+		return json({ error: 'Forbidden' }, { status: 403 });
+	}
 
 	const userId = params.id;
 	const body = await request.json().catch(() => ({}));

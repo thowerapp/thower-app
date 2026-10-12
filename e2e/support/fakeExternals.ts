@@ -4,6 +4,7 @@
  * les tests pilotent son contenu par les routes `/__control/*` (voir e2e/support/fakes.ts).
  */
 import http from 'node:http';
+import net from 'node:net';
 
 type GoogleIdentity = { sub: string; email: string; name: string; picture: string };
 type StripeSession = Record<string, unknown> & { id: string };
@@ -24,7 +25,9 @@ const state = {
 	stripeCounter: 0,
 	streamVideos: new Map<string, StreamVideo>(),
 	streamCounter: 0,
-	streamRequests: [] as { method: string; path: string; body: unknown }[]
+	streamRequests: [] as { method: string; path: string; body: unknown }[],
+	smtpUp: false,
+	smtpMessages: [] as { to: string[]; data: string }[]
 };
 
 function reset() {
@@ -33,6 +36,8 @@ function reset() {
 	state.stripeAutoPay = false;
 	state.streamVideos.clear();
 	state.streamRequests.length = 0;
+	state.smtpUp = false;
+	state.smtpMessages.length = 0;
 }
 
 async function readBody(req: http.IncomingMessage): Promise<string> {
@@ -131,6 +136,13 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse) {
 		state.streamVideos = new Map((JSON.parse(raw) as StreamVideo[]).map((v) => [v.uid, v]));
 		return send(res, 200, { ok: true });
 	}
+	if (path === '/__control/smtp/up') {
+		state.smtpUp = (JSON.parse(raw) as { enabled: boolean }).enabled;
+		return send(res, 200, { ok: true });
+	}
+	if (path === '/__control/smtp/messages') {
+		return send(res, 200, state.smtpMessages);
+	}
 	if (path === '/__control/cloudflare/requests') {
 		return send(res, 200, state.streamRequests);
 	}
@@ -218,6 +230,73 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse) {
 	}
 
 	return send(res, 404, { error: `Faux service : route inconnue ${method} ${path}` });
+}
+
+/** Serveur SMTP minimal : refuse la connexion (421) tant qu'il est « éteint », sinon accepte et mémorise chaque message. */
+export function startFakeSmtp(port: number): Promise<net.Server> {
+	const server = net.createServer((socket) => {
+		if (!state.smtpUp) {
+			socket.end('421 4.3.2 Service not available\r\n');
+			return;
+		}
+		socket.write('220 fake.smtp ESMTP\r\n');
+		let buffer = '';
+		let data: string | null = null;
+		let to: string[] = [];
+		let auth: 'plain' | 'user' | 'pass' | null = null;
+		socket.on('data', (chunk) => {
+			buffer += chunk.toString('utf8');
+			for (;;) {
+				if (data !== null) {
+					const end = buffer.indexOf('\r\n.\r\n');
+					if (end === -1) return;
+					state.smtpMessages.push({ to, data: buffer.slice(0, end) });
+					buffer = buffer.slice(end + 5);
+					data = null;
+					to = [];
+					socket.write('250 queued\r\n');
+					continue;
+				}
+				const eol = buffer.indexOf('\r\n');
+				if (eol === -1) return;
+				const line = buffer.slice(0, eol);
+				buffer = buffer.slice(eol + 2);
+				const command = line.toUpperCase();
+				if (auth) {
+					if (auth === 'user') {
+						auth = 'pass';
+						socket.write('334 UGFzc3dvcmQ6\r\n');
+					} else {
+						auth = null;
+						socket.write('235 ok\r\n');
+					}
+				} else if (command.startsWith('EHLO') || command.startsWith('HELO')) {
+					socket.write('250-fake.smtp\r\n250-AUTH PLAIN LOGIN\r\n250 8BITMIME\r\n');
+				} else if (command.startsWith('AUTH PLAIN')) {
+					if (line.trim().length > 'AUTH PLAIN'.length) socket.write('235 ok\r\n');
+					else {
+						auth = 'plain';
+						socket.write('334 \r\n');
+					}
+				} else if (command.startsWith('AUTH LOGIN')) {
+					auth = 'user';
+					socket.write('334 VXNlcm5hbWU6\r\n');
+				} else if (command.startsWith('RCPT TO')) {
+					to.push(/<([^>]*)>/.exec(line)?.[1] ?? '');
+					socket.write('250 ok\r\n');
+				} else if (command === 'DATA') {
+					data = '';
+					socket.write('354 go ahead\r\n');
+				} else if (command === 'QUIT') {
+					socket.end('221 bye\r\n');
+				} else {
+					socket.write('250 ok\r\n');
+				}
+			}
+		});
+		socket.on('error', () => undefined);
+	});
+	return new Promise((resolve) => server.listen(port, '127.0.0.1', () => resolve(server)));
 }
 
 export function startFakeExternals(port: number): Promise<http.Server> {

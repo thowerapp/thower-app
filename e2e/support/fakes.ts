@@ -25,6 +25,11 @@ export const fakes = {
 			control('stripe/session', session),
 		sessions: () => control<Record<string, any>[]>('stripe/sessions')
 	},
+	/** Serveur d'emails : éteint par défaut (l'envoi échoue), comme un SMTP injoignable. */
+	smtp: {
+		up: (enabled = true) => control('smtp/up', { enabled }),
+		messages: () => control<{ to: string[]; data: string }[]>('smtp/messages')
+	},
 	cloudflare: {
 		videos: (
 			videos: {

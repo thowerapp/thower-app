@@ -1,20 +1,23 @@
 # Tests à faire pour une couverture de 100 %
 
-État au 12 octobre 2026 : 415 tests (290 unitaires, 16 d'intégration, 104 e2e). Cette liste regroupe ce qui n'est pas encore vérifié. Les cases cochées dans `OPTIMISATION.md` ne sont pas reprises ici.
+État au 12 octobre 2026 : 463 tests (290 unitaires, 16 d'intégration, 157 e2e). Cette liste regroupe ce qui n'est pas encore vérifié. Les cases cochées dans `OPTIMISATION.md` ne sont pas reprises ici.
 
 Les points des sections 1 et 2 sont issus d'un relevé des routes et actions serveur sans aucune référence dans `e2e/`. Ils sont à confirmer à la mesure (section 0).
 
 ## 0. Mesure
 
-Couverture des lignes de `src/lib`, `src/routes/**/*.ts` (actions, API) et `hooks.server.ts`, mesurée le 12 octobre 2026 : **46,4 %** (347 fichiers, 10 008 lignes). Unitaires 10,3 %, intégration 5,7 %, e2e 38,3 % (chevauchement possible). Les composants `.svelte` ne sont pas mesurés.
+Couverture des lignes de `src/lib`, `src/routes/**/*.ts` (actions, API) et `hooks.server.ts`, mesurée le 12 octobre 2026 : **77,0 %** des lignes de code (347 fichiers, 6 268 lignes de code). Unitaires 16,5 %, intégration 9,1 %, e2e 75,1 % (chevauchement possible). Les composants `.svelte` ne sont pas mesurés.
 
 Commandes : `npm run test:coverage:unit`, `npm run test:coverage:integration`, `npm run test:coverage:e2e` (serveur de dev instrumenté, environ 7 min), puis `npm run coverage:report` (fusion par ligne et liste des lignes manquantes dans `coverage/merged-uncovered.txt`).
 
-Plus gros écarts (lignes manquantes) : `src/routes/admin` (24 % couvert, 869 lignes), `src/routes/user` (796), `src/routes/auth` (780), `src/lib/prisma` (726), `src/lib/server` (722), `src/lib/lucia` (349), `src/routes/api` (235). Fichier le plus incomplet : `admin/users/[id]/+page.server.ts` (374 lignes sur 479).
+Plus gros écarts (lignes de code manquantes) : `src/lib/server` (82 % couvert, 182 lignes), `src/routes/auth` (83 %, 159), `src/lib/prisma` (75 %, 154), `src/routes/admin` (82 %, 147), `src/routes/user` (85 %, 137), `src/lib/lucia` (66 %, 118), `src/routes/api` (52 %, 114).
+
+Une ligne de code est une ligne où commence une instruction. Les chiffres publiés plus tôt (46,4 % puis 51,6 %) étaient sous-estimés : le rapport comptait des lignes fantômes et plaçait les compteurs de l'e2e sur le code transformé. Le script remappe maintenant vers le source d'origine.
 
 - [x] Outil de couverture installé, rapports unitaire, intégration et e2e serveur, fusion par ligne.
 - [ ] Code exécuté dans le navigateur (`src/lib/pdf`, `pwa`, `animation`, `store`, `utils/particles`) : non mesuré par les e2e, qui n'instrumentent que le serveur. Récupérer `window.__coverage__` de chaque page dans les tests, ou le couvrir en unitaire.
 - [ ] Fixer un seuil dans la CI, le relever à mesure que la liste ci-dessous avance.
+- [x] Auth : redirections selon l'état du compte, actions sans session, emails (vérification, renvoi, changement d'email, mot de passe oublié, inscription, contact) avec un faux serveur SMTP, limites de tentatives, 2FA (`AUT1` à `AUT25`).
 - [ ] Mesurer aussi les branches pour l'e2e (le rapport fusionné ne compte que les lignes).
 
 ## 1. Fonctions annoncées mais absentes (décision avant tests)
@@ -31,24 +34,24 @@ Rien à tester tant que la fonction n'existe pas. Pour chacune : l'implémenter 
 
 **Public**
 
-- [ ] Formulaire `/contact` : message valide enregistré, champs invalides refusés, limite de débit.
-- [ ] `sitemap.xml` : pages publiques listées, pages privées absentes.
-- [ ] `/reglementations`.
+- [x] Formulaire `/contact` : message valide enregistré, champs invalides refusés, limite de débit.
+- [x] `sitemap.xml` : pages publiques listées, pages privées absentes.
+- [x] `/reglementations`.
 
 **Admin**
 
-- [ ] Contact : liste, détail, suppression d'un message (`deleteContact`).
-- [ ] Utilisateurs : liste, suppression d'un compte (`deleteUser`) et de ses données.
-- [ ] Fiche utilisateur, onglets hors `AD1`–`AD11` : mensurations (ajout, suppression), photos de suivi, bilans mensuels, repas du cadencier (`updateNutritionDay`, `updateMeal`), séances (`updateWorkoutDay`), suppression d'une personnalisation sport, tâches (complétion, désactivation), progression vidéo, sessions et abonnements push, favoris, liste de courses, reprise du programme.
+- [x] Contact : liste, détail, suppression d'un message (`deleteContact`).
+- [x] Utilisateurs : liste, suppression d'un compte (`deleteUser`) et de ses données.
+- [x] Fiche utilisateur, onglets hors `AD1`–`AD11` : mensurations (ajout, suppression), photos de suivi, bilans mensuels, repas du cadencier (`updateNutritionDay`, `updateMeal`), séances (`updateWorkoutDay`), suppression d'une personnalisation sport, tâches (complétion, désactivation), progression vidéo, sessions et abonnements push, favoris, liste de courses, reprise du programme.
 - [ ] Calendrier de la fiche : valider un repas et une séance pour l'utilisateur (`complete-meal`, `complete-workout`), `program-summary`.
-- [ ] Tâches quotidiennes : modifier, activer / désactiver, supprimer.
-- [ ] Recettes : créer, supprimer depuis l'admin.
-- [ ] Vidéos : créer, modifier, supprimer, rattacher / détacher d'un jour, resynchroniser depuis Cloudflare, tout purger.
+- [x] Tâches quotidiennes : modifier, activer / désactiver, supprimer.
+- [x] Recettes : créer, supprimer depuis l'admin.
+- [x] Vidéos : créer, modifier, supprimer, rattacher / détacher d'un jour, resynchroniser depuis Cloudflare, tout purger.
 - [ ] Personnalisation sport saisie dans le navigateur (aujourd'hui testée par l'action seule, `AD5`).
 
 **Utilisateur**
 
-- [ ] Découverte : marquer une vidéo vue dans chacune des cinq bibliothèques (explication, motivation, mindset, méditation, breathwork).
+- [x] Découverte : marquer une vidéo vue dans chacune des cinq bibliothèques (explication, motivation, mindset, méditation, breathwork).
 - [ ] Liste de courses : bouton « Régénérer » (cases cochées conservées).
 - [ ] Photos d'inscription : envoi, statut (`check-photo-status`), rejet des fichiers invalides.
 - [ ] Notifications : abonnement push (`push-subscribe`, `push-vapid-public`) et désabonnement.

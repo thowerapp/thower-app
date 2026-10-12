@@ -21,16 +21,8 @@ export function getClientIP(event: RequestEvent): string {
 	}
 }
 
-/**
- * Limiteur de débit pour le formulaire de contact.
- *
- * Paramètres :
- * - `refillAmount`: 5 (jetons par intervalle)
- * - `refillInterval`: 60000 (1 minute)
- *
- * Permet 5 soumissions par minute par adresse IP.
- */
+/** Limiteur de débit du formulaire de contact : 5 soumissions d'avance, puis une toutes les 12 s (5 par minute). */
 export const contactFormLimiter = new RefillingTokenBucket<string>(
 	5, // Capacité : 5 requêtes
-	5 / 60 // Taux : 5 requêtes par 60 secondes
+	60 / 5 // Secondes par jeton rendu
 );

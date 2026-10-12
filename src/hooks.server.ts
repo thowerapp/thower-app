@@ -13,7 +13,6 @@ import type { UserForClient } from '$lib/lucia/user';
 import { toLocalsAuth } from '$lib/lucia/locals';
 import type { Session } from '$lib/lucia/session';
 
-
 /* -------------------------------------------------------------------------- */
 /*  Debug & Logging                                                           */
 /* -------------------------------------------------------------------------- */
@@ -166,7 +165,10 @@ const authHandle: Handle = async ({ event, resolve }) => {
 
 		if (!user.registered2FA) {
 			log('INFO', 'Auth', 'User needs 2FA setup, redirecting to /auth/2fa/setup');
-			if (!event.url.pathname.startsWith('/auth/2fa/setup')) {
+			// La configuration de la 2FA exige un email vérifié : sans cette exception, les deux pages se renvoient l'une à l'autre.
+			const verifyingEmail =
+				!user.emailVerified && event.url.pathname.startsWith('/auth/verify-email');
+			if (!event.url.pathname.startsWith('/auth/2fa/setup') && !verifyingEmail) {
 				throw redirect(302, '/auth/2fa/setup');
 			}
 		} else if (session && !session.twoFactorVerified) {
@@ -210,7 +212,10 @@ const userWriteGuard: Handle = async ({ event, resolve }) => {
 	if ((isUserArea && !isRead) || isVideoApi) {
 		if (!event.locals.user) return new Response('Unauthorized', { status: 401 });
 		// Accès valide = paiement et abonnement non expiré (l'admin est dispensé), comme pour les pages.
-		if (event.locals.role !== 'ADMIN' && !(await getHasValidPaymentByUserId(event.locals.user.id))) {
+		if (
+			event.locals.role !== 'ADMIN' &&
+			!(await getHasValidPaymentByUserId(event.locals.user.id))
+		) {
 			log('WARN', 'UserGuard', 'Blocked write without valid access on', pathname);
 			return new Response('Forbidden', { status: 403 });
 		}

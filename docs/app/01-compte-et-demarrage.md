@@ -83,6 +83,31 @@ Le départ est lu sans quitter l'application ; l'échange du code OAuth est serv
 | **X4** Webhook en retard : le retour sans identifiant retrouve le paiement récent du compte. | `X4` |
 | **X5** Un compte payé mais sans mensurations est rattrapé depuis le formulaire de démarrage. | `X5` |
 | **X6** Renouvellement : un second paiement ouvre le cycle 2 et prolonge l'accès (voir `OPTIMISATION.md`, D2). | `X6` |
+| **AUT1** Anonyme : les pages privées renvoient vers la connexion, la réinitialisation du mot de passe vers « mot de passe oublié ». | `AUT1` |
+| **AUT2** Email non vérifié : toutes les pages renvoient vers la vérification. | `AUT2` |
+| **AUT3** Compte vérifié : connexion, inscription et vérification renvoient vers l'espace ; la page 2FA aussi une fois la 2FA validée. | `AUT3` |
+| **AUT4** 2FA exigée mais non configurée : tout renvoie vers sa configuration. | `AUT4` |
+| **AUT5** 2FA configurée mais non validée sur la session : tout renvoie vers la saisie du code. | `AUT5` |
+| **AUT6** Sans session, les actions de compte, de vérification et de réinitialisation sont refusées sans rien modifier. | `AUT6` |
+| **AUT7** Sans session, souscription, mensurations, photos et bien-être sont refusés. | `AUT7` |
+| **AUT8** La déconnexion ferme la session, par lien ou par formulaire. | `AUT8` |
+| **AUT9** Saisie du code de vérification : format, demande absente, 5 essais puis blocage. | `AUT9` |
+| **AUT10** Code valide : l'email est vérifié ; avec la 2FA exigée, la page de vérification reste accessible. | `AUT10` |
+| **AUT11** Un code expiré est remplacé par un nouveau, envoyé par email. | `AUT11` |
+| **AUT12** Renvoi du code : email envoyé, 3 par période, refusé pour un compte déjà vérifié. | `AUT12` |
+| **AUT13** 2FA configurée mais non validée : la saisie et le renvoi du code renvoient vers la saisie du code 2FA. | `AUT13` |
+| **AUT14** Changer d'email : adresse prise ou invalide refusée, échec d'envoi annoncé, puis code reçu et email remplacé. | `AUT14` |
+| **AUT15** Mot de passe : ancien mot de passe exigé, nouveau valide, session conservée. | `AUT15` |
+| **AUT16** Compte Google : le mot de passe ne peut pas être modifié. | `AUT16` |
+| **AUT17** 2FA non validée : changement d'email et de mot de passe renvoyés vers la saisie du code 2FA. | `AUT17` |
+| **AUT18** Mot de passe oublié : email invalide ou inconnu refusé, code envoyé, 3 demandes par période. | `AUT18` |
+| **AUT19** Inscription (page dédiée et accueil) : formulaire invalide refusé, email de vérification envoyé, 3 inscriptions par intervalle. | `AUT19` |
+| **AUT20** Contact : la notification part vers l'adresse configurée. | `AUT20` |
+| **AUT21** Connexion : formulaire invalide, compte inconnu, compte Google, mauvais mot de passe, tentatives ralenties. | `AUT21` |
+| **AUT22** Connexion réussie : redirection selon l'état du compte. | `AUT22` |
+| **AUT23** Code TOTP : format, code faux, 5 essais puis blocage, refus si déjà validé ou sans 2FA. | `AUT23` |
+| **AUT24** Code de récupération : code faux, 3 essais puis blocage, refus sans 2FA. | `AUT24` |
+| **AUT25** Configuration de la 2FA : compte déjà configuré, email non vérifié ou clé invalide refusés. | `AUT25` |
 
 ### Formulaire de démarrage
 
@@ -108,6 +133,7 @@ Le départ est lu sans quitter l'application ; l'échange du code OAuth est serv
 
 Corrigé lors de la mise en place de ces tests :
 
+- **Boucle de redirections** : un compte dont l'email n'était pas vérifié et dont la 2FA était exigée passait sans fin de la vérification de l'email à la configuration de la 2FA (`ERR_TOO_MANY_REDIRECTS`). La page de vérification reste accessible dans ce cas (`AUT10`).
 - **Formulaires qui disparaissaient après une erreur** : un message d'erreur renvoyé sans statut d'échec comptait comme un succès pour le formulaire, qui était alors recréé et retiré de la page. Après un mauvais mot de passe ou un email inconnu, il fallait recharger. Toutes les erreurs de formulaires d'authentification (62 messages) portent maintenant le statut 400. C'est couvert par `SC9`.
 - **Code de récupération 2FA inutilisable** : la page `/auth/2fa/reset` exigeait un code de 8 caractères alors que les codes de récupération en ont 16 : un utilisateur ayant perdu son appareil ne pouvait pas récupérer son compte. Elle utilise maintenant le schéma à 16 caractères (`SC6`).
 - **Mot de passe oublié, email en échec** : l'échec d'envoi du code faisait tomber la demande en erreur 500. Il est désormais annoncé (`SC1`).

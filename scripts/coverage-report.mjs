@@ -5,6 +5,7 @@
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping';
 
 const root = process.cwd();
 const rel = (f) => path.relative(root, f).split(path.sep).join('/');
@@ -31,13 +32,26 @@ for (const [kind, list] of Object.entries(sources)) {
 			if (!inScope(f) || skip(f)) continue;
 			const lines = files.get(f) ?? new Map();
 			files.set(f, lines);
+			// Les compteurs istanbul de l'e2e sont exprimés dans le code transformé : retour au source d'origine.
+			const origin = kind === 'e2e' && data.inputSourceMap ? new TraceMap(data.inputSourceMap) : null;
 			for (const [id, loc] of Object.entries(data.statementMap)) {
-				const entry = lines.get(loc.start.line) ?? { unit: false, integration: false, e2e: false };
+				const line = origin ? originalPositionFor(origin, { line: loc.start.line, column: loc.start.column }).line : loc.start.line;
+				if (line == null) continue;
+				const entry = lines.get(line) ?? { unit: false, integration: false, e2e: false, e2eLine: false };
+				if (kind === 'e2e') entry.e2eLine = true;
 				if (data.s[id] > 0) entry[kind] = true;
-				lines.set(loc.start.line, entry);
+				lines.set(line, entry);
 			}
 		}
 	}
+}
+
+// Les rapports v8 des fichiers jamais chargés par les tests unitaires placent des lignes fantômes : quand l'e2e
+// (instrumenté ligne à ligne) connaît le fichier, ses lignes de code servent de référence.
+for (const [f, lines] of files) {
+	const known = [...lines.values()].some((e) => e.e2eLine);
+	if (!known) continue;
+	for (const [n, e] of lines) if (!e.e2eLine) lines.delete(n);
 }
 
 const count = (lines, kinds) => {

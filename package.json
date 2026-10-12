@@ -27,7 +27,7 @@
 		"test": "npm run test:unit -- --run && npm run test:integration && npm run test:e2e",
 		"test:e2e": "playwright test",
 		"coverage:report": "node scripts/coverage-report.mjs",
-		"test:coverage:e2e": "E2E_COVERAGE=1 playwright test --retries=0",
+		"test:coverage:e2e": "E2E_COVERAGE=1 playwright test",
 		"test:coverage:unit": "vitest --run --coverage",
 		"test:coverage:integration": "vitest --run --config vitest.integration.config.ts --coverage",
 		"model-pipeline:run": "node scripts/model-pipeline.js",

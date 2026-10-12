@@ -30,6 +30,29 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 | **AD9** Onglet Compte : identité, rôle, abonnement et mot de passe modifiés par l'admin ; le nouveau mot de passe ouvre une session ; un email déjà pris est refusé.          | `AD9`  |
 | **AD10** Onglet Points : un événement ajouté par l'admin entre dans le total de l'utilisateur.                                                                                | `AD10` |
 | **AD11** Onglet Profil : allergènes et objectif de perte enregistrés.                                                                                                         | `AD11` |
+| **AD12** La fiche utilisateur s'ouvre avec toutes ses relations ; le résumé du programme répond. | `AD12` |
+| **AD13** Réglages du programme : début obligatoirement un lundi, confirmation de régénération, pause et reprise. | `AD13` |
+| **AD14** Mensurations : ajout, modification, suppression, avec confirmation de régénération. | `AD14` |
+| **AD15** Photos de suivi (adresse interne seulement) et bilans mensuels (un seul par mois). | `AD15` |
+| **AD16** Jours de nutrition (jeûne) et repas (quantités, valeurs manuelles). | `AD16` |
+| **AD17** Jours de séance (verrou, fin) et suppression d'une personnalisation sport ; refus d'une vidéo inconnue. | `AD17` |
+| **AD18** Points (type, montant, métadonnées), progression des badges et fin des défis. | `AD18` |
+| **AD19** Complétions de tâches à minuit de Paris, désactivation, validation d'éléments du programme, progression vidéo. | `AD19` |
+| **AD20** Suppression d'une session et d'un abonnement aux notifications. | `AD20` |
+| **AD21** Favoris, plage d'une liste de courses et article modifié. | `AD21` |
+| **AD22** Une action de la fiche est refusée (403) à un non-admin. | `AD22` |
+| **AD23** Messages de contact : liste, détail, suppression, message inconnu en 404. | `AD23` |
+| **AD24** Comptes : liste et suppression ; les paiements sont conservés sans compte. | `AD24` |
+| **AD25** Tâches quotidiennes : modification, activation, suppression avec leurs complétions. | `AD25` |
+| **AD26** Recettes : création depuis l'admin, suppression. | `AD26` |
+| **AD27** Création d'une vidéo (séance ou Découverte) avec sa tâche de checklist ; fiche incomplète refusée. | `AD27` |
+| **AD28** Fiche vidéo Découverte : synchronisation Cloudflare, modification, rattachement à un jour, détachement. | `AD28` |
+| **AD29** Fiche vidéo de séance : mise à jour, synchronisation ; vidéo inconnue en 404. | `AD29` |
+| **AD30** Liste des vidéos, suppression par identifiant composite, purge complète. | `AD30` |
+| **AD31** Les actions vidéo sont refusées à un non-admin. | `AD31` |
+| **PUB1** Contact public : message enregistré, champs invalides refusés, limite de 5 envois par minute. | `PUB1` |
+| **PUB2** Le sitemap liste les pages publiques, pas l'admin, l'authentification ni l'API. | `PUB2` |
+| **PUB3** La page des réglementations répond. | `PUB3` |
 | **CF1** Le jeton de lecture est signé par Cloudflare ; une vidéo marquée « pas prête » se resynchronise avec l'état réel côté Cloudflare.                                     | `CF1`  |
 | **CF2** Webhook Cloudflare : état, durée et vignette mis à jour ; une signature fausse est refusée.                                                                           | `CF2`  |
 | **CF3** Envoi d'une vidéo : l'admin obtient une URL d'envoi Cloudflare (simple, puis tus au-delà de 200 Mio) ; un non-admin est refusé.                                       | `CF3`  |
@@ -64,6 +87,7 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 
 Corrigé lors de la mise en place de ces tests :
 
+- **Contact** : la limite de débit du formulaire ne limitait rien (le seau se rechargeait toutes les 0,08 s au lieu de 12 s). Elle autorise maintenant 5 envois par minute et par adresse. C'est couvert par `PUB1`.
 - Enregistrer une recette du catalogue effaçait ses allergènes (zone 4). C'est couvert par `AD4`.
 - **Fiche utilisateur, onglet Compte** : les champs n'avaient pas de nom, donc rien n'était envoyé au serveur : « Enregistrer » renvoyait « Format email invalide » et remettait le formulaire à zéro. Les champs sont nommés et l'identifiant et le rôle sont envoyés. C'est couvert par `AD9`.
 - **Fiche utilisateur, onglet Profil** : « Tri liste de courses » laissé sur « — » (cas de tout nouveau profil) faisait refuser l'enregistrement du profil. Une valeur vide est maintenant acceptée. C'est couvert par `AD11`.

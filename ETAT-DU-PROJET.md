@@ -6,7 +6,7 @@ Point au 12 octobre 2026, branche `optimisation` (à partir du commit `4ae3338`,
 
 - **Optimisations sport et nutrition terminées** : génération du cadencier en \~5 requêtes au lieu de \~550, verrou et reprise de génération, cache du plan sport, cycles de 91 jours pour les renouvellements, rattrapage automatique par le cron.
 - **Toute l'application est documentée** dans `docs/app/`, en 6 zones. Chaque règle renvoie au test qui la vérifie.
-- **415 tests automatisés passent** : 290 unitaires, 16 d'intégration sur une vraie base MongoDB éphémère, 104 de bout en bout (Playwright). Google, Stripe et Cloudflare sont joués par de faux services locaux. La couverture n'est pas à 100 % : voir `TESTS-A-FAIRE.md`.
+- **463 tests automatisés passent** : 290 unitaires, 16 d'intégration sur une vraie base MongoDB éphémère, 157 de bout en bout (Playwright). Google, Stripe et Cloudflare sont joués par de faux services locaux. La couverture n'est pas à 100 % : voir `TESTS-A-FAIRE.md`.
 - **Une trentaine de défauts trouvés en écrivant les tests ont été corrigés**, dont un défaut de sécurité alimentaire (allergies ignorées), des accès sans paiement, des codes de récupération 2FA inutilisables et une fiche utilisateur admin qui n'enregistrait rien.
 - **Reste à faire** : cinq actions de déploiement, puis les points « à explorer » ci-dessous.
 
@@ -42,6 +42,8 @@ Point au 12 octobre 2026, branche `optimisation` (à partir du commit `4ae3338`,
 | Haute        | Enregistrer une recette dans l'admin effaçait ses allergènes.                                                                                                                                                                                                                                                         | 4, 6       |
 | Moyenne      | Code de récupération 2FA envoyé au navigateur sans raison ; déconnexion effaçant le mauvais cookie ; photos et bien-être accessibles sans email vérifié ni paiement.                                                                                                                                                  | 1          |
 | Moyenne      | Rattrapage Stripe toujours en échec (filtre non accepté par l'API).                                                                                                                                                                                                                                                   | 1          |
+| Moyenne      | Formulaire de contact : la limite de débit (5 par minute) ne limitait rien (intervalle de recharge de 0,08 s au lieu de 12 s) ; corrigé, avec test e2e.                                                                                                                                                              | transverse |
+| Haute        | Un compte dont l'email n'est pas vérifié et dont la 2FA est exigée tournait en boucle entre la page de vérification et la configuration de la 2FA (ERR_TOO_MANY_REDIRECTS) ; la page de vérification reste maintenant accessible.                                                                                  | 1          |
 | Basse        | \~100 messages en anglais traduits ; lien « Abonnement » en 404 ; barème des points faux (5 au lieu de 10 par vidéo).                                                                                                                                                                                                 | 1, 5       |
 | **Critique** | Code de récupération 2FA inutilisable : la page de récupération exigeait 8 caractères pour un code de 16. Un utilisateur ayant perdu son appareil ne pouvait pas récupérer son compte.                                                                                                                                | 1          |
 | Haute        | Formulaires de connexion et de mot de passe oublié : après une erreur (mauvais mot de passe, email inconnu), le formulaire disparaissait de la page jusqu'au rechargement. 62 messages d'erreur d'authentification corrigés.                                                                                          | 1          |
@@ -54,7 +56,7 @@ Point au 12 octobre 2026, branche `optimisation` (à partir du commit `4ae3338`,
 ### Tests
 
 - **Isolation** : les tests ne touchent jamais la base ni les services du `.env`. Base éphémère, environnement factice (`e2e/env/.env`), paiements Stripe simulés par des webhooks signés, emails non envoyés, navigateur coupé de l'extérieur. Google, Stripe (SDK) et Cloudflare Stream sont redirigés vers un faux serveur local (`e2e/support/fakeExternals.ts`, détail dans `docs/app/README.md`).
-- **Couverture** : 46,4 % des lignes serveur (`npm run test:coverage:unit`, `:integration`, `:e2e`, puis `npm run coverage:report`). Détail et objectif : `TESTS-A-FAIRE.md`.
+- **Couverture** : 77,0 % des lignes de code serveur (`npm run test:coverage:unit`, `:integration`, `:e2e`, puis `npm run coverage:report`). Détail et objectif : `TESTS-A-FAIRE.md`.
 - **Commandes** : `npm run test:unit`, `npm run test:integration`, `npm run test:e2e` (environ 5 min), `npm run check` (0 erreur, 0 avertissement ; les types de `$env/static/private` demandent les variables de `e2e/env/.env`).
 - **Intégration continue** : `.github/workflows/ci.yml` lance les quatre commandes à chaque push (à vérifier à la première exécution sur GitHub).
 - **Autre machine** : `npx playwright install chromium` une fois, et `npx prisma generate` après tout changement du schéma.
@@ -81,7 +83,7 @@ Point au 12 octobre 2026, branche `optimisation` (à partir du commit `4ae3338`,
 
 ### Non couvert par les tests
 
-Les tests restant à écrire sont listés dans `TESTS-A-FAIRE.md` (couverture mesurée : 46,4 % des lignes serveur). Hors de portée d'un faux service, par nature :
+Les tests restant à écrire sont listés dans `TESTS-A-FAIRE.md` (couverture mesurée : 77,0 % des lignes de code serveur). Hors de portée d'un faux service, par nature :
 
 - La vraie page de paiement Stripe, l'envoi réel de fichiers vers Cloudflare (le navigateur vers Cloudflare en tus) et la lecture réelle d'une vidéo.
 - L'envoi réel des emails (SMTP) et des notifications push.

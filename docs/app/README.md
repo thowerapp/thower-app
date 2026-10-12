@@ -22,6 +22,12 @@ Une règle sans test est signalée « non couvert ».
 | 1 (suite). Sécurité du compte | [01-compte-et-demarrage.md](01-compte-et-demarrage.md) | `e2e/07-securite-du-compte.spec.ts` |
 | 1 et 6 (suite). Services externes | [01-compte-et-demarrage.md](01-compte-et-demarrage.md), [06-administration.md](06-administration.md) | `e2e/08-services-externes.spec.ts` |
 | 6 (suite). Fiche entreprise | [06-administration.md](06-administration.md) | `e2e/09-entreprise.spec.ts` |
+| 6 (suite). Fiche utilisateur de l'admin | [06-administration.md](06-administration.md) | `e2e/10-fiche-utilisateur-admin.spec.ts` |
+| 6 et pages publiques (suite). Contact, comptes, tâches, recettes, Découverte | [06-administration.md](06-administration.md) | `e2e/11-admin-contenu-et-public.spec.ts` |
+| 6 (suite). Vidéos de l'admin | [06-administration.md](06-administration.md) | `e2e/12-admin-videos.spec.ts` |
+| 1 (suite). Garde-fous de l'authentification | [01-compte-et-demarrage.md](01-compte-et-demarrage.md) | `e2e/13-garde-fous-auth.spec.ts` |
+| 1 (suite). Emails et limites de tentatives | [01-compte-et-demarrage.md](01-compte-et-demarrage.md) | `e2e/14-emails-et-limites-auth.spec.ts` |
+| 1 (suite). Double authentification | [01-compte-et-demarrage.md](01-compte-et-demarrage.md) | `e2e/15-double-authentification.spec.ts` |
 
 Les règles métier transverses (cycles de 91 jours, points, dates en heure de Paris) sont détaillées dans [`OPTIMISATION.md`](../../OPTIMISATION.md) tant qu'elles n'ont pas leur page.
 
@@ -31,7 +37,7 @@ Les règles métier transverses (cycles de 91 jours, points, dates en heure de P
 |---|---|---|
 | `npm run test:unit` | Logique pure, base simulée | ~1 min |
 | `npm run test:integration` | Logique serveur sur une vraie base MongoDB éphémère | ~40 s |
-| `npm run test:e2e` | 104 parcours dans un navigateur mobile (Pixel 7), sur les 6 zones | ~5 min |
+| `npm run test:e2e` | 157 parcours dans un navigateur mobile (Pixel 7), sur les 6 zones | ~5 min |
 
 `npx playwright test --ui` ouvre l'interface de Playwright (rejouer un test, voir chaque étape). Après un échec, `npx playwright show-report` affiche les captures et traces.
 
@@ -41,7 +47,7 @@ Les tests de bout en bout ne touchent **jamais** la base ni les services du `.en
 
 - **Base** : MongoDB éphémère en replica set (`127.0.0.1:27037/thower_e2e`), créée au lancement et vidée avant chaque test. Un garde-fou refuse toute autre base.
 - **Environnement** : l'application démarre avec `e2e/env/.env` (valeurs factices, versionnées) à la place du `.env` racine (`THOWER_ENV_DIR`, voir `svelte.config.js`). Ces valeurs sont aussi passées au processus, ce qui les rend prioritaires sur tout fichier `.env`.
-- **Emails** : serveur SMTP injoignable, donc aucun envoi. Les codes de vérification sont lus en base.
+- **Emails** : par défaut le serveur SMTP est injoignable (l'envoi échoue, comme en cas de panne). Un test peut l'allumer avec `fakes.smtp.up()` : un faux serveur local (port 4382) accepte alors les messages et `fakes.smtp.messages()` les rend. Les codes de vérification restent lisibles en base.
 - **Paiement** : aucun appel à Stripe. Les tests envoient au webhook des événements signés avec le secret factice, et le SDK Stripe de l'application est redirigé vers un faux serveur local (voir plus bas).
 - **Photos** : l'upload vers Cloudflare R2 est intercepté dans le navigateur.
 - **Port** : l'application tourne sur `4380` et un serveur existant n'est jamais réutilisé (il pourrait viser une vraie base).

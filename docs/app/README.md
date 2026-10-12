@@ -30,6 +30,10 @@ Une règle sans test est signalée « non couvert ».
 | 1 (suite). Double authentification | [01-compte-et-demarrage.md](01-compte-et-demarrage.md) | `e2e/15-double-authentification.spec.ts` |
 | 5 et 6 (suite). API et services (push, géocodage, photos) | [05-decouverte-progression-parametres.md](05-decouverte-progression-parametres.md), [06-administration.md](06-administration.md) | `e2e/16-api-et-services.spec.ts` |
 | 6 (suite). Calendrier admin et résumé du programme | [06-administration.md](06-administration.md) | `e2e/18-calendrier-admin.spec.ts` |
+| 1 (suite). Étapes de démarrage isolées (photos, bien-être) | [01-compte-et-demarrage.md](01-compte-et-demarrage.md) | `e2e/19-etapes-demarrage-isolees.spec.ts` |
+| 1 (suite). Gardes de requête et réinitialisation du mot de passe | [01-compte-et-demarrage.md](01-compte-et-demarrage.md) | `e2e/20-gardes-requetes-et-reinitialisation.spec.ts` |
+| 6 (suite). Fiche utilisateur : refus | [06-administration.md](06-administration.md) | `e2e/21-fiche-utilisateur-refus.spec.ts` |
+| 6 (suite). API vidéo et webhook Stripe | [06-administration.md](06-administration.md) | `e2e/22-api-video-et-webhook.spec.ts` |
 | 3, 4 et 5 (suite). Erreurs de l'espace utilisateur | [03-sport.md](03-sport.md), [04-nutrition.md](04-nutrition.md), [05-decouverte-progression-parametres.md](05-decouverte-progression-parametres.md) | `e2e/17-erreurs-espace-utilisateur.spec.ts` |
 
 Les règles métier transverses (cycles de 91 jours, points, dates en heure de Paris) sont détaillées dans [`OPTIMISATION.md`](../../OPTIMISATION.md) tant qu'elles n'ont pas leur page.
@@ -40,7 +44,7 @@ Les règles métier transverses (cycles de 91 jours, points, dates en heure de P
 |---|---|---|
 | `npm run test:unit` | Logique pure, base simulée | ~1 min |
 | `npm run test:integration` | Logique serveur sur une vraie base MongoDB éphémère | ~40 s |
-| `npm run test:e2e` | 176 parcours dans un navigateur mobile (Pixel 7), sur les 6 zones | ~5 min |
+| `npm run test:e2e` | 189 parcours dans un navigateur mobile (Pixel 7), sur les 6 zones | ~5 min |
 
 `npx playwright test --ui` ouvre l'interface de Playwright (rejouer un test, voir chaque étape). Après un échec, `npx playwright show-report` affiche les captures et traces.
 

@@ -108,6 +108,13 @@ Le départ est lu sans quitter l'application ; l'échange du code OAuth est serv
 | **AUT23** Code TOTP : format, code faux, 5 essais puis blocage, refus si déjà validé ou sans 2FA. | `AUT23` |
 | **AUT24** Code de récupération : code faux, 3 essais puis blocage, refus sans 2FA. | `AUT24` |
 | **AUT25** Configuration de la 2FA : compte déjà configuré, email non vérifié ou clé invalide refusés. | `AUT25` |
+| **AUT26** Photos de référence (adresse directe) : adresses invalides refusées, trois photos enregistrées, points une seule fois. | `AUT26` |
+| **AUT27** Bien-être (adresse directe) : valeurs hors limites refusées, profil enregistré, suite vers les mensurations. | `AUT27` |
+| **AUT28** Photos et bien-être exigent un email vérifié puis un paiement valide. | `AUT28` |
+| **AUT29** Gardes de requête : l'outil de développement du navigateur reçoit 204, un cookie illisible est refusé, un jeton de session invalide est ignoré. | `AUT29` |
+| **AUT30** Réinitialisation du mot de passe : la page de double authentification renvoie vers l'étape manquante. | `AUT30` |
+| **AUT31** Réinitialisation, code TOTP : refusé hors contexte, champ vide ou absent, 5 essais puis blocage. | `AUT31` |
+| **AUT32** Réinitialisation, code de récupération : refusé hors contexte, champ vide, 3 essais puis blocage. | `AUT32` |
 
 ### Formulaire de démarrage
 

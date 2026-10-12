@@ -57,6 +57,9 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 | **AD33** Calendrier de la fiche : cocher ou décocher la séance d'un jour. | `AD33` |
 | **AD34** Le résumé du programme liste les jours de sport et de nutrition de l'utilisateur. | `AD34` |
 | **AD35** Ces trois adresses sont réservées aux admins : un client ne lit ni ne modifie le programme d'un autre. | `AD35` |
+| **AD36** Fiche utilisateur : un formulaire sans identifiant est refusé (400) pour chaque action d'édition. | `AD36` |
+| **AD37** Fiche utilisateur : la régénération du programme doit être confirmée (profil, suppression d'une mensuration). | `AD37` |
+| **AD38** Fiche utilisateur : compte introuvable ou adresse déjà utilisée refusés sans modification. | `AD38` |
 | **API1** Abonnement push : session et champs obligatoires ; un même appareil n'est enregistré qu'une fois. | `API1` |
 | **API2** La clé publique Web Push est publiée. | `API2` |
 | **API3** Le cron exige son secret, envoie le rappel à chaque abonné et compte les échecs. | `API3` |
@@ -66,6 +69,9 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 | **API7** Envoi d'une photo (R2) : session, fichier, type et taille contrôlés ; stockage et lecture par son propriétaire. | `API7` |
 | **API8** Lecture d'une photo : propriétaire ou admin seulement, clé inconnue en 404. | `API8` |
 | **API9** En développement, la route de démonstration d'envoi vidéo renvoie une URL Cloudflare. | `API9` |
+| **API10** Progression vidéo : session, format et offre sport exigés. | `API10` |
+| **API11** Une vidéo rattachée à la tâche du jour rapporte les points de la tâche, une seule fois. | `API11` |
+| **API12** Webhook Stripe : signature absente refusée, événements sans effet acquittés. | `API12` |
 | **CF1** Le jeton de lecture est signé par Cloudflare ; une vidéo marquée « pas prête » se resynchronise avec l'état réel côté Cloudflare.                                     | `CF1`  |
 | **CF2** Webhook Cloudflare : état, durée et vignette mis à jour ; une signature fausse est refusée.                                                                           | `CF2`  |
 | **CF3** Envoi d'une vidéo : l'admin obtient une URL d'envoi Cloudflare (simple, puis tus au-delà de 200 Mio) ; un non-admin est refusé.                                       | `CF3`  |

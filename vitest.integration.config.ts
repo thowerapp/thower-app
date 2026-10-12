@@ -23,6 +23,13 @@ export default defineConfig({
 		// Une seule base partagée : fichiers exécutés l'un après l'autre, base vidée avant chaque test.
 		fileParallelism: false,
 		testTimeout: 30_000,
-		hookTimeout: 120_000
+		hookTimeout: 120_000,
+		coverage: {
+			provider: 'v8',
+			reportsDirectory: 'coverage/integration',
+			reporter: ['text-summary', 'json', 'html'],
+			include: ['src/lib/**/*.ts', 'src/routes/**/*.ts', 'src/hooks.server.ts'],
+			exclude: ['**/*.spec.ts', '**/*.test.ts', '**/*.d.ts', 'src/lib/server/testing/**']
+		}
 	}
 });

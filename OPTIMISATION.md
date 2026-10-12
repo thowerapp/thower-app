@@ -25,15 +25,12 @@ Branche `optimisation` (ne jamais fusionner avec `main`). État au 2026-10-11, v
 - **T7** Garde `adminWriteGuard` : toute écriture `/admin/**` ou `/api/admin/**` d'un non-admin renvoie 403.
 - **T9** Accès : `userWriteGuard` (`src/hooks.server.ts`) exige un accès valide pour toute écriture `/user/**` et toute requête `/api/videos/**` ; `getProgramOfferEntitlements` ne donne plus aucun droit sans transaction payée (sauf admin). Avant, un compte non payant ou expiré pouvait appeler ces actions et gagner des points.
 - **T10** Allergènes (sécurité alimentaire) : les recettes du catalogue sont codées en anglais, le profil en français ; seuls gluten et sésame étaient reconnus. Codes normalisés à la comparaison (`normalizeAllergen`), filtre appliqué aussi au choix d'un repas, libellés français à l'affichage, allergènes conservés à l'enregistrement admin.
-- **T11** Documentation fonctionnelle et technique de toute l'application (`docs/app/`) avec 65 tests Playwright reliés à ses règles (base éphémère, services simulés, aucun appel au `.env`).
+- **T11** Documentation fonctionnelle et technique de toute l'application (`docs/app/`) avec des tests Playwright reliés à ses règles (base éphémère, services simulés, aucun appel au `.env`).
 - **T8** Rattrapage Stripe depuis les mensurations : `checkout.sessions.list` ne filtre pas par `client_reference_id` (l'appel échouait toujours) ; lecture des sessions terminées sur 7 jours filtrées par utilisateur. À tester avec un paiement Stripe en mode test.
 
-## 2. Déploiement (à faire par l'utilisateur)
+## 2. Déploiement
 
-- [ ] `npx prisma db push` (jamais `--accept-data-loss`) : collection `user_sport_overrides`, champs `programGenStatus`, `programGenStartedAt`, `programGenFinishedAt`, `nutritionTargetsKey`, `programCycleStarts`, index `program_day_items(type, workoutVideoId)` et `user_workout_days(userId, dayIndex)`. Sur `thowerappDev`, rien n'est encore poussé (replica set : OK).
-- [ ] Définir `CRON_SECRET` dans Vercel, sinon `/api/cron/daily-notification` répond 401 et les rappels push s'arrêtent.
-- [ ] Après le push, vérifier la collection et les index.
-- [ ] Au déploiement de T-e : `npm run migrate:checklist-dates -- --apply` sur chaque base (relançable sans effet).
+Voir `ETAT-DU-PROJET.md`, section « À faire au déploiement ».
 
 ## 3. Décisions (tranchées le 2026-10-11)
 
@@ -63,50 +60,15 @@ Branche `optimisation` (ne jamais fusionner avec `main`). État au 2026-10-11, v
 **Reste ouvert**
 - [ ] **T-d** 12 candidats par créneau : qualité des journées vérifiée sur 91 jours pour plusieurs profils par `dayPlanner.spec.ts` ; à revoir seulement si le catalogue de production grossit fortement.
 
-## 4. Tests à écrire
+## 4. Tests
 
-Deux suites : `npm run test:unit` (270 tests, base simulée, logique seule) et `npm run test:integration` (16 tests, vraie base MongoDB éphémère en replica set, ~40 s). Stripe et Vercel restent simulés.
-
-**Socle**
-- [x] Base MongoDB éphémère en replica set (`vitest.integration.config.ts`, `src/lib/server/testing/integration/`) : port fixe 27027, `DATABASE_URL` imposée avant le chargement de SvelteKit (le `.env` n'est jamais lu) et garde-fou qui refuse toute base autre que `127.0.0.1/thower_test`. Collections et index déduits de `prisma/schema.prisma` (`parseSchemaIndexes`, noms identiques à `db push`, qui est trop lent et se bloque ici). Base vidée avant chaque test. Fabriques : utilisateur payant, tâche, séance, catalogue de recettes du seed, profil nutrition.
-- [x] Commandes `test:unit` (exclut `*.integration.spec.ts`) et `test:integration` ; `npm test` enchaîne unitaires, intégration et e2e.
-- [x] Compteur de requêtes Prisma (`countQueries`, actif seulement avec `PRISMA_COUNT_QUERIES=1`).
-- [ ] CI : aucune n'existe (pas de `.github/workflows`) ; y lancer `check`, `test:unit` et `test:integration`.
-
-**Intégration**
-- [x] Génération 91 jours : 91 jours × 3 repas, aucun doublon, ≤ 10 écritures, idempotence (0 écriture), reprise d'un jour interrompu, prolongation jusqu'à 182 jours.
-- [x] Verrou : 20 rondes de 5 réservations simultanées (un seul gagnant), compte sans état, bail en cours ou expiré. Constat : Prisma traduit `updateMany` en `aggregate` + `update` sur MongoDB ; l'atomicité tient en pratique (vérifiée sous concurrence).
-- [ ] Verrou : `FAILED` puis reprise, paiement concurrent pendant la génération.
-- [ ] Stripe simulé : webhook rejoué, crédit unique, abonnement prolongé, rattrapage depuis les mensurations ; renouvellement : un seul cycle ajouté (même rejoué), départ correct à l'heure ou en retard.
-- [ ] Cycle 2 de bout en bout : cadencier J1..J91 sur les jours 92..182, séances et vidéos à refaire, historique du cycle 1 intact, mois de suivi 4..6, rattrapage cron des jours 92..182.
-- [ ] Liste de courses : remplacement atomique, cases conservées, une régénération par plage.
-- [ ] Recalage : empreinte identique sans effet, seuls les repas périmés réécrits, listes régénérées.
-- [x] Séance : double clic (un seul `PointEvent`), ligne à `completedAt` absent, Découverte sans points, pré-requis par semaine et par cycle.
-- [x] Checklist : double envoi simultané (une validation, un 409, points une fois), tâches de repli ignorées.
-- [x] Codes d'accès : 10 rondes de deux envois simultanés du même code (un seul bénéficiaire, une seule transaction).
-- [ ] Plan sport : invalidation du snapshot, affectation A/B/C, personnalisations limitées à un utilisateur.
-- [x] `createMany` avec champs composites (`complements`, `ingredientGrams`) relus à l'identique.
-
-**Sécurité**
-- [x] Écritures admin par un non-admin : 403 (`AD1`). Écritures `/user/**` et API vidéo sans accès valide : 403 (`K5`–`K7`, `S8`). Pages nutrition / sport sans offre : renvoi vers la souscription (`S4`, `N6`).
-- [ ] Cron : 401 sans secret en production.
-- [~] Lucia : email, mot de passe, déconnexion, changement de mot de passe couverts (`C1`–`C9`). Reste : Google, 2FA, session expirée.
-- [x] Accès expiré : renvoi vers `/acces-expire`, retour vers `/user` si l'accès est valide (`A4`, `P3`).
-
-**Bout en bout (Playwright)**
-- [x] Nouvel utilisateur : inscription, vérification, paiement simulé par webhook signé, formulaire de démarrage, cadencier généré (`e2e/01`).
-- [x] Sport : planning, déplacement, validation (une seule fois), ordre 1 → 2 → 3, séance future, personnalisation limitée à un utilisateur (`e2e/03`).
-- [x] Nutrition : changement de repas, jeûne et recalcul, allergies, courses, favoris, recette personnelle (`e2e/04`).
-- [x] Admin : accès, codes, tâches, recettes, personnalisation sport, récap sport, arrêt du programme, ventes (`e2e/06`). Reste : rattachement d'une vidéo (envoi Cloudflare).
-
-**Performance**
-- [ ] Durée de génération et nombre de requêtes par page (`/user`, cadencier, jour, séance, courses), budget vérifié en CI.
+Suites en place et reste à écrire : `ETAT-DU-PROJET.md` (section « Tests ») et `TESTS-A-FAIRE.md`.
 
 ## 5. Reprise
 
 - **Mise en route** : `npm ci` (lance `prisma generate`). Variables : `.env.example` (dont `CRON_SECRET`).
-- **Tests unitaires** : `DATABASE_URL="mongodb://127.0.0.1:1/dummy" npx vitest --run src` : 270 tests. L'URL factice empêche toute écriture en base ; `_tmp-*.spec.ts` et `*.integration.spec.ts` sont exclus.
+- **Tests unitaires** : `DATABASE_URL="mongodb://127.0.0.1:1/dummy" npx vitest --run src` : 290 tests. L'URL factice empêche toute écriture en base ; `_tmp-*.spec.ts` et `*.integration.spec.ts` sont exclus.
 - **Tests d'intégration** : `npm run test:integration` (~40 s, MongoDB téléchargé au premier lancement). Sur un CPU sans AVX : `MONGOMS_VERSION=4.4.29` avec la `libssl1.1` locale (voir `scripts/dev-mongo.mjs`).
 - **Types** : `npm run check` : 0 erreur, 0 avertissement, à garder à 0.
-- **ESLint** : 295 erreurs sur `src`, toutes antérieures aux optimisations (surtout `no-navigation-without-resolve`, `require-each-key`, variables inutilisées).
+- **ESLint** : voir `ETAT-DU-PROJET.md` (dette technique).
 - **Règles** : ne jamais lancer `prisma db push --accept-data-loss` (l'utilisateur pousse le schéma) ; ne pas committer sans demande ; tabulations et formateur automatique : relire un fichier avant de l'éditer.

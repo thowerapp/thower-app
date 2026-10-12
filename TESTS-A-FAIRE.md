@@ -1,0 +1,85 @@
+# Tests à faire pour une couverture de 100 %
+
+État au 12 octobre 2026 : 415 tests (290 unitaires, 16 d'intégration, 104 e2e). Cette liste regroupe ce qui n'est pas encore vérifié. Les cases cochées dans `OPTIMISATION.md` ne sont pas reprises ici.
+
+Les points des sections 1 et 2 sont issus d'un relevé des routes et actions serveur sans aucune référence dans `e2e/`. Ils sont à confirmer à la mesure (section 0).
+
+## 0. Mesure
+
+Couverture des lignes de `src/lib`, `src/routes/**/*.ts` (actions, API) et `hooks.server.ts`, mesurée le 12 octobre 2026 : **46,4 %** (347 fichiers, 10 008 lignes). Unitaires 10,3 %, intégration 5,7 %, e2e 38,3 % (chevauchement possible). Les composants `.svelte` ne sont pas mesurés.
+
+Commandes : `npm run test:coverage:unit`, `npm run test:coverage:integration`, `npm run test:coverage:e2e` (serveur de dev instrumenté, environ 7 min), puis `npm run coverage:report` (fusion par ligne et liste des lignes manquantes dans `coverage/merged-uncovered.txt`).
+
+Plus gros écarts (lignes manquantes) : `src/routes/admin` (24 % couvert, 869 lignes), `src/routes/user` (796), `src/routes/auth` (780), `src/lib/prisma` (726), `src/lib/server` (722), `src/lib/lucia` (349), `src/routes/api` (235). Fichier le plus incomplet : `admin/users/[id]/+page.server.ts` (374 lignes sur 479).
+
+- [x] Outil de couverture installé, rapports unitaire, intégration et e2e serveur, fusion par ligne.
+- [ ] Code exécuté dans le navigateur (`src/lib/pdf`, `pwa`, `animation`, `store`, `utils/particles`) : non mesuré par les e2e, qui n'instrumentent que le serveur. Récupérer `window.__coverage__` de chaque page dans les tests, ou le couvrir en unitaire.
+- [ ] Fixer un seuil dans la CI, le relever à mesure que la liste ci-dessous avance.
+- [ ] Mesurer aussi les branches pour l'e2e (le rapport fusionné ne compte que les lignes).
+
+## 1. Fonctions annoncées mais absentes (décision avant tests)
+
+Rien à tester tant que la fonction n'existe pas. Pour chacune : l'implémenter puis écrire les tests, ou la retirer de l'interface.
+
+- [ ] **Badges** (`BADGE_UNLOCK`, « +100 pts ») : attribution à la condition remplie, une seule fois, points crédités, affichage sur Progression, édition admin (`updateUserBadge`).
+- [ ] **Défi 30 jours et défis** (`CHALLENGE_COMPLETE`, « +200 pts ») : démarrage, avancement, fin, points une seule fois, édition admin (`updateUserChallenge`).
+- [ ] **Boutique de récompenses partenaires** (`PointReward`, `POINT_SPENT`, `getActiveRewards`) : liste, échange avec solde suffisant, refus si solde insuffisant, double clic (une seule dépense), code promo affiché, solde jamais négatif.
+- [ ] **Affiliation / parrainage** : aucune base dans le code. À spécifier d'abord.
+- [ ] **Pages maquettes** (Jeûne, Suivi, Défis, Défi 30 jours) : brancher puis tester, ou supprimer.
+
+## 2. Parcours e2e à ajouter
+
+**Public**
+
+- [ ] Formulaire `/contact` : message valide enregistré, champs invalides refusés, limite de débit.
+- [ ] `sitemap.xml` : pages publiques listées, pages privées absentes.
+- [ ] `/reglementations`.
+
+**Admin**
+
+- [ ] Contact : liste, détail, suppression d'un message (`deleteContact`).
+- [ ] Utilisateurs : liste, suppression d'un compte (`deleteUser`) et de ses données.
+- [ ] Fiche utilisateur, onglets hors `AD1`–`AD11` : mensurations (ajout, suppression), photos de suivi, bilans mensuels, repas du cadencier (`updateNutritionDay`, `updateMeal`), séances (`updateWorkoutDay`), suppression d'une personnalisation sport, tâches (complétion, désactivation), progression vidéo, sessions et abonnements push, favoris, liste de courses, reprise du programme.
+- [ ] Calendrier de la fiche : valider un repas et une séance pour l'utilisateur (`complete-meal`, `complete-workout`), `program-summary`.
+- [ ] Tâches quotidiennes : modifier, activer / désactiver, supprimer.
+- [ ] Recettes : créer, supprimer depuis l'admin.
+- [ ] Vidéos : créer, modifier, supprimer, rattacher / détacher d'un jour, resynchroniser depuis Cloudflare, tout purger.
+- [ ] Personnalisation sport saisie dans le navigateur (aujourd'hui testée par l'action seule, `AD5`).
+
+**Utilisateur**
+
+- [ ] Découverte : marquer une vidéo vue dans chacune des cinq bibliothèques (explication, motivation, mindset, méditation, breathwork).
+- [ ] Liste de courses : bouton « Régénérer » (cases cochées conservées).
+- [ ] Photos d'inscription : envoi, statut (`check-photo-status`), rejet des fichiers invalides.
+- [ ] Notifications : abonnement push (`push-subscribe`, `push-vapid-public`) et désabonnement.
+- [ ] Recherche d'adresse (`open-cage-data`).
+- [ ] Envoi d'une vidéo par l'utilisateur (`cloudflare/stream/upload-url`) : refusé si non autorisé.
+- [ ] Mobile : menu du rôle de l'onglet Compte hors écran (défaut connu), à corriger puis tester à la souris.
+
+## 3. Intégration (vraie base MongoDB éphémère)
+
+Reprend les cases restantes de `OPTIMISATION.md`.
+
+- [ ] Verrou de génération : `FAILED` puis reprise ; paiement concurrent pendant une génération.
+- [ ] Webhook Stripe rejoué : crédit unique, abonnement prolongé ; rattrapage depuis les mensurations.
+- [ ] Renouvellement : un seul cycle ajouté même rejoué ; départ à l'heure et en retard.
+- [ ] Cycle 2 de bout en bout : cadencier J1..J91 sur les jours 92..182, séances et vidéos à refaire, historique du cycle 1 intact, mois de suivi 4..6, rattrapage du cron.
+- [ ] Liste de courses : remplacement atomique, cases conservées, une régénération par plage.
+- [ ] Recalage des portions : empreinte identique sans effet, seuls les repas périmés réécrits.
+- [ ] Plan sport : invalidation du snapshot après écriture admin et synchro Cloudflare, affectation A/B/C.
+- [ ] Cron `daily-notification` : 401 sans `CRON_SECRET`, rattrapage de 5 comptes au plus.
+- [ ] Suppression d'un utilisateur : aucune donnée orpheline dans les collections liées.
+
+## 4. Unitaires
+
+- [ ] Fichiers de `src/lib` sans `.spec.ts` (252 fichiers pour 35 specs) : établir la liste par la mesure de la section 0, puis couvrir en priorité les règles métier (points, droits d'accès, dates, génération) avant les simples accesseurs Prisma.
+- [ ] Gardes `adminWriteGuard` et `userWriteGuard` : tableau complet méthode × chemin × rôle × accès.
+
+## 5. Performance (budget en CI)
+
+- [ ] Nombre de requêtes Prisma par page : `/user`, cadencier, jour, séance, courses (`countQueries` existe déjà).
+- [ ] Durée de génération des 91 jours (seuil à fixer).
+
+## 6. Hors de portée d'un faux service
+
+À vérifier à la main avant chaque mise en production : vraie page de paiement Stripe (paiement en mode test), envoi réel vers Cloudflare et lecture vidéo, envoi réel des emails (SMTP) et des notifications push, page de connexion chez Google, catalogue de recettes de production.

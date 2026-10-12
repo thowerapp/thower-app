@@ -5,7 +5,20 @@
  */
 import http from 'node:http';
 import https from 'node:https';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
+
+// Couverture (E2E_COVERAGE=1) : compteurs d'istanbul écrits toutes les 2 s, car Playwright arrête le serveur sans lui laisser le temps de sortir proprement.
+if (process.env.E2E_COVERAGE) {
+	const dump = () => {
+		const cov = globalThis.__coverage__;
+		if (!cov) return;
+		mkdirSync('coverage/e2e-raw', { recursive: true });
+		writeFileSync(`coverage/e2e-raw/${process.pid}.json`, JSON.stringify(cov));
+	};
+	setInterval(dump, 2000).unref();
+	process.on('exit', dump);
+}
 
 const FAKE = process.env.E2E_FAKE_EXTERNALS_URL;
 

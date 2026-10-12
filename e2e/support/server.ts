@@ -10,7 +10,14 @@ import path from 'node:path';
 import { MongoClient } from 'mongodb';
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { parseSchemaIndexes } from '../../src/lib/server/testing/integration/schemaIndexes';
-import { E2E_APP_PORT, E2E_DATABASE_URL, E2E_FAKE_EXTERNALS_PORT, E2E_FAKE_EXTERNALS_URL, E2E_MONGO_PORT, assertE2eDatabase } from './config';
+import {
+	E2E_APP_PORT,
+	E2E_DATABASE_URL,
+	E2E_FAKE_EXTERNALS_PORT,
+	E2E_FAKE_EXTERNALS_URL,
+	E2E_MONGO_PORT,
+	assertE2eDatabase
+} from './config';
 import { startFakeExternals } from './fakeExternals';
 
 const root = process.cwd();
@@ -59,13 +66,19 @@ const app = spawn(
 			DATABASE_URL: E2E_DATABASE_URL,
 			// Google, Stripe et Cloudflare sont redirigés vers le faux serveur local.
 			E2E_FAKE_EXTERNALS_URL,
-			NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import ./e2e/support/externalsPreload.mjs`.trim()
+			NODE_OPTIONS:
+				`${process.env.NODE_OPTIONS ?? ''} --import ./e2e/support/externalsPreload.mjs`.trim()
 		}
 	}
 );
 
 async function shutdown(code = 0) {
-	app.kill('SIGTERM');
+	if (app.exitCode === null && app.signalCode === null) {
+		const exited = new Promise((resolve) => app.once('exit', resolve));
+		app.kill('SIGTERM');
+		// Laisse l'application écrire sa couverture avant d'arrêter la base.
+		await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 15_000))]);
+	}
 	fakeExternals.close();
 	await replSet.stop();
 	process.exit(code);

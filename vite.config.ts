@@ -3,6 +3,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vite';
+import { istanbulPlugin } from './e2e/support/istanbulPlugin';
 
 /** @type {import('vite').UserConfig} */
 export default defineConfig({
@@ -21,7 +22,9 @@ export default defineConfig({
 			injectRegister: false,
 			registerType: 'prompt',
 			devOptions: { enabled: true }
-		})
+		}),
+		// Couverture des tests e2e (npm run test:coverage:e2e), serveur compris.
+		...(process.env.E2E_COVERAGE ? [istanbulPlugin()] : [])
 	],
 
 	optimizeDeps: {
@@ -39,7 +42,14 @@ export default defineConfig({
 		include: ['src/**/*.{test,spec}.{js,ts}'],
 		// Sonde e2e qui écrit dans la base réelle : à lancer à la main uniquement.
 		// Les *.integration.spec.ts tournent sur une base éphémère : npm run test:integration.
-		exclude: ['**/node_modules/**', 'src/**/_tmp-*.spec.ts', 'src/**/*.integration.spec.ts']
+		exclude: ['**/node_modules/**', 'src/**/_tmp-*.spec.ts', 'src/**/*.integration.spec.ts'],
+		coverage: {
+			provider: 'v8',
+			reportsDirectory: 'coverage/unit',
+			reporter: ['text-summary', 'json', 'html'],
+			include: ['src/lib/**/*.ts', 'src/routes/**/*.ts', 'src/hooks.server.ts'],
+			exclude: ['**/*.spec.ts', '**/*.test.ts', '**/*.d.ts', 'src/lib/server/testing/**']
+		}
 	},
 
 	server: {

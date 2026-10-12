@@ -1,5 +1,6 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type Browser, type BrowserContextOptions } from '@playwright/test';
 import { resetDatabase } from './db';
+import { fakes } from './fakes';
 import { E2E_BASE_URL } from './config';
 
 /**
@@ -12,6 +13,7 @@ export const test = base.extend<{ cleanDb: void; isolateNetwork: void }>({
 		// eslint-disable-next-line no-empty-pattern
 		async ({}, use) => {
 			await resetDatabase();
+			await fakes.reset();
 			await use();
 		},
 		{ auto: true }
@@ -26,3 +28,10 @@ export const test = base.extend<{ cleanDb: void; isolateNetwork: void }>({
 });
 
 export { expect };
+
+/** Contexte supplémentaire (autre utilisateur) avec les mêmes garde-fous que le contexte de test : réseau externe coupé, URL de base. */
+export async function newIsolatedContext(browser: Browser, options: BrowserContextOptions = {}) {
+	const context = await browser.newContext({ baseURL: E2E_BASE_URL, locale: 'fr-FR', timezoneId: 'Europe/Paris', ...options });
+	await context.route((url) => !url.href.startsWith(E2E_BASE_URL) && !url.protocol.startsWith('data'), (route) => route.abort());
+	return context;
+}

@@ -33,9 +33,31 @@ Du premier passage sur le site jusqu'à l'ouverture de l'espace utilisateur (`/u
 | **C3** Un email déjà inscrit renvoie vers la connexion (`/auth/login?reason=already_registered`). | `C3` |
 | **C4** Tant que l'email n'est pas vérifié, `/auth`, la souscription, les photos, le bien-être, le formulaire et l'espace renvoient vers la vérification. | `C4` |
 | **C7** Si l'email de vérification ne peut pas partir, la page s'affiche quand même et le signale ; « Renvoyer le code » affiche son résultat. | `C7` |
-| Le code expire au bout de 10 minutes ; une tentative après expiration envoie un nouveau code. | non couvert |
-| Inscription et connexion avec Google. | non couvert (nécessite un faux fournisseur OAuth) |
-| Double authentification (TOTP, codes de récupération) et mot de passe oublié. | non couvert |
+| **SC8** Le code expire au bout de 10 minutes ; une tentative après expiration envoie un nouveau code (l'ancien ne vaut plus). | `SC8` |
+
+### Mot de passe oublié et double authentification
+
+| Règle | Test |
+|---|---|
+| **SC1** Un email inconnu est signalé ; un email connu crée la demande, et un envoi d'email en échec est annoncé (la demande reste enregistrée). | `SC1` |
+| **SC2** Le code reçu, puis le nouveau mot de passe : les autres sessions sont fermées, l'ancien mot de passe ne marche plus, le nouveau ouvre une session. Un mot de passe trop faible est refusé. | `SC2` |
+| **SC3** La page du nouveau mot de passe est inaccessible sans code vérifié ; une demande expirée est refusée et supprimée. | `SC3` |
+| **SC4** Avec la 2FA, le nouveau mot de passe exige un code TOTP, ou le code de récupération (qui réinitialise la 2FA). | `SC4` |
+| **SC5** La 2FA s'active dans Mon compte, se configure au prochain accès (code TOTP), affiche le code de récupération, puis un code est demandé à chaque connexion ; l'espace reste fermé tant qu'il n'est pas validé. | `SC5` |
+| **SC6** Un code de récupération réinitialise la 2FA et se renouvelle. Un code de 16 caractères est accepté. | `SC6` |
+| **SC7** Le code de récupération n'est montré qu'à un compte dont la 2FA est validée. | `SC7` |
+| **SC9** Après une erreur (connexion, mot de passe oublié), le formulaire reste utilisable sans recharger la page. | `SC9` |
+
+### Connexion avec Google
+
+Le départ est lu sans quitter l'application ; l'échange du code OAuth est servi par un faux serveur Google (voir `docs/app/README.md`).
+
+| Règle | Test |
+|---|---|
+| **G1** Première connexion : le compte est créé, email vérifié, nom et photo repris de Google, session ouverte. | `G1` |
+| **G2** Un compte existant avec le même email est rattaché à Google, sans doublon ; le mot de passe n'ouvre alors plus de session (« Ce compte utilise Google »). | `G2` |
+| **G3** Une seconde connexion retrouve le même compte. | `G3` |
+| **G4** Un rappel sans état valide, ou dont le code est refusé par Google, ne crée ni compte ni session (400). | `G4` |
 
 ### Connexion
 
@@ -55,8 +77,12 @@ Du premier passage sur le site jusqu'à l'ouverture de l'espace utilisateur (`/u
 | **P3** L'offre Sport seule ouvre l'accès sans allouer de jours nutrition. | `P3` |
 | **P4** Un webhook à la signature invalide est rejeté (400), sans transaction. | `P4` |
 | **P5** Un code d'accès valide donne un accès à vie, une seule fois ; un code inconnu ou déjà utilisé est refusé. La saisie ne tient pas compte des majuscules. | `P5` |
-| Retour du checkout Stripe (`?success=1&session_id=…`) : la transaction est rattrapée si le webhook n'est pas encore arrivé. | non couvert (nécessite un faux serveur Stripe) |
-| Renouvellement : un paiement après le premier ouvre un nouveau cycle de 91 jours (voir `OPTIMISATION.md`, D2). | couvert en tests unitaires, pas en e2e |
+| **X1** Souscription : la session Stripe est créée avec les bonnes offres et le bon montant, le retour du checkout ouvre l'accès sans webhook. | `X1` |
+| **X2** Rejouer le retour du checkout ne crédite qu'une fois. | `X2` |
+| **X3** Une session non payée, ou celle d'un autre compte, n'ouvre aucun accès. | `X3` |
+| **X4** Webhook en retard : le retour sans identifiant retrouve le paiement récent du compte. | `X4` |
+| **X5** Un compte payé mais sans mensurations est rattrapé depuis le formulaire de démarrage. | `X5` |
+| **X6** Renouvellement : un second paiement ouvre le cycle 2 et prolonge l'accès (voir `OPTIMISATION.md`, D2). | `X6` |
 
 ### Formulaire de démarrage
 
@@ -79,9 +105,12 @@ Du premier passage sur le site jusqu'à l'ouverture de l'espace utilisateur (`/u
 ## Écarts connus
 
 - **Pages historiques** : `/auth/photos` et `/auth/well-being` appartiennent à l'ancien parcours (photos, bien-être, puis mensurations). Le parcours actuel passe par le formulaire en 10 étapes. Elles ne sont plus liées depuis l'application mais restent protégées comme les autres étapes.
-- **Appel réseau en test** : la page des mensurations interroge l'API Stripe pour rattraper un paiement, même dans les tests e2e (clé factice refusée, sans effet).
 
 Corrigé lors de la mise en place de ces tests :
+
+- **Formulaires qui disparaissaient après une erreur** : un message d'erreur renvoyé sans statut d'échec comptait comme un succès pour le formulaire, qui était alors recréé et retiré de la page. Après un mauvais mot de passe ou un email inconnu, il fallait recharger. Toutes les erreurs de formulaires d'authentification (62 messages) portent maintenant le statut 400. C'est couvert par `SC9`.
+- **Code de récupération 2FA inutilisable** : la page `/auth/2fa/reset` exigeait un code de 8 caractères alors que les codes de récupération en ont 16 : un utilisateur ayant perdu son appareil ne pouvait pas récupérer son compte. Elle utilise maintenant le schéma à 16 caractères (`SC6`).
+- **Mot de passe oublié, email en échec** : l'échec d'envoi du code faisait tomber la demande en erreur 500. Il est désormais annoncé (`SC1`).
 
 - **Vérification de l'email** : après un mauvais code, le formulaire n'envoyait plus rien et aucun message ne s'affichait. Il fallait recharger la page. C'est couvert par `C1`.
 - **Blocage silencieux à l'enregistrement** : un champ invalide sur une étape précédente empêchait « Enregistrer » sans aucun message. C'est couvert par `D3`.

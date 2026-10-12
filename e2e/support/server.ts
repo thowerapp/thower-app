@@ -10,7 +10,8 @@ import path from 'node:path';
 import { MongoClient } from 'mongodb';
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { parseSchemaIndexes } from '../../src/lib/server/testing/integration/schemaIndexes';
-import { E2E_APP_PORT, E2E_DATABASE_URL, E2E_MONGO_PORT, assertE2eDatabase } from './config';
+import { E2E_APP_PORT, E2E_DATABASE_URL, E2E_FAKE_EXTERNALS_PORT, E2E_FAKE_EXTERNALS_URL, E2E_MONGO_PORT, assertE2eDatabase } from './config';
+import { startFakeExternals } from './fakeExternals';
 
 const root = process.cwd();
 
@@ -41,6 +42,8 @@ for (const { name, indexes } of parseSchemaIndexes(schema)) {
 }
 await client.close();
 
+const fakeExternals = await startFakeExternals(E2E_FAKE_EXTERNALS_PORT);
+
 // Les variables du processus priment sur tout fichier .env : l'app ne peut voir que ces valeurs factices.
 const fakeEnv = readEnvFile(path.join(root, 'e2e', 'env', '.env'));
 const app = spawn(
@@ -49,12 +52,21 @@ const app = spawn(
 	{
 		cwd: root,
 		stdio: 'inherit',
-		env: { ...process.env, ...fakeEnv, THOWER_ENV_DIR: 'e2e/env', DATABASE_URL: E2E_DATABASE_URL }
+		env: {
+			...process.env,
+			...fakeEnv,
+			THOWER_ENV_DIR: 'e2e/env',
+			DATABASE_URL: E2E_DATABASE_URL,
+			// Google, Stripe et Cloudflare sont redirigés vers le faux serveur local.
+			E2E_FAKE_EXTERNALS_URL,
+			NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import ./e2e/support/externalsPreload.mjs`.trim()
+		}
 	}
 );
 
 async function shutdown(code = 0) {
 	app.kill('SIGTERM');
+	fakeExternals.close();
 	await replSet.stop();
 	process.exit(code);
 }

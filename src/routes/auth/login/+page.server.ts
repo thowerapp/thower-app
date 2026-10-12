@@ -76,27 +76,27 @@ export const actions: Actions = {
 
 		if (user === null) {
 			logLogin('unknown email', email);
-			return message(form, 'Aucun compte avec cet email : créez un compte.');
+			return message(form, 'Aucun compte avec cet email : créez un compte.', { status: 400 });
 		}
 
 		// Si l'utilisateur possède un googleId, c'est un utilisateur OAuth
 		if (user.googleId) {
-			return message(form, 'Ce compte utilise Google : connectez-vous avec Google.');
+			return message(form, 'Ce compte utilise Google : connectez-vous avec Google.', { status: 400 });
 		}
 
 		if (clientIP !== null && !ipBucket.consume(clientIP, 1)) {
-			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 		}
 		if (!throttler.consume(user.id)) {
-			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 		}
 		const passwordHash = await getUserPasswordHash(user.id ?? undefined, email);
 		if (passwordHash === null) {
-			return message(form, 'Email ou mot de passe incorrect.');
+			return message(form, 'Email ou mot de passe incorrect.', { status: 400 });
 		}
 		const validPassword = await verifyPasswordHash(passwordHash, password);
 		if (!validPassword) {
-			return message(form, 'Email ou mot de passe incorrect.');
+			return message(form, 'Email ou mot de passe incorrect.', { status: 400 });
 		}
 		throttler.reset(user.id);
 

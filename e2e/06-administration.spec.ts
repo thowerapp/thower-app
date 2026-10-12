@@ -2,7 +2,7 @@
  * Zone 6 — Administration : accès, codes, tâches, recettes, utilisateurs, programme sport, ventes.
  * Documentation : docs/app/06-administration.md.
  */
-import { test, expect } from './support/test';
+import { test, expect, newIsolatedContext } from './support/test';
 import { createOnboardedUser, createSportPlan, createUser, db, loginAs } from './support/db';
 
 const ACTION_HEADERS = { origin: 'http://localhost:4380', 'x-sveltekit-action': 'true' };
@@ -44,7 +44,7 @@ test.describe('Contenu', () => {
 		await expect.poll(() => db.dailyTask.count({ where: { label: 'Respirer 5 minutes', points: 15, active: true } })).toBe(1);
 
 		const user = await createOnboardedUser();
-		const userContext = await browser.newContext();
+		const userContext = await newIsolatedContext(browser);
 		await loginAs(userContext, user.id);
 		const userPage = await userContext.newPage();
 		await userPage.goto('/user');
@@ -121,5 +121,89 @@ test.describe('Utilisateurs et programme', () => {
 		await loginAs(context, admin.id);
 		await page.goto('/admin/sales');
 		await expect(page.getByText(client.email)).toBeVisible();
+	});
+});
+
+test.describe('Fiche utilisateur', () => {
+	test('AD9 · onglet Compte : identité, rôle, abonnement et mot de passe modifiés par l’admin', async ({ page, context }) => {
+		const admin = await createUser({ role: 'ADMIN' });
+		const client = await createUser({ paid: true });
+		const other = await createUser();
+		await loginAs(context, admin.id);
+		await page.goto(`/admin/users/${client.id}`);
+
+		const form = page.locator('form[action="?/updateUser"]');
+		await form.getByPlaceholder('Optionnel').first().fill('Nom modifié');
+		await form.locator('input[type=password]').fill('Nouveau2026x!');
+		await form.locator('input[type=datetime-local]').fill('2027-03-15T10:00');
+		await form.getByRole('button', { name: /^client$/i }).first().click();
+		// Le menu s'ouvre hors de l'écran sur mobile : on le commande au clavier.
+		await page.getByRole('menuitem', { name: 'ADMIN' }).focus();
+		await page.keyboard.press('Enter');
+		await form.getByRole('button', { name: /^enregistrer$/i }).click();
+
+		await expect.poll(async () => (await db.user.findUniqueOrThrow({ where: { id: client.id } })).username).toBe('Nom modifié');
+		const saved = await db.user.findUniqueOrThrow({ where: { id: client.id } });
+		expect(saved.role).toBe('ADMIN');
+		expect(saved.subscriptionEndsAt?.toISOString().slice(0, 10)).toBe('2027-03-15');
+		expect(saved.passwordHash).toMatch(/^\$argon2/);
+
+		// Le nouveau mot de passe ouvre une session.
+		const fresh = await newIsolatedContext(page.context().browser()!);
+		const freshPage = await fresh.newPage();
+		await freshPage.goto('/auth/login');
+		await freshPage.locator('input[name=email]').fill(client.email);
+		await freshPage.locator('input[name=password]').fill('Nouveau2026x!');
+		await freshPage.getByRole('button', { name: /continuer/i }).click();
+		await expect(freshPage).toHaveURL(/\/auth\/?$/);
+		await fresh.close();
+
+		// Un email déjà pris par un autre compte est refusé (après l'enregistrement, l'app revient à la liste).
+		await expect(page).toHaveURL(/\/admin\/users\/?$/);
+		await page.goto(`/admin/users/${client.id}`);
+		await form.locator('input[type=email]').fill(other.email);
+		await form.getByRole('button', { name: /^enregistrer$/i }).click();
+		await expect(page.getByText(/email déjà utilisé/i).first()).toBeVisible();
+		expect((await db.user.findUniqueOrThrow({ where: { id: client.id } })).email).toBe(client.email);
+	});
+
+	test('AD10 · onglet Points : un événement ajouté par l’admin entre dans le total de l’utilisateur', async ({ page, context }) => {
+		const admin = await createUser({ role: 'ADMIN' });
+		const client = await createOnboardedUser({ dayIndex: 5 });
+		await loginAs(context, admin.id);
+		await page.goto(`/admin/users/${client.id}`);
+		await page.getByRole('tab', { name: /points/i }).click();
+
+		const add = page.locator('form[action="?/upsertPointEvent"]').first();
+		await add.locator('input[name=amount]').fill('120');
+		await add.getByRole('button', { name: /ajouter un événement/i }).dispatchEvent('click');
+		await expect.poll(() => db.pointEvent.count({ where: { userId: client.id, amount: 120 } })).toBe(1);
+
+		const clientContext = await newIsolatedContext(page.context().browser()!);
+		await loginAs(clientContext, client.id);
+		const clientPage = await clientContext.newPage();
+		await clientPage.goto('/user/progression');
+		await expect(clientPage.locator('.ph-kv').first()).toHaveText('120');
+		await clientContext.close();
+	});
+
+	test('AD11 · onglet Profil : allergènes et objectif de perte enregistrés', async ({ page, context }) => {
+		const admin = await createUser({ role: 'ADMIN' });
+		const client = await createOnboardedUser({ dayIndex: 5 });
+		await loginAs(context, admin.id);
+		page.on('dialog', (dialog) => void dialog.accept());
+		await page.goto(`/admin/users/${client.id}`);
+		await page.getByRole('tab', { name: /profil/i }).click();
+
+		await page.getByRole('tab', { name: /santé & profil/i }).click();
+		const form = page.locator('form[action="?/updateProfile"]');
+		await form.locator('input[name=allergens]').fill('poisson, oeufs');
+		await form.locator('input[name=weightLossGoalKg]').fill('7.5');
+		await form.getByRole('button', { name: /enregistrer le profil/i }).click();
+
+		await expect
+			.poll(async () => (await db.userProfile.findUniqueOrThrow({ where: { userId: client.id } })).allergens)
+			.toEqual(['poisson', 'oeufs']);
+		expect((await db.userProfile.findUniqueOrThrow({ where: { userId: client.id } })).weightLossGoalKg).toBe(7.5);
 	});
 });

@@ -27,9 +27,17 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 | **AD6** Le récap du programme sport signale un jour dont aucune vidéo n'est typée (ordre des séances déduit). | `AD6` |
 | **AD7** « Stopper le programme » enregistre la date et le motif. | `AD7` |
 | **AD8** Les ventes listent les paiements encaissés. | `AD8` |
-| Envoi d'une vidéo vers Cloudflare et synchronisation de statut. | non couvert (service externe) |
-| Export PDF des ventes, factures et bordereaux. | non couvert |
-| Modifier un utilisateur (rôle, abonnement, mesures, points…) depuis sa fiche. | non couvert en e2e |
+| **AD9** Onglet Compte : identité, rôle, abonnement et mot de passe modifiés par l'admin ; le nouveau mot de passe ouvre une session ; un email déjà pris est refusé. | `AD9` |
+| **AD10** Onglet Points : un événement ajouté par l'admin entre dans le total de l'utilisateur. | `AD10` |
+| **AD11** Onglet Profil : allergènes et objectif de perte enregistrés. | `AD11` |
+| **CF1** Le jeton de lecture est signé par Cloudflare ; une vidéo marquée « pas prête » se resynchronise avec l'état réel côté Cloudflare. | `CF1` |
+| **CF2** Webhook Cloudflare : état, durée et vignette mis à jour ; une signature fausse est refusée. | `CF2` |
+| **CF3** Envoi d'une vidéo : l'admin obtient une URL d'envoi Cloudflare (simple, puis tus au-delà de 200 Mio) ; un non-admin est refusé. | `CF3` |
+| **CF4** Synchronisation admin : les vidéos Cloudflare inconnues s'importent, inactives ; un doublon est refusé. | `CF4` |
+| **PDF1** Export du chiffre d'affaires : PDF téléchargé avec les paiements encaissés de la période ; une période invalide est signalée. | `PDF1` |
+| **PDF2** Bordereau de paiement (admin) : PDF avec montant et client. | `PDF2` |
+| **PDF3** Facture : le client télécharge la sienne, l'admin celle de n'importe quel client. | `PDF3` |
+| **PDF4** Un client ne peut pas télécharger la facture d'un autre client. | `PDF4` |
 
 ## Technique
 
@@ -43,5 +51,13 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 - **Accueil en anglais** : « Latest Registrations », « Recent users who have joined the platform ».
 - **Arrêt du programme** : il est enregistré et affiché, mais ne décale pas les jours du programme de l'utilisateur.
 - **Personnalisation sport** : le formulaire de la fiche utilisateur n'a pas été testé dans le navigateur ; le test passe par l'action.
+- **Facture** : le nom de l'émetteur (« Xplicit Web »), son adresse et son logo (`/Logo-xplicit.png`, absent de `static/`) sont des valeurs de démonstration à remplacer.
+- **Menu du rôle sur mobile** : la liste Admin / Client de l'onglet Compte s'ouvre hors de l'écran sur petit écran (les tests la commandent au clavier).
+- **Allergènes saisis à la main** : dans l'onglet Profil, un seul code inconnu vide toute la liste (le schéma remplace le tableau par `[]`) ; à remplacer par un refus explicite ou un sélecteur.
 
-Corrigé lors de la mise en place de ces tests : enregistrer une recette du catalogue effaçait ses allergènes (zone 4). C'est couvert par `AD4`.
+Corrigé lors de la mise en place de ces tests :
+
+- Enregistrer une recette du catalogue effaçait ses allergènes (zone 4). C'est couvert par `AD4`.
+- **Fiche utilisateur, onglet Compte** : les champs n'avaient pas de nom, donc rien n'était envoyé au serveur : « Enregistrer » renvoyait « Format email invalide » et remettait le formulaire à zéro. Les champs sont nommés et l'identifiant et le rôle sont envoyés. C'est couvert par `AD9`.
+- **Fiche utilisateur, onglet Profil** : « Tri liste de courses » laissé sur « — » (cas de tout nouveau profil) faisait refuser l'enregistrement du profil. Une valeur vide est maintenant acceptée. C'est couvert par `AD11`.
+- **Facture PDF** : le téléchargement ne se faisait pas, car le logo absent faisait échouer la génération. Le logo est désormais facultatif. C'est couvert par `PDF3`.

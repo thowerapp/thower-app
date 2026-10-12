@@ -6,8 +6,10 @@
  * passée, la semaine 2 (jours 8 à 14) est en cours, la semaine 3 (jours 15 à 21) est dans le futur.
  */
 import type { APIRequestContext, Page } from '@playwright/test';
-import { test, expect } from './support/test';
+import { test, expect, newIsolatedContext } from './support/test';
 import { createOnboardedUser, createSportPlan, db, loginAs } from './support/db';
+
+const ACTION_HEADERS = { origin: 'http://localhost:4380', 'x-sveltekit-action': 'true' };
 
 const WEEK1 = [
 	{ dayIndex: 1, type: 'MAIN_A' as const, pre: true },
@@ -78,7 +80,7 @@ test.describe('Planning', () => {
 		await page.goto('/user/sport?semaine=1');
 		await expect(page.locator('a[href*="/user/sport/seance/"]').filter({ hasText: 'Jour 3' })).toHaveCount(0);
 
-		const other = await browser.newContext();
+		const other = await newIsolatedContext(browser);
 		await loginAs(other, autre.id);
 		const otherPage = await other.newPage();
 		await otherPage.goto('/user/sport?semaine=1');
@@ -91,6 +93,62 @@ test.describe('Planning', () => {
 		await loginAs(context, user.id);
 		await page.goto('/user/sport');
 		await expect(page).toHaveURL(/\/auth\/subscription\?besoin=sport/);
+	});
+});
+
+test.describe('Planning : déplacement', () => {
+	test('S9 · appui long puis glisser vers un jour libre déplace la séance ; un appui court ouvre la séance', async ({ page, context }) => {
+		const plan = await createSportPlan(WEEK1);
+		const user = await createOnboardedUser({ startMondayWeeksAgo: 1 });
+		await loginAs(context, user.id);
+		await page.goto('/user/sport?semaine=1');
+
+		const slot = async (day: number) => {
+			const box = await page.locator(`[data-day-slot="${day}"]`).boundingBox();
+			if (!box) throw new Error(`Jour ${day} introuvable`);
+			return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+		};
+		const from = await slot(3);
+		const to = await slot(4);
+		await page.mouse.move(from.x, from.y);
+		await page.mouse.down();
+		// Le geste devient un glisser après un appui d'environ 240 ms.
+		await page.waitForTimeout(450);
+		await expect(page.getByText(/dépose la séance sur un jour libre/i)).toBeVisible();
+		await page.mouse.move(to.x, to.y, { steps: 8 });
+		await page.mouse.up();
+
+		await expect(page.getByText(/séance déplacée/i)).toBeVisible();
+		await expect.poll(() => db.userWorkoutDay.count({ where: { userId: user.id, sessionId: plan.sessions.MAIN_B.id, dayIndex: 4 } })).toBe(1);
+		await expect(page.locator('a[href*="/user/sport/seance/"]').filter({ hasText: 'Séance 2 · Jour 4' })).toBeVisible();
+
+		// Un appui court n'est pas un glisser : il ouvre la séance sans rien déplacer.
+		const sameSlot = await slot(1);
+		await page.mouse.click(sameSlot.x, sameSlot.y);
+		await expect(page).toHaveURL(/\/user\/sport\/seance\//);
+		expect(await db.userWorkoutDay.count({ where: { userId: user.id } })).toBe(1);
+	});
+
+	test('S10 · une séance validée ne se déplace pas, et on ne dépose pas sur un jour déjà occupé', async ({ page, context }) => {
+		const plan = await createSportPlan(WEEK1);
+		const user = await createOnboardedUser({ startMondayWeeksAgo: 1 });
+		await loginAs(context, user.id);
+		await watch(page.request, plan.videos[1].vid1);
+		await watch(page.request, plan.videos[1].vid2);
+		await openSession(page, plan.sessions.MAIN_A.id, 1);
+		await page.getByRole('button', { name: /valider la séance/i }).click();
+		await expect(page.getByText(/séance enregistrée comme terminée/i)).toBeVisible();
+
+		const move = async (sourceDayIndex: string, targetDayIndex: string) =>
+			(await page.request.post('/user/sport?/moveSession', { form: { sourceDayIndex, targetDayIndex }, headers: ACTION_HEADERS })).text();
+		expect(await move('1', '2')).toContain('déjà validée');
+		expect(await move('3', '5')).toContain('jour libre');
+		expect(await db.userWorkoutDay.count({ where: { userId: user.id, dayIndex: { in: [2, 5] } } })).toBe(0);
+
+		// Dans le planning, la séance validée n'est plus déplaçable par le geste.
+		await page.goto('/user/sport?semaine=1');
+		await expect(page.locator('[data-day-slot="1"].movable-slot')).toHaveCount(0);
+		await expect(page.locator('[data-day-slot="3"].movable-slot')).toHaveCount(1);
 	});
 });
 

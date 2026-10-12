@@ -52,7 +52,8 @@ function log(level: LogLevel, context: string, ...args: unknown[]) {
 /*  Utils                                                                     */
 /* -------------------------------------------------------------------------- */
 
-const bucket = new RefillingTokenBucket<string>(100, 1); // 100 req / 1 s
+// 100 requêtes d'avance par IP, puis 1 par seconde ; RATE_LIMIT_MAX relève le plafond (tests e2e : toutes les requêtes viennent d'une seule IP).
+const bucket = new RefillingTokenBucket<string>(Number(process.env.RATE_LIMIT_MAX) || 100, 1);
 
 function clientIP(event: Parameters<Handle>[0]['event']): string {
 	const xff = event.request.headers.get('x-forwarded-for');

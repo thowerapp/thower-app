@@ -36,11 +36,11 @@ export const actions: Actions = {
 		const form = await superValidate(formData, zod(totpCodeSchema));
 
 		if (!form.valid) {
-			return message(form, 'Données invalides.');
+			return message(form, 'Données invalides.', { status: 400 });
 		}
 
 		if (locals.session === null || locals.user === null) {
-			return message(form, 'Session expirée : reconnectez-vous.');
+			return message(form, 'Session expirée : reconnectez-vous.', { status: 400 });
 		}
 
 		if (
@@ -48,27 +48,27 @@ export const actions: Actions = {
 			!locals.user.registered2FA ||
 			locals.session.twoFactorVerified
 		) {
-			return message(form, 'Action non autorisée.');
+			return message(form, 'Action non autorisée.', { status: 400 });
 		}
 
 		if (!totpBucket.check(locals.user.id, 1)) {
-			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 		}
 
 		const code = formData.get('code');
 		if (typeof code !== 'string') {
-			return message(form, 'Champs manquants ou invalides.');
+			return message(form, 'Champs manquants ou invalides.', { status: 400 });
 		}
 		if (code === '') {
-			return message(form, 'Saisissez votre code.');
+			return message(form, 'Saisissez votre code.', { status: 400 });
 		}
 		if (!totpBucket.consume(locals.user.id, 1)) {
-			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 		}
 
 		const totpKey = await getUserTOTPKey(locals.user.id);
 		if (totpKey === null) {
-			return message(form, 'Action non autorisée.');
+			return message(form, 'Action non autorisée.', { status: 400 });
 		}
 
 		try {

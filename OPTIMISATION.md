@@ -61,7 +61,7 @@ Branche `optimisation` (ne jamais fusionner avec `main`). État au 2026-10-11, v
 10. [x] **T-c** Rattrapage dans le cron existant (`/api/cron/daily-notification`, `maxDuration: 60`) : `catchUpProgramGenerations` relance au plus 5 comptes par passage (accès valide, mensurations présentes, et `FAILED`, `RUNNING` au-delà du bail ou jours générés < jours alloués). Sélection pure testée (`selectCatchUpCandidates`). Le résultat figure dans la réponse JSON du cron (`generation`).
 
 **Reste ouvert**
-- [ ] **T-d** 12 candidats par créneau : valider la qualité des journées sur des profils réels (avec les tests d'intégration).
+- [ ] **T-d** 12 candidats par créneau : qualité des journées vérifiée sur 91 jours pour plusieurs profils par `dayPlanner.spec.ts` ; à revoir seulement si le catalogue de production grossit fortement.
 
 ## 4. Tests à écrire
 

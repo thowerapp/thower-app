@@ -27,7 +27,7 @@ Les bibliothèques de vidéos Découverte (`/user/decouverte`), la page Progress
 |---|---|
 | **R1** La page affiche le jour du programme et un barème conforme aux points réellement attribués (séance 50, vidéo 10, photos 50, bilan mensuel 50 ; tâches selon la tâche). | `R1` |
 | **R2** À partir du mois 2, le bilan mensuel s'enregistre une fois par mois (mois 1 à 3 par cycle ; 4 à 6 au cycle 2) et rapporte 50 points. Un second envoi le même mois est refusé. | `R2` |
-| Le niveau et le statut se calculent à partir du total de points et du taux de complétion. | non couvert en e2e |
+| **R3** Le niveau et le statut se calculent à partir de la part des points possibles obtenus (tâches actives des jours écoulés + bilans mensuels) : seuils 0, 86, 90, 94, 98 et 100 %. | `R3` |
 
 ### Paramètres
 

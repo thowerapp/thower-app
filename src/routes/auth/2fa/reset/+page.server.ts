@@ -3,7 +3,7 @@ import { fail, redirect } from '@sveltejs/kit';
 
 import type { Actions, RequestEvent } from './$types';
 import { message, superValidate } from 'sveltekit-superforms';
-import { verifyCodeSchema } from '$lib/schema/auth/verifyCodeSchema';
+import { recoveryCodeSchema } from '$lib/schema/auth/recoveryCodeSchema';
 import { zod } from '$lib/superforms-zod';
 
 export const load = async (event: RequestEvent) => {
@@ -21,7 +21,7 @@ export const load = async (event: RequestEvent) => {
 	if (event.locals.session.twoFactorVerified) {
 		return redirect(302, '/auth/');
 	}
-	const verifyCodeForm = await superValidate(event, zod(verifyCodeSchema));
+	const verifyCodeForm = await superValidate(event, zod(recoveryCodeSchema));
 	return { verifyCodeForm };
 };
 
@@ -30,34 +30,34 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const code = formData.get('code');
 
-		const form = await superValidate(formData, zod(verifyCodeSchema));
+		const form = await superValidate(formData, zod(recoveryCodeSchema));
 
 		if (event.locals.session === null || event.locals.user === null) {
-			return message(form, 'Session expirée : reconnectez-vous.');
+			return message(form, 'Session expirée : reconnectez-vous.', { status: 400 });
 		}
 		if (
 			!event.locals.user.emailVerified ||
 			!event.locals.user.registered2FA ||
 			event.locals.session.twoFactorVerified
 		) {
-			return message(form, 'Action non autorisée.');
+			return message(form, 'Action non autorisée.', { status: 400 });
 		}
 		if (!recoveryCodeBucket.check(event.locals.user.id, 1)) {
-			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 		}
 
 		if (typeof code !== 'string') {
-			return message(form, 'Champs manquants ou invalides.');
+			return message(form, 'Champs manquants ou invalides.', { status: 400 });
 		}
 		if (code === '') {
-			return message(form, 'Saisissez votre code.');
+			return message(form, 'Saisissez votre code.', { status: 400 });
 		}
 		if (!recoveryCodeBucket.consume(event.locals.user.id, 1)) {
-			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 		}
 		const valid = await resetUser2FAWithRecoveryCode(event.locals.user.id, code);
 		if (!valid) {
-			return message(form, 'Code de récupération incorrect.');
+			return message(form, 'Code de récupération incorrect.', { status: 400 });
 		}
 		recoveryCodeBucket.reset(event.locals.user.id);
 		if (event.locals.user.isMfaEnabled) {

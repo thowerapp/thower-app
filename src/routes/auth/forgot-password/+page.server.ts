@@ -42,20 +42,20 @@ export const actions: Actions = {
 
 		const clientIP = event.request.headers.get('X-Forwarded-For');
 		if (clientIP !== null && !ipBucket.check(clientIP, 1)) {
-			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 		}
 
 		const user = await getUserFromEmail(email);
 
 		if (user === null) {
-			return message(form, 'Aucun compte avec cet email.');
+			return message(form, 'Aucun compte avec cet email.', { status: 400 });
 		}
 		if (clientIP !== null && !ipBucket.consume(clientIP, 1)) {
-			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 		}
 
 		if (!userBucket.consume(user.id, 1)) {
-			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 		}
 
 		await invalidateUserPasswordResetSessions(user.id);
@@ -85,7 +85,12 @@ export const actions: Actions = {
 
 		// console.log('Password reset session created:', session);
 
-		await sendPasswordResetEmail(session.email, session.code);
+		try {
+			await sendPasswordResetEmail(session.email, session.code);
+		} catch (err) {
+			console.error('[auth/forgot-password] envoi du code', err);
+			return message(form, 'L’envoi de l’email a échoué, réessayez.', { status: 500 });
+		}
 
 		setPasswordResetSessionTokenCookie(event, sessionToken, session.expiresAt);
 

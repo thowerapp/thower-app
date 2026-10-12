@@ -35,7 +35,8 @@ export class RefillingTokenBucket<_Key> {
 		}
 		const refill = Math.floor((now - bucket.refilledAt) / (this.refillIntervalSeconds * 1000));
 		bucket.count = Math.min(bucket.count + refill, this.max);
-		bucket.refilledAt = now;
+		// L'horloge n'avance que des jetons rendus : sinon un trafic régulier (moins d'un intervalle entre deux appels) ne recharge jamais le seau.
+		bucket.refilledAt = bucket.count >= this.max ? now : bucket.refilledAt + refill * this.refillIntervalSeconds * 1000;
 		if (bucket.count < cost) {
 			return false;
 		}

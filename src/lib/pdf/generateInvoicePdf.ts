@@ -1,13 +1,20 @@
 import type { Transaction } from '@prisma/client';
 
-async function getBase64Image(url: string): Promise<string> {
-	const response = await fetch(url);
-	const blob = await response.blob();
-	return new Promise((resolve) => {
-		const reader = new FileReader();
-		reader.onloadend = () => resolve(reader.result as string);
-		reader.readAsDataURL(blob);
-	});
+/** Logo en base64, ou null s'il est introuvable : la facture doit se générer sans lui. */
+/** Logo en base64, ou null s'il est introuvable : la facture doit se générer sans lui. */
+async function getBase64Image(url: string): Promise<string | null> {
+	try {
+		const response = await fetch(url);
+		if (!response.ok || !response.headers.get('content-type')?.startsWith('image/')) return null;
+		const blob = await response.blob();
+		return await new Promise((resolve) => {
+			const reader = new FileReader();
+			reader.onloadend = () => resolve(reader.result as string);
+			reader.readAsDataURL(blob);
+		});
+	} catch {
+		return null;
+	}
 }
 
 /** Génère et déclenche le téléchargement du PDF de facture pour une transaction. */
@@ -31,7 +38,7 @@ export async function generateInvoicePdf(transaction: Transaction): Promise<void
 	doc.setFont('helvetica', 'bold');
 	doc.text('FACTURE', 105, 20, { align: 'center' });
 
-	doc.addImage(logoBase64, 'PNG', 10, 10, 60, 20);
+	if (logoBase64) doc.addImage(logoBase64, 'PNG', 10, 10, 60, 20);
 
 	doc.setFontSize(10);
 	doc.setFont('helvetica', 'normal');

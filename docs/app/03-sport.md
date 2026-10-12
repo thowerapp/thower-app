@@ -20,8 +20,8 @@ Le planning hebdomadaire (`/user/sport`) et les séances vidéo (`/user/sport/se
 | **S2** Une séance se déplace vers un jour libre de la même semaine ; elle garde les vidéos de son jour d'origine. Un déplacement vers une autre semaine est refusé. | `S2` |
 | **S3** Une personnalisation posée par l'admin (ici masquer une séance) ne concerne que l'utilisateur visé : les autres voient le plan normal. | `S3` |
 | **S4** Sans l'offre Sport, le planning renvoie vers la souscription (`?besoin=sport`). | `S4` |
-| Une séance déjà validée ne se déplace pas ; le jour cible doit être libre. | non couvert en e2e |
-| Le geste d'appui long et de glisser. | non couvert (testé par l'action directement) |
+| **S9** Le geste d'appui long puis glisser vers un jour libre déplace la séance ; un appui court ouvre la séance sans rien déplacer. | `S9` |
+| **S10** Une séance déjà validée ne se déplace pas, on ne dépose pas sur un jour occupé, et la séance validée n'est plus déplaçable par le geste. | `S10` |
 | Les types Séance 1 / 2 / 3 posés par l'admin fixent l'ordre ; un jour sans type prend le premier rang libre. | couvert en tests unitaires |
 
 ### Séance et validation
@@ -48,5 +48,5 @@ Le planning hebdomadaire (`/user/sport`) et les séances vidéo (`/user/sport/se
 
 ## Écarts connus
 
-- **Jeton de lecture en test** : le serveur appelle l'API Cloudflare avec un identifiant factice (refusé, sans effet) ; le lecteur affiche « Impossible de générer le token de lecture ». Les tests simulent le visionnage par l'API de progression.
+- **Visionnage en test** : le lecteur n'est pas joué ; les tests simulent le visionnage par l'API de progression. Le jeton de lecture est servi par le faux Cloudflare (zone 6, `CF1`).
 - **Nombre de semaines** : un programme qui ne démarre pas un lundi (cas d'un départ modifié par l'admin) compte 14 semaines calendaires, dont une première partielle.

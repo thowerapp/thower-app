@@ -144,7 +144,7 @@ async function verifyCode(event: RequestEvent) {
 			log('sendVerificationEmail (expired) failed', err);
 			return message(form, 'Ce code a expiré et l’envoi d’un nouveau code a échoué : réessayez avec « Renvoyer le code ».', { status: 500 });
 		}
-		return message(form, 'Ce code a expiré : un nouveau code vient de vous être envoyé.');
+		return message(form, 'Ce code a expiré : un nouveau code vient de vous être envoyé.', { status: 400 });
 	}
 
 	if (verificationRequest.code !== code) {

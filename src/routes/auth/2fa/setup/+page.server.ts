@@ -59,24 +59,24 @@ export const actions: Actions = {
 
 		if (event.locals.session === null || event.locals.user === null) {
 			console.warn('Utilisateur non authentifié ou session inexistante');
-			return message(form, 'Session expirée : reconnectez-vous.');
+			return message(form, 'Session expirée : reconnectez-vous.', { status: 400 });
 		}
 		if (!event.locals.user.emailVerified) {
 			console.warn('Email non vérifié pour l’utilisateur:', event.locals.user.email);
-			return message(form, 'Vérifiez d’abord votre email.');
+			return message(form, 'Vérifiez d’abord votre email.', { status: 400 });
 		}
 		if (event.locals.user.registered2FA && !event.locals.session.twoFactorVerified) {
 			console.warn('2FA déjà configurée pour l’utilisateur:', event.locals.user.id);
-			return message(form, 'La double authentification est déjà activée.');
+			return message(form, 'La double authentification est déjà activée.', { status: 400 });
 		}
 		if (!totpUpdateBucket.check(event.locals.user.id, 1)) {
 			console.warn('Trop de tentatives pour l’utilisateur:', event.locals.user.id);
-			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 		}
 
 		if (!form.valid) {
 			console.warn('Échec de la validation du formulaire:', form.errors);
-			return message(form, 'Données invalides.');
+			return message(form, 'Données invalides.', { status: 400 });
 		}
 
 		const encodedTOTPKey = form.data.encodedTOTPKey as string;
@@ -86,7 +86,7 @@ export const actions: Actions = {
 
 		if (encodedTOTPKey.length !== 28) {
 			console.warn('Longueur de la clé encodée invalide:', encodedTOTPKey.length);
-			return message(form, 'Clé de double authentification invalide : recommencez.');
+			return message(form, 'Clé de double authentification invalide : recommencez.', { status: 400 });
 		}
 
 		let key: Uint8Array;
@@ -95,12 +95,12 @@ export const actions: Actions = {
 			//console.log('Clé décodée avec succès:', key);
 		} catch (error) {
 			console.error('Erreur lors du décodage de la clé:', error);
-			return message(form, 'Clé de double authentification invalide : recommencez.');
+			return message(form, 'Clé de double authentification invalide : recommencez.', { status: 400 });
 		}
 
 		if (key.byteLength !== 20) {
 			console.warn('Longueur de la clé invalide:', key.byteLength);
-			return message(form, 'Clé de double authentification invalide : recommencez.');
+			return message(form, 'Clé de double authentification invalide : recommencez.', { status: 400 });
 		}
 
 		try {
@@ -109,7 +109,7 @@ export const actions: Actions = {
 
 			if (!isValid) {
 				console.warn('Code TOTP invalide pour la clé:', key);
-				return message(form, 'Code de double authentification incorrect.');
+				return message(form, 'Code de double authentification incorrect.', { status: 400 });
 			}
 			//console.log('Code TOTP valide.');
 		} catch (error) {

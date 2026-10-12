@@ -42,34 +42,34 @@ export const actions: Actions = {
 		// console.log(form, 'oiuhoiuh');
 
 		if (session === null) {
-			return message(form, 'Session expirée : reconnectez-vous.');
+			return message(form, 'Session expirée : reconnectez-vous.', { status: 400 });
 		}
 		if (session.emailVerified) {
-			return message(form, 'Action non autorisée.');
+			return message(form, 'Action non autorisée.', { status: 400 });
 		}
 		if (!bucket.check(session.userId, 1)) {
-			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 		}
 
 		const { code } = form.data;
 
 		if (typeof code !== 'string') {
-			return message(form, 'Champs manquants ou invalides.');
+			return message(form, 'Champs manquants ou invalides.', { status: 400 });
 		}
 		if (code === '') {
-			return message(form, 'Saisissez votre code.');
+			return message(form, 'Saisissez votre code.', { status: 400 });
 		}
 		if (!bucket.consume(session.userId, 1)) {
-			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+			return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 		}
 		if (code !== session.code) {
-			return message(form, 'Code incorrect.');
+			return message(form, 'Code incorrect.', { status: 400 });
 		}
 		bucket.reset(session.userId);
 		setPasswordResetSessionAsEmailVerified(session.id);
 		const emailMatches = setUserAsEmailVerifiedIfEmailMatches(session.userId, session.email);
 		if (!emailMatches) {
-			return message(form, 'Recommencez la procédure depuis le début.');
+			return message(form, 'Recommencez la procédure depuis le début.', { status: 400 });
 		}
 		return redirect(302, '/auth/reset-password/2fa');
 	}

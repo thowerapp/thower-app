@@ -28,7 +28,7 @@ Le cadencier de 91 jours (`/user/nutrition/cadencier`), la fiche du jour, le cho
 | La génération planifie 91 jours de 3 repas, sans recette identique le même jour ni sur 3 jours consécutifs. | couvert en intégration et en tests unitaires |
 | Un repas déjà mangé ou saisi à la main n'est jamais recalculé. | couvert en tests unitaires |
 | Changer de poids ou de profil recalcule les portions encore à venir. | couvert en tests unitaires |
-| La page de choix d'un repas n'affiche que les recettes compatibles avec les allergies et aliments à éviter. | non couvert en e2e |
+| **N10** La page de choix d'un repas n'affiche que les recettes compatibles avec les allergies et aliments à éviter (aucune recette avec un allergène déclaré ni contenant l'aliment évité). | `N10` |
 
 ### Courses et recettes
 

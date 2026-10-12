@@ -94,6 +94,38 @@ test.describe('Cadencier', () => {
 		}
 	});
 
+	test('N10 · le choix d’un repas ne propose que des recettes compatibles avec les allergies et aliments à éviter', async ({ page, context, request }) => {
+		const user = await createOnboardedUser({ dayIndex: 3 });
+		await generateNutritionPlan(request, user.id);
+		const recipes = await db.recipe.findMany({ where: { category: 'MEAL', active: true }, include: { ingredients: true } });
+		const hasFish = (r: (typeof recipes)[number]) => normalizeAllergens(r.allergens).includes('poisson');
+		expect(recipes.some(hasFish), 'le catalogue contient des recettes avec poisson').toBe(true);
+
+		// Un aliment à éviter, pris dans une recette sans poisson : on retient le plus rare, pour qu'il reste beaucoup de recettes compatibles.
+		const firstWord = (name: string) => name.split(' ')[0].toLowerCase();
+		const counts = new Map<string, number>();
+		for (const r of recipes) {
+			for (const word of new Set(r.ingredients.map((i) => firstWord(i.name)).filter((w) => w.length >= 4))) counts.set(word, (counts.get(word) ?? 0) + 1);
+		}
+		const candidates = recipes.filter((r) => !hasFish(r)).flatMap((r) => r.ingredients.map((i) => firstWord(i.name))).filter((w) => (counts.get(w) ?? 0) >= 1 && w.length >= 4);
+		const term = candidates.sort((x, y) => (counts.get(x) ?? 0) - (counts.get(y) ?? 0) || x.localeCompare(y))[0];
+		await db.userProfile.update({ where: { userId: user.id }, data: { allergens: ['poisson'], disgustingFoods: term } });
+		const conflicts = (r: (typeof recipes)[number]) =>
+			hasFish(r) || r.name.toLowerCase().includes(term.toLowerCase()) || r.ingredients.some((i) => i.name.toLowerCase().includes(term.toLowerCase()));
+
+		await loginAs(context, user.id);
+		await page.goto('/user/nutrition/cadencier/3/edit-meal/lunch');
+		const safe = recipes.filter((r) => !conflicts(r));
+		// Attendre que la liste soit affichée : au moins une recette compatible apparaît.
+		await expect
+			.poll(async () => { const t = await page.locator('body').innerText(); return safe.some((r) => t.includes(r.name.slice(0, 25))); }, { timeout: 30_000 })
+			.toBe(true);
+		const text = await page.locator('body').innerText();
+		const shown = (r: (typeof recipes)[number]) => text.includes(r.name.slice(0, 25));
+		for (const recipe of recipes.filter(conflicts)) expect(shown(recipe), `${recipe.name} ne doit pas être proposée`).toBe(false);
+		expect(recipes.filter((r) => !conflicts(r)).some(shown), 'au moins une recette compatible est proposée').toBe(true);
+	});
+
 	test('N6 · sans l’offre nutrition, la nutrition renvoie vers la souscription', async ({ page, context }) => {
 		const user = await createOnboardedUser({ offerSlugs: ['sport'], nutritionDaysAllocated: 0 });
 		await loginAs(context, user.id);

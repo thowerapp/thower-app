@@ -36,33 +36,35 @@
 	</div>
 
 	<form method="POST" action="?/updateUser" use:enhance class="space-y-6">
+		<input type="hidden" name="id" value={userSelected.id ?? ''} />
+		<input type="hidden" name="role" value={$form.role ?? 'CLIENT'} />
 		<div class="space-y-4">
 			<h2 class="text-lg font-semibold">Profil</h2>
 			<Form.Field name="email" form={updateUserForm}>
 				<Form.Control>
 					<Form.Label>Email</Form.Label>
-					<Input type="email" bind:value={$form.email} />
+					<Input type="email" name="email" bind:value={$form.email} />
 				</Form.Control>
 				<Form.FieldErrors />
 			</Form.Field>
 			<Form.Field name="username" form={updateUserForm}>
 				<Form.Control>
 					<Form.Label>Nom d'utilisateur</Form.Label>
-					<Input value={$form.username ?? ''} oninput={(e) => ($form.username = e.currentTarget.value || null)} placeholder="Optionnel" />
+					<Input name="username" value={$form.username ?? ''} oninput={(e) => ($form.username = e.currentTarget.value || null)} placeholder="Optionnel" />
 				</Form.Control>
 				<Form.FieldErrors />
 			</Form.Field>
 			<Form.Field name="name" form={updateUserForm}>
 				<Form.Control>
 					<Form.Label>Nom</Form.Label>
-					<Input value={$form.name ?? ''} oninput={(e) => ($form.name = e.currentTarget.value || null)} placeholder="Optionnel" />
+					<Input name="name" value={$form.name ?? ''} oninput={(e) => ($form.name = e.currentTarget.value || null)} placeholder="Optionnel" />
 				</Form.Control>
 				<Form.FieldErrors />
 			</Form.Field>
 			<Form.Field name="picture" form={updateUserForm}>
 				<Form.Control>
 					<Form.Label>Photo (URL)</Form.Label>
-					<Input value={$form.picture ?? ''} oninput={(e) => ($form.picture = e.currentTarget.value || null)} placeholder="Optionnel" />
+					<Input name="picture" value={$form.picture ?? ''} oninput={(e) => ($form.picture = e.currentTarget.value || null)} placeholder="Optionnel" />
 				</Form.Control>
 				<Form.FieldErrors />
 			</Form.Field>
@@ -96,6 +98,7 @@
 					<Form.Label>2FA activé</Form.Label>
 					<input
 						type="checkbox"
+						name="isMfaEnabled"
 						checked={Boolean($form.isMfaEnabled)}
 						onchange={(e) => ($form.isMfaEnabled = e.currentTarget.checked)}
 						aria-label="2FA"
@@ -108,6 +111,7 @@
 					<Form.Label>Email vérifié</Form.Label>
 					<input
 						type="checkbox"
+						name="emailVerified"
 						checked={Boolean($form.emailVerified)}
 						onchange={(e) => ($form.emailVerified = e.currentTarget.checked)}
 						aria-label="Email vérifié"
@@ -123,7 +127,7 @@
 							>Minimum 8 caractères, majuscule, minuscule, chiffre et caractère spécial</span
 						>
 					</Form.Label>
-					<Input type="password" bind:value={$form.passwordHash} placeholder="••••••••" />
+					<Input type="password" name="passwordHash" bind:value={$form.passwordHash} placeholder="••••••••" />
 				</Form.Control>
 				<Form.FieldErrors />
 			</Form.Field>
@@ -135,6 +139,7 @@
 					<Form.Label>Fin d'abonnement</Form.Label>
 					<Input
 						type="datetime-local"
+						name="subscriptionEndsAt"
 						value={$form.subscriptionEndsAt ?? ''}
 						oninput={(e) => ($form.subscriptionEndsAt = e.currentTarget.value || null)}
 						placeholder="Optionnel"

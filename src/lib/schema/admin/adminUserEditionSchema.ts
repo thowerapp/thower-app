@@ -71,7 +71,7 @@ export const adminProgramSettingsSchema = z.object({
 
 export const adminUserProfileSchema = z.object({
 	id: z.string(),
-	activityLevel: activityLevelEnum.optional(),
+	activityLevel: z.preprocess((val) => (val === '' ? undefined : val), activityLevelEnum.optional()),
 	objectives: z.preprocess(parseStringArray, z.array(z.string())).default([]),
 	painsPathologies: optionalString,
 	contextParticular: optionalString,
@@ -99,7 +99,10 @@ export const adminUserProfileSchema = z.object({
 		}
 		return val;
 	}, z.unknown().optional()),
-	shoppingListSortOrder: z.enum(['category', 'alphabetical']).optional(),
+	shoppingListSortOrder: z.preprocess(
+		(val) => (val === '' ? undefined : val),
+		z.enum(['category', 'alphabetical']).optional()
+	),
 	stressLevel: optionalInt(1, 10),
 	sleepQuality: optionalInt(1, 10),
 	bodyConfidence: optionalInt(1, 10),

@@ -93,6 +93,28 @@ test.describe('Progression', () => {
 		await expect(page.locator('.u-li').filter({ hasText: 'Séance validée' })).toContainText('+50 pts');
 	});
 
+	test('R3 · niveau et statut : part des points possibles obtenus (tâches actives des jours écoulés + bilans)', async ({ page, context }) => {
+		await createDailyTask({ label: 'Tâche e2e', points: 10 });
+		// Jour 40, mois 2 : 40 jours × 10 points de tâche + 1 bilan mensuel (50) = 450 points possibles.
+		const user = await createOnboardedUser({ dayIndex: 40 });
+		await loginAs(context, user.id);
+
+		const cases = [
+			{ points: 0, name: 'Gland de chêne', level: 1, percent: 0 },
+			{ points: 387, name: 'Éponge molle', level: 2, percent: 86 },
+			{ points: 405, name: 'Bambou Furieux', level: 3, percent: 90 },
+			{ points: 450, name: 'Titan Légendaire', level: 6, percent: 100 }
+		];
+		for (const { points, name, level, percent } of cases) {
+			await db.pointEvent.deleteMany({ where: { userId: user.id } });
+			if (points > 0) await db.pointEvent.create({ data: { userId: user.id, type: 'WORKOUT_COMPLETE', amount: points } });
+			await page.goto('/user/progression');
+			await expect(page.locator('.ph-level'), `${points} points`).toHaveText(name);
+			await expect(page.locator('.ph-level-num')).toHaveText(`Niveau ${level}`);
+			await expect(page.locator('.ph-cursor-label')).toHaveText(`${percent}%`);
+		}
+	});
+
 	test('R2 · bilan mensuel du mois 2 : enregistré, 50 points, une seule fois', async ({ page, context }) => {
 		const user = await createOnboardedUser({ dayIndex: 40 });
 		await loginAs(context, user.id);

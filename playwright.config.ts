@@ -8,6 +8,8 @@ import { E2E_BASE_URL } from './e2e/support/config';
 export default defineConfig({
 	testDir: 'e2e',
 	// Une seule base partagée, vidée par les tests : exécution en série.
+	// Le serveur de dev compile les pages à la volée : un test ponctuellement trop lent est rejoué une fois.
+	retries: 1,
 	workers: 1,
 	fullyParallel: false,
 	timeout: 180_000,

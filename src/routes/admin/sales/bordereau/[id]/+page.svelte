@@ -33,8 +33,7 @@
 	}
 
 	$effect(() => {
-		setTimeout(generatePDF, 10);
-		goto('/admin/sales/');
+		generatePDF().finally(() => goto('/admin/sales/'));
 	});
 </script>
 

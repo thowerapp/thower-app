@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Aucun secret : les tests tournent sur une base MongoDB éphémère et un environnement factice (e2e/env/.env).
+jobs:
+  check-and-unit:
+    name: Types et tests unitaires
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Les types de $env/static/private viennent de l'environnement : valeurs factices des tests.
+      - run: |
+          set -a; . ./e2e/env/.env; set +a
+          npm run check
+      # URL factice : aucun test unitaire ne doit atteindre une vraie base.
+      - run: npm run test:unit -- --run
+        env:
+          DATABASE_URL: mongodb://127.0.0.1:1/dummy
+
+  integration:
+    name: Tests d'intégration (MongoDB éphémère)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:integration
+
+  e2e:
+    name: Tests de bout en bout (Playwright)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

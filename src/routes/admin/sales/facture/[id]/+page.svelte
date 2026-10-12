@@ -11,8 +11,7 @@
 	});
 
 	$effect(() => {
-		generateInvoicePdf(data.transaction);
-		goto('/admin/sales');
+		generateInvoicePdf(data.transaction).finally(() => goto('/admin/sales'));
 	});
 </script>
 

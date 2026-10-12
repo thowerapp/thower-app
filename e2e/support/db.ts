@@ -2,11 +2,16 @@
  * Accès direct à la base éphémère des tests e2e : préparation des données et vérifications.
  * Jamais la base du .env (garde-fou `assertE2eDatabase`).
  */
-import { randomBytes } from 'node:crypto';
+import { createCipheriv, createHmac, randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { hash } from '@node-rs/argon2';
 import { PrismaClient, type Role } from '@prisma/client';
 import type { BrowserContext } from '@playwright/test';
 import Stripe from 'stripe';
+import { generateTOTP } from '@oslojs/otp';
+import { decodeBase64 } from '@oslojs/encoding';
+import { ObjectId } from 'mongodb';
 import { E2E_BASE_URL, E2E_DATABASE_URL, E2E_STRIPE_WEBHOOK_SECRET, assertE2eDatabase } from './config';
 import {
 	addDaysCivil,
@@ -51,6 +56,7 @@ export async function createUser(options: UserOptions = {}) {
 			email: options.email ?? uniqueEmail(),
 			username: 'Testeur',
 			passwordHash,
+			recoveryCode: encryptLikeApp(Buffer.from(randomBytes(10).toString('hex').toUpperCase().slice(0, 16))).toString('base64'),
 			role: options.role ?? 'CLIENT',
 			emailVerified: options.emailVerified ?? true,
 			programStartDate: options.programStartDate ?? null,
@@ -203,4 +209,72 @@ export async function createSportPlan(days: SportDay[]) {
 		};
 	}
 	return { program, sessions, videos };
+}
+
+
+/** Valeur d'une variable de l'environnement factice des tests (e2e/env/.env). */
+function fakeEnv(name: string): string {
+	const file = readFileSync(path.join(process.cwd(), 'e2e', 'env', '.env'), 'utf8');
+	const match = new RegExp(`^${name}=(.*)$`, 'm').exec(file);
+	if (!match) throw new Error(`${name} absent de e2e/env/.env`);
+	return match[1].trim();
+}
+
+/** Même chiffrement que `src/lib/lucia/encryption.ts` (AES-128-GCM : iv, texte, tag). */
+function encryptLikeApp(data: Uint8Array): Buffer {
+	const iv = randomBytes(16);
+	const cipher = createCipheriv('aes-128-gcm', decodeBase64(fakeEnv('ENCRYPTION_KEY')), iv);
+	const ciphertext = Buffer.concat([cipher.update(data), cipher.final()]);
+	return Buffer.concat([iv, ciphertext, cipher.getAuthTag()]);
+}
+
+/** Active la double authentification d'un compte : clé TOTP (base64, comme l'écran de configuration) et code de récupération. */
+export async function enableTwoFactor(userId: string) {
+	const totpKey = randomBytes(20);
+	const recoveryCode = 'RECUP' + randomBytes(6).toString('hex').toUpperCase().slice(0, 11);
+	await db.user.update({
+		where: { id: userId },
+		data: {
+			isMfaEnabled: true,
+			totpKey: encryptLikeApp(totpKey),
+			recoveryCode: encryptLikeApp(Buffer.from(recoveryCode)).toString('base64')
+		}
+	});
+	return { encodedTotpKey: totpKey.toString('base64'), recoveryCode };
+}
+
+/** Code à 6 chiffres que l'application d'authentification afficherait maintenant. */
+export function totpCode(encodedTotpKey: string): string {
+	return generateTOTP(decodeBase64(encodedTotpKey), 30, 6);
+}
+
+/** Session de réinitialisation de mot de passe + cookie (équivaut à avoir soumis « Mot de passe oublié »). */
+export async function startPasswordReset(
+	context: BrowserContext,
+	userId: string,
+	options: { emailVerified?: boolean; twoFactorVerified?: boolean; expiresAt?: Date } = {}
+) {
+	const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
+	const id = new ObjectId().toHexString();
+	const code = 'RESET' + randomBytes(2).toString('hex').toUpperCase().slice(0, 3);
+	await db.passwordResetSession.create({
+		data: {
+			id,
+			userId,
+			email: user.email,
+			code,
+			expiresAt: options.expiresAt ?? new Date(Date.now() + 15 * 60_000),
+			emailVerified: options.emailVerified ?? false,
+			twoFactorVerified: options.twoFactorVerified ?? false
+		}
+	});
+	await context.addCookies([{ name: 'password_reset_session', value: id, url: E2E_BASE_URL, httpOnly: true, sameSite: 'Lax' }]);
+	return { id, code };
+}
+
+
+/** En-tête `Webhook-Signature` de Cloudflare Stream pour le secret factice (e2e/env/.env). */
+export function signStreamWebhook(body: string, time = Math.floor(Date.now() / 1000)): string {
+	const sig = createHmac('sha256', fakeEnv('CLOUDFLARE_STREAM_WEBHOOK_SECRET')).update(`${time}.${body}`).digest('hex');
+	return `time=${time},sig1=${sig}`;
 }

@@ -51,35 +51,35 @@ async function totpAction(event: RequestEvent) {
 	const form = await superValidate(formData, zod(totpCodeSchema));
 
 	if (session === null) {
-		return message(form, 'Session expirée : reconnectez-vous.');
+		return message(form, 'Session expirée : reconnectez-vous.', { status: 400 });
 	}
 	if (!session.emailVerified || !user.registered2FA || session.twoFactorVerified) {
-		return message(form, 'Action non autorisée.');
+		return message(form, 'Action non autorisée.', { status: 400 });
 	}
 	if (!totpBucket.check(session.userId, 1)) {
-		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 	}
 
 	const code = formData.get('code');
 	if (typeof code !== 'string') {
-		return message(form, 'Champs manquants ou invalides.');
+		return message(form, 'Champs manquants ou invalides.', { status: 400 });
 	}
 	if (code === '') {
-		return message(form, 'Saisissez votre code.');
+		return message(form, 'Saisissez votre code.', { status: 400 });
 	}
 	const totpKey = await getUserTOTPKey(session.userId);
 	if (totpKey === null) {
-		return message(form, 'Action non autorisée.');
+		return message(form, 'Action non autorisée.', { status: 400 });
 	}
 	if (!totpBucket.consume(session.userId, 1)) {
-		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 	}
 
 	try {
 		const isValid = verifyTOTP(totpKey, 30, 6, code);
 
 		if (!isValid) {
-			return message(form, 'Code de double authentification incorrect.');
+			return message(form, 'Code de double authentification incorrect.', { status: 400 });
 		}
 	} catch (error) {
 		return message(form, 'Erreur serveur, réessayez.', { status: 500 });
@@ -97,32 +97,32 @@ async function recoveryCodeAction(event: RequestEvent) {
 	const form = await superValidate(formData, zod(recoveryCodeSchema));
 
 	if (session === null) {
-		return message(form, 'Session expirée : reconnectez-vous.');
+		return message(form, 'Session expirée : reconnectez-vous.', { status: 400 });
 	}
 	if (!session.emailVerified || !user.registered2FA || session.twoFactorVerified) {
-		return message(form, 'Action non autorisée.');
+		return message(form, 'Action non autorisée.', { status: 400 });
 	}
 
 	if (!recoveryCodeBucket.check(session.userId, 1)) {
-		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 	}
 
 	const { code } = form.data;
 
 	if (typeof code !== 'string') {
-		return message(form, 'Champs manquants ou invalides.');
+		return message(form, 'Champs manquants ou invalides.', { status: 400 });
 	}
 	if (code === '') {
-		return message(form, 'Saisissez votre code.');
+		return message(form, 'Saisissez votre code.', { status: 400 });
 	}
 	if (!recoveryCodeBucket.consume(session.userId, 1)) {
-		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.');
+		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 400 });
 	}
 
 	const valid = await resetUser2FAWithRecoveryCode(session.userId, code);
 
 	if (!valid) {
-		return message(form, 'Code incorrect.');
+		return message(form, 'Code incorrect.', { status: 400 });
 	}
 
 	recoveryCodeBucket.reset(session.userId);

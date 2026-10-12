@@ -61,7 +61,7 @@
 
 		const doc = new jsPDF();
 		doc.setFontSize(18);
-		doc.text("Chiffre d'affaires", 14, 20);
+		doc.text(`Chiffre d'affaires — ${data.company.brandName}`, 14, 20);
 		doc.setFontSize(10);
 		doc.text(`Période : ${startDate} au ${endDate}`, 14, 28);
 		doc.text(`Paiements encaissés : ${periodTransactions.length}`, 14, 35);

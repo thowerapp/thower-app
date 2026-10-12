@@ -21,6 +21,7 @@ Une règle sans test est signalée « non couvert ».
 | 6. Administration | [06-administration.md](06-administration.md) | `e2e/06-administration.spec.ts` |
 | 1 (suite). Sécurité du compte | [01-compte-et-demarrage.md](01-compte-et-demarrage.md) | `e2e/07-securite-du-compte.spec.ts` |
 | 1 et 6 (suite). Services externes | [01-compte-et-demarrage.md](01-compte-et-demarrage.md), [06-administration.md](06-administration.md) | `e2e/08-services-externes.spec.ts` |
+| 6 (suite). Fiche entreprise | [06-administration.md](06-administration.md) | `e2e/09-entreprise.spec.ts` |
 
 Les règles métier transverses (cycles de 91 jours, points, dates en heure de Paris) sont détaillées dans [`OPTIMISATION.md`](../../OPTIMISATION.md) tant qu'elles n'ont pas leur page.
 
@@ -30,7 +31,7 @@ Les règles métier transverses (cycles de 91 jours, points, dates en heure de P
 |---|---|---|
 | `npm run test:unit` | Logique pure, base simulée | ~1 min |
 | `npm run test:integration` | Logique serveur sur une vraie base MongoDB éphémère | ~40 s |
-| `npm run test:e2e` | 99 parcours dans un navigateur mobile (Pixel 7), sur les 6 zones | ~5 min |
+| `npm run test:e2e` | 104 parcours dans un navigateur mobile (Pixel 7), sur les 6 zones | ~5 min |
 
 `npx playwright test --ui` ouvre l'interface de Playwright (rejouer un test, voir chaque étape). Après un échec, `npx playwright show-report` affiche les captures et traces.
 

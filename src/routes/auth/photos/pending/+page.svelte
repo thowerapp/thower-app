@@ -70,7 +70,9 @@
 
 		<div class="footer">
 			<p class="support-text">
-				Besoin d'aide ? <a href="mailto:support@thower.app">Contacter le support</a>
+				Besoin d'aide ? <a href="mailto:{data.company.email ?? 'support@thower.app'}"
+					>Contacter le support</a
+				>
 			</p>
 		</div>
 	</div>

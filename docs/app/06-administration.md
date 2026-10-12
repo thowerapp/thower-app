@@ -38,8 +38,15 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 | **PDF2** Bordereau de paiement (admin) : PDF avec montant et client.                                                                                                          | `PDF2` |
 | **PDF3** Facture : le client télécharge la sienne, l'admin celle de n'importe quel client.                                                                                    | `PDF3` |
 | **PDF4** Un client ne peut pas télécharger la facture d'un autre client.                                                                                                      | `PDF4` |
+| **ENT1** Formulaire Admin > Entreprise : la fiche est enregistrée (SIRET, TVA et code APE normalisés) ; une valeur invalide est signalée sous le champ, sans perdre la saisie ni modifier la fiche. | `ENT1` |
+| **ENT2** Les mentions légales (éditeur, hébergeur, directeur de la publication), la politique de confidentialité (responsable du traitement, e-mail) et les pieds de page reprennent la fiche. | `ENT2` |
+| **ENT3** Sans fiche enregistrée, les pages restent servies avec le nom « Thower » et sans bloc hébergeur. | `ENT3` |
+| **ENT4** Les PDF reprennent la fiche : facture (raison sociale, adresse, SIRET, contact, mention de pied de facture, logo), bordereau et chiffre d'affaires. | `ENT4` |
+| **ENT5** Seul un admin peut modifier la fiche (403 sinon). | `ENT5` |
 
 ## Technique
+
+- **Fiche entreprise** : modèle `CompanyProfile` (une seule fiche, clé `main`), lue par `src/lib/server/company.ts` (cache 60 s, fiche par défaut si la base ne répond pas) et fournie à toutes les pages par `src/routes/+layout.server.ts` (`data.company`). Validation et mise en forme partagées : `src/lib/company/companyProfile.ts`. Formulaire : `src/routes/admin/entreprise`. Reprise : mentions légales, politique de confidentialité, pieds de page, e-mail de support, PDF.
 
 - **Accès** : layout `src/routes/admin/+layout.server.ts` pour les pages ; `adminWriteGuard` (`src/hooks.server.ts`) pour toute écriture sous `/admin/**` et `/api/admin/**`, car les actions ne passent pas par le layout.
 - **Fiche utilisateur** : `src/routes/admin/users/[id]/+page.server.ts` (une action par onglet) et `tabs/*.svelte`.
@@ -51,7 +58,7 @@ L'espace `/admin`, réservé au rôle `ADMIN` : tableau de bord, codes d'accès,
 - **Accueil en anglais** : « Latest Registrations », « Recent users who have joined the platform ».
 - **Arrêt du programme** : il est enregistré et affiché, mais ne décale pas les jours du programme de l'utilisateur.
 - **Personnalisation sport** : le formulaire de la fiche utilisateur n'a pas été testé dans le navigateur ; le test passe par l'action.
-- **Facture** : l'émetteur s'appelle « Thower » ; son adresse (« 123 Rue des Affaires ») est une valeur de démonstration et son logo (`/Logo-xplicit.png`) est absent de `static/` : la facture se génère sans logo.
+- **Facture** : le logo se renseigne par son adresse (chemin du site ou https) ; il doit être en PNG ou JPEG, et la facture se génère sans lui s'il est absent ou illisible.
 - **Menu du rôle sur mobile** : la liste Admin / Client de l'onglet Compte s'ouvre hors de l'écran sur petit écran (les tests la commandent au clavier).
 - **Allergènes saisis à la main** : dans l'onglet Profil, un seul code inconnu vide toute la liste (le schéma remplace le tableau par `[]`) ; à remplacer par un refus explicite ou un sélecteur.
 

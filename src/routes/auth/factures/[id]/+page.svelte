@@ -12,7 +12,7 @@
 
 	$effect(() => {
 		// Quitter la page avant la fin de la génération la ferait avorter.
-		generateInvoicePdf(data.transaction).finally(() => goto('/auth/factures'));
+		generateInvoicePdf(data.transaction, data.company).finally(() => goto('/auth/factures'));
 	});
 </script>
 

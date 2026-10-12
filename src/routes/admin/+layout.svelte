@@ -15,7 +15,8 @@
 		{ title: 'Contact',             url: '/admin/contact' },
 		{ title: 'Vidéos',              url: '/admin/videos' },
 		{ title: 'Tâches journalières', url: '/admin/daily-tasks' },
-		{ title: 'Codes d\'accès',      url: '/admin/codes' }
+		{ title: 'Codes d\'accès',      url: '/admin/codes' },
+		{ title: 'Entreprise',          url: '/admin/entreprise' }
 	];
 </script>
 

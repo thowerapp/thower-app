@@ -6,7 +6,7 @@ Point au 12 octobre 2026, branche `optimisation` (à partir du commit `4ae3338`,
 
 - **Optimisations sport et nutrition terminées** : génération du cadencier en \~5 requêtes au lieu de \~550, verrou et reprise de génération, cache du plan sport, cycles de 91 jours pour les renouvellements, rattrapage automatique par le cron.
 - **Toute l'application est documentée** dans `docs/app/`, en 6 zones. Chaque règle renvoie au test qui la vérifie.
-- **391 tests automatisés passent** : 276 unitaires, 16 d'intégration sur une vraie base MongoDB éphémère, 99 de bout en bout (Playwright). Google, Stripe et Cloudflare sont joués par de faux services locaux : plus aucune zone n'est « non couverte ».
+- **415 tests automatisés passent** : 290 unitaires, 16 d'intégration sur une vraie base MongoDB éphémère, 104 de bout en bout (Playwright). Google, Stripe et Cloudflare sont joués par de faux services locaux : plus aucune zone n'est « non couverte ».
 - **Une trentaine de défauts trouvés en écrivant les tests ont été corrigés**, dont un défaut de sécurité alimentaire (allergies ignorées), des accès sans paiement, des codes de récupération 2FA inutilisables et une fiche utilisateur admin qui n'enregistrait rien.
 - **Reste à faire** : cinq actions de déploiement, puis les points « à explorer » ci-dessous.
 
@@ -59,11 +59,11 @@ Point au 12 octobre 2026, branche `optimisation` (à partir du commit `4ae3338`,
 
 ## À faire au déploiement
 
-1. `npx prisma db push`, **jamais** avec `--accept-data-loss`. Le schéma ajoute `user_sport_overrides`, `programGenStatus`, `programGenStartedAt`, `programGenFinishedAt`, `nutritionTargetsKey`, `programCycleStarts` et deux index. Vérifier ensuite la collection et les index.
+1. `npx prisma db push`, **jamais** avec `--accept-data-loss`. Le schéma ajoute `company_profiles`, `user_sport_overrides`, `programGenStatus`, `programGenStartedAt`, `programGenFinishedAt`, `nutritionTargetsKey`, `programCycleStarts` et deux index. Vérifier ensuite la collection et les index.
 2. Définir `CRON_SECRET` dans Vercel, sinon le cron (rappels push et rattrapage des générations) répond 401.
 3. Lancer `npm run migrate:checklist-dates`, qui affiche ce qu'il ferait, puis `npm run migrate:checklist-dates -- --apply` sur chaque base. On peut le relancer sans risque.
 4. Faire un paiement en mode test Stripe pour vérifier de bout en bout la vraie page de paiement (les tests utilisent un faux Stripe).
-5. Remplacer les valeurs de démonstration de la facture PDF : adresse de l'émetteur (« 123 Rue des Affaires ») et logo (`/Logo-xplicit.png` n'existe pas dans `static/`) ; le nom est maintenant « Thower ».
+5. Renseigner Admin > Entreprise (raison sociale, SIRET, adresse, e-mail, hébergeur, logo, mention de facture) : les mentions légales, la politique de confidentialité, les pieds de page et les PDF s'alimentent de cette fiche. Sans elle, les pages affichent seulement « Thower ».
 
 ## À explorer
 

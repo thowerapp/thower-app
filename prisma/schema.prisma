@@ -1117,3 +1117,45 @@ model PushSubscription {
   @@index([userId])
   @@map("push_subscriptions")
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ENTREPRISE — informations légales affichées sur le site et les PDF (une seule fiche)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model CompanyProfile {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  /// Clé fixe : une seule fiche (`main`).
+  key                 String   @unique @default("main")
+  /// Nom affiché sur le site, les e-mails et les PDF.
+  brandName           String   @default("Thower")
+  /// Raison sociale (mentions légales, factures).
+  legalName           String?
+  legalForm           String?
+  shareCapital        String?
+  siret               String?
+  rcs                 String?
+  vatNumber           String?
+  apeCode             String?
+  addressLine1        String?
+  addressLine2        String?
+  postalCode          String?
+  city                String?
+  country             String?
+  email               String?
+  phone               String?
+  website             String?
+  publicationDirector String?
+  hostName            String?
+  hostAddress         String?
+  hostWebsite         String?
+  /// URL du logo (chemin du site ou https), utilisé sur les factures.
+  logoUrl             String?
+  /// Mention de pied de facture (TVA, conditions de paiement…).
+  invoiceNote         String?
+  updatedAt           DateTime @updatedAt
+  updatedById         String?  @db.ObjectId
+
+  @@map("company_profiles")
+}
+

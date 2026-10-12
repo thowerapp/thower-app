@@ -16,7 +16,7 @@ import { ExpiringTokenBucket } from '$lib/lucia/rate-limit';
 import type { Actions, RequestEvent } from './$types';
 import { verifyCodeSchema } from '$lib/schema/auth/verifyCodeSchema';
 import { zod } from '$lib/superforms-zod';
-import { superValidate } from 'sveltekit-superforms';
+import { message, superValidate } from 'sveltekit-superforms';
 import { getUserByEmailPrisma } from '$lib/prisma/user/user';
 
 const bucket = new ExpiringTokenBucket<string>(5, 60 * 30);
@@ -82,10 +82,12 @@ export const actions: Actions = {
 
 async function verifyCode(event: RequestEvent) {
 	log('Action: verifyCode');
+	// Erreurs renvoyées au format superforms : le formulaire reste utilisable et affiche le message.
+	const form = await superValidate(event, zod(verifyCodeSchema));
 
 	if (event.locals.session === null || event.locals.user === null) {
 		log('No session/user in event');
-		return fail(401, { verify: { message: 'Not authenticated' } });
+		return message(form, 'Session expirée : reconnectez-vous.', { status: 401 });
 	}
 
 	if (
@@ -94,12 +96,12 @@ async function verifyCode(event: RequestEvent) {
 		!event.locals.session.twoFactorVerified
 	) {
 		log('MFA enabled but not verified');
-		return fail(403, { verify: { message: 'Forbidden' } });
+		return message(form, 'Validez d’abord la double authentification.', { status: 403 });
 	}
 
 	if (!bucket.check(event.locals.user.id, 1)) {
 		log('Rate limit pre-check failed');
-		return fail(429, { verify: { message: 'Too many requests' } });
+		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 429 });
 	}
 
 	let verificationRequest = await getUserEmailVerificationRequestFromRequest(event);
@@ -107,21 +109,19 @@ async function verifyCode(event: RequestEvent) {
 
 	if (verificationRequest === null) {
 		log('Missing verification request');
-		return fail(401, { verify: { message: 'Not authenticated' } });
+		return message(form, 'Demande de vérification introuvable : renvoyez le code.', { status: 401 });
 	}
 
-	const formData = await event.request.formData();
-	const code = formData.get('code');
-	log('Code received:', code);
-
-	if (typeof code !== 'string' || code === '') {
+	if (!form.valid) {
 		log('Code is invalid');
-		return fail(400, { verify: { message: 'Enter your code' } });
+		return message(form, 'Saisissez le code à 8 chiffres reçu par email.', { status: 400 });
 	}
+	const { code } = form.data;
+	log('Code received:', code);
 
 	if (!bucket.consume(event.locals.user.id, 1)) {
 		log('Rate limit consume failed');
-		return fail(429, { verify: { message: 'Too many requests' } });
+		return message(form, 'Trop de tentatives, réessayez dans quelques minutes.', { status: 429 });
 	}
 
 	if (Date.now() >= verificationRequest.expiresAt.getTime()) {
@@ -135,16 +135,12 @@ async function verifyCode(event: RequestEvent) {
 		await sendVerificationEmail(verificationRequest.email, verificationRequest.code);
 		log('sendVerificationEmail (expired) completed');
 		setEmailVerificationRequestCookie(event, verificationRequest);
-		return {
-			verify: {
-				message: 'The verification code was expired. We sent another code to your inbox.'
-			}
-		};
+		return message(form, 'Ce code a expiré : un nouveau code vient de vous être envoyé.');
 	}
 
 	if (verificationRequest.code !== code) {
 		log('Invalid code provided');
-		return fail(400, { verify: { message: 'Incorrect code.' } });
+		return message(form, 'Code incorrect.', { status: 400 });
 	}
 
 	log('Code valid → confirming email');

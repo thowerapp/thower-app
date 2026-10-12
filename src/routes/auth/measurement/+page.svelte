@@ -4,6 +4,7 @@
 	import { zodClient } from '$lib/superforms-zod';
 	import { toast } from 'svelte-sonner';
 	import { measurementSchema } from '$lib/schema/measurement/measurementSchema';
+	import type { ZodIssue } from 'zod';
 	import type { PageProps } from './$types';
 	import { wizardStepIn, wizardStepOut } from '$lib/animation/wizardStepTransition';
 	import { ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-svelte';
@@ -66,6 +67,26 @@
 		{ field: 'armCm', label: 'Tour de bras' }
 	] as const;
 
+	/** Étape du formulaire qui affiche chaque champ, pour y ramener l'utilisateur en cas d'erreur. */
+	const FIELD_STEP: Record<string, number> = {
+		frontUrl: 3, sideUrl: 3, backUrl: 3,
+		age: 5, heightCm: 5, weightKg: 5, bodyFatPercent: 5, waistCm: 5, chestCm: 5, armCm: 5,
+		activityLevel: 6, intermittentFastingMorning: 6,
+		painsPathologies: 7,
+		objectives: 8, weightLossGoalKg: 8, physicalObjective: 8, eventMotivation: 8,
+		kitchenEquipment: 9, breakfastEnabled: 9, breadDaily: 9, breadGramsPerDay: 9, breadType: 9,
+		breadManagement: 9, allergens: 9, otherAllergens: 9, disgustingFoods: 9,
+		sportActivity: 10, contextParticular: 10
+	};
+
+	const FIELD_LABELS: Record<string, string> = {
+		frontUrl: 'Photo de face', sideUrl: 'Photo de profil', backUrl: 'Photo de dos',
+		age: 'Âge', heightCm: 'Taille', weightKg: 'Poids', bodyFatPercent: 'Masse grasse',
+		waistCm: 'Tour de taille', chestCm: 'Tour de torse', armCm: 'Tour de bras',
+		activityLevel: 'Activité', weightLossGoalKg: 'Objectif de perte',
+		breadGramsPerDay: 'Pain par jour', breadType: 'Type de pain'
+	};
+
 	type BlockingValidationIssue = {
 		step: number;
 		message: string;
@@ -82,6 +103,14 @@
 		return !Number.isFinite(numberValue) || numberValue <= 0;
 	}
 
+	/** Messages zod par défaut (en anglais) traduits ; les messages personnalisés du schéma sont gardés. */
+	function issueMessage(issue: ZodIssue): string {
+		if (issue.code === 'too_big') return `${Number(issue.maximum)} au maximum`;
+		if (issue.code === 'too_small') return `${Number(issue.minimum)} au minimum`;
+		if (issue.code === 'invalid_type' || issue.code === 'invalid_enum_value') return 'valeur invalide';
+		return issue.message;
+	}
+
 	function getBlockingValidationIssue(): BlockingValidationIssue | null {
 		const d = $measurementData;
 		const invalidMorphologyFields = requiredMorphologyFields
@@ -92,6 +121,18 @@
 			return {
 				step: 5,
 				message: `Champs de morphologie manquants ou invalides : ${invalidMorphologyFields.join(', ')}. Merci de les renseigner avant d'enregistrer.`
+			};
+		}
+
+		// Même validation que l'envoi : sans ce contrôle, une erreur sur une étape non affichée
+		// bloquait « Enregistrer » sans aucun message.
+		const parsed = measurementSchema.safeParse(d);
+		if (!parsed.success) {
+			const issue = parsed.error.issues[0];
+			const field = String(issue.path[0] ?? '');
+			return {
+				step: FIELD_STEP[field] ?? currentStep,
+				message: `${FIELD_LABELS[field] ?? field} : ${issueMessage(issue)}. Corrige ce champ puis enregistre à nouveau.`
 			};
 		}
 

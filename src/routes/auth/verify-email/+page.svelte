@@ -40,6 +40,9 @@
 					</Form.Control>
 					<Form.FieldErrors />
 				</Form.Field>
+				{#if $verifyMessage}
+					<p class="mt-2 text-sm text-red-600" role="alert">{$verifyMessage}</p>
+				{/if}
 			</div>
 
 			<div class="mt-6">

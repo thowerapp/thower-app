@@ -28,3 +28,9 @@ vite.config.ts.timestamp-*
 # Local dev MongoDB (mongodb-memory-server)
 .mongo-data
 .mongo-libssl1.1
+
+# Environnement factice des tests e2e (aucun secret)
+!e2e/env/.env
+
+# Rapport HTML Playwright
+/playwright-report/

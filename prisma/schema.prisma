@@ -164,6 +164,8 @@ model User {
   /// Stop/Report activé par l’admin uniquement (maladie, blessure)
   programPausedAt            DateTime?
   programPausedReason        String?
+  /// Dernière ouverture de l'espace user (rafraîchie toutes les 15 min) — rappels push si inactif
+  lastSeenAt                DateTime?
   /// Statut de validation des photos d'inscription (bloque accès au formulaire de mesures)
   photoValidationStatus     PhotoValidationStatus      @default(PENDING)
   /// Quand l'admin a validé les photos et saisi le % de masse graisseuse

@@ -50,24 +50,25 @@ Ce scénario est géré par le layout (enregistrement via `virtual:pwa-register`
 - Envoyer une notification (backend ou outil type web-push) : elle doit s’afficher même si l’onglet est en arrière-plan.
 - Cliquer sur la notification : l’app doit s’ouvrir ou se focaliser et naviguer vers l’URL dans `data.url`.
 
-### 5. Rappel quotidien à 20h40
+### 5. Rappels si l’utilisateur ne s’est pas connecté (10h et 19h)
 
-- L’utilisateur qui clique sur « Notification de test » (Paramètres) enregistre aussi son abonnement push côté serveur.
-- Un cron Vercel appelle `/api/cron/daily-notification` à **20h40** (heure Paris, 19h40 UTC en hiver).
-- Le serveur envoie une Web Push à tous les abonnements enregistrés : la notification s’affiche même si l’app est fermée.
+- L’utilisateur active les notifications via « Activer les notifications » (Paramètres dans l’app, ou carte Notifications sur `/auth`) : la permission est demandée et l’abonnement push est enregistré côté serveur. À chaque ouverture de l’espace user, l’abonnement de l’appareil est rafraîchi si la permission est déjà accordée.
+- Chaque ouverture de l’espace `/user` met à jour `User.lastSeenAt` (au plus une écriture toutes les 15 min).
+- Deux crons Vercel appellent `/api/cron/daily-notification` à **8h et 17h UTC** (10h et 19h Paris en été, 9h et 18h en hiver).
+- Le serveur n’envoie la Web Push qu’aux utilisateurs qui **n’ont pas ouvert l’app depuis minuit (Paris)** : au plus 2 rappels par jour. Les abonnements expirés (404/410) sont supprimés.
 - **Variables d’environnement requises** (Vercel ou `.env`) :
   - `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY` : clés Web Push (générer avec `npx web-push generate-vapid-keys`).
-  - `CRON_SECRET` : secret partagé pour sécuriser l’appel au cron (Vercel envoie `Authorization: Bearer <CRON_SECRET>`).
+  - `CRON_SECRET` : obligatoire, sinon le cron répond 401 (Vercel envoie `Authorization: Bearer <CRON_SECRET>`).
 
 ### Pourquoi je ne reçois pas les notifications ?
 
 1. **Vercel (gratuit)** : les Cron Jobs sont inclus sur le plan Hobby. Pas besoin de payer. Sur le plan gratuit, l’exécution est « une fois par jour » avec une précision d’environ ±59 min.
 2. **Variables d’environnement** (Vercel → Project → Settings → Environment Variables) : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` et `CRON_SECRET` doivent être définis. Sinon l’abonnement ou l’envoi échoue.
 3. **Base de données** : exécuter `npx prisma db push` (ou les migrations) pour créer la collection des abonnements push.
-4. **Abonnement depuis le mobile** : pour recevoir sur ton téléphone, ouvre le site **en production (HTTPS)** sur ce téléphone, connecte-toi, puis clique sur « Notification de test » dans Paramètres. Chaque appareil enregistre son propre abonnement.
+4. **Abonnement depuis le mobile** : pour recevoir sur ton téléphone, ouvre le site **en production (HTTPS)** sur ce téléphone, connecte-toi, puis clique sur « Notifications » dans Paramètres. Chaque appareil enregistre son propre abonnement.
 5. **Test manuel** : ouvre dans un navigateur (sans être connecté au site) :  
    `https://ton-domaine.vercel.app/api/cron/daily-notification?secret=TON_CRON_SECRET`  
-   Tu devrais recevoir la notification sur les appareils abonnés. Vérifier dans les logs Vercel (Functions) la réponse `sent` / `failed` / `total`.
+   Tu devrais recevoir la notification sur les appareils abonnés **dont l’utilisateur n’est pas venu aujourd’hui**. Vérifier dans les logs Vercel (Functions) la réponse `sent` / `failed` / `total`.
 
 ## Build et déploiement
 

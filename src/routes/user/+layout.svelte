@@ -4,6 +4,10 @@ import type { LayoutData } from './$types';
 import { fireElement, registerSources } from '$lib/utils/particles';
 import { onMount } from 'svelte';
 import { computeThemeVars } from '$lib/utils/theme';
+import { computeLevel } from '$lib/utils/levels';
+import { notifyPoints, notifyLevelUp, notifyDayComplete } from '$lib/notify';
+import { isNotificationSupported, getNotificationPermission, subscribeToPushAndRegister } from '$lib/pwa/notifications';
+import DayPopupModal from '$lib/components/DayPopupModal.svelte';
 
 let { data, children } = $props<{ data: LayoutData; children: import('svelte').Snippet }>();
 
@@ -31,6 +35,29 @@ function handleNavClick(_e: MouseEvent) {
 
 // Les données de pending viennent du layout server
 const pending = $derived(data?.pending ?? { seance: false, tasks: 0, repas: false, photos: false, journee: false });
+
+// ── Notifications d'engagement ──
+// Chaque action (checklist, vidéo, séance) relance ce load via update()/invalidateAll() :
+// on compare avec la valeur précédente. Le premier rendu sert de référence (pas de toast au chargement).
+const dayDone = $derived(
+  pending.tasks === 0 && !((data?.programAccess?.sport ?? false) && pending.seance)
+);
+let prevPoints: number | null = null;
+let prevDayDone: boolean | null = null;
+
+$effect(() => {
+  const points = data?.totalPoints ?? 0;
+  const done = dayDone;
+  if (prevPoints !== null && points > prevPoints) {
+    notifyPoints(points - prevPoints);
+    const before = computeLevel(prevPoints).levelData;
+    const after = computeLevel(points).levelData;
+    if (after.num > before.num) notifyLevelUp(after.name);
+  }
+  if (prevDayDone === false && done) notifyDayComplete();
+  prevPoints = points;
+  prevDayDone = done;
+});
 
 const currentDayIndex = $derived(($page.data as { currentDayIndex?: number })?.currentDayIndex ?? 0);
 const themeStyle = $derived(computeThemeVars(currentDayIndex));
@@ -81,6 +108,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 onMount(() => {
+  // Rafraîchit l'abonnement push de cet appareil si les notifications sont déjà autorisées
+  if (isNotificationSupported() && getNotificationPermission() === 'granted') {
+    subscribeToPushAndRegister().catch(() => {});
+  }
+
   document.body.classList.add('user-app-mode');
   document.documentElement.classList.add('user-app-mode');
 
@@ -139,6 +171,8 @@ onMount(() => {
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#0d0d0d" />
 </svelte:head>
+
+<DayPopupModal popups={data?.dayPopups ?? []} />
 
 <div class="screen" style={themeStyle}>
   <div class="sbar"></div>

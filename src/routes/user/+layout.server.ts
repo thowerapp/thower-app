@@ -5,7 +5,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { prisma } from '$lib/server';
-import { getProgramOfferEntitlements } from '$lib/prisma';
+import { getProgramOfferEntitlements, getPopupsForDay } from '$lib/prisma';
 import { checkUserAppAccess } from '$lib/server/access';
 import { getBodyMeasurementsByUserId } from '$lib/prisma/bodyMeasurement/getBodyMeasurementsByUserId';
 import {
@@ -14,20 +14,32 @@ import {
 	startOfUtcDay
 } from '$lib/utils/programDay';
 
+const LAST_SEEN_THROTTLE_MS = 15 * 60 * 1000;
+
+type DayPopupData = { id: string; title: string | null; body: string | null; videoUrl: string | null };
+
 export const load: LayoutServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
 
 	const userId = locals.user.id;
 	const todayStart = startOfUtcDay();
 
-	const [bodyMeasurements, fetchedProgramAccess, user] = await Promise.all([
+	const [bodyMeasurements, fetchedProgramAccess, user, pointsSum] = await Promise.all([
 		getBodyMeasurementsByUserId(userId, 1),
 		getProgramOfferEntitlements(userId),
-		prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true } })
+		prisma.user.findUnique({ where: { id: userId }, select: { programStartDate: true, lastSeenAt: true } }),
+		prisma.pointEvent.aggregate({ where: { userId }, _sum: { amount: true } })
 	]);
 	const hasMeasurements = bodyMeasurements.length > 0;
+	const totalPoints = pointsSum._sum.amount ?? 0;
 
 	checkUserAppAccess(locals, hasMeasurements);
+
+	// Trace l'activité pour les rappels push (cron daily-notification) — au plus une écriture / 15 min
+	const now = new Date();
+	if (!user?.lastSeenAt || now.getTime() - user.lastSeenAt.getTime() > LAST_SEEN_THROTTLE_MS) {
+		await prisma.user.update({ where: { id: userId }, data: { lastSeenAt: now } }).catch(() => {});
+	}
 
 	const programAccess =
 		locals.user.role === 'ADMIN' ? { nutrition: true, sport: true } : fetchedProgramAccess;
@@ -53,14 +65,16 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 				programAwaitingStart,
 				programAccess,
 				optOutTaskIds: [] as string[],
-				completedTaskIds: [] as string[]
+				completedTaskIds: [] as string[],
+				totalPoints,
+				dayPopups: [] as DayPopupData[]
 			};
 		}
 
 		const currentMonth = Math.ceil(currentDayIndex / 30);
 
 		// Séance, tâches, repas et photos du jour sont indépendants : une seule vague de requêtes.
-		const [workoutDone, activeTasks, optOuts, todayCompletions, todayNutrition, photosTaken] =
+		const [workoutDone, activeTasks, optOuts, todayCompletions, todayNutrition, photosTaken, activeProgram] =
 			await Promise.all([
 				prisma.userWorkoutDay.findFirst({
 					where: { userId, dayIndex: currentDayIndex, completedAt: { not: null } },
@@ -84,8 +98,18 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 				}),
 				prisma.progressPhoto.count({
 					where: { userId, month: currentMonth }
-				})
+				}),
+				prisma.program.findFirst({ where: { active: true }, select: { id: true } })
 			]);
+
+		const dayPopups = activeProgram
+			? ((await getPopupsForDay(activeProgram.id, currentDayIndex)) as DayPopupData[]).map((p) => ({
+					id: p.id,
+					title: p.title,
+					body: p.body,
+					videoUrl: p.videoUrl
+				}))
+			: [];
 
 		const seancePending = workoutDone === null;
 
@@ -118,7 +142,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			programAwaitingStart: false,
 			programAccess,
 			optOutTaskIds,
-			completedTaskIds
+			completedTaskIds,
+			totalPoints,
+			dayPopups
 		};
 	} catch {
 		// En cas d'erreur DB (ex: programme pas encore initialisé), retours neutres
@@ -135,7 +161,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			programAwaitingStart: false,
 			programAccess,
 			optOutTaskIds: [] as string[],
-			completedTaskIds: [] as string[]
+			completedTaskIds: [] as string[],
+			totalPoints,
+			dayPopups: [] as DayPopupData[]
 		};
 	}
 };

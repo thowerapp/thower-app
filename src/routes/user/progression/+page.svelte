@@ -215,7 +215,7 @@ const checkInMetricsComplete = $derived(
         return async ({ result, update }) => {
           submitCheckInLoading = false;
           if (result.type === 'success') {
-            toast.success('Check-in soumis ! +50 points gagnés.');
+            toast.success('Check-in soumis !'); // le « +50 pts » est notifié par le layout user
             await update();
             // Réinitialiser le formulaire
             checkInMetrics = { stressLevel: '', sleepQuality: '', bodyConfidence: '', digestionQuality: '', happinessLevel: '', readinessToChange: '' };

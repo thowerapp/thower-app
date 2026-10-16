@@ -1,5 +1,39 @@
 ﻿<script lang="ts">
+	import { toast } from 'svelte-sonner';
+	import {
+		isNotificationSupported,
+		getNotificationPermission,
+		subscribeToPushAndRegister,
+		NOTIFICATION_DENIED_HELP
+	} from '$lib/pwa/notifications';
+
 	let { data } = $props();
+
+	let notificationSupported = $state(false);
+	let notificationPermission = $state<'default' | 'granted' | 'denied'>('default');
+	$effect(() => {
+		if (isNotificationSupported()) {
+			notificationSupported = true;
+			notificationPermission = getNotificationPermission();
+		}
+	});
+
+	async function enableNotifications() {
+		try {
+			await subscribeToPushAndRegister();
+			notificationPermission = 'granted';
+			toast.success('Notifications activées : rappel à 10h et 19h si tu ne viens pas.');
+		} catch (err) {
+			notificationPermission = getNotificationPermission();
+			toast.error(
+				notificationPermission === 'denied'
+					? NOTIFICATION_DENIED_HELP
+					: err instanceof Error
+						? err.message
+						: "Impossible d'activer les notifications."
+			);
+		}
+	}
 </script>
 
 <div class="u-back-row">
@@ -33,6 +67,16 @@
 <div class="li-b"><div class="li-t">Abonnement</div><div class="li-s">Plan actif</div></div>
 <div class="li-r"><div class="arr"></div></div>
 </a>
+
+{#if notificationSupported}
+<div class="li">
+<button type="button" class="logout-btn" onclick={enableNotifications}>
+<div class="li-th"><div style="width:10px;height:10px;background:var(--cy)"></div></div>
+<div class="li-b"><div class="li-t">Notifications</div><div class="li-s">{notificationPermission === 'granted' ? 'Activées · rappel 10h et 19h si tu ne viens pas' : 'Activer les rappels quotidiens'}</div></div>
+<div class="li-r"><div class="arr"></div></div>
+</button>
+</div>
+{/if}
 
 <form method="POST" action="/auth?/signout" class="li li-logout">
 <button type="submit" class="logout-btn">

@@ -21,6 +21,7 @@
 	import { pwaInstallPrompt } from '$lib/store/pwaInstallStore';
 	import {
 		showTestNotification,
+		subscribeToPushAndRegister,
 		isNotificationSupported,
 		getNotificationPermission,
 		NOTIFICATION_DENIED_HELP
@@ -58,9 +59,23 @@
 		}
 	}
 
+	async function handleEnableNotifications() {
+		try {
+			await subscribeToPushAndRegister();
+			notificationPermission = 'granted';
+			toast.success('Notifications activées : rappel à 10h et 19h si tu ne viens pas.');
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : "Impossible d'activer les notifications.";
+			notificationPermission = getNotificationPermission();
+			toast.error(notificationPermission === 'denied' ? NOTIFICATION_DENIED_HELP : msg);
+		}
+	}
+
 	let notificationPermission = $state<'default' | 'granted' | 'denied'>('default');
+	let notificationSupported = $state(false);
 	$effect(() => {
 		if (typeof window !== 'undefined' && isNotificationSupported()) {
+			notificationSupported = true;
 			notificationPermission = getNotificationPermission();
 		}
 	});
@@ -356,19 +371,23 @@
 					</div>
 
 					<!-- Notifications — visible si app complète -->
-					{#if false}
+					{#if notificationSupported}
 						<div class="card">
 							<div class="card-head">
 								<span class="card-icon"><Bell size={15} /></span>
 								<div>
 									<div class="card-title">Notifications</div>
-									<div class="card-desc">Rappel quotidien à 20h40</div>
+									<div class="card-desc">Rappel à 10h et 19h si tu ne t'es pas connecté</div>
 								</div>
 							</div>
 							<div class="card-body">
 								{#if notificationPermission === 'denied'}
 									<div class="alert-box">{NOTIFICATION_DENIED_HELP}</div>
 								{/if}
+								<button type="button" class="btn btn-teal w-full" onclick={handleEnableNotifications}>
+									<Bell size={14} />
+									{notificationPermission === 'granted' ? 'Notifications activées ✓' : 'Activer les notifications'}
+								</button>
 								<button type="button" class="btn btn-outline w-full" onclick={handleTestNotification}>
 									<Bell size={14} />
 									Notification de test

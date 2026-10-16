@@ -35,7 +35,7 @@ export interface SendPushOptions {
 export async function sendWebPush(
 	subscription: PushSubscriptionPayload,
 	payload: SendPushOptions
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; statusCode?: number }> {
 	ensureVapid();
 	const body = JSON.stringify({
 		title: payload.title ?? 'Thower',
@@ -55,6 +55,7 @@ export async function sendWebPush(
 		return { ok: true };
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
-		return { ok: false, error: message };
+		const statusCode = (err as { statusCode?: number })?.statusCode;
+		return { ok: false, error: message, statusCode };
 	}
 }

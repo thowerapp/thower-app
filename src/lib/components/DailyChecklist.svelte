@@ -42,7 +42,6 @@
 
   let checked = $state<Set<string>>(new Set());
   let submitting = $state(false);
-  let earnedFeedback = $state<number | null>(null);
   let errorMessage = $state<string | null>(null);
 
   // Points des tâches STANDARD cochées (soumises via le bouton)
@@ -115,13 +114,9 @@
       submitting = false;
       if (result.type === 'success' && result.data && 'pointsEarned' in result.data) {
         const pts = Number(result.data.pointsEarned ?? 0);
+        // Le toast « +X pts » est émis par le layout user après invalidation
         await update({ invalidateAll: true });
-        if (onSuccess) {
-          onSuccess(pts);
-        } else {
-          earnedFeedback = pts;
-          setTimeout(() => { earnedFeedback = null; }, 2800);
-        }
+        onSuccess?.(pts);
       } else {
         if (result.type === 'failure' && result.data && 'message' in result.data) {
           errorMessage = String(result.data.message ?? 'Une erreur est survenue.');
@@ -256,9 +251,6 @@
   {/if}
 </form>
 
-{#if earnedFeedback !== null}
-  <div class="dl-earned">+{earnedFeedback} pts gagnés !</div>
-{/if}
 
 {#if errorMessage !== null}
   <div class="dl-error">{errorMessage}</div>
@@ -389,18 +381,6 @@
   color: var(--txd);
   font-family: var(--fb);
   letter-spacing: 0.04em;
-}
-
-.dl-earned {
-  margin: 8px 14px 4px;
-  padding: 8px 12px;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--g);
-  border: 1px solid rgba(201, 168, 78, 0.35);
-  background: rgba(201, 168, 78, 0.08);
-  border-radius: 8px;
-  font-family: var(--fb);
 }
 
 .dl-error {

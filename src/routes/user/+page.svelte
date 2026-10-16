@@ -58,8 +58,6 @@ const checklistItems = $derived(
   }))
 );
 
-let earnedFeedback = $state<number | null>(null);
-
 const checklistPending = $derived(!checklistValidated);
 const sportPending = $derived(access.sport && pending.seance);
 const dailyCtaActive = $derived(checklistPending || sportPending);
@@ -84,9 +82,7 @@ const dailyCtaSubtitle = $derived(
 );
 const dailyCtaLabel = $derived(dailyCtaActive ? 'Compléter →' : 'Bravo →');
 
-function handleChecklistSuccess(pts: number) {
-  earnedFeedback = pts;
-  setTimeout(() => { earnedFeedback = null; }, 3200);
+function handleChecklistSuccess(_pts: number) {
   animateValue((v) => { animatedTotal = v; }, animatedTotal, data.totalPoints ?? 0, 950);
   animateValue((v) => { animatedBar = v; }, animatedBar, data.levelPercent ?? 0, 700);
 }
@@ -253,10 +249,6 @@ $effect(() => {
       <div class="ck-lvl-fill" style="width:{animatedBar}%"></div>
     </div>
   </div>
-
-  {#if earnedFeedback !== null}
-    <div class="ck-earned-popup">+{earnedFeedback} pts !</div>
-  {/if}
 </div>
 {/if}
 
@@ -393,19 +385,5 @@ $effect(() => {
   transition: width .8s cubic-bezier(.22,1,.36,1);
 }
 
-/* earned popup */
-.ck-earned-popup {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--fh2); font-size: 1.5rem; color: var(--cy);
-  text-shadow: 0 0 20px rgba(0,229,255,.5);
-  background: rgba(0,0,0,.55);
-  backdrop-filter: blur(4px);
-  animation: ckPop .3s ease-out, ckFade 2.7s 0.3s forwards;
-  pointer-events: none;
-  border-radius: var(--br2);
-}
-@keyframes ckPop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-@keyframes ckFade { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
 </style>
 

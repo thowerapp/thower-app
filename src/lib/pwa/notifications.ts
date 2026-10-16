@@ -60,7 +60,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 /**
  * Récupère la clé publique VAPID côté serveur et enregistre l’abonnement push.
- * Permet de recevoir les notifications à 21h30 même quand l’app est fermée.
+ * Permet de recevoir les rappels (10h / 19h si pas connecté) même quand l’app est fermée.
  */
 export async function subscribeToPushAndRegister(): Promise<void> {
 	if (!isNotificationSupported()) {
@@ -100,7 +100,7 @@ export async function subscribeToPushAndRegister(): Promise<void> {
  * Affiche une notification de test via le Service Worker.
  * Utilise l'enregistrement SW actif pour que la notification reste visible
  * même si l'onglet est en arrière-plan.
- * En cas de succès, enregistre aussi l’abonnement push pour le rappel quotidien à 21h30.
+ * En cas de succès, enregistre aussi l’abonnement push pour les rappels quotidiens.
  */
 export async function showTestNotification(options?: Partial<ShowNotificationOptions>): Promise<void> {
 	if (!isNotificationSupported()) {
@@ -121,7 +121,7 @@ export async function showTestNotification(options?: Partial<ShowNotificationOpt
 		badge: options?.icon ?? DEFAULT_ICON,
 		data: options?.data ?? { url: '/' }
 	});
-	// Enregistrer l’abonnement pour recevoir le rappel quotidien à 21h30 (même app fermée)
+	// Enregistrer l’abonnement pour recevoir les rappels quotidiens (même app fermée)
 	try {
 		await subscribeToPushAndRegister();
 	} catch {
